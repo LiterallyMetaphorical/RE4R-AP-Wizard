@@ -1,0 +1,621 @@
+{
+  "version": 1,
+  "item_count": 123,
+  "items": {
+    "42736575": {
+      "name": "Insignia Key x1",
+      "re4r_item_id": 119204800,
+      "count": 1
+    },
+    "104347270": {
+      "name": "CQBR Assault Rifle x20",
+      "re4r_item_id": 275478656,
+      "count": 20
+    },
+    "141231755": {
+      "name": "Attachable Mines x4",
+      "re4r_item_id": 117603200,
+      "count": 4
+    },
+    "146128197": {
+      "name": "Scratched Emerald x1",
+      "re4r_item_id": 120865600,
+      "count": 1
+    },
+    "203780881": {
+      "name": "Accessory: Stylish Mask x1",
+      "re4r_item_id": 124646400,
+      "count": 1
+    },
+    "214868457": {
+      "name": "Bolts x2",
+      "re4r_item_id": 112808000,
+      "count": 2
+    },
+    "258681200": {
+      "name": "Bolts x4",
+      "re4r_item_id": 112808000,
+      "count": 4
+    },
+    "352639030": {
+      "name": "Antique Pipe x1",
+      "re4r_item_id": 120814400,
+      "count": 1
+    },
+    "359093623": {
+      "name": "Golden Hourglass x1",
+      "re4r_item_id": 120824000,
+      "count": 1
+    },
+    "368103480": {
+      "name": "Alexandrite x1",
+      "re4r_item_id": 120838400,
+      "count": 1
+    },
+    "396050682": {
+      "name": "Silver Token x1",
+      "re4r_item_id": 119286400,
+      "count": 1
+    },
+    "414850128": {
+      "name": "Red x1",
+      "re4r_item_id": 124640000,
+      "count": 1
+    },
+    "457754278": {
+      "name": "Lithographic Stone D x1",
+      "re4r_item_id": 119270400,
+      "count": 1
+    },
+    "459975048": {
+      "name": "Handgun Ammo x20",
+      "re4r_item_id": 112800000,
+      "count": 20
+    },
+    "494594691": {
+      "name": "Gold Ingot x1",
+      "re4r_item_id": 120843200,
+      "count": 1
+    },
+    "511930758": {
+      "name": "Resource (Large) x1",
+      "re4r_item_id": 117601600,
+      "count": 1
+    },
+    "551833093": {
+      "name": "Hexagon Piece C x1",
+      "re4r_item_id": 119251200,
+      "count": 1
+    },
+    "569408376": {
+      "name": "Biosensor Scope x1",
+      "re4r_item_id": 116004800,
+      "count": 1
+    },
+    "612460856": {
+      "name": "Extravagant Clock x1",
+      "re4r_item_id": 122408000,
+      "count": 1
+    },
+    "617211728": {
+      "name": "Elegant Chessboard x1",
+      "re4r_item_id": 120827200,
+      "count": 1
+    },
+    "652308034": {
+      "name": "Submachine Gun Ammo x50",
+      "re4r_item_id": 112806400,
+      "count": 50
+    },
+    "654617985": {
+      "name": "Emerald x1",
+      "re4r_item_id": 120832000,
+      "count": 1
+    },
+    "656977786": {
+      "name": "Handgun Ammo x8",
+      "re4r_item_id": 112800000,
+      "count": 8
+    },
+    "659501534": {
+      "name": "Rifle Ammo x3",
+      "re4r_item_id": 112804800,
+      "count": 3
+    },
+    "671991005": {
+      "name": "Handgun Ammo x12",
+      "re4r_item_id": 112800000,
+      "count": 12
+    },
+    "673697542": {
+      "name": "Gunpowder x2",
+      "re4r_item_id": 117600000,
+      "count": 2
+    },
+    "885416727": {
+      "name": "Brown Chicken Egg x1",
+      "re4r_item_id": 277081856,
+      "count": 1
+    },
+    "915040027": {
+      "name": "Resources (Small) x1",
+      "re4r_item_id": 117606400,
+      "count": 1
+    },
+    "921567379": {
+      "name": "Bunch of Keys x1",
+      "re4r_item_id": 119275200,
+      "count": 1
+    },
+    "972234972": {
+      "name": "Golden Lynx x1",
+      "re4r_item_id": 122406400,
+      "count": 1
+    },
+    "1070734931": {
+      "name": "Elegant Bangle x1",
+      "re4r_item_id": 122416000,
+      "count": 1
+    },
+    "1078968599": {
+      "name": "Iluminados Pendant x1",
+      "re4r_item_id": 120820800,
+      "count": 1
+    },
+    "1128726829": {
+      "name": "Rifle Ammo x8",
+      "re4r_item_id": 112804800,
+      "count": 8
+    },
+    "1168238438": {
+      "name": "Shotgun Shells x3",
+      "re4r_item_id": 112803200,
+      "count": 3
+    },
+    "1210331884": {
+      "name": "Handgun Ammo x5",
+      "re4r_item_id": 112800000,
+      "count": 5
+    },
+    "1229012439": {
+      "name": "Dungeon Key x1",
+      "re4r_item_id": 119254400,
+      "count": 1
+    },
+    "1347656822": {
+      "name": "Depraved Idol x1",
+      "re4r_item_id": 120844800,
+      "count": 1
+    },
+    "1372324022": {
+      "name": "Hexagon Piece B x1",
+      "re4r_item_id": 119249600,
+      "count": 1
+    },
+    "1385661921": {
+      "name": "Boot Knife x1",
+      "re4r_item_id": 276440256,
+      "count": 1
+    },
+    "1401905497": {
+      "name": "Wellington x1",
+      "re4r_item_id": 124643200,
+      "count": 1
+    },
+    "1446550920": {
+      "name": "Elegant Mask x1",
+      "re4r_item_id": 122400000,
+      "count": 1
+    },
+    "1487112975": {
+      "name": "Mirror with Pearls & Rubies x1",
+      "re4r_item_id": 120822400,
+      "count": 1
+    },
+    "1491486916": {
+      "name": "Handgun Ammo x30",
+      "re4r_item_id": 112800000,
+      "count": 30
+    },
+    "1514729802": {
+      "name": "Handgun Ammo x7",
+      "re4r_item_id": 112800000,
+      "count": 7
+    },
+    "1581525943": {
+      "name": "Lion Head x1",
+      "re4r_item_id": 119222400,
+      "count": 1
+    },
+    "1669567494": {
+      "name": "Bolts x5",
+      "re4r_item_id": 112808000,
+      "count": 5
+    },
+    "1671399243": {
+      "name": "Boat Fuel x1",
+      "re4r_item_id": 119273600,
+      "count": 1
+    },
+    "1766814127": {
+      "name": "Splendid Bangle x1",
+      "re4r_item_id": 122409600,
+      "count": 1
+    },
+    "1791443381": {
+      "name": "Level 1 Keycard x1",
+      "re4r_item_id": 119211200,
+      "count": 1
+    },
+    "1798334688": {
+      "name": "Lithographic Stone C x1",
+      "re4r_item_id": 119268800,
+      "count": 1
+    },
+    "1834220951": {
+      "name": "Yellow Diamond x1",
+      "re4r_item_id": 120835200,
+      "count": 1
+    },
+    "1862471185": {
+      "name": "Ruby x1",
+      "re4r_item_id": 120830400,
+      "count": 1
+    },
+    "1906327026": {
+      "name": "Hexagon Piece A x1",
+      "re4r_item_id": 119248000,
+      "count": 1
+    },
+    "1965776713": {
+      "name": "Dynamite x1",
+      "re4r_item_id": 119236800,
+      "count": 1
+    },
+    "2010127242": {
+      "name": "Justitia Statue x1",
+      "re4r_item_id": 120848000,
+      "count": 1
+    },
+    "2013551872": {
+      "name": "Rifle Ammo x10",
+      "re4r_item_id": 112804800,
+      "count": 10
+    },
+    "2015447627": {
+      "name": "Serpent Head x1",
+      "re4r_item_id": 119225600,
+      "count": 1
+    },
+    "2100959641": {
+      "name": "Checkpoint Crank x1",
+      "re4r_item_id": 119246400,
+      "count": 1
+    },
+    "2134491726": {
+      "name": "Black Bass x1",
+      "re4r_item_id": 114417600,
+      "count": 1
+    },
+    "2164502607": {
+      "name": "Handgun Ammo x4",
+      "re4r_item_id": 112800000,
+      "count": 4
+    },
+    "2204308324": {
+      "name": "Gunpowder x4",
+      "re4r_item_id": 117600000,
+      "count": 4
+    },
+    "2206838959": {
+      "name": "Pearl Bangle x1",
+      "re4r_item_id": 120816000,
+      "count": 1
+    },
+    "2217291210": {
+      "name": "Velvet Blue x1",
+      "re4r_item_id": 120864000,
+      "count": 1
+    },
+    "2295140511": {
+      "name": "Fighting Knife x0",
+      "re4r_item_id": 276437056,
+      "count": 1
+    },
+    "2310309362": {
+      "name": "Méndez's False Eye x1",
+      "re4r_item_id": 120852800,
+      "count": 1
+    },
+    "2317863931": {
+      "name": "Crystal Ore x1",
+      "re4r_item_id": 120849600,
+      "count": 1
+    },
+    "2324378637": {
+      "name": "Small Key x1",
+      "re4r_item_id": 119244800,
+      "count": 1
+    },
+    "2328994552": {
+      "name": "Red Herb x1",
+      "re4r_item_id": 114401600,
+      "count": 1
+    },
+    "2351475899": {
+      "name": "Sapphire x1",
+      "re4r_item_id": 120833600,
+      "count": 1
+    },
+    "2417443590": {
+      "name": "Blue x1",
+      "re4r_item_id": 124641600,
+      "count": 1
+    },
+    "2442382199": {
+      "name": "Yellow Herb x1",
+      "re4r_item_id": 114403200,
+      "count": 1
+    },
+    "2475531310": {
+      "name": "Butterfly Lamp x1",
+      "re4r_item_id": 122403200,
+      "count": 1
+    },
+    "2498409783": {
+      "name": "Gold Token x1",
+      "re4r_item_id": 119288000,
+      "count": 1
+    },
+    "2543323800": {
+      "name": "Flash Grenade x1",
+      "re4r_item_id": 277078656,
+      "count": 1
+    },
+    "2582217593": {
+      "name": "Gunpowder x10",
+      "re4r_item_id": 117600000,
+      "count": 10
+    },
+    "2582766715": {
+      "name": "Brass Pocket Watch x1",
+      "re4r_item_id": 120809600,
+      "count": 1
+    },
+    "2601834280": {
+      "name": "Rhinoceros Beetle x1",
+      "re4r_item_id": 114424000,
+      "count": 1
+    },
+    "2613939803": {
+      "name": "Gold Bangle x1",
+      "re4r_item_id": 120819200,
+      "count": 1
+    },
+    "2768851234": {
+      "name": "Attachable Mines x5",
+      "re4r_item_id": 117603200,
+      "count": 5
+    },
+    "2774100122": {
+      "name": "Handgun Ammo x10",
+      "re4r_item_id": 112800000,
+      "count": 10
+    },
+    "2806905227": {
+      "name": "Rifle Ammo x4",
+      "re4r_item_id": 112804800,
+      "count": 4
+    },
+    "2820328595": {
+      "name": "Handgun Ammo x15",
+      "re4r_item_id": 112800000,
+      "count": 15
+    },
+    "2888050195": {
+      "name": "Level 3 Keycard x1",
+      "re4r_item_id": 119214400,
+      "count": 1
+    },
+    "2937574877": {
+      "name": "Vintage Compass x1",
+      "re4r_item_id": 120846400,
+      "count": 1
+    },
+    "2979536989": {
+      "name": "Shotgun Shells x5",
+      "re4r_item_id": 112803200,
+      "count": 5
+    },
+    "2996421434": {
+      "name": "Red Gemstone Ring x1",
+      "re4r_item_id": 120817600,
+      "count": 1
+    },
+    "3043978533": {
+      "name": "Heavy Grenade x1",
+      "re4r_item_id": 277077056,
+      "count": 1
+    },
+    "3062218041": {
+      "name": "Gold Bar (L) x1",
+      "re4r_item_id": 120841600,
+      "count": 1
+    },
+    "3064599675": {
+      "name": "Antique Camera x1",
+      "re4r_item_id": 120860800,
+      "count": 1
+    },
+    "3076045768": {
+      "name": "Staff of Royalty x1",
+      "re4r_item_id": 120828800,
+      "count": 1
+    },
+    "3078996540": {
+      "name": "Elegant Crown x1",
+      "re4r_item_id": 122404800,
+      "count": 1
+    },
+    "3091930671": {
+      "name": "Handgun Ammo x16",
+      "re4r_item_id": 112800000,
+      "count": 16
+    },
+    "3099953136": {
+      "name": "Halo Wheel x1",
+      "re4r_item_id": 119206400,
+      "count": 1
+    },
+    "3152993356": {
+      "name": "Gold Bar x1",
+      "re4r_item_id": 120840000,
+      "count": 1
+    },
+    "3263967379": {
+      "name": "Lithographic Stone B x1",
+      "re4r_item_id": 119267200,
+      "count": 1
+    },
+    "3264850340": {
+      "name": "Kitchen Knife x1",
+      "re4r_item_id": 276438656,
+      "count": 1
+    },
+    "3311002821": {
+      "name": "Gunpowder x3",
+      "re4r_item_id": 117600000,
+      "count": 3
+    },
+    "3315045920": {
+      "name": "Green Herb x1",
+      "re4r_item_id": 114400000,
+      "count": 1
+    },
+    "3322005405": {
+      "name": "Chalice of Atonement x1",
+      "re4r_item_id": 122411200,
+      "count": 1
+    },
+    "3340862733": {
+      "name": "Ornate Beetle x1",
+      "re4r_item_id": 120851200,
+      "count": 1
+    },
+    "3421455092": {
+      "name": "Elegant Perfume Bottle x1",
+      "re4r_item_id": 120825600,
+      "count": 1
+    },
+    "3457959937": {
+      "name": "Cubic Device x1",
+      "re4r_item_id": 119276800,
+      "count": 1
+    },
+    "3515208522": {
+      "name": "LE 5 x60",
+      "re4r_item_id": 275158656,
+      "count": 60
+    },
+    "3580942952": {
+      "name": "Rifle Ammo x2",
+      "re4r_item_id": 112804800,
+      "count": 2
+    },
+    "3584757178": {
+      "name": "Chicken Egg x1",
+      "re4r_item_id": 277080256,
+      "count": 1
+    },
+    "3630250794": {
+      "name": "Red Beryl x1",
+      "re4r_item_id": 120857600,
+      "count": 1
+    },
+    "3688870194": {
+      "name": "Gold Chicken Egg x1",
+      "re4r_item_id": 277083456,
+      "count": 1
+    },
+    "3733278404": {
+      "name": "Handgun Ammo x9",
+      "re4r_item_id": 112800000,
+      "count": 9
+    },
+    "3824283124": {
+      "name": "Ornate Necklace x1",
+      "re4r_item_id": 122412800,
+      "count": 1
+    },
+    "3838225701": {
+      "name": "Salazar Family Insignia x1",
+      "re4r_item_id": 119220800,
+      "count": 1
+    },
+    "3862385800": {
+      "name": "Flagon x1",
+      "re4r_item_id": 122401600,
+      "count": 1
+    },
+    "3910021636": {
+      "name": "Bloodied Sword x1",
+      "re4r_item_id": 119278400,
+      "count": 1
+    },
+    "3953430960": {
+      "name": "Submachine Gun Ammo x30",
+      "re4r_item_id": 112806400,
+      "count": 30
+    },
+    "3958133696": {
+      "name": "W-870 x5",
+      "re4r_item_id": 274995456,
+      "count": 5
+    },
+    "3974588439": {
+      "name": "Hand Grenade x1",
+      "re4r_item_id": 277075456,
+      "count": 1
+    },
+    "3982676783": {
+      "name": "Rifle Ammo x5",
+      "re4r_item_id": 112804800,
+      "count": 5
+    },
+    "4063988846": {
+      "name": "First Aid Spray x1",
+      "re4r_item_id": 114416000,
+      "count": 1
+    },
+    "4131203438": {
+      "name": "Goat Head x1",
+      "re4r_item_id": 119224000,
+      "count": 1
+    },
+    "4160710145": {
+      "name": "Level 2 Keycard x1",
+      "re4r_item_id": 119212800,
+      "count": 1
+    },
+    "4171742266": {
+      "name": "Gunpowder x5",
+      "re4r_item_id": 117600000,
+      "count": 5
+    },
+    "4205257849": {
+      "name": "Red9 x5",
+      "re4r_item_id": 274838656,
+      "count": 5
+    },
+    "4249727162": {
+      "name": "Elegant Headdress x1",
+      "re4r_item_id": 120812800,
+      "count": 1
+    },
+    "4262302934": {
+      "name": "Handgun Ammo x25",
+      "re4r_item_id": 112800000,
+      "count": 25
+    }
+  }
+}

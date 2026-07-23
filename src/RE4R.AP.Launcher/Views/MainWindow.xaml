@@ -1,0 +1,1684 @@
+<Window x:Class="RE4R.AP.Launcher.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:viewModels="clr-namespace:RE4R.AP.Launcher.ViewModels"
+        xmlns:converters="clr-namespace:RE4R.AP.Launcher.Infrastructure"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="RE4R AP Launcher"
+        Width="1360"
+        Height="860"
+        MinWidth="1100"
+        MinHeight="700">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter" />
+
+        <Style x:Key="StatusChipBorderStyle" TargetType="Border">
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="10,4" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+        </Style>
+
+        <Style x:Key="LandingButtonStyle" TargetType="Button">
+            <Setter Property="FontSize" Value="18" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="18,12" />
+            <Setter Property="Margin" Value="0,0,14,0" />
+            <Setter Property="MinWidth" Value="240" />
+            <Setter Property="MinHeight" Value="64" />
+        </Style>
+
+        <Style x:Key="BannerButtonStyle" TargetType="Button">
+            <Setter Property="Padding" Value="14,6" />
+            <Setter Property="Margin" Value="0,0,10,0" />
+        </Style>
+
+        <Style x:Key="GuidanceCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="#FFE0E0E0" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="14" />
+            <Setter Property="Margin" Value="0,0,0,12" />
+        </Style>
+
+        <Style x:Key="GuidanceButtonStyle" TargetType="Button">
+            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="Margin" Value="0,0,10,6" />
+        </Style>
+
+        <Style x:Key="GuidanceStepChipStyle" TargetType="Border">
+            <Setter Property="Width" Value="28" />
+            <Setter Property="Height" Value="28" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Background" Value="#FFE7E7E7" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+            <Setter Property="Margin" Value="0,0,10,0" />
+        </Style>
+
+        <Style x:Key="GuidanceStepTitleStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="17" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+
+        <!-- Setup Status: the launcher's FIRST screen (Cam's papercut #2 - it
+             was a collapsed expander strip above every screen). Same checks,
+             now a real screen with a Continue that is never gated: organizing
+             and YAML-building work without a game install, and Join stays
+             blocked by the landing's blocker banner regardless. -->
+        <DataTemplate DataType="{x:Type viewModels:SetupViewModel}">
+            <StackPanel>
+                <TextBlock FontSize="34"
+                           FontWeight="SemiBold"
+                           Text="Setup Status" />
+                <TextBlock Margin="0,8,0,0"
+                           Foreground="DimGray"
+                           TextWrapping="Wrap"
+                           Text="The launcher checks your RE4R install, REFramework, and the Archipelago mod here. Everything green means you're ready to patch and play." />
+
+                <Grid Margin="0,22,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="210" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="10" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="10" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="10" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="14" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="10" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="10" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="14" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock VerticalAlignment="Center"
+                               Text="RE4R Install Path" />
+                    <TextBox Grid.Column="1"
+                             MinWidth="520"
+                             Text="{Binding InstallPath, UpdateSourceTrigger=PropertyChanged}" />
+                    <Button Grid.Column="2"
+                            Margin="12,0,0,0"
+                            Padding="16,6"
+                            Command="{Binding BrowseCommand}"
+                            Content="Browse" />
+
+                    <TextBlock Grid.Row="2"
+                               VerticalAlignment="Top"
+                               Text="Detected Version" />
+                    <StackPanel Grid.Row="2"
+                                Grid.Column="1"
+                                Grid.ColumnSpan="2">
+                        <TextBlock FontWeight="SemiBold"
+                                   Text="{Binding DetectedGameVersionText}" />
+                        <TextBlock Margin="0,4,0,0"
+                                   Foreground="DimGray"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding FingerprintSummaryText}" />
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="4"
+                               VerticalAlignment="Center"
+                               Text="BioRand Game Version" />
+                    <ComboBox Grid.Row="4"
+                              Grid.Column="1"
+                              Width="240"
+                              ItemsSource="{Binding SupportedGameVersions}"
+                              SelectedItem="{Binding SelectedGameVersion, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <TextBlock Grid.Row="6"
+                               VerticalAlignment="Top"
+                               Text="Setup Status" />
+                    <TextBlock Grid.Row="6"
+                               Grid.Column="1"
+                               Grid.ColumnSpan="2"
+                               Foreground="DimGray"
+                               TextWrapping="Wrap"
+                               Text="{Binding SetupStatusText}" />
+
+                    <TextBlock Grid.Row="8"
+                               VerticalAlignment="Top"
+                               Text="REFramework" />
+                    <Grid Grid.Row="8"
+                          Grid.Column="1"
+                          Grid.ColumnSpan="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <Border Padding="8,2"
+                                    HorizontalAlignment="Left"
+                                    Background="{Binding ReFrameworkStatusBackground}"
+                                    CornerRadius="10">
+                                <TextBlock FontWeight="SemiBold"
+                                           Foreground="{Binding ReFrameworkStatusForeground}"
+                                           Text="{Binding ReFrameworkStatusLabel}" />
+                            </Border>
+                            <TextBlock Margin="0,6,0,0"
+                                       TextWrapping="Wrap"
+                                       Text="{Binding ReFrameworkStatusText}" />
+                        </StackPanel>
+                        <Button Grid.Column="1"
+                                Margin="12,0,0,0"
+                                Padding="16,6"
+                                Command="{Binding InstallReFrameworkCommand}"
+                                Content="Download &amp; Install REFramework"
+                                Visibility="{Binding ShowInstallReFrameworkButton, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    </Grid>
+
+                    <TextBlock Grid.Row="10"
+                               VerticalAlignment="Top"
+                               Text="Archipelago Lua Mod" />
+                    <Grid Grid.Row="10"
+                          Grid.Column="1"
+                          Grid.ColumnSpan="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <Border Padding="8,2"
+                                    HorizontalAlignment="Left"
+                                    Background="{Binding ArchipelagoLuaModStatusBackground}"
+                                    CornerRadius="10">
+                                <TextBlock FontWeight="SemiBold"
+                                           Foreground="{Binding ArchipelagoLuaModStatusForeground}"
+                                           Text="{Binding ArchipelagoLuaModStatusLabel}" />
+                            </Border>
+                            <TextBlock Margin="0,6,0,0"
+                                       TextWrapping="Wrap"
+                                       Text="{Binding ArchipelagoLuaModStatusText}" />
+                        </StackPanel>
+                        <Button Grid.Column="1"
+                                Margin="12,0,0,0"
+                                Padding="16,6"
+                                Command="{Binding InstallArchipelagoLuaModCommand}"
+                                Content="Install Archipelago Lua Mod"
+                                Visibility="{Binding ShowInstallArchipelagoLuaModButton, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    </Grid>
+
+                    <TextBlock Grid.Row="12"
+                               VerticalAlignment="Top"
+                               Text="Separate Ways DLC" />
+                    <StackPanel Grid.Row="12"
+                                Grid.Column="1"
+                                Grid.ColumnSpan="2">
+                        <Border Padding="8,2"
+                                HorizontalAlignment="Left"
+                                Background="{Binding SeparateWaysStatusBackground}"
+                                CornerRadius="10">
+                            <TextBlock FontWeight="SemiBold"
+                                       Foreground="{Binding SeparateWaysStatusForeground}"
+                                       Text="{Binding SeparateWaysStatusLabel}" />
+                        </Border>
+                        <TextBlock Margin="0,6,0,0"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding SeparateWaysStatusText}" />
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="14"
+                               VerticalAlignment="Top"
+                               Text="BioRand Cache" />
+                    <Grid Grid.Row="14"
+                          Grid.Column="1"
+                          Grid.ColumnSpan="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock VerticalAlignment="Center"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding BioRandCacheText}" />
+                        <Button Grid.Column="1"
+                                Margin="12,0,0,0"
+                                Padding="16,6"
+                                AutomationProperties.Name="Clear BioRand cache"
+                                Command="{Binding ClearBioRandCacheCommand}"
+                                Content="Clear Cache"
+                                IsEnabled="{Binding CanClearBioRandCache}" />
+                    </Grid>
+                </Grid>
+
+                <StackPanel Margin="0,26,0,0"
+                            Orientation="Horizontal">
+                    <Button Width="200"
+                            Padding="14,8"
+                            FontWeight="SemiBold"
+                            Command="{Binding ContinueCommand}"
+                            Content="Continue" />
+                </StackPanel>
+                <TextBlock Margin="0,10,0,0"
+                           Foreground="DimGray"
+                           TextWrapping="Wrap"
+                           Text="You can continue even while a check is failing - building your settings file and organizing a multiworld don't need the game install. Joining a session stays locked until the checks pass. Reopen this screen any time with the Setup Status button on the landing screen." />
+            </StackPanel>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type viewModels:LandingViewModel}">
+            <StackPanel>
+                <!-- Auto-surfaced session banner: reachable / asleep / unfinished patch -->
+                <Border Padding="16"
+                        Margin="0,0,0,18"
+                        Background="{Binding BannerBackground}"
+                        BorderBrush="{Binding BannerBorder}"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Visibility="{Binding IsBannerVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <StackPanel>
+                        <TextBlock FontSize="20"
+                                   FontWeight="SemiBold"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding BannerTitle}" />
+                        <TextBlock Margin="0,6,0,0"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding BannerBody}" />
+                        <StackPanel Margin="0,12,0,0"
+                                    Orientation="Horizontal">
+                            <Button Style="{StaticResource BannerButtonStyle}"
+                                    Command="{Binding FinishPatchCommand}"
+                                    Content="Finish Patching"
+                                    Visibility="{Binding ShowFinishPatch, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <Button Style="{StaticResource BannerButtonStyle}"
+                                    Command="{Binding RepatchCommand}"
+                                    Content="Re-Patch This Session"
+                                    Visibility="{Binding ShowRepatch, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <Button Style="{StaticResource BannerButtonStyle}"
+                                    Command="{Binding OpenRoomPageCommand}"
+                                    Content="Open Room Page"
+                                    Visibility="{Binding ShowOpenRoomPage, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <Button Style="{StaticResource BannerButtonStyle}"
+                                    Command="{Binding FixAddressCommand}"
+                                    Content="Fix Address Automatically"
+                                    Visibility="{Binding ShowFixAddress, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <Button Style="{StaticResource BannerButtonStyle}"
+                                    Command="{Binding ReconnectPrefillCommand}"
+                                    Content="Reconnect / Update Address"
+                                    Visibility="{Binding ShowReconnectPrefill, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <Button Style="{StaticResource BannerButtonStyle}"
+                                    Command="{Binding RetireCommand}"
+                                    Content="I'm Done With This Multiworld"
+                                    Visibility="{Binding ShowRetire, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Waiting-for-room-details draft strip -->
+                <Border Padding="14"
+                        Margin="0,0,0,18"
+                        Background="#FFEFF6FD"
+                        BorderBrush="#FFB7D4EE"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Visibility="{Binding IsDraftVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <StackPanel>
+                        <TextBlock TextWrapping="Wrap"
+                                   Text="{Binding DraftText}" />
+                        <StackPanel Margin="0,10,0,0"
+                                    Orientation="Horizontal">
+                            <Button Style="{StaticResource BannerButtonStyle}"
+                                    Command="{Binding DraftJoinCommand}"
+                                    Content="{Binding DraftPrimaryButtonText}" />
+                            <Button Style="{StaticResource BannerButtonStyle}"
+                                    Command="{Binding DraftEditCommand}"
+                                    Content="Edit My Settings" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- One question at a time (Cam 2026-07-12): role first, then
+                     the room-address artifact question for non-organizers. -->
+                <StackPanel Visibility="{Binding IsRoleStage, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock FontSize="30"
+                               FontWeight="SemiBold"
+                               TextWrapping="Wrap"
+                               Text="Are you organizing this multiworld, or is someone else?" />
+                    <TextBlock Margin="0,8,0,0"
+                               Foreground="DimGray"
+                               TextWrapping="Wrap"
+                               Text="The organizer collects everyone's settings files, generates the multiworld, and shares the room address." />
+                    <StackPanel Margin="0,18,0,0"
+                                Orientation="Horizontal">
+                        <Button Style="{StaticResource LandingButtonStyle}"
+                                Command="{Binding AnswerSomeoneElseCommand}"
+                                Content="Someone Else Is Organizing" />
+                        <Button Style="{StaticResource LandingButtonStyle}"
+                                Command="{Binding StartCreateCommand}"
+                                Content="I'm Organizing It" />
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Visibility="{Binding IsAddressStage, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock FontSize="30"
+                               FontWeight="SemiBold"
+                               TextWrapping="Wrap"
+                               Text="Did your organizer give you a room address?" />
+                    <TextBlock Margin="0,8,0,0"
+                               Foreground="DimGray"
+                               TextWrapping="Wrap"
+                               Text="It looks like archipelago.gg:38281 - your organizer sends it once the multiworld is generated." />
+                    <StackPanel Margin="0,18,0,0"
+                                Orientation="Horizontal">
+                        <Button Style="{StaticResource LandingButtonStyle}"
+                                Command="{Binding StartJoinCommand}"
+                                Content="Yes - Join My Multiworld" />
+                        <Button Style="{StaticResource LandingButtonStyle}"
+                                Command="{Binding StartConfigureYamlCommand}"
+                                Content="Not Yet - Set Up My YAML" />
+                    </StackPanel>
+                    <TextBlock Margin="0,10,0,0"
+                               Foreground="DimGray"
+                               TextWrapping="Wrap"
+                               Text="No room address yet? Build your RE4R settings file (YAML) and send it to whoever is organizing - they'll send back your room address and slot name." />
+                    <StackPanel Margin="0,16,0,0"
+                                Orientation="Horizontal">
+                        <Button Padding="10,4"
+                                Command="{Binding BackToRoleQuestionCommand}"
+                                Content="Back" />
+                    </StackPanel>
+                </StackPanel>
+
+                <TextBlock Margin="0,20,0,0"
+                           Foreground="DimGray"
+                           TextWrapping="Wrap"
+                           Text="For a solo randomized run, use BioRand directly instead - this launcher is for multiplayer Archipelago sessions." />
+
+                <Border Margin="0,12,0,0"
+                        Padding="12"
+                        Background="#FFF8E7E7"
+                        BorderBrush="#FFD9A8A8"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Visibility="{Binding HasBlockingIssues, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock VerticalAlignment="Center"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding BlockingIssuesText}" />
+                        <Button Grid.Column="1"
+                                Margin="12,0,0,0"
+                                Padding="10,4"
+                                VerticalAlignment="Center"
+                                Command="{Binding OpenSetupCommand}"
+                                Content="Open Setup Status" />
+                    </Grid>
+                </Border>
+
+                <StackPanel Margin="0,16,0,0"
+                            Orientation="Horizontal">
+                    <Button Padding="10,4"
+                            Command="{Binding OpenSetupCommand}"
+                            Content="Setup Status" />
+                </StackPanel>
+            </StackPanel>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type viewModels:ConfigureYamlViewModel}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="10" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="18" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TextBlock FontSize="34"
+                           FontWeight="SemiBold"
+                           Text="Configure Your RE4R YAML" />
+                <StackPanel Grid.Row="2">
+                    <TextBlock Foreground="DimGray"
+                               TextWrapping="Wrap"
+                               Text="{Binding FileExplainer}" />
+                    <TextBlock Margin="0,8,0,0"
+                               Foreground="DimGray"
+                               TextWrapping="Wrap"
+                               Text="{Binding HeaderDescription}" />
+                </StackPanel>
+
+                <Grid Grid.Row="4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="230" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="12" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="12" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="12" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="12" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="12" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="12" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="18" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock VerticalAlignment="Top"
+                               Margin="0,4,0,0"
+                               Text="Slot Name" />
+                    <StackPanel Grid.Column="1">
+                        <TextBox Text="{Binding SlotName, UpdateSourceTrigger=PropertyChanged}"
+                                 MaxLength="32" />
+                        <TextBlock Margin="0,4,0,0"
+                                   Foreground="#FFB71C1C"
+                                   TextWrapping="Wrap"
+                                   Visibility="{Binding HasSlotNameError, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                   Text="{Binding SlotNameError}" />
+                        <TextBlock Margin="0,4,0,0"
+                                   Foreground="DimGray"
+                                   TextWrapping="Wrap"
+                                   Text="Your in-game player name (16 characters max). You'll type this exact name when joining - capitalization matters." />
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="2"
+                               VerticalAlignment="Center"
+                               Text="Difficulty" />
+                    <ComboBox Grid.Row="2"
+                              Grid.Column="1"
+                              Width="220"
+                              HorizontalAlignment="Left"
+                              ItemsSource="{Binding DifficultyOptions}"
+                              SelectedItem="{Binding SelectedDifficulty, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <TextBlock Grid.Row="4"
+                               VerticalAlignment="Top"
+                               Text="Death Link" />
+                    <StackPanel Grid.Row="4"
+                                Grid.Column="1">
+                        <CheckBox IsChecked="{Binding DeathLink}"
+                                  Content="Enable Death Link" />
+                        <TextBlock Margin="0,6,0,0"
+                                   Foreground="DimGray"
+                                   TextWrapping="Wrap"
+                                   Text="Dying sends a death to all Death Link players." />
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="6"
+                               VerticalAlignment="Top"
+                               Text="Allow Missable Locations" />
+                    <StackPanel Grid.Row="6"
+                                Grid.Column="1">
+                        <CheckBox IsChecked="{Binding AllowMissableLocations}"
+                                  Content="Allow missable locations" />
+                        <TextBlock Margin="0,6,0,0"
+                                   Foreground="DimGray"
+                                   TextWrapping="Wrap"
+                                   Text="Off by default - progression items may be placed at locations that cannot be reached." />
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="8"
+                               VerticalAlignment="Top"
+                               Text="Randomize Gated Keys" />
+                    <StackPanel Grid.Row="8"
+                                Grid.Column="1">
+                        <CheckBox IsChecked="{Binding RandomizeGatedKeys}"
+                                  Content="Shuffle extra gate keys (no logic - playtesting)" />
+                        <TextBlock Margin="0,6,0,0"
+                                   Foreground="DimGray"
+                                   TextWrapping="Wrap"
+                                   Text="Off by default: the multiworld shuffles only the 16 milestone gate items (Boat Fuel, the Hexagon Pieces, Insignia Key, Checkpoint Crank, Dungeon Key, the Lithographic Stones, the Lion/Goat/Serpent Heads, Salazar Family Insignia, and the three Keycards) - protected by logic so every seed can be finished. Other locked-door keys (like the Cubic Device or the Bunch of Keys) stay at their normal spots and are not checks. Turning this on shuffles those extra keys too WITHOUT any logic: a key can land beyond the very door it opens, so seeds may be impossible to finish. Playtesting only." />
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="10"
+                               VerticalAlignment="Top"
+                               Text="Unlocked Typewriters" />
+                    <Border Grid.Row="10"
+                            Grid.Column="1"
+                            Padding="8"
+                            BorderBrush="#FFE0E0E0"
+                            BorderThickness="1"
+                            CornerRadius="8">
+                        <ScrollViewer MaxHeight="240"
+                                      VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding TypewriterOptions}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <CheckBox Margin="0,0,0,6"
+                                                  IsChecked="{Binding IsSelected}"
+                                                  Content="{Binding DisplayName}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Border>
+
+                    <TextBlock Grid.Row="12"
+                               Grid.ColumnSpan="2"
+                               Foreground="DimGray"
+                               TextWrapping="Wrap"
+                               Text="Your RE4R YAML updates automatically from these settings." />
+
+                    <StackPanel Grid.Row="14"
+                                Grid.ColumnSpan="2">
+                        <TextBlock FontWeight="SemiBold"
+                                   Text="YAML Preview" />
+                        <Border Margin="0,8,0,0"
+                                Padding="12"
+                                Background="#FFF8F8F8"
+                                BorderBrush="#FFE0E0E0"
+                                BorderThickness="1"
+                                CornerRadius="8">
+                            <TextBox Background="Transparent"
+                                     BorderThickness="0"
+                                     FontFamily="Consolas"
+                                     IsReadOnly="True"
+                                     Text="{Binding YamlPreview, Mode=OneWay}"
+                                     TextWrapping="Wrap"
+                                     AcceptsReturn="True" />
+                        </Border>
+
+                        <!-- Both buttons EXPORT the same file; the launcher already
+                             remembers these settings on its own (both commands persist
+                             the draft). The clarifier + action-named labels kill the
+                             "is Copy for the launcher and Save for the host?" confusion. -->
+                        <TextBlock Margin="0,14,0,0"
+                                   Foreground="DimGray"
+                                   TextWrapping="Wrap"
+                                   Text="The launcher remembers these settings automatically. Copy or save only when you need the file itself to hand off." />
+                        <StackPanel Margin="0,8,0,0"
+                                    Orientation="Horizontal">
+                            <Button Width="140"
+                                    Padding="14,8"
+                                    Command="{Binding BackToLandingCommand}"
+                                    Content="Back" />
+                            <Button Width="160"
+                                    Margin="12,0,0,0"
+                                    Padding="14,8"
+                                    Command="{Binding CopyYamlCommand}"
+                                    Content="Copy to Clipboard" />
+                            <Button Width="150"
+                                    Margin="12,0,0,0"
+                                    Padding="14,8"
+                                    Command="{Binding SaveYamlCommand}"
+                                    Content="Save to File..." />
+                        </StackPanel>
+
+                        <TextBlock Margin="0,10,0,0"
+                                   Foreground="DimGray"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding StatusText}" />
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type viewModels:GenerationGuidanceViewModel}">
+            <StackPanel MaxWidth="900"
+                        HorizontalAlignment="Left">
+                <TextBlock FontSize="34"
+                           FontWeight="SemiBold"
+                           Text="Organize a Multiworld" />
+                <TextBlock Margin="0,8,0,6"
+                           Foreground="DimGray"
+                           TextWrapping="Wrap"
+                           Text="Generating a multiworld happens on your own Archipelago install - this guide walks you through it one step at a time. Your progress is saved, so you can close the launcher and come back anytime." />
+                <TextBlock Margin="0,0,0,12"
+                           FontWeight="SemiBold"
+                           Text="{Binding StepProgressText}" />
+
+                <!-- Wizard step 1: Archipelago install -->
+                <Border Style="{StaticResource GuidanceCardStyle}"
+                        Visibility="{Binding IsStep1Visible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <StackPanel>
+                        <DockPanel>
+                            <Border Style="{StaticResource GuidanceStepChipStyle}">
+                                <TextBlock HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           FontWeight="SemiBold"
+                                           Text="1" />
+                            </Border>
+                            <TextBlock DockPanel.Dock="Right"
+                                       Margin="10,0,0,0"
+                                       VerticalAlignment="Center"
+                                       FontWeight="SemiBold"
+                                       Foreground="#FF11662D"
+                                       Text="✓ Done"
+                                       Visibility="{Binding Step1Done, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <TextBlock Style="{StaticResource GuidanceStepTitleStyle}">
+                                <Run Text="Install Archipelago " /><Run Text="{Binding ApVersionPin, Mode=OneWay}" />
+                            </TextBlock>
+                        </DockPanel>
+                        <TextBlock Margin="38,6,0,0"
+                                   Foreground="DimGray"
+                                   TextWrapping="Wrap">
+                            <Run Text="RE4R needs Archipelago " /><Run Text="{Binding ApVersionPin, Mode=OneWay}" /><Run Text=" exactly - newer versions may not work with RE4R. If it's already installed, the launcher finds it below; otherwise install it first (a normal Windows installer), then come back." />
+                        </TextBlock>
+                        <Grid Margin="38,10,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox AutomationProperties.Name="Archipelago install folder"
+                                     VerticalAlignment="Center"
+                                     Text="{Binding ApInstallPath, UpdateSourceTrigger=PropertyChanged, Delay=400}" />
+                            <Button Grid.Column="1"
+                                    Margin="10,0,0,0"
+                                    Padding="12,6"
+                                    Command="{Binding BrowseApFolderCommand}"
+                                    Content="Browse..." />
+                        </Grid>
+                        <TextBlock Margin="38,8,0,0"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding ApInstallStatusText}" />
+                        <Border Margin="38,8,0,0"
+                                Padding="10,6"
+                                Background="#FFFFF8E1"
+                                BorderBrush="#FFFFCC80"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Visibility="{Binding HasApVersionNote, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock Foreground="#FF8D6E00"
+                                       TextWrapping="Wrap"
+                                       Text="{Binding ApVersionNoteText}" />
+                        </Border>
+                        <StackPanel Margin="38,10,0,0"
+                                    Orientation="Horizontal">
+                            <Button Style="{StaticResource GuidanceButtonStyle}"
+                                    Command="{Binding OpenApReleasePageCommand}"
+                                    Content="Get Archipelago 0.6.7 (Release Page)" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Wizard step 2: apworld -->
+                <Border Style="{StaticResource GuidanceCardStyle}"
+                        Visibility="{Binding IsStep2Visible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <StackPanel>
+                        <DockPanel>
+                            <Border Style="{StaticResource GuidanceStepChipStyle}">
+                                <TextBlock HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           FontWeight="SemiBold"
+                                           Text="2" />
+                            </Border>
+                            <TextBlock DockPanel.Dock="Right"
+                                       Margin="10,0,0,0"
+                                       VerticalAlignment="Center"
+                                       FontWeight="SemiBold"
+                                       Foreground="#FF11662D"
+                                       Text="✓ Done"
+                                       Visibility="{Binding Step2Done, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <TextBlock Style="{StaticResource GuidanceStepTitleStyle}"
+                                       Text="Add the RE4R world to Archipelago" />
+                        </DockPanel>
+                        <TextBlock Margin="38,6,0,0"
+                                   Foreground="DimGray"
+                                   TextWrapping="Wrap">
+                            <Run Text="Archipelago doesn't know Resident Evil 4 Remake out of the box. " /><Run Text="{Binding ApworldVersionText, Mode=OneWay}" />
+                        </TextBlock>
+                        <StackPanel Margin="38,10,0,0"
+                                    Orientation="Horizontal">
+                            <!-- Double underscore: button content treats _ as an
+                                 access-key marker and would render "customworlds" -->
+                            <Button Style="{StaticResource GuidanceButtonStyle}"
+                                    Command="{Binding CopyApworldCommand}"
+                                    Content="Copy RE4R.apworld Into custom__worlds" />
+                        </StackPanel>
+                        <TextBlock Margin="38,4,0,0"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding ApworldStatusText}" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Wizard step 3: the organizer's own settings file (inserted
+                     per Cam 2026-07-12: the YAML step lives INSIDE the flow so
+                     it cannot be skipped) -->
+                <Border Style="{StaticResource GuidanceCardStyle}"
+                        Visibility="{Binding IsStep3Visible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <StackPanel>
+                        <DockPanel>
+                            <Border Style="{StaticResource GuidanceStepChipStyle}">
+                                <TextBlock HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           FontWeight="SemiBold"
+                                           Text="3" />
+                            </Border>
+                            <TextBlock DockPanel.Dock="Right"
+                                       Margin="10,0,0,0"
+                                       VerticalAlignment="Center"
+                                       FontWeight="SemiBold"
+                                       Foreground="#FF11662D"
+                                       Text="✓ Done"
+                                       Visibility="{Binding OwnYamlReady, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <TextBlock Style="{StaticResource GuidanceStepTitleStyle}"
+                                       Text="Set up your own settings file" />
+                        </DockPanel>
+                        <TextBlock Margin="38,6,0,0"
+                                   Foreground="DimGray"
+                                   TextWrapping="Wrap"
+                                   Text="You play too - these settings decide how YOUR RE4R plays and which slot name is yours. Your file joins everyone else's in the next step." />
+                        <StackPanel Margin="38,10,0,0"
+                                    Orientation="Horizontal">
+                            <Button Style="{StaticResource GuidanceButtonStyle}"
+                                    Command="{Binding ConfigureOwnYamlCommand}"
+                                    Content="Configure Your YAML" />
+                        </StackPanel>
+                        <TextBlock Margin="38,4,0,0"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding OwnYamlStatusText}" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Wizard step 4: collected YAMLs -->
+                <Border Style="{StaticResource GuidanceCardStyle}"
+                        Visibility="{Binding IsStep4Visible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <StackPanel>
+                        <DockPanel>
+                            <Border Style="{StaticResource GuidanceStepChipStyle}">
+                                <TextBlock HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           FontWeight="SemiBold"
+                                           Text="4" />
+                            </Border>
+                            <TextBlock DockPanel.Dock="Right"
+                                       Margin="10,0,0,0"
+                                       VerticalAlignment="Center"
+                                       FontWeight="SemiBold"
+                                       Foreground="#FF11662D"
+                                       Text="✓ Done"
+                                       Visibility="{Binding Step3Done, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <TextBlock Style="{StaticResource GuidanceStepTitleStyle}"
+                                       Text="Collect everyone's settings files" />
+                        </DockPanel>
+                        <TextBlock Margin="38,6,0,0"
+                                   Foreground="DimGray"
+                                   TextWrapping="Wrap"
+                                   Text="Every player sends you their settings file (YAML) - any Archipelago game, not just RE4R. Add them all here, including your own from the previous step." />
+                        <StackPanel Margin="38,10,0,0"
+                                    Orientation="Horizontal">
+                            <Button Style="{StaticResource GuidanceButtonStyle}"
+                                    Command="{Binding AddYamlsCommand}"
+                                    Content="Add Settings Files..." />
+                            <Button Style="{StaticResource GuidanceButtonStyle}"
+                                    Command="{Binding AddMyOwnYamlCommand}"
+                                    Content="Add My Own (From Configure)"
+                                    Visibility="{Binding ShowAddMyOwnYaml, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                        </StackPanel>
+                        <ItemsControl Margin="38,4,0,0"
+                                      ItemsSource="{Binding CollectedYamls}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Margin="0,0,0,6"
+                                            Padding="10,6"
+                                            Background="#FFF8F8F8"
+                                            BorderBrush="#FFE6E6E6"
+                                            BorderThickness="1"
+                                            CornerRadius="8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel>
+                                                <TextBlock FontWeight="SemiBold"
+                                                           TextWrapping="Wrap"
+                                                           Text="{Binding DisplayTitle}" />
+                                                <TextBlock Foreground="DimGray"
+                                                           TextWrapping="Wrap"
+                                                           Text="{Binding FileNameDetail}"
+                                                           Visibility="{Binding IsParsed, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                                <TextBlock Foreground="#FF8D6E00"
+                                                           TextWrapping="Wrap"
+                                                           Text="{Binding IssueText}"
+                                                           Visibility="{Binding HasIssue, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                            </StackPanel>
+                                            <Button Grid.Column="1"
+                                                    Margin="10,0,0,0"
+                                                    Padding="10,2"
+                                                    VerticalAlignment="Center"
+                                                    Command="{Binding RemoveCommand}"
+                                                    Content="Remove" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <StackPanel Margin="38,4,0,0"
+                                    Orientation="Horizontal">
+                            <Button Style="{StaticResource GuidanceButtonStyle}"
+                                    Command="{Binding CopyYamlsToPlayersCommand}"
+                                    Content="Copy All Into the Players Folder" />
+                            <Button Style="{StaticResource GuidanceButtonStyle}"
+                                    Command="{Binding OpenPlayersFolderCommand}"
+                                    Content="Open Players Folder" />
+                        </StackPanel>
+                        <TextBlock Margin="38,4,0,0"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding YamlPanelStatusText}" />
+                        <Border Margin="38,8,0,0"
+                                Padding="10,6"
+                                Background="#FFFFF8E1"
+                                BorderBrush="#FFFFCC80"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Visibility="{Binding HasPlayersFolderWarning, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock Foreground="#FF8D6E00"
+                                       TextWrapping="Wrap"
+                                       Text="{Binding PlayersFolderWarningText}" />
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- Wizard step 5: generate -->
+                <Border Style="{StaticResource GuidanceCardStyle}"
+                        Visibility="{Binding IsStep5Visible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <StackPanel>
+                        <DockPanel>
+                            <Border Style="{StaticResource GuidanceStepChipStyle}">
+                                <TextBlock HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           FontWeight="SemiBold"
+                                           Text="5" />
+                            </Border>
+                            <TextBlock DockPanel.Dock="Right"
+                                       Margin="10,0,0,0"
+                                       VerticalAlignment="Center"
+                                       FontWeight="SemiBold"
+                                       Foreground="#FF11662D"
+                                       Text="✓ Done"
+                                       Visibility="{Binding Step4Done, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <TextBlock Style="{StaticResource GuidanceStepTitleStyle}"
+                                       Text="Generate the multiworld" />
+                        </DockPanel>
+                        <TextBlock Margin="38,6,0,0"
+                                   Foreground="DimGray"
+                                   TextWrapping="Wrap"
+                                   Text="In your Archipelago folder, run ArchipelagoGenerate.exe. It reads every settings file in Players and writes an AP_*.zip into the output folder (a console window opens and closes by itself). If it fails, the error names the settings file or game that broke - fix that player's file or add the missing world; the launcher can't diagnose other games' errors." />
+                        <StackPanel Margin="38,10,0,0"
+                                    Orientation="Horizontal">
+                            <Button Style="{StaticResource GuidanceButtonStyle}"
+                                    Command="{Binding OpenApRootFolderCommand}"
+                                    Content="Open Archipelago Folder" />
+                            <Button Style="{StaticResource GuidanceButtonStyle}"
+                                    Command="{Binding RefreshCommand}"
+                                    Content="Check Again" />
+                        </StackPanel>
+                        <TextBlock Margin="38,4,0,0"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding OutputStatusText}" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Wizard step 6: upload + create room + paste back. One step on
+                     purpose (Cam): the address and page link live on the room page
+                     you land on right after the upload, so splitting them made
+                     people leave that page before grabbing what they need. -->
+                <Border Style="{StaticResource GuidanceCardStyle}"
+                        Visibility="{Binding IsStep6Visible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <StackPanel>
+                        <DockPanel>
+                            <Border Style="{StaticResource GuidanceStepChipStyle}">
+                                <TextBlock HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           FontWeight="SemiBold"
+                                           Text="6" />
+                            </Border>
+                            <TextBlock DockPanel.Dock="Right"
+                                       Margin="10,0,0,0"
+                                       VerticalAlignment="Center"
+                                       FontWeight="SemiBold"
+                                       Foreground="#FF11662D"
+                                       Text="✓ Done"
+                                       Visibility="{Binding Step6Done, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <TextBlock Style="{StaticResource GuidanceStepTitleStyle}"
+                                       Text="Upload it, create the room, paste the details here" />
+                        </DockPanel>
+                        <TextBlock Margin="38,6,0,0"
+                                   Foreground="DimGray"
+                                   TextWrapping="Wrap"
+                                   Text="On the uploads page, upload the AP_*.zip from your output folder (the zip itself - NOT the spoiler log), then click Create New Room. The room page that opens shows the room address - grab it and the page link below while you're there." />
+                        <StackPanel Margin="38,10,0,0"
+                                    Orientation="Horizontal">
+                            <Button Style="{StaticResource GuidanceButtonStyle}"
+                                    Command="{Binding OpenOutputFolderCommand}"
+                                    Content="Open Output Folder" />
+                            <Button Style="{StaticResource GuidanceButtonStyle}"
+                                    Command="{Binding OpenUploadsPageCommand}"
+                                    Content="Open archipelago.gg/uploads" />
+                        </StackPanel>
+                        <Grid Margin="38,12,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="170" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="10" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <TextBlock VerticalAlignment="Top"
+                                       Margin="0,4,0,0"
+                                       Text="Room Address" />
+                            <StackPanel Grid.Column="1">
+                                <TextBox AutomationProperties.Name="Room address"
+                                         Text="{Binding RoomAddress, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Margin="0,4,0,0"
+                                           Foreground="DimGray"
+                                           TextWrapping="Wrap"
+                                           Text="Looks like archipelago.gg:38281 - it's shown on the room page." />
+                            </StackPanel>
+                            <TextBlock Grid.Row="2"
+                                       VerticalAlignment="Top"
+                                       Margin="0,4,0,0"
+                                       Text="Room Page Link" />
+                            <StackPanel Grid.Row="2"
+                                        Grid.Column="1">
+                                <TextBox AutomationProperties.Name="Room page link"
+                                         Text="{Binding RoomUrl, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Margin="0,4,0,0"
+                                           Foreground="DimGray"
+                                           TextWrapping="Wrap"
+                                           Text="The archipelago.gg/room/... link from your browser. Rooms fall asleep after inactivity - opening this link wakes yours." />
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Wizard step 7: send friends their details -->
+                <Border Style="{StaticResource GuidanceCardStyle}"
+                        Visibility="{Binding IsStep7Visible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <StackPanel>
+                        <DockPanel>
+                            <Border Style="{StaticResource GuidanceStepChipStyle}">
+                                <TextBlock HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           FontWeight="SemiBold"
+                                           Text="7" />
+                            </Border>
+                            <TextBlock DockPanel.Dock="Right"
+                                       Margin="10,0,0,0"
+                                       VerticalAlignment="Center"
+                                       FontWeight="SemiBold"
+                                       Foreground="#FF11662D"
+                                       Text="✓ Done"
+                                       Visibility="{Binding Step7Done, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <TextBlock Style="{StaticResource GuidanceStepTitleStyle}"
+                                       Text="Send each friend the address and their slot name" />
+                        </DockPanel>
+                        <TextBlock Margin="38,6,0,0"
+                                   Foreground="DimGray"
+                                   TextWrapping="Wrap"
+                                   Text="Each player types the room address plus their own slot name into Join a Session - the slot name must match their settings file exactly, including capitals." />
+                        <TextBlock Margin="38,8,0,0"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding PlayersRecapText}" />
+                        <StackPanel Margin="38,10,0,0"
+                                    Orientation="Horizontal">
+                            <Button Style="{StaticResource GuidanceButtonStyle}"
+                                    Command="{Binding CopySummaryCommand}"
+                                    Content="Copy Summary for Friends" />
+                            <Button Style="{StaticResource GuidanceButtonStyle}"
+                                    Command="{Binding ContinueToJoinCommand}"
+                                    Content="Continue to Join - I'm Playing Too" />
+                        </StackPanel>
+                        <TextBlock Margin="38,8,0,0"
+                                   Foreground="DimGray"
+                                   TextWrapping="Wrap"
+                                   Text="Continue to Join patches YOUR RE4R against the new room. Everyone else uses Join a Session in their own launcher with the details you send them." />
+                    </StackPanel>
+                </Border>
+
+                <!-- Wizard navigation: Back is always free; Next unlocks when
+                     the current step's Done state auto-detects. -->
+                <StackPanel Margin="0,4,0,0"
+                            Orientation="Horizontal">
+                    <Button Padding="14,8"
+                            Command="{Binding BackToLandingCommand}"
+                            Content="Exit Guide" />
+                    <Button Width="120"
+                            Margin="12,0,0,0"
+                            Padding="14,8"
+                            Command="{Binding BackStepCommand}"
+                            Content="Back" />
+                    <Button Width="120"
+                            Margin="12,0,0,0"
+                            Padding="14,8"
+                            FontWeight="SemiBold"
+                            Command="{Binding NextStepCommand}"
+                            Content="Next" />
+                    <TextBlock Margin="16,0,0,0"
+                               VerticalAlignment="Center"
+                               Foreground="DimGray"
+                               Text="{Binding StepProgressText}" />
+                </StackPanel>
+            </StackPanel>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type viewModels:JoinFlowViewModel}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="18" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <TextBlock FontSize="34"
+                           FontWeight="SemiBold"
+                           Text="Join a Session" />
+
+                <Grid Grid.Row="2">
+                    <Border Visibility="{Binding IsSessionInfoStep, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="16" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <TextBlock FontSize="22"
+                                       FontWeight="SemiBold"
+                                       Text="Session Info" />
+
+                            <Grid Grid.Row="2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="220" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="12" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="12" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="12" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="12" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <TextBlock VerticalAlignment="Center"
+                                           Text="Room Address" />
+                                <TextBox Grid.Column="1"
+                                         Text="{Binding Session.ServerAddress, UpdateSourceTrigger=PropertyChanged}" />
+
+                                <TextBlock Grid.Row="2"
+                                           VerticalAlignment="Top"
+                                           Margin="0,4,0,0"
+                                           Text="Slot Name" />
+                                <StackPanel Grid.Row="2"
+                                            Grid.Column="1">
+                                    <TextBox Text="{Binding Session.SlotName, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBlock Margin="0,4,0,0"
+                                               Foreground="DimGray"
+                                               TextWrapping="Wrap"
+                                               Text="Must match the settings file you sent - exactly, including capitalization." />
+                                </StackPanel>
+
+                                <TextBlock Grid.Row="4"
+                                           VerticalAlignment="Top"
+                                           Margin="0,4,0,0"
+                                           Text="Room Page URL (optional)" />
+                                <StackPanel Grid.Row="4"
+                                            Grid.Column="1">
+                                    <TextBox Text="{Binding Session.RoomUrl, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBlock Margin="0,4,0,0"
+                                               Foreground="DimGray"
+                                               TextWrapping="Wrap"
+                                               Text="The archipelago.gg/room/... link, if you have it. Rooms sleep after inactivity - the launcher uses this to help you wake yours later." />
+                                </StackPanel>
+
+                                <TextBlock Grid.Row="6"
+                                           VerticalAlignment="Center"
+                                           Text="Password (optional)" />
+                                <TextBox Grid.Row="6"
+                                         Grid.Column="1"
+                                         Text="{Binding Session.Password, UpdateSourceTrigger=PropertyChanged}" />
+
+                                <StackPanel Grid.Row="8"
+                                            Grid.ColumnSpan="2"
+                                            Orientation="Horizontal">
+                                    <Button Width="140"
+                                            Padding="14,8"
+                                            Command="{Binding BackToLandingCommand}"
+                                            Content="Back" />
+                                    <Button Width="140"
+                                            Margin="12,0,0,0"
+                                            Padding="14,8"
+                                            Command="{Binding GoToBioRandOptionsCommand}"
+                                            Content="Next" />
+                                    <TextBlock Margin="16,8,0,0"
+                                               Foreground="DimGray"
+                                               Text="Your organizer will give you these details." />
+                                </StackPanel>
+                            </Grid>
+                        </Grid>
+                    </Border>
+
+                    <Border Visibility="{Binding IsBioRandOptionsStep, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="16" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="18" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="18" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <TextBlock FontSize="22"
+                                       FontWeight="SemiBold"
+                                       Text="BioRand Options" />
+
+                            <Grid Grid.Row="2">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="10" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="12" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <TextBlock FontWeight="SemiBold"
+                                           Text="Launch Mode" />
+
+                                <!-- All modes visible at once as selectable cards;
+                                     unavailable ones disabled with a badge (fix #3) -->
+                                <ListBox Grid.Row="2"
+                                         BorderThickness="0"
+                                         Background="Transparent"
+                                         IsEnabled="{Binding BioRandOptions.AreOptionsEditable}"
+                                         ItemsSource="{Binding BioRandOptions.AvailableModes}"
+                                         SelectedItem="{Binding BioRandOptions.SelectedMode}"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel Orientation="Horizontal" />
+                                        </ItemsPanelTemplate>
+                                    </ListBox.ItemsPanel>
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem">
+                                            <Setter Property="IsEnabled" Value="{Binding IsAvailable}" />
+                                            <Setter Property="Padding" Value="0" />
+                                            <Setter Property="Margin" Value="0,0,10,10" />
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ListBoxItem">
+                                                        <Border x:Name="CardBorder"
+                                                                Width="250"
+                                                                Padding="12"
+                                                                Background="White"
+                                                                BorderBrush="#FFD4D4D4"
+                                                                BorderThickness="1"
+                                                                CornerRadius="8">
+                                                            <ContentPresenter />
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsSelected" Value="True">
+                                                                <Setter TargetName="CardBorder" Property="BorderBrush" Value="#FF2E7D46" />
+                                                                <Setter TargetName="CardBorder" Property="BorderThickness" Value="2" />
+                                                                <Setter TargetName="CardBorder" Property="Background" Value="#FFF0FAF3" />
+                                                            </Trigger>
+                                                            <Trigger Property="IsEnabled" Value="False">
+                                                                <Setter TargetName="CardBorder" Property="Opacity" Value="0.55" />
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock FontWeight="SemiBold"
+                                                               TextWrapping="Wrap"
+                                                               Text="{Binding DisplayName}" />
+                                                    <Border Margin="8,0,0,0"
+                                                            Padding="6,1"
+                                                            Background="#FFEFEFEF"
+                                                            CornerRadius="8"
+                                                            Visibility="{Binding IsAvailable, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                                                        <TextBlock FontSize="11"
+                                                                   Foreground="#FF555555"
+                                                                   Text="COMING SOON" />
+                                                    </Border>
+                                                </StackPanel>
+                                                <TextBlock Margin="0,4,0,0"
+                                                           Foreground="DimGray"
+                                                           TextWrapping="Wrap"
+                                                           Text="{Binding Description}" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+
+                                <TextBlock Grid.Row="4"
+                                           Foreground="DimGray"
+                                           TextWrapping="Wrap"
+                                           Text="{Binding BioRandOptions.ModeStatusText}" />
+                            </Grid>
+
+                            <!-- The options are RENDERED FROM assets/Data/biorand_options.json, which
+                                 is GENERATED from BioRand's own Re4rRandomizerConfigurationDefinition.
+                                 Same seven tabs, same groups, same labels - so what a player learns in
+                                 BioRand's web app transfers here. Adding an option is a re-dump of that
+                                 schema, never new XAML. AP-locked keys (campaign, start-chapter,
+                                 skip-ashley-section, game-version) are absent from the catalog by
+                                 construction; ManifestBuilder forces them last. -->
+                            <Grid Grid.Row="4"
+                                  Visibility="{Binding BioRandOptions.IsOptionsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <DockPanel Margin="0,0,0,8">
+                                    <CheckBox DockPanel.Dock="Right"
+                                              VerticalAlignment="Center"
+                                              Content="Show Advanced"
+                                              IsChecked="{Binding BioRandOptions.ShowAdvanced, Mode=TwoWay}"
+                                              AutomationProperties.Name="Show Advanced options" />
+                                    <TextBlock FontWeight="SemiBold"
+                                               VerticalAlignment="Center"
+                                               Text="Options" />
+                                </DockPanel>
+
+                                <!-- Re-patch: this room was already patched, so the workflow REPLAYS the
+                                     recorded options. Show them locked and say so - otherwise the screen
+                                     would silently discard whatever the player picks. "Change Options"
+                                     opts in, behind a warning that the non-check world re-rolls. -->
+                                <Border Grid.Row="1"
+                                        Margin="0,0,0,8"
+                                        Padding="10,8"
+                                        Background="#FFEFF4FB"
+                                        BorderBrush="#FFB8CDE4"
+                                        BorderThickness="1"
+                                        CornerRadius="4"
+                                        Visibility="{Binding BioRandOptions.IsLocked, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                    <DockPanel>
+                                        <Button DockPanel.Dock="Right"
+                                                Margin="12,0,0,0"
+                                                Padding="12,6"
+                                                VerticalAlignment="Center"
+                                                Command="{Binding BioRandOptions.UnlockCommand}"
+                                                Content="Change Options" />
+                                        <TextBlock VerticalAlignment="Center"
+                                                   Foreground="#FF31506F"
+                                                   TextWrapping="Wrap"
+                                                   Text="{Binding BioRandOptions.PinnedNotice}" />
+                                    </DockPanel>
+                                </Border>
+
+                                <!-- We never silently change a player's setting: Random Events makes
+                                     BioRand throw unless Random Items AND Random Enemies are both on,
+                                     so when we switch it off we say so here. -->
+                                <Border Grid.Row="2"
+                                        Margin="0,0,0,8"
+                                        Padding="10,7"
+                                        Background="#FFFFF4E5"
+                                        BorderBrush="#FFE0C48C"
+                                        BorderThickness="1"
+                                        CornerRadius="4"
+                                        Visibility="{Binding BioRandOptions.HasDependencyNotice, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                    <TextBlock Foreground="#FF6B5326"
+                                               TextWrapping="Wrap"
+                                               Text="{Binding BioRandOptions.DependencyNotice}" />
+                                </Border>
+
+                                <TabControl Grid.Row="3"
+                                            MaxHeight="430"
+                                            BorderThickness="1"
+                                            IsEnabled="{Binding BioRandOptions.AreOptionsEditable}"
+                                            ItemsSource="{Binding BioRandOptions.Pages}">
+                                    <TabControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Title}" />
+                                        </DataTemplate>
+                                    </TabControl.ItemTemplate>
+                                    <TabControl.ContentTemplate>
+                                        <DataTemplate>
+                                            <ScrollViewer Padding="10,8"
+                                                          VerticalScrollBarVisibility="Auto"
+                                                          HorizontalScrollBarVisibility="Disabled">
+                                                <ItemsControl ItemsSource="{Binding Groups}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <StackPanel Margin="0,0,0,10">
+                                                                <TextBlock Margin="0,6,0,5"
+                                                                           FontWeight="SemiBold"
+                                                                           Foreground="DimGray"
+                                                                           Text="{Binding Title}"
+                                                                           Visibility="{Binding HasTitle, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+                                                                <ItemsControl ItemsSource="{Binding Options}">
+                                                                    <ItemsControl.ItemsPanel>
+                                                                        <ItemsPanelTemplate>
+                                                                            <WrapPanel Orientation="Horizontal" />
+                                                                        </ItemsPanelTemplate>
+                                                                    </ItemsControl.ItemsPanel>
+                                                                    <ItemsControl.ItemTemplate>
+                                                                        <DataTemplate>
+                                                                            <StackPanel Width="320"
+                                                                                        Margin="0,0,14,7"
+                                                                                        IsEnabled="{Binding IsEnabled}"
+                                                                                        Visibility="{Binding IsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                                                <CheckBox Content="{Binding Label}"
+                                                                                          IsChecked="{Binding BoolValue, Mode=TwoWay}"
+                                                                                          ToolTip="{Binding Description}"
+                                                                                          AutomationProperties.Name="{Binding Label}"
+                                                                                          Visibility="{Binding IsSwitch, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+                                                                                <Grid Visibility="{Binding IsNumeric, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                                                      ToolTip="{Binding Description}">
+                                                                                    <Grid.ColumnDefinitions>
+                                                                                        <ColumnDefinition Width="*" />
+                                                                                        <ColumnDefinition Width="Auto" />
+                                                                                    </Grid.ColumnDefinitions>
+                                                                                    <TextBlock VerticalAlignment="Center"
+                                                                                               TextTrimming="CharacterEllipsis"
+                                                                                               Text="{Binding Label}" />
+                                                                                    <StackPanel Grid.Column="1"
+                                                                                                Orientation="Horizontal">
+                                                                                        <Slider Width="130"
+                                                                                                VerticalAlignment="Center"
+                                                                                                Minimum="{Binding Min}"
+                                                                                                Maximum="{Binding Max}"
+                                                                                                TickFrequency="{Binding Step}"
+                                                                                                IsSnapToTickEnabled="True"
+                                                                                                Value="{Binding NumberValue, Mode=TwoWay}"
+                                                                                                AutomationProperties.Name="{Binding Label}" />
+                                                                                        <TextBlock Margin="8,0,0,0"
+                                                                                                   MinWidth="42"
+                                                                                                   VerticalAlignment="Center"
+                                                                                                   TextAlignment="Right"
+                                                                                                   Foreground="DimGray"
+                                                                                                   Text="{Binding ValueText}" />
+                                                                                    </StackPanel>
+                                                                                </Grid>
+
+                                                                                <TextBlock Margin="22,1,0,0"
+                                                                                           FontSize="11"
+                                                                                           Foreground="#FF8A8A8A"
+                                                                                           TextWrapping="Wrap"
+                                                                                           Text="{Binding Description}"
+                                                                                           Visibility="{Binding ShowInlineDescription, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                                                            </StackPanel>
+                                                                        </DataTemplate>
+                                                                    </ItemsControl.ItemTemplate>
+                                                                </ItemsControl>
+                                                            </StackPanel>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </ScrollViewer>
+                                        </DataTemplate>
+                                    </TabControl.ContentTemplate>
+                                </TabControl>
+                            </Grid>
+
+                            <StackPanel Grid.Row="6"
+                                        Orientation="Horizontal">
+                                <Button Width="140"
+                                        Padding="14,8"
+                                        Command="{Binding BackToSessionInfoCommand}"
+                                        Content="Back" />
+                                <Button Width="160"
+                                        Margin="12,0,0,0"
+                                        Padding="14,8"
+                                        Command="{Binding PatchMyGameCommand}"
+                                        Content="Patch My Game" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <Border Visibility="{Binding IsPatchingStep, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <StackPanel>
+                            <TextBlock FontSize="22"
+                                       FontWeight="SemiBold"
+                                       Text="Patching" />
+                            <TextBlock Margin="0,12,0,0"
+                                       TextWrapping="Wrap"
+                                       Text="{Binding StatusText}" />
+                            <Button Margin="0,24,0,0"
+                                    Width="160"
+                                    Padding="14,8"
+                                    HorizontalAlignment="Left"
+                                    Command="{Binding BackToSessionInfoCommand}"
+                                    Content="Back" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type viewModels:PatchLaunchViewModel}">
+            <StackPanel>
+                <TextBlock FontSize="30"
+                           FontWeight="SemiBold"
+                           Text="{Binding Title}" />
+                <TextBlock Margin="0,8,0,0"
+                           Foreground="DimGray"
+                           TextWrapping="Wrap"
+                           Text="{Binding Description}" />
+
+                <ProgressBar Margin="0,14,0,0"
+                             Height="6"
+                             IsIndeterminate="{Binding IsRunning}"
+                             Visibility="{Binding IsRunning, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+                <!-- Live phase checklist (field note: the raw log gave no sense
+                     of progress; errors are shown ONCE, in the global banner) -->
+                <Border Margin="0,14,0,0"
+                        Padding="14"
+                        Background="#FFF8F8F8"
+                        BorderBrush="#FFE0E0E0"
+                        BorderThickness="1"
+                        CornerRadius="10">
+                    <StackPanel>
+                        <ItemsControl ItemsSource="{Binding Stages}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal"
+                                                Margin="0,2,0,2">
+                                        <TextBlock Width="22"
+                                                   Text="{Binding Marker}" />
+                                        <TextBlock TextWrapping="Wrap"
+                                                   Text="{Binding Label}">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="Gray" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsRunning}" Value="True">
+                                                            <Setter Property="Foreground" Value="Black" />
+                                                            <Setter Property="FontWeight" Value="SemiBold" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding IsDone}" Value="True">
+                                                            <Setter Property="Foreground" Value="#FF11662D" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding IsFailed}" Value="True">
+                                                            <Setter Property="Foreground" Value="#FFB71C1C" />
+                                                            <Setter Property="FontWeight" Value="SemiBold" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Margin="22,8,0,0"
+                                   Foreground="DimGray"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding Action.StatusText}" />
+                    </StackPanel>
+                </Border>
+
+                <StackPanel Margin="0,16,0,0"
+                            Visibility="{Binding HasCompletionText, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock FontWeight="SemiBold"
+                               Text="Completion" />
+                    <TextBlock Margin="0,6,0,0"
+                               TextWrapping="Wrap"
+                               Text="{Binding CompletionText}" />
+                </StackPanel>
+
+                <StackPanel Margin="0,18,0,0"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Right">
+                    <Button Width="120"
+                            Padding="14,8"
+                            Margin="0,0,12,0"
+                            Command="{Binding CancelCommand}"
+                            Visibility="{Binding IsRunning, Converter={StaticResource BooleanToVisibilityConverter}}"
+                            Content="Cancel" />
+                    <Button Width="120"
+                            Padding="14,8"
+                            Margin="0,0,12,0"
+                            Command="{Binding RetryCommand}"
+                            Visibility="{Binding ShowRetry, Converter={StaticResource BooleanToVisibilityConverter}}"
+                            Content="Retry" />
+                    <Button Width="160"
+                            Padding="14,8"
+                            Command="{Binding BackToLandingCommand}"
+                            Content="Back to Landing" />
+                </StackPanel>
+            </StackPanel>
+        </DataTemplate>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="12" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="10" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0">
+            <Border Margin="0,0,0,12"
+                    Padding="12,8"
+                    Background="#FFFDECEC"
+                    BorderBrush="#FFE57373"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Visibility="{Binding Action.HasError, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock VerticalAlignment="Center"
+                               FontWeight="SemiBold"
+                               Foreground="#FFB71C1C"
+                               TextWrapping="Wrap"
+                               Text="{Binding Action.ErrorMessage}" />
+                    <Button Grid.Column="1"
+                            Margin="12,0,0,0"
+                            Padding="10,2"
+                            VerticalAlignment="Center"
+                            Command="{Binding Action.DismissErrorCommand}"
+                            Content="Dismiss" />
+                </Grid>
+            </Border>
+            <Border Margin="0,0,0,12"
+                    Padding="12,8"
+                    Background="#FFFFF8E1"
+                    BorderBrush="#FFFFCC80"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Visibility="{Binding Session.HasWarning, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TextBlock Foreground="#FF8D6E00"
+                           TextWrapping="Wrap"
+                           Text="{Binding Session.WarningText}" />
+            </Border>
+        </StackPanel>
+
+        <Border Grid.Row="1"
+                Padding="0"
+                Background="#FFF9F9F9"
+                BorderBrush="#FFE3E3E3"
+                BorderThickness="1"
+                CornerRadius="14">
+            <!-- Page-level scroll is a property of the shell so EVERY screen
+                 scrolls on small displays (audit launcherui-7; the old design
+                 pinned a 1536x864 minimum with no scroll fallback). -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          Padding="32">
+                <ContentControl Content="{Binding CurrentScreen}" />
+            </ScrollViewer>
+        </Border>
+
+        <Border Grid.Row="3"
+                Padding="12"
+                Background="#FFF8F8F8"
+                BorderBrush="#FFE0E0E0"
+                BorderThickness="1"
+                CornerRadius="10">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top"
+                           Margin="0,0,0,6"
+                           FontWeight="SemiBold"
+                           Foreground="#FF555555"
+                           Text="{Binding Action.StatusText}" />
+                <TextBox x:Name="LogTextBox"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     FontFamily="Consolas"
+                     FontSize="13"
+                     IsReadOnly="True"
+                     Text="{Binding Action.LogText, Mode=OneWay}"
+                     TextChanged="LogTextBox_OnTextChanged"
+                     TextWrapping="Wrap"
+                     VerticalScrollBarVisibility="Auto"
+                     AcceptsReturn="True"
+                     MinHeight="72"
+                     MaxHeight="72" />
+            </DockPanel>
+        </Border>
+
+        <Grid Grid.Row="5">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <TextBlock VerticalAlignment="Center"
+                       HorizontalAlignment="Left"
+                       Foreground="DimGray"
+                       TextTrimming="CharacterEllipsis"><Run Text="{Binding Session.CurrentSessionText, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding Session.LastPatchedText, Mode=OneWay}" /></TextBlock>
+            <TextBlock Grid.Column="1"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Foreground="DimGray">
+                <Run Text="Powered by " />
+                <Hyperlink Click="BioRandLink_OnClick">
+                    <Run Text="BioRand" />
+                </Hyperlink>
+            </TextBlock>
+            <Button Grid.Column="2"
+                    HorizontalAlignment="Right"
+                    Padding="10,2"
+                    Command="{Binding OpenLogFolderCommand}"
+                    Content="Open Log Folder" />
+        </Grid>
+    </Grid>
+</Window>

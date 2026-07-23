@@ -1,0 +1,1507 @@
+-- apclient.lua -- in-Lua Archipelago client (lua-apclientpp), folded into the ctx
+-- mod. Loaded by ArchipelagoRE4R.lua via dofile(...)(ctx) after bridge.lua so it
+-- can reach ctx (injection / runtime / per-seed session store).
+--
+-- Phase 2d: received items -> in-game injection.
+--   * on_items_received enqueues each item by its absolute item.index, filtering
+--     index <= the persisted watermark (bridge.last_received_index) and dupes.
+--   * the poll tick drains the queue, gated on runtime.lua safe-state, in strict
+--     contiguous index order, bounded per tick.
+--   * own-world physical pickups (item.player == our numeric slot AND
+--     item.location > 0) are SKIPPED (BioRand already placed them physically),
+--     advancing the watermark without injecting.
+--   * everything else resolves item.item (AP id) via ap_item_map.json ->
+--     {re4r_item_id, count} and calls the existing verbatim
+--     ctx.inject_item_to_inventory; success is decided by ctx.inject_command_
+--     succeeded; own-find suppression is recorded with the committed count.
+--   * the watermark is persisted immediately after each successful inject (so a
+--     Sync/reconnect replay cannot re-inject it) and lazily-flushed after
+--     skip-only runs; a failed disk write is retried with back-pressure (delivery
+--     pauses until it succeeds). KNOWN LIMITATION (audit F8): the watermark tracks
+--     RAM injection, not the game's own save -- an item injected but not yet
+--     committed at a typewriter can be lost on a quit-without-save (this matches
+--     the Python client); full save-reconciliation is deferred to F8.
+--   * poison policy (Cam): unmapped AP id -> skip immediately (loud); a
+--     repeatedly-failing inject retries a bounded number of ticks then skips, so
+--     one bad item can never permanently freeze all later delivery. (Inventory-
+--     full is NOT a failure here: inject_item_to_inventory falls back to Storage.)
+--
+-- Native-touching bodies (inject_item_to_inventory, get_runtime_state, the inject
+-- helpers) are CALLED as existing ctx exports, never reconstructed here.
+--
+-- Design guards (from the adversarial review):
+--   * bounded package.loadlib (never RE2R's infinite `while AP==nil` loop)
+--   * every handler body individually pcall-wrapped (a Lua error inside a native
+--     apclientpp callback can longjmp across C++ and crash)
+--   * the first socket_error is non-fatal (ws/wss autodetect emits a spurious one)
+
+return function(ctx)
+    local TAG = "[APClient]"
+    local function info(m) log.info(TAG .. " " .. m) end
+    local function warn(m) log.warn(TAG .. " " .. m) end
+    local function err(m) log.error(TAG .. " " .. m) end
+
+    local function guard(name, fn)
+        return function(...)
+            local ok, e = pcall(fn, ...)
+            if not ok then
+                err("handler '" .. name .. "' errored: " .. tostring(e))
+            end
+        end
+    end
+
+    -- 1) Load the DLL (bounded).
+    local opener, load_err = package.loadlib("lua-apclientpp.dll", "luaopen_apclientpp")
+    if not opener then
+        err("package.loadlib failed: " .. tostring(load_err) .. " -- AP client disabled.")
+        return
+    end
+    local ok_open, AP = pcall(opener)
+    if not ok_open or type(AP) ~= "table" then
+        err("luaopen_apclientpp failed: " .. tostring(AP) .. " -- AP client disabled.")
+        return
+    end
+    info("lua-apclientpp loaded, _VERSION = " .. tostring(AP._VERSION))
+
+    local GAME_NAME = "Resident Evil 4 Remake"
+    local ITEMS_HANDLING = 0x7           -- 0b111
+    -- [DeathLink] The "DeathLink" tag is carried ALWAYS (not toggled by the option),
+    -- because lua-apclientpp exposes no ConnectUpdate to change tags after connect and
+    -- slot_data.death_link only arrives post-connect. Behaviour is gated on
+    -- st.death_link_enabled instead: an opted-out slot never sends a death and ignores
+    -- every incoming one, so carrying the tag is harmless (it only lets the server
+    -- deliver death Bounces we then drop).
+    local CLIENT_TAGS = { "AP", "DeathLink" }
+    local CLIENT_VERSION = { 0, 6, 7 }   -- matches the RE4R apworld protocol
+    -- REFramework json.load_file resolves these under reframework/data/.
+    local CONNECTION_INFO_FILE = "ArchipelagoRE4R\\ap_connection.json"
+    local AP_ITEM_MAP_FILE = "ArchipelagoRE4R\\ap_item_map.json"
+    -- [GatedKeys] Written by the launcher at patch time: this room's exact
+    -- location-id set (the room's list varies with YAML options since apworld
+    -- 0.4.0, so no shipped map can be trusted for scouting).
+    local ROOM_LOCATIONS_FILE = "ArchipelagoRE4R\\ap_room_locations.json"
+
+    -- Per-tick drain bounds: cap heavy native injects, and cap total items
+    -- processed (cheap skips included) so a huge Sync backlog can't stall a frame.
+    local MAX_INJECTS_PER_TICK = 3
+    local MAX_ITEMS_PER_TICK = 40
+    -- A repeatedly-failing inject retries this many ticks (while in a safe state)
+    -- before being skipped to unblock the queue.
+    local MAX_INJECT_RETRIES = 20
+    -- [DeathLink] After we send OR apply a death, suppress death traffic for this long
+    -- (os.clock seconds): ignore redelivered/echoed incoming deaths and don't re-detect
+    -- our own. The inbound kill (game-over screen) never sets IsDead, so there is no
+    -- true feedback loop -- this is belt-and-suspenders against bounce bursts.
+    local DEATHLINK_AMNESTY_SECONDS = 8.0
+
+    local ap = nil
+    local st = {
+        server = "",
+        slot = "",
+        password = "",
+        first_socket_error_seen = false,
+        numeric_slot = nil,      -- our slot number (get_player_number()), for own-find skip
+        seed = "",               -- get_seed(), for the per-seed session file
+        item_map_loaded = false, -- ap_item_map.json positively loaded? (gates the drain)
+        watermark_dirty = false, -- a watermark persist failed; retry + back-pressure
+        -- [DeathLink] set from slot_data.death_link on connect (gates all death traffic)
+        death_link_enabled = false,
+        dl_last_dead = false,       -- previous IsDead sample, for rising-edge detection
+        dl_pending_incoming = nil,  -- {source, cause} queued kill, applied on a safe tick
+        dl_amnesty_until = 0,       -- os.clock() until which death traffic is suppressed
+    }
+
+    -- AP item id (number) -> { re4r_item_id = <engine id>, count = <delivery count> }
+    local ap_item_map = {}
+    -- Pending received-items queue + an index set for O(1) enqueue dedup.
+    local pending = {}
+    local pending_by_index = {}
+    -- index -> consecutive failed-inject tick count (poison retry bookkeeping).
+    local inject_failure_counts = {}
+    -- [Phase 3] AP location ids already submitted this socket (avoid re-spamming).
+    local sent_location_checks = {}
+    -- [GatedKeys] The ROOM's actual location id set (missing + checked from the
+    -- Connected packet). Since apworld 0.4.0 the location count varies with the
+    -- RandomizeGatedKeys option, so the shipped guid/display maps can list
+    -- locations this room does not have (vanilla/preserved spots). Every scout
+    -- and LocationChecks send is filtered to this set; nil = unavailable ->
+    -- fall back to the permissive pre-0.4.0 behavior.
+    local room_location_ids = nil
+    -- [GatedKeys] lids we already explained in the log (once per session).
+    local skipped_non_room_lids = {}
+
+    local function trim(s)
+        if type(s) ~= "string" then return "" end
+        return (s:gsub("^%s+", ""):gsub("%s+$", ""))
+    end
+
+    local function read_connection_info()
+        local payload = json.load_file(CONNECTION_INFO_FILE)
+        if type(payload) ~= "table" then return false end
+        local server = trim(payload.server_address)
+        local slot = trim(payload.slot_name)
+        if server == "" or slot == "" then return false end
+        st.server = server
+        st.slot = slot
+        st.password = trim(payload.password)
+        return true
+    end
+
+    -- Load the AP-id -> engine-id + count map (emitted by data_parser.py). Keyed
+    -- by AP id string on disk; we number-key it for lookup against item.item.
+    local function load_ap_item_map()
+        ap_item_map = {}
+        st.item_map_loaded = false
+        local payload = json.load_file(AP_ITEM_MAP_FILE)
+        if type(payload) ~= "table" or type(payload.items) ~= "table" then
+            err("ap_item_map.json missing/invalid (" .. AP_ITEM_MAP_FILE ..
+                ") -- received items cannot be resolved; delivery deferred until it loads.")
+            return
+        end
+        local n = 0
+        for key, value in pairs(payload.items) do
+            local ap_id = tonumber(key)
+            local engine_id = type(value) == "table" and tonumber(value.re4r_item_id) or nil
+            if ap_id ~= nil and engine_id ~= nil then
+                -- floor+clamp to an integer >= 1, matching inject_get_expected_commit_count
+                -- and record_local_injection_suppression, so a non-integer count can't
+                -- reach the native inject or a %d format.
+                local count = math.floor((type(value) == "table" and tonumber(value.count)) or 1)
+                ap_item_map[ap_id] = {
+                    re4r_item_id = engine_id,
+                    count = math.max(1, count),
+                    name = (type(value.name) == "string" and value.name ~= "") and value.name or nil,
+                }
+                n = n + 1
+            end
+        end
+        st.item_map_loaded = n > 0
+        info("loaded ap_item_map.json: " .. n .. " AP-id -> engine-id+count entries")
+    end
+
+    -- The exact 5-field compound bridge.lua uses before injecting (is_playable
+    -- already implies the others, but we mirror the proven gate verbatim).
+    local function safe_to_inject(rs)
+        return rs ~= nil
+            and rs.is_in_game
+            and rs.player_present
+            and rs.is_playable
+            and not rs.is_loading
+            and not rs.is_cutscene
+    end
+
+    -- [Phase 4/Overlay] Exact port of client.py _classify_location_scout_flags: AP
+    -- ItemFlags -> the three UI buckets. ADVANCEMENT(1) -> PROGRESSION, NEVER_EXCLUDE(2)
+    -- -> USEFUL, else FILLER (TRAP=4 falls to FILLER, matching the Python client). Shared
+    -- by the scout classification and the received-item toast colour.
+    local function classify_flags(raw_flags)
+        local flags = math.floor(tonumber(raw_flags) or 0)
+        if (flags & 1) ~= 0 then return "PROGRESSION" end
+        if (flags & 2) ~= 0 then return "USEFUL" end
+        return "FILLER"
+    end
+
+    -- [Overlay] Push a toast into the shared check_notifications queue ui_overlay renders
+    -- (same schema as detector.lua's toasts; id from next_check_notification_id).
+    local function enqueue_toast(title, detail, classification, kind, title_segments)
+        local bridge = ctx.bridge
+        if bridge == nil or type(bridge.check_notifications) ~= "table" then return end
+        local id = tonumber(bridge.next_check_notification_id) or 1
+        local now = ctx.now_unix_ms or _G.now_unix_ms
+        table.insert(bridge.check_notifications, {
+            id = id,
+            title = (type(title) == "string") and title:sub(1, 52) or "",
+            detail = (type(detail) == "string" and detail ~= "") and detail:sub(1, 74) or nil,
+            classification = classification,
+            kind = kind, -- event type (received/sent/hint/goal/death) -> glyph in ui_overlay
+            title_segments = title_segments, -- per-entity colours; nil = plain title
+            native_route = "text", -- native_log.lua composes + pushes onto the game rail
+            queued_at_unix_ms = (type(now) == "function") and now() or (os.time() * 1000),
+            display_started_at_unix_ms = nil,
+        })
+        bridge.next_check_notification_id = id + 1
+    end
+
+    -- [Overlay] Coalesce a burst of received items (the reconnect catch-up resend,
+    -- or a pile of items granted while offline) into ONE rolling "Synced N items"
+    -- toast instead of N individual toasts. bump() creates/updates the summary and
+    -- keeps it alive; finalize() ends the burst (leaving the toast on screen) so the
+    -- next live item toasts normally again.
+    local function bump_sync_summary(added)
+        local bridge = ctx.bridge
+        if bridge == nil or type(bridge.check_notifications) ~= "table" then return end
+        st.sync_summary_count = (st.sync_summary_count or 0) + (tonumber(added) or 1)
+        local now = ctx.now_unix_ms or _G.now_unix_ms
+        local now_ms = (type(now) == "function") and now() or (os.time() * 1000)
+        local n = st.sync_summary_count
+        local label = (n == 1) and "Synced 1 item" or ("Synced " .. n .. " items")
+        local existing = nil
+        for _, t in ipairs(bridge.check_notifications) do
+            if t.id == st.sync_summary_toast_id then existing = t break end
+        end
+        if existing ~= nil then
+            existing.title = label
+            existing.display_started_at_unix_ms = nil -- restart lifetime so it stays visible
+            existing.queued_at_unix_ms = now_ms
+        else
+            local id = tonumber(bridge.next_check_notification_id) or 1
+            st.sync_summary_toast_id = id
+            table.insert(bridge.check_notifications, {
+                id = id,
+                title = label,
+                detail = nil,
+                classification = "USEFUL",
+                kind = "received", -- "Synced N items" is a batch of received items
+                -- The rolling summary mutates its title in place; native rail
+                -- entries are fire-once, so this one stays on the imgui overlay
+                -- in every mode.
+                native_route = "overlay_only",
+                queued_at_unix_ms = now_ms,
+                display_started_at_unix_ms = nil,
+            })
+            bridge.next_check_notification_id = id + 1
+        end
+    end
+
+    local function finalize_sync_summary()
+        st.in_sync_burst = false
+        -- Burst settled: the title stops mutating, so the summary may now ride
+        -- the native rail once (Cam-approved 2026-07-23). native_log re-dispatches
+        -- it and, in native mode, takes over from the imgui copy.
+        if st.sync_summary_toast_id ~= nil and (st.sync_summary_count or 0) > 0 then
+            local bridge = ctx.bridge
+            if bridge ~= nil and type(bridge.check_notifications) == "table" then
+                for _, t in ipairs(bridge.check_notifications) do
+                    if t.id == st.sync_summary_toast_id then
+                        t.native_route = "text"
+                        t.native_dispatched = false
+                        break
+                    end
+                end
+            end
+        end
+        st.sync_summary_count = 0
+        st.sync_summary_toast_id = nil
+    end
+
+    -- [Overlay] Resolve an AP slot number to a display name via get_player_alias
+    -- (pcall-guarded). Falls back to "Player <n>".
+    local function ap_player_name(slot)
+        if ap == nil or type(slot) ~= "number" then return nil end
+        local ok, name = pcall(function() return ap:get_player_alias(slot) end)
+        if ok and type(name) == "string" and name ~= "" then return name end
+        return "Player " .. tostring(slot)
+    end
+    ctx.ap_player_name = ap_player_name -- [Overlay] exported for detector's found-for-player toast
+
+    -- [Overlay] Resolve an AP item id to a display name. The name lives in the data package of
+    -- the OWNING player's game, so pass that slot. pcall-guarded; nil if unresolved. Exported so
+    -- detector's unified pickup toast can name the item that ACTUALLY sits at a location.
+    -- GOTCHA (live 2026-07-21, toast read "Collected Unknown"): apclientpp's
+    -- get_item_name takes the owning GAME NAME (a string), NOT a slot number. Passing
+    -- the slot yields apclientpp's "Unknown" placeholder -- sol2 coerces 5 -> "5",
+    -- which matches no game, so the call SUCCEEDS and returns a non-empty string,
+    -- defeating the old `name ~= ""` check. Map slot -> game via get_player_game
+    -- first, keep the numeric and single-arg forms as fallbacks so this holds whatever
+    -- shape the binding actually has, and treat "Unknown" as FAILURE so callers fall
+    -- back to the vanilla item name rather than printing "Unknown" at the player.
+    local function ap_item_name(item_id, player)
+        if ap == nil or type(item_id) ~= "number" then return nil end
+        local function usable(name)
+            return type(name) == "string" and name ~= "" and name ~= "Unknown"
+        end
+        local attempts = {}
+        if type(player) == "number" then
+            local ok_game, game = pcall(function() return ap:get_player_game(player) end)
+            if ok_game and type(game) == "string" and game ~= "" then
+                attempts[#attempts + 1] = function() return ap:get_item_name(item_id, game) end
+            end
+            attempts[#attempts + 1] = function() return ap:get_item_name(item_id, player) end
+        end
+        attempts[#attempts + 1] = function() return ap:get_item_name(item_id) end
+        for _, attempt in ipairs(attempts) do
+            local ok, name = pcall(attempt)
+            if ok and usable(name) then return name end
+        end
+        return nil
+    end
+    ctx.ap_item_name = ap_item_name
+
+    -- [Hints] Send raw text/commands to the server (chat + "!" commands). The AP
+    -- Actions window builds "!hint <item>" etc. on top of this; responses come
+    -- back through the normal PrintJSON pipeline. Returns false when offline.
+    local function ap_say(text)
+        if ap == nil or type(text) ~= "string" or text == "" then return false end
+        local ok = pcall(function() ap:Say(text) end)
+        return ok == true
+    end
+    ctx.ap_say = ap_say
+
+    -- [Hints] Hint economy readout for UI ("96 points - a hint costs 48").
+    -- Cost getter name differs across lua-apclientpp builds; probe both.
+    local function ap_get_hint_economy()
+        if ap == nil then return nil, nil end
+        local points, cost = nil, nil
+        local ok_points, points_value = pcall(function() return ap:get_hint_points() end)
+        if ok_points and type(points_value) == "number" then points = points_value end
+        local ok_cost, cost_value = pcall(function() return ap:get_hint_cost_points() end)
+        if ok_cost and type(cost_value) == "number" then
+            cost = cost_value
+        else
+            local ok_pct, pct_value = pcall(function() return ap:get_hint_cost_percent() end)
+            if ok_pct and type(pct_value) == "number" then
+                local total = 0
+                for _ in pairs(room_location_ids or {}) do total = total + 1 end
+                cost = math.floor((total * pct_value) / 100)
+            end
+        end
+        return points, cost
+    end
+    ctx.ap_get_hint_economy = ap_get_hint_economy
+
+    -- [Actions] Sorted AP item ids of OUR game (ap_item_map.json keys) for the
+    -- hint-an-item picker; names resolve via ap_item_name at draw time.
+    local function ap_get_own_item_ids()
+        local ids = {}
+        for ap_id in pairs(ap_item_map) do
+            ids[#ids + 1] = ap_id
+        end
+        table.sort(ids)
+        return ids
+    end
+    ctx.ap_get_own_item_ids = ap_get_own_item_ids
+
+    -- [Actions] Force-check one of OUR locations (stuck-tester escape hatch,
+    -- confirmed in the Actions tab). The server round-trip acknowledges it
+    -- through the normal on_location_checked path - no special bookkeeping.
+    local function ap_force_check(location_id)
+        local id = tonumber(location_id)
+        if ap == nil or id == nil then return false end
+        local ok = pcall(function() ap:LocationChecks({ math.floor(id) }) end)
+        if ok then
+            info(string.format("FORCE-CHECK submitted for location %d (debug escape hatch)", math.floor(id)))
+        end
+        return ok == true
+    end
+    ctx.ap_force_check = ap_force_check
+
+    -- [Hints] Rebuild bridge.hints_on_my_world from the server's _read_hints
+    -- list: keep only UNFOUND hints where WE are the finding player (checks in
+    -- our world someone is waiting on), keyed by location_id string. Names are
+    -- resolved eagerly (receiving player's datapackage owns the item name).
+    local function rebuild_hints_on_my_world(value)
+        if ctx.bridge == nil then return end
+        local result = {}
+        local kept = 0
+        if type(value) == "table" then
+            for _, hint in ipairs(value) do
+                if type(hint) == "table"
+                    and tonumber(hint.finding_player) == tonumber(st.numeric_slot)
+                    and hint.found ~= true then
+                    local location_id = tonumber(hint.location)
+                    if location_id ~= nil then
+                        local receiving_player = tonumber(hint.receiving_player)
+                        local item_id = tonumber(hint.item)
+                        result[tostring(math.floor(location_id))] = {
+                            location_id = math.floor(location_id),
+                            item_id = item_id,
+                            item_name = ap_item_name(item_id, receiving_player),
+                            receiving_player = receiving_player,
+                            receiving_player_name = ap_player_name(receiving_player),
+                            item_flags = tonumber(hint.item_flags) or 0,
+                        }
+                        kept = kept + 1
+                    end
+                end
+            end
+        end
+        ctx.bridge.hints_on_my_world = result
+        info(string.format("Hints on our world: %d unfound (storage sync)", kept))
+    end
+
+    -- DataStorage replies. Retrieved answers our initial Get; SetReply arrives on
+    -- every later change to a subscribed key (new hint bought, found flipped).
+    local function on_retrieved(map)
+        if type(map) ~= "table" or st.hints_storage_key == nil then return end
+        local value = map[st.hints_storage_key]
+        if value ~= nil then rebuild_hints_on_my_world(value) end
+    end
+
+    local function on_set_reply(message)
+        if type(message) ~= "table" or st.hints_storage_key == nil then return end
+        if message.key == st.hints_storage_key then
+            rebuild_hints_on_my_world(message.value)
+        end
+    end
+
+    -- Drain the received-items queue. Called every tick after ap:poll().
+    local function drain_received_items()
+        local bridge = ctx.bridge
+        if bridge == nil then return end
+        local save = (type(ctx.save_session_state) == "function") and ctx.save_session_state or function() return true end
+
+        -- persist(): write the watermark to disk; on failure flag dirty so we retry
+        -- with back-pressure. Returns whether the write succeeded.
+        local function persist()
+            if save() then
+                st.watermark_dirty = false
+                return true
+            end
+            st.watermark_dirty = true
+            err("failed to persist received-item watermark to disk (delivery paused; will retry)")
+            return false
+        end
+
+        -- Retry a previously-failed persist first, and hold delivery until the disk
+        -- watermark catches up to an already-injected item.
+        if st.watermark_dirty then
+            if not persist() then return end
+        end
+
+        if #pending == 0 then return end
+
+        -- Refuse to touch the item stream until the AP-id -> engine map is loaded:
+        -- otherwise every item hits the unmapped branch and is lost. Retry the load
+        -- (throttled) so a transient file error self-heals; items stay queued.
+        if not st.item_map_loaded then
+            local now = os.clock()
+            if now - (st.item_map_retry_clock or -1e9) >= 5.0 then
+                st.item_map_retry_clock = now
+                warn("ap_item_map not loaded; deferring item delivery and retrying load")
+                load_ap_item_map()
+            end
+            if not st.item_map_loaded then return end
+        end
+
+        -- Need our numeric slot for the own-find skip; lazily (re)resolve rather
+        -- than defer forever, and surface a persistent stall.
+        if st.numeric_slot == nil and ap ~= nil then
+            local ok_num, num = pcall(function() return ap:get_player_number() end)
+            st.numeric_slot = (ok_num and type(num) == "number") and num or nil
+        end
+        if st.numeric_slot == nil then
+            local now = os.clock()
+            if now - (st.numeric_slot_warn_clock or -1e9) >= 5.0 then
+                st.numeric_slot_warn_clock = now
+                warn("numeric slot unresolved (get_player_number); deferring item delivery")
+            end
+            return
+        end
+
+        -- Without a seed the watermark keys to a shared/standalone file, colliding
+        -- across distinct multiworlds; defer rather than risk that.
+        if st.seed == nil or st.seed == "" then
+            local now = os.clock()
+            if now - (st.seed_warn_clock or -1e9) >= 5.0 then
+                st.seed_warn_clock = now
+                warn("seed unresolved; deferring item delivery to avoid cross-seed watermark collision")
+            end
+            return
+        end
+
+        local get_runtime_state = ctx.get_runtime_state
+        local inject_item_to_inventory = ctx.inject_item_to_inventory
+        local inject_command_succeeded = ctx.inject_command_succeeded
+        local inject_get_expected_commit_count = ctx.inject_get_expected_commit_count
+        local record_local_injection_suppression = ctx.record_local_injection_suppression
+        if type(get_runtime_state) ~= "function"
+            or type(inject_item_to_inventory) ~= "function"
+            or type(inject_command_succeeded) ~= "function" then
+            return
+        end
+
+        if not safe_to_inject(get_runtime_state()) then
+            return -- busy state: defer the whole drain, do not advance
+        end
+
+        table.sort(pending, function(a, b) return a.index < b.index end)
+
+        local function pop_head(idx)
+            table.remove(pending, 1)
+            if idx ~= nil then pending_by_index[idx] = nil end
+        end
+
+        -- [Overlay] Enter "sync burst" mode when many genuinely-new (undelivered)
+        -- items are queued at once, so they coalesce into one "Synced N items" toast.
+        -- Count only idx > watermark to ignore the already-applied reconnect replay.
+        local threshold = tonumber(CHECK_SYNC_COALESCE_THRESHOLD) or 4
+        if not st.in_sync_burst then
+            local new_pending = 0
+            for _, e in ipairs(pending) do
+                if type(e.index) == "number" and e.index > bridge.last_received_index then
+                    new_pending = new_pending + 1
+                    if new_pending > threshold then st.in_sync_burst = true break end
+                end
+            end
+        end
+
+        local injected, processed, need_flush = 0, 0, false
+        while #pending > 0 and injected < MAX_INJECTS_PER_TICK and processed < MAX_ITEMS_PER_TICK do
+            local entry = pending[1]
+            local idx = entry.index
+
+            if type(idx) ~= "number" then
+                warn("dropping queued item with non-integer index")
+                pop_head(nil)
+                processed = processed + 1
+            elseif idx <= bridge.last_received_index then
+                pop_head(idx) -- already applied (Sync/reconnect replay); dedupe
+                processed = processed + 1
+            elseif idx ~= bridge.last_received_index + 1 then
+                break -- gap: wait for the missing index (flush any lazy advances)
+            elseif entry.player == st.numeric_slot
+                and type(entry.location) == "number" and entry.location > 0 then
+                -- own-world physical pickup: BioRand already granted it in-game.
+                info(string.format("own-find skip idx=%d ap=%s location=%d",
+                    idx, tostring(entry.item), entry.location))
+                bridge.last_received_index = idx
+                need_flush = true -- re-processing a skip is harmless; flush lazily
+                pop_head(idx)
+                processed = processed + 1
+            else
+                local mapping = ap_item_map[entry.item]
+                if mapping == nil or type(mapping.re4r_item_id) ~= "number" or mapping.re4r_item_id <= 0 then
+                    -- Map is confirmed loaded (gated above), so this id is genuinely
+                    -- unknown -> skip it (loud) so it can't block later items forever.
+                    err(string.format(
+                        "POISON: AP item id %s (idx %d) not in ap_item_map -> SKIPPING (item lost)",
+                        tostring(entry.item), idx))
+                    bridge.last_received_index = idx
+                    inject_failure_counts[idx] = nil
+                    pop_head(idx)
+                    processed = processed + 1
+                    need_flush = false
+                    if not persist() then break end
+                else
+                    local status = tostring(inject_item_to_inventory(mapping.re4r_item_id, mapping.count))
+                    if inject_command_succeeded(status) then
+                        if type(inject_get_expected_commit_count) == "function"
+                            and type(record_local_injection_suppression) == "function" then
+                            local committed = inject_get_expected_commit_count(mapping.re4r_item_id, mapping.count)
+                            record_local_injection_suppression(mapping.re4r_item_id, committed)
+                        end
+                        bridge.injected_ap_item_indexes[idx] = true
+                        bridge.last_item_received = string.format("AP #%d -> item %d x%d",
+                            idx, mapping.re4r_item_id, mapping.count)
+                        bridge.state_dirty = true
+                        inject_failure_counts[idx] = nil
+                        info(string.format("injected idx=%d ap=%s engine=%d x%d [%s]",
+                            idx, tostring(entry.item), mapping.re4r_item_id, mapping.count, status))
+                        -- [Overlay] Toast the incoming item (invisible before now). Own-
+                        -- world grants (player==self) show no "from"; a case-full fallback
+                        -- to Storage is surfaced in the detail.
+                        do
+                            local nm = (type(mapping.name) == "string" and mapping.name ~= "")
+                                and mapping.name or ("item " .. mapping.re4r_item_id)
+                            local item_label = nm
+                                .. ((mapping.count > 1) and (" x" .. mapping.count) or "")
+                            local is_self_find = (entry.player == st.numeric_slot)
+                            local from = (not is_self_find) and ap_player_name(entry.player) or nil
+                            local classification = classify_flags(entry.flags)
+                            local item_color = get_check_overlay_classification_color(classification)
+                            -- "<sender> sent you <item> - routing to <where>" (Cam's format,
+                            -- 2026-07-23). <where> is the REAL landing partition: the case-full
+                            -- Storage fallback wins over the item's normal route.
+                            local to_storage = string.find(string.lower(status), "storage", 1, true) ~= nil
+                            local route_fn = ctx.inject_get_route_destination or _G.inject_get_route_destination
+                            local dest = to_storage and "storage (case full)"
+                                or ((type(route_fn) == "function") and route_fn(mapping.re4r_item_id))
+                                or "inventory"
+                            local title, title_segments
+                            if from ~= nil then
+                                title = from .. " sent you " .. item_label
+                                title_segments = {
+                                    { text = truncate_overlay_text(from, 18),
+                                      color = CHECK_OVERLAY_TEXT_COLOR_PLAYER, entity = "player" },
+                                    { text = "sent you", color = CHECK_OVERLAY_TEXT_COLOR_FILLER },
+                                    { text = truncate_overlay_text(item_label, 32),
+                                      color = item_color, entity = "item" },
+                                }
+                            else
+                                -- Server/self grant (!getitem, collect): no meaningful sender.
+                                title = "Received " .. item_label
+                                title_segments = {
+                                    { text = "Received", color = CHECK_OVERLAY_TEXT_COLOR_FILLER },
+                                    { text = truncate_overlay_text(item_label, 32),
+                                      color = item_color, entity = "item" },
+                                }
+                            end
+                            local detail = "routing to " .. dest
+                            -- [Celebration] Progression items are what actually move a
+                            -- multiworld forward, so a key must never read like ammo.
+                            -- Deliberately an elevated TOAST, not a centre-screen banner:
+                            -- these can land several at once (and mid-fight), so loud here
+                            -- would become noise. The goal is the only banner.
+                            if classification == "PROGRESSION" then
+                                detail = detail .. " - a path just opened"
+                            end
+                            -- In a reconnect/offline catch-up burst, fold into the
+                            -- single rolling summary; otherwise toast this item live.
+                            -- Self-finds are the check you just picked up, already toasted by
+                            -- detector's "Collected X" - suppress the duplicate, UNLESS it went
+                            -- to Storage (a case-full signal the pickup toast can't know about).
+                            if st.in_sync_burst then
+                                bump_sync_summary(1)
+                            elseif is_self_find and not to_storage then
+                                -- covered by the unified pickup toast
+                            else
+                                enqueue_toast(title, detail, classification, "received", title_segments)
+                            end
+                        end
+                        bridge.last_received_index = idx
+                        pop_head(idx)
+                        injected = injected + 1
+                        processed = processed + 1
+                        -- Persist BEFORE processing further items; on failure, halt
+                        -- (back-pressure) so the disk watermark can't fall behind an
+                        -- item that's already in the live inventory.
+                        need_flush = false
+                        if not persist() then break end
+                    else
+                        local n = (inject_failure_counts[idx] or 0) + 1
+                        inject_failure_counts[idx] = n
+                        if n >= MAX_INJECT_RETRIES then
+                            err(string.format(
+                                "POISON: inject failed %dx for idx=%d ap=%s engine=%d -> SKIPPING (item lost). last status: %s",
+                                n, idx, tostring(entry.item), mapping.re4r_item_id, status))
+                            bridge.last_received_index = idx
+                            inject_failure_counts[idx] = nil
+                            pop_head(idx)
+                            processed = processed + 1
+                            need_flush = false
+                            if not persist() then break end
+                        else
+                            warn(string.format("inject failed idx=%d (attempt %d/%d): %s -- retrying next tick",
+                                idx, n, MAX_INJECT_RETRIES, status))
+                            break -- keep the failing item at the head; do not advance
+                        end
+                    end
+                end
+            end
+        end
+
+        -- [Overlay] End the sync burst once nothing new remains to deliver (a gap
+        -- still counts as new -> stay latched until it fills). Leaves the "Synced N"
+        -- toast on screen; the next live item toasts individually again.
+        if st.in_sync_burst then
+            local more_new = false
+            for _, e in ipairs(pending) do
+                if type(e.index) == "number" and e.index > bridge.last_received_index then
+                    more_new = true break
+                end
+            end
+            if not more_new then finalize_sync_summary() end
+        end
+
+        if need_flush then persist() end -- flush lazy own-find skip advances
+    end
+
+    -- [Phase 3 Group 1] Submit detected location checks to the AP server. The
+    -- detector fills ctx.bridge.pending_checks; each entry now carries a resolved
+    -- AP location_id. Send them here on the poll tick, only while fully
+    -- slot-connected, tracking which ids we've sent this socket so we don't
+    -- re-spam every frame. LocationChecks is idempotent server-side, so a resend
+    -- never dupes (verified against the bundled server).
+    local function drain_location_checks()
+        local bridge = ctx.bridge
+        if ap == nil or bridge == nil or type(bridge.pending_checks) ~= "table" then
+            return
+        end
+        -- Fully connected only: a LocationChecks before SLOT_CONNECTED is dropped.
+        local ok_state, state = pcall(function() return ap:get_state() end)
+        if not ok_state or state ~= AP.State.SLOT_CONNECTED then
+            return
+        end
+
+        local to_send, keys
+        for _, entry in ipairs(bridge.pending_checks) do
+            local lid = entry and tonumber(entry.location_id)
+            if lid ~= nil then
+                lid = math.floor(lid)
+                -- [GatedKeys] Vanilla/preserved spots exist in the shipped maps but
+                -- not in this room; picking their vanilla item is not an AP check.
+                if room_location_ids ~= nil and not room_location_ids[lid] then
+                    if not skipped_non_room_lids[lid] then
+                        skipped_non_room_lids[lid] = true
+                        info(string.format(
+                            "location %d is not part of this multiworld (vanilla/preserved spot) -- check not sent",
+                            lid))
+                    end
+                elseif not sent_location_checks[lid] then
+                    sent_location_checks[lid] = true
+                    to_send = to_send or {}
+                    keys = keys or {}
+                    to_send[#to_send + 1] = lid
+                    keys[#keys + 1] = entry.key
+                end
+            end
+        end
+
+        if to_send ~= nil then
+            local ok_send, e = pcall(function() ap:LocationChecks(to_send) end)
+            if ok_send then
+                -- [Phase 3 Group 2] Optimistically mark the locations checked in the
+                -- durable per-seed set (acknowledged_guid_keys -- what the UI reads) and
+                -- persist, mirroring the 2c watermark. Idempotent server-side, so a
+                -- later resend never dupes.
+                local marked = false
+                for _, k in ipairs(keys) do
+                    if type(k) == "string" and not bridge.acknowledged_guid_keys[k] then
+                        bridge.acknowledged_guid_keys[k] = true
+                        marked = true
+                        -- [Phase 5 Group 3] session Checks-Sent counter for the status window
+                        bridge.checks_sent_session = (bridge.checks_sent_session or 0) + 1
+                    end
+                end
+                bridge.state_dirty = true
+                if marked and type(ctx.save_session_state) == "function" then
+                    ctx.save_session_state()
+                end
+                info(string.format("LocationChecks sent: %d location(s)", #to_send))
+            else
+                -- undo the sent marks so we retry next tick
+                for _, lid in ipairs(to_send) do sent_location_checks[lid] = nil end
+                err("LocationChecks send failed: " .. tostring(e))
+            end
+        end
+    end
+
+    -- [Phase 3 Group 2] Resend the full persisted checked set on (re)connect. The
+    -- durable set is ctx.bridge.acknowledged_guid_keys ("stage|guid" -> true); resolve
+    -- each to its AP location_id via the display map and re-submit. Idempotent, so this
+    -- recovers a check made while disconnected or a send that didn't land -- our stand-in
+    -- for RE2R's game-state re-scan.
+    local function resend_checked_locations()
+        local bridge = ctx.bridge
+        if ap == nil or bridge == nil or type(bridge.acknowledged_guid_keys) ~= "table" then
+            return
+        end
+        local resolve = ctx.get_location_display_entry or _G.get_location_display_entry
+        if type(resolve) ~= "function" then return end
+
+        local ids
+        for key in pairs(bridge.acknowledged_guid_keys) do
+            local bar = type(key) == "string" and string.find(key, "|", 1, true) or nil
+            if bar ~= nil then
+                local stage = tonumber(string.sub(key, 1, bar - 1))
+                local guid = string.sub(key, bar + 1)
+                if stage ~= nil then
+                    local ok, entry = pcall(resolve, stage, guid)
+                    local lid = ok and type(entry) == "table" and tonumber(entry.location_id)
+                    if lid ~= nil then
+                        lid = math.floor(lid)
+                        -- [GatedKeys] Persisted keys from an older world version can
+                        -- resolve to locations this room does not have -- skip those.
+                        if room_location_ids == nil or room_location_ids[lid] then
+                            ids = ids or {}
+                            ids[#ids + 1] = lid
+                            sent_location_checks[lid] = true -- the drain won't re-send these
+                        end
+                    end
+                end
+            end
+        end
+
+        if ids ~= nil then
+            local ok_send, e = pcall(function() ap:LocationChecks(ids) end)
+            if ok_send then
+                info(string.format("resent %d persisted check(s) on connect", #ids))
+            else
+                for _, lid in ipairs(ids) do sent_location_checks[lid] = nil end
+                err("check resend on connect failed: " .. tostring(e))
+            end
+        end
+    end
+
+    -- [Phase 4] Report the goal once the victory latch is set. maybe_trigger_victory_
+    -- condition (ArchipelagoRE4R.lua, untouched) sets bridge.victory_pending at stage
+    -- 59223; here we send StatusUpdate(GOAL) exactly once while connected, then latch
+    -- victory_sent + persist (replacing the Python client's goal_achieved + ack_victory).
+    local function maybe_send_victory()
+        local bridge = ctx.bridge
+        if ap == nil or bridge == nil then return end
+        if bridge.victory_pending ~= true or bridge.victory_sent == true then return end
+        -- Fully connected only; otherwise leave the latch to re-fire on reconnect.
+        local ok_state, state = pcall(function() return ap:get_state() end)
+        if not ok_state or state ~= AP.State.SLOT_CONNECTED then return end
+
+        local ok_send, e = pcall(function() ap:StatusUpdate(AP.ClientStatus.GOAL) end)
+        if not ok_send then
+            err("StatusUpdate(GOAL) failed: " .. tostring(e))
+            return
+        end
+        -- Latch + persist immediately (the once-guard); mirrors the old ack_victory
+        -- transition. The main loop copies bridge.victory_* onto state each tick.
+        bridge.victory_sent = true
+        bridge.victory_pending = false
+        bridge.state_dirty = true
+        if type(ctx.save_session_state) == "function" then
+            ctx.save_session_state()
+        end
+        info("StatusUpdate(GOAL) sent -- goal reported to server")
+        -- The loudest moment in a run, and it fires exactly ONCE per seed (victory is
+        -- latched + persisted above) -- so it gets the centre-screen celebration with no
+        -- risk of ever becoming noise. The toast stays as well: it's what the Message Log
+        -- captures from, so the goal is still recoverable after the banner fades.
+        local trigger_celebration = ctx.trigger_celebration or _G.trigger_celebration
+        if type(trigger_celebration) == "function" then
+            trigger_celebration("GOAL COMPLETE", {
+                "Saddler's dead. Ashley's safe.",
+                "Reported to Archipelago.",
+            })
+        end
+        enqueue_toast("Goal Complete!", "Saddler's dead. Ashley's safe.", "PROGRESSION", "goal")
+    end
+
+    -- [Phase 4] Scout every location once on connect so the progression-warning UI gets
+    -- seed-aware AP ItemFlags. Mirrors the Python client's _refresh_location_classifications:
+    -- one LocationScouts(all ids, create_as_hint=0); the reply lands in on_location_info,
+    -- which fills bridge.location_classifications (the table data.lua's warning logic reads).
+    local function scout_all_locations()
+        local bridge = ctx.bridge
+        if ap == nil or bridge == nil then return end
+        if room_location_ids == nil then
+            -- [GatedKeys] Without the room's real location set, scouting is
+            -- skipped: sending ids the room lacks makes the server drop the
+            -- socket (the reconnect loop of 2026-07-12). Classifications stay
+            -- as they are; progression warnings are limited, gameplay + check
+            -- sending are unaffected.
+            warn("scout: room location set unavailable -- scouting skipped (progression warnings limited this session)")
+            return
+        end
+        local ids = {}
+        -- Scout exactly this room's location set; the shipped map can contain
+        -- locations the room does not have (option-dependent).
+        for lid in pairs(room_location_ids) do
+            ids[#ids + 1] = lid
+        end
+        -- Rebuild fresh: clear now; on_location_info accumulates the reply (which may
+        -- arrive across one or several LocationInfo packets).
+        bridge.location_classifications = {}
+        bridge.location_scout_player = {} -- [Overlay] per-location owning slot (found-for-player)
+        if #ids == 0 then
+            warn("scout: no location ids to scout")
+            return
+        end
+        local ok_send, e = pcall(function() ap:LocationScouts(ids, 0) end)
+        if ok_send then
+            info(string.format("LocationScouts sent: %d location(s)", #ids))
+        else
+            err("LocationScouts failed: " .. tostring(e))
+        end
+    end
+
+    -- Handlers.
+    -- [Overlay] Publish live connection state for the in-game status line (replaces
+    -- the Python-era client_status / ap_connection_status bridge commands). `kind`
+    -- drives the overlay colour: "connected" green, "pending" amber, "error" red,
+    -- "idle" grey. ap_connection_status stays a coarse connected/disconnected string
+    -- so the existing is_ap_connection_active() + check-toast detail keep working.
+    local function set_conn_status(kind, label)
+        local bridge = ctx.bridge
+        if bridge == nil then return end
+        bridge.ap_status_kind = kind
+        bridge.ap_status_label = label
+        bridge.ap_connection_status = (kind == "connected") and "AP connected" or "Disconnected"
+    end
+
+    local function on_socket_connected()
+        info("socket connected to " .. st.server)
+        set_conn_status("pending", "Authenticating...")
+    end
+
+    local function on_socket_error(msg)
+        if not st.first_socket_error_seen then
+            st.first_socket_error_seen = true
+            info("first socket error (non-fatal, ws/wss autodetect): " .. tostring(msg))
+        else
+            warn("socket error: " .. tostring(msg))
+        end
+    end
+
+    local function on_socket_disconnected()
+        info("socket disconnected")
+        set_conn_status("pending", "Reconnecting...")
+    end
+
+    local function on_room_info()
+        info("RoomInfo received -> sending ConnectSlot as '" .. st.slot .. "'")
+        ap:ConnectSlot(st.slot, st.password, ITEMS_HANDLING, CLIENT_TAGS, CLIENT_VERSION)
+    end
+
+    local function on_slot_connected(slot_data)
+        info("SLOT CONNECTED as '" .. st.slot .. "' -- bare-connect SUCCESS")
+        set_conn_status("connected", "Connected (" .. st.slot .. ")")
+        -- [DeathLink] Read the slot's death_link setting (added to fill_slot_data in the
+        -- apworld). Accept boolean true or numeric/string 1. Reset the per-connection
+        -- death state so a reconnect can't strand a queued death or a stale edge.
+        do
+            local dl = (type(slot_data) == "table") and slot_data.death_link or nil
+            st.death_link_enabled = (dl == true) or (dl == 1) or (dl == "1")
+            st.dl_last_dead = false
+            st.dl_pending_incoming = nil
+            st.dl_amnesty_until = 0
+            info("DeathLink " .. (st.death_link_enabled and "ENABLED" or "disabled") ..
+                " (from slot_data)")
+        end
+        -- [CheckGuidance] Permission ceiling for the world markers
+        -- ("off" | "markers" | "markers_rarity"); the marker renderer and the
+        -- script-UI options respect it. Older seeds without the key read as
+        -- "markers" (neutral markers allowed, rarity colours not).
+        do
+            local cg = (type(slot_data) == "table") and slot_data.check_guidance or nil
+            if cg ~= "off" and cg ~= "markers" and cg ~= "markers_rarity" then
+                cg = "markers"
+            end
+            if ctx.bridge then
+                ctx.bridge.check_guidance_ceiling = cg
+                if cg ~= "markers_rarity" then
+                    ctx.bridge.world_markers_importance_colors = false
+                end
+            end
+            info("CheckGuidance ceiling: " .. cg .. " (from slot_data)")
+        end
+        -- Capture our NUMERIC slot + seed and establish the per-seed session
+        -- identity so the durable watermark keys to session_<seed>__<slot>.json
+        -- and loads on connect. Clear any stale queue from a prior connection.
+        local ok_num, num = pcall(function() return ap:get_player_number() end)
+        st.numeric_slot = (ok_num and type(num) == "number") and num or nil
+        if ctx.bridge then ctx.bridge.ap_numeric_slot = st.numeric_slot end -- [Overlay] found-for-player compare
+        local ok_seed, seed = pcall(function() return ap:get_seed() end)
+        st.seed = (ok_seed and type(seed) == "string") and seed or ""
+        -- [Hints] Prime + subscribe the durable hint list for this slot. This is
+        -- the ONLY hint source we trust for state (the on-connect PrintJSON hint
+        -- replay stays suppressed as toast spam); Get answers via on_retrieved,
+        -- later changes (hint bought, found flipped) push via on_set_reply.
+        do
+            local ok_team, team = pcall(function() return ap:get_team_number() end)
+            st.team_number = (ok_team and type(team) == "number") and team or 0
+            if st.numeric_slot ~= nil then
+                st.hints_storage_key = string.format("_read_hints_%d_%d", st.team_number, st.numeric_slot)
+                if ctx.bridge then ctx.bridge.hints_on_my_world = {} end
+                local ok_sub, sub_err = pcall(function()
+                    ap:SetNotify({ st.hints_storage_key })
+                    ap:Get({ st.hints_storage_key })
+                end)
+                if not ok_sub then
+                    warn("hint storage subscribe failed: " .. tostring(sub_err))
+                end
+            else
+                st.hints_storage_key = nil
+            end
+        end
+        pending = {}
+        pending_by_index = {}
+        inject_failure_counts = {}
+        sent_location_checks = {} -- new socket: let the persisted checks resend once
+        -- [Overlay] Fresh connection: reset the received-item burst coalescer, and
+        -- open a short grace window during which replayed Hint/Goal PrintJSON (the
+        -- server resends your hints on connect) is suppressed so old hints don't
+        -- re-toast on every auto-reconnect. Outbound item-sends are NOT gated (they
+        -- are always live actions the player just took).
+        finalize_sync_summary()
+        do
+            local now = ctx.now_unix_ms or _G.now_unix_ms
+            local now_ms = (type(now) == "function") and now() or (os.time() * 1000)
+            st.social_live_at_ms = now_ms + 3000
+        end
+        -- [GatedKeys] Capture this room's real location set BEFORE any resend or
+        -- scout below. missing+checked from the Connected packet is exactly the
+        -- slot's created location list for its options.
+        room_location_ids = nil
+        skipped_non_room_lids = {}
+        do
+            -- File first: the launcher wrote this room's exact id set at patch
+            -- time. The AP getters are a live fallback. If BOTH fail, scouting
+            -- is skipped entirely -- never fall back to the full shipped map
+            -- (scouting ids the room lacks makes the server drop the socket:
+            -- live 2026-07-12, a 471-location room vs the 476-id map produced
+            -- a connect/disconnect loop every ~1.5s).
+            local set, total, source = {}, 0, "launcher file"
+            local ok_file, payload = pcall(function() return json.load_file(ROOM_LOCATIONS_FILE) end)
+            if ok_file and type(payload) == "table" and type(payload.location_ids) == "table" then
+                local file_seed = tostring(payload.seed_name or "")
+                local file_slot = tostring(payload.slot_name or "")
+                local seed_ok = file_seed == "" or st.seed == "" or file_seed == st.seed
+                local slot_ok = file_slot == "" or file_slot == st.slot
+                if seed_ok and slot_ok then
+                    for _, lid in ipairs(payload.location_ids) do
+                        local n = tonumber(lid)
+                        if n ~= nil then
+                            n = math.floor(n)
+                            if not set[n] then
+                                set[n] = true
+                                total = total + 1
+                            end
+                        end
+                    end
+                else
+                    warn(string.format(
+                        "%s is for seed '%s' slot '%s' but this session is seed '%s' slot '%s' -- ignoring it (re-patch via the launcher)",
+                        ROOM_LOCATIONS_FILE, file_seed, file_slot, tostring(st.seed), tostring(st.slot)))
+                end
+            end
+            if total == 0 then
+                source = "AP getters"
+                for _, getter in ipairs({ "get_missing_locations", "get_checked_locations" }) do
+                    local ok_ids, result = pcall(function() return ap[getter](ap) end)
+                    if ok_ids and type(result) == "table" then
+                        for _, lid in ipairs(result) do
+                            local n = tonumber(lid)
+                            if n ~= nil then
+                                n = math.floor(n)
+                                if not set[n] then
+                                    set[n] = true
+                                    total = total + 1
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            if total > 0 then
+                room_location_ids = set
+                info(string.format("room location set: %d location(s) via %s", total, source))
+            else
+                warn("room location set unavailable (no launcher file, AP getters empty) -- location scouting is skipped this session")
+            end
+        end
+        local set_ap_session_identity = ctx.set_ap_session_identity
+        if type(set_ap_session_identity) == "function" then
+            local stage = ctx.bridge and ctx.bridge.last_state and ctx.bridge.last_state.current_stage
+            set_ap_session_identity(st.seed, st.slot, stage)
+            info(string.format(
+                "session identity set: seed='%s' slot='%s' numeric_slot=%s -> %s (last_received_index=%s)",
+                st.seed, st.slot, tostring(st.numeric_slot),
+                tostring(ctx.bridge and ctx.bridge.loaded_session_state_path),
+                tostring(ctx.bridge and ctx.bridge.last_received_index)))
+            if type(ctx.save_session_state) == "function" then
+                ctx.save_session_state()
+            end
+        else
+            warn("ctx.set_ap_session_identity unavailable -- session watermark not keyed")
+        end
+        -- [Phase 3 Group 2] Reconcile: resend the full persisted checked set now that
+        -- the per-seed session (incl. acknowledged_guid_keys) has been loaded.
+        resend_checked_locations()
+        -- [Phase 4] Refresh seed-aware location classifications for the progression UI.
+        scout_all_locations()
+    end
+
+    local function on_slot_refused(reasons)
+        local r = "?"
+        if type(reasons) == "table" then r = table.concat(reasons, ", ") end
+        err("slot refused: " .. r)
+        set_conn_status("error", "Refused: " .. r)
+    end
+
+    local function on_items_received(items)
+        if type(items) ~= "table" then return end
+        local bridge = ctx.bridge
+        local watermark = (bridge and tonumber(bridge.last_received_index)) or -1
+        local queued, lo, hi = 0, nil, nil
+        for _, item in ipairs(items) do
+            local idx = item.index
+            if type(idx) == "number" and idx > watermark and not pending_by_index[idx] then
+                pending[#pending + 1] = {
+                    index = idx,
+                    item = item.item,
+                    player = item.player,
+                    location = item.location,
+                    flags = item.flags,
+                }
+                pending_by_index[idx] = true
+                queued = queued + 1
+                if lo == nil or idx < lo then lo = idx end
+                if hi == nil or idx > hi then hi = idx end
+            end
+        end
+        info(string.format(
+            "ReceivedItems: %d in packet, %d newly queued (idx %s..%s), watermark=%s, pending=%d",
+            #items, queued, tostring(lo), tostring(hi), tostring(watermark), #pending))
+    end
+
+    local function on_location_info(scouts)
+        if type(scouts) ~= "table" then return end
+        local bridge = ctx.bridge
+        if bridge == nil then return end
+        if type(bridge.location_classifications) ~= "table" then
+            bridge.location_classifications = {}
+        end
+        if type(bridge.location_scout_player) ~= "table" then
+            bridge.location_scout_player = {}
+        end
+        -- [Overlay] The AP item that actually sits at each location. Without this the check
+        -- toast could only name the location, whose name is the item VANILLA had there - so
+        -- picking up shotgun shells at the green-herb spot toasted "Green Herb".
+        if type(bridge.location_scout_item) ~= "table" then
+            bridge.location_scout_item = {}
+        end
+        local p, u, f = 0, 0, 0
+        for _, scout in ipairs(scouts) do
+            local lid = type(scout) == "table" and tonumber(scout.location)
+            if lid ~= nil then
+                local key = tostring(math.floor(lid))
+                local cls = classify_flags(scout.flags)
+                bridge.location_classifications[key] = cls
+                bridge.location_scout_player[key] = tonumber(scout.player)
+                bridge.location_scout_item[key] = tonumber(scout.item)
+                if cls == "PROGRESSION" then p = p + 1
+                elseif cls == "USEFUL" then u = u + 1
+                else f = f + 1 end
+            end
+        end
+        local total = 0
+        for _ in pairs(bridge.location_classifications) do total = total + 1 end
+        info(string.format(
+            "LocationInfo: %d scout(s) classified this packet (%d PROG / %d USEFUL / %d FILLER); %d total classified",
+            p + u + f, p, u, f, total))
+    end
+
+    local function on_location_checked(locations)
+        local n = (type(locations) == "table") and #locations or 0
+        info("server-confirmed checked locations: " .. n)
+    end
+
+    -- [DeathLink] Inbound deaths arrive as a Bounce tagged "DeathLink" with
+    -- data = { time, cause, source }. Queue a kill (applied on the next safe tick by
+    -- poll_deathlink) when it's a real other-player death we haven't just handled.
+    local function on_bounced(bounce)
+        -- Receipt log BEFORE any gate: bounces are rare, and this line is the
+        -- divider between "server never delivered" and "we dropped it". A live
+        -- DS3 death (2026-07-23) produced no RE4R reaction and no log at all,
+        -- which was undiagnosable against the silent early-returns below.
+        if type(bounce) ~= "table" then
+            info("Bounced received: non-table payload type=" .. type(bounce))
+            return
+        end
+        local keys = {}
+        for k in pairs(bounce) do keys[#keys + 1] = tostring(k) end
+        table.sort(keys)
+        local tags_text = "<none>"
+        if type(bounce.tags) == "table" then
+            local tag_parts = {}
+            for _, t in ipairs(bounce.tags) do tag_parts[#tag_parts + 1] = tostring(t) end
+            tags_text = table.concat(tag_parts, "+")
+        end
+        info("Bounced received: keys=" .. table.concat(keys, ",") .. " tags=" .. tags_text)
+
+        if not st.death_link_enabled then
+            return
+        end
+        local is_death = false
+        if type(bounce.tags) == "table" then
+            for _, t in ipairs(bounce.tags) do
+                if t == "DeathLink" then is_death = true break end
+            end
+        end
+        if not is_death then
+            info("DeathLink: bounce had no DeathLink tag -- ignored")
+            return
+        end
+
+        local data = bounce.data
+        if type(data) ~= "table" then
+            info("DeathLink: bounce data is " .. type(data) .. ", not a table -- ignored")
+            return
+        end
+        local source = data.source
+
+        -- Ignore our own death echoed back to us by the server.
+        if type(source) == "string" and source == st.slot then
+            return
+        end
+        -- Amnesty: drop a burst of (re)delivered deaths right after we handled one.
+        if os.clock() < (st.dl_amnesty_until or 0) then
+            info("DeathLink: incoming death within amnesty window -- ignored")
+            return
+        end
+
+        st.dl_pending_incoming = {
+            source = (type(source) == "string" and source ~= "") and source or nil,
+            cause = (type(data.cause) == "string" and data.cause ~= "") and data.cause or nil,
+        }
+        info("DeathLink: incoming death from " .. tostring(source) .. " queued")
+    end
+
+    -- [Overlay] Has the on-connect grace window elapsed? Used to suppress the
+    -- server's replayed Hint/Goal PrintJSON right after (re)connect so stale events
+    -- don't re-toast on every auto-reconnect.
+    local function social_is_live()
+        local at = tonumber(st.social_live_at_ms)
+        if at == nil then return true end
+        local now = ctx.now_unix_ms or _G.now_unix_ms
+        local now_ms = (type(now) == "function") and now() or (os.time() * 1000)
+        return now_ms >= at
+    end
+
+    -- [Overlay] Render a PrintJSON message to plain text. Prefers apclientpp's
+    -- render_json (resolves item/player/location ids to names); falls back to
+    -- concatenating the raw text parts.
+    local function render_print_json(msg)
+        if ap ~= nil and type(msg) == "table" and msg.data ~= nil then
+            local ok, text = pcall(function()
+                local fmt = (AP ~= nil and AP.RenderFormat ~= nil) and AP.RenderFormat.TEXT or nil
+                if fmt ~= nil then return ap:render_json(msg.data, fmt) end
+                return ap:render_json(msg.data)
+            end)
+            if ok and type(text) == "string" and text ~= "" then return text end
+        end
+        if type(msg) == "table" and type(msg.data) == "table" then
+            local parts = {}
+            for _, node in ipairs(msg.data) do
+                if type(node) == "table" and type(node.text) == "string" then
+                    parts[#parts + 1] = node.text
+                end
+            end
+            if #parts > 0 then return table.concat(parts) end
+        end
+        return nil
+    end
+
+    -- [Overlay] PrintJSON = the server's multiworld event feed. We surface the
+    -- social heartbeat that was previously invisible:
+    --   * hints                -> rendered server text (progression-coloured)
+    --   * goal completions     -> "<player> has completed their goal"
+    -- Item sends are NOT toasted here: your OWN pickups (outbound + self-find) are
+    -- covered by detector's unified pickup toast, and inbound gifts from other players
+    -- are toasted by items_received. Echoing PrintJSON would double-toast either way.
+    local function on_print_json(msg)
+        if type(msg) ~= "table" then return end
+        local mtype = (type(msg.type) == "string") and msg.type or ""
+
+        if mtype == "ItemSend" then
+            local item = (type(msg.item) == "table") and msg.item or nil
+            local receiver = tonumber(msg.receiving)
+            local finder = item and tonumber(item.player) or nil
+            local me = tonumber(st.numeric_slot)
+            -- Inbound / self-grant: handled by items_received. Skip.
+            if me ~= nil and receiver == me then return end
+            -- Only surface sends WE made to someone else (the outbound half).
+            if me == nil or finder ~= me then return end
+
+            -- Same get_item_name gotcha as ap_item_name: route through the helper so
+            -- the slot -> game mapping (and the "Unknown" rejection) applies here too.
+            local item_name
+            if item ~= nil then
+                item_name = ap_item_name(item.item, receiver)
+            end
+            local who = ap_player_name(receiver) or ("Player " .. tostring(receiver))
+            -- No toast: detector's unified pickup toast already said "Sent <item> to <who>" the
+            -- moment you collected it. This server echo would double-toast. Log only.
+            info(string.format("PrintJSON ItemSend: sent %s to %s (toast suppressed - covered by pickup)", item_name or "an item", who))
+            return
+        end
+
+        if mtype == "Hint" then
+            if not social_is_live() then return end -- suppress on-connect hint replay
+            local text = render_print_json(msg)
+            if text ~= nil then
+                info("PrintJSON Hint: " .. text)
+                -- [Hints] When the hinted location is in OUR world, the detail
+                -- line speaks map language: section - container gloss - note.
+                local detail = nil
+                local net_item = (type(msg.item) == "table") and msg.item or nil
+                if net_item ~= nil and tonumber(net_item.player) == tonumber(st.numeric_slot) then
+                    local resolver = ctx.get_display_entry_by_location_id or _G.get_display_entry_by_location_id
+                    local resolved = (type(resolver) == "function") and resolver(net_item.location) or nil
+                    local entry = resolved and resolved.entry or nil
+                    if entry ~= nil then
+                        local parts = {}
+                        local section = tostring(entry.section_name or "")
+                        if section ~= "" then table.insert(parts, section) end
+                        local gloss_fn = ctx.get_container_gloss or _G.get_container_gloss
+                        local gloss = (type(gloss_fn) == "function") and gloss_fn(entry.container) or ""
+                        if gloss ~= "" then table.insert(parts, gloss) end
+                        local note = tostring(entry.note or "")
+                        if note ~= "" then table.insert(parts, note) end
+                        if #parts > 0 then detail = "Yours: " .. table.concat(parts, " - ") end
+                    end
+                end
+                enqueue_toast(text, detail, "PROGRESSION", "hint")
+            end
+            return
+        end
+
+        if mtype == "Goal" then
+            if not social_is_live() then return end
+            -- Our own goal is already toasted locally by maybe_send_victory; skip the
+            -- server echo when it names us (best-effort: msg.slot may be absent).
+            local me = tonumber(st.numeric_slot)
+            if me ~= nil and tonumber(msg.slot) == me then return end
+            local text = render_print_json(msg)
+            if text ~= nil then
+                info("PrintJSON Goal: " .. text)
+                enqueue_toast(text, nil, "PROGRESSION", "goal")
+            end
+            return
+        end
+        -- Chat / Join / Part / Tutorial / Countdown / ... intentionally ignored.
+    end
+
+    -- [DeathLink] Share our death with the multiworld. Live-connection gated;
+    -- best-effort (a death while disconnected is simply not propagated).
+    local function dl_send_death()
+        if ap == nil then return end
+        local ok_state, state = pcall(function() return ap:get_state() end)
+        if not ok_state or state ~= AP.State.SLOT_CONNECTED then return end
+        local src = (st.slot ~= "") and st.slot or "RE4R"
+        local data = { time = os.time(), cause = src .. " was killed", source = src }
+        local tags = { "DeathLink" }
+        -- Broadcast to all DeathLink slots: games/slots are empty arrays. Use
+        -- AP.EMPTY_ARRAY, not {} -- a bare {} serializes as an empty JSON *object*, not
+        -- [] (per the apclientpp API notes). nil is only a last-ditch fallback.
+        local ok = pcall(function() ap:Bounce(data, AP.EMPTY_ARRAY, AP.EMPTY_ARRAY, tags) end)
+        if not ok then
+            ok = pcall(function() ap:Bounce(data, nil, nil, tags) end)
+        end
+        if ok then
+            info("DeathLink: shared our death with the multiworld")
+            enqueue_toast("You died", "Death shared via DeathLink", "PROGRESSION", "death")
+            st.dl_amnesty_until = os.clock() + DEATHLINK_AMNESTY_SECONDS
+        else
+            err("DeathLink: Bounce send failed")
+        end
+    end
+
+    -- [DeathLink] Apply a queued incoming death by triggering the game's own game-over
+    -- -> checkpoint reload (ctx.trigger_game_over). Only called from a safe gameplay
+    -- state so the game-over can't fire mid-cutscene/menu/load.
+    local function dl_apply_incoming_death()
+        local pending = st.dl_pending_incoming
+        st.dl_pending_incoming = nil
+        if pending == nil then return end
+        local trigger = ctx.trigger_game_over
+        local killed = (type(trigger) == "function") and trigger() or false
+        if killed then
+            local who = pending.source or "another player"
+            local msg = pending.cause or (who .. " died")
+            -- The raw cause string stays in the log; the toast reads as one
+            -- sentence: "<player> died - taking you with them" (Cam 2026-07-23).
+            info("DeathLink: applied incoming death (" .. msg .. ")")
+            enqueue_toast(who .. " died", "taking you with them", "PROGRESSION", "death", {
+                { text = truncate_overlay_text(who, 18),
+                  color = CHECK_OVERLAY_TEXT_COLOR_PLAYER, entity = "player" },
+                { text = "died", color = CHECK_OVERLAY_TEXT_COLOR_FILLER },
+            })
+            st.dl_amnesty_until = os.clock() + DEATHLINK_AMNESTY_SECONDS
+            st.dl_last_dead = true -- suppress an outbound echo if IsDead momentarily flips
+        else
+            err("DeathLink: trigger_game_over failed in a safe state -- death dropped")
+        end
+    end
+
+    -- [DeathLink] Per-tick pump (called after ap:poll): send our own death on the
+    -- rising edge of the player's IsDead flag; apply a queued incoming death once we
+    -- reach a safe gameplay state.
+    local function poll_deathlink()
+        if not st.death_link_enabled then return end
+
+        local get_is_dead = ctx.get_player_is_dead
+        if type(get_is_dead) == "function" then
+            local dead = get_is_dead()
+            if dead ~= nil then
+                if dead and not st.dl_last_dead and os.clock() >= (st.dl_amnesty_until or 0) then
+                    dl_send_death()
+                end
+                st.dl_last_dead = dead
+            end
+        end
+
+        if st.dl_pending_incoming ~= nil then
+            local get_runtime_state = ctx.get_runtime_state
+            local rs = (type(get_runtime_state) == "function") and get_runtime_state() or nil
+            if safe_to_inject(rs) then
+                dl_apply_incoming_death()
+            end
+        end
+    end
+
+    -- [DeathLink] Debug-tab helpers: simulate an inbound death through the
+    -- REAL queue -> safe-tick -> game-over path, so the apply side is
+    -- validatable without a partner game (2026-07-23: the DS3 slot had
+    -- DeathLink off, so the cross-game loop had never fired -- and outbound
+    -- was proven while inbound sat unexercised). The simulation respects the
+    -- slot's death_link gate: it validates production behaviour, never
+    -- bypasses it.
+    local function ap_debug_deathlink_status()
+        if not st.death_link_enabled then
+            return "disabled (slot_data.death_link off)"
+        end
+        local parts = { "enabled" }
+        parts[#parts + 1] = (st.dl_pending_incoming ~= nil)
+            and "kill queued, waiting for a safe tick" or "no kill queued"
+        if os.clock() < (st.dl_amnesty_until or 0) then
+            parts[#parts + 1] = string.format(
+                "amnesty %.0fs left", (st.dl_amnesty_until or 0) - os.clock())
+        end
+        return table.concat(parts, "; ")
+    end
+    ctx.ap_debug_deathlink_status = ap_debug_deathlink_status
+
+    local function ap_debug_simulate_deathlink()
+        if not st.death_link_enabled then
+            info("DeathLink: simulate ignored -- death_link disabled for this slot")
+            return "ignored: death_link disabled for this slot"
+        end
+        st.dl_pending_incoming = {
+            source = "Debug",
+            cause = "Simulated inbound death (Debug tab)",
+        }
+        info("DeathLink: simulated inbound death queued (Debug tab)")
+        return "queued; applies on the next safe gameplay tick"
+    end
+    ctx.ap_debug_simulate_deathlink = ap_debug_simulate_deathlink
+
+    local function connect()
+        if not read_connection_info() then
+            info("no valid ap_connection.json yet (" .. CONNECTION_INFO_FILE .. "); AP client idle, will retry.")
+            set_conn_status("idle", "No session configured")
+            return false
+        end
+        info("connecting to " .. st.server .. " as '" .. st.slot .. "'")
+        set_conn_status("pending", "Connecting...")
+        ap = AP("", GAME_NAME, st.server)   -- uuid unused per lua-apclientpp README
+        ap:set_socket_connected_handler(guard("socket_connected", on_socket_connected))
+        ap:set_socket_error_handler(guard("socket_error", on_socket_error))
+        ap:set_socket_disconnected_handler(guard("socket_disconnected", on_socket_disconnected))
+        ap:set_room_info_handler(guard("room_info", on_room_info))
+        ap:set_slot_connected_handler(guard("slot_connected", on_slot_connected))
+        ap:set_slot_refused_handler(guard("slot_refused", on_slot_refused))
+        ap:set_items_received_handler(guard("items_received", on_items_received))
+        ap:set_location_info_handler(guard("location_info", on_location_info))
+        ap:set_location_checked_handler(guard("location_checked", on_location_checked))
+        ap:set_bounced_handler(guard("bounced", on_bounced))
+        ap:set_print_json_handler(guard("print_json", on_print_json))
+        ap:set_retrieved_handler(guard("retrieved", on_retrieved))
+        ap:set_set_reply_handler(guard("set_reply", on_set_reply))
+        return true
+    end
+
+    load_ap_item_map()
+    connect()
+
+    local last_retry_clock = 0
+    re.on_pre_application_entry("UpdateBehavior", function()
+        local ok, e = pcall(function()
+            if ap ~= nil then
+                ap:poll()
+                drain_received_items()
+                drain_location_checks()
+                maybe_send_victory()
+                poll_deathlink()
+                return
+            end
+            local now = os.clock()
+            if now - last_retry_clock >= 3.0 then
+                last_retry_clock = now
+                connect()
+            end
+        end)
+        if not ok then
+            err("poll loop error: " .. tostring(e))
+        end
+    end)
+
+    info("apclient.lua initialized (Phase 2d: received items -> injection).")
+end

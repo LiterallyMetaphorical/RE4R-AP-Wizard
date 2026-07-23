@@ -1,0 +1,74 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\RE4R.AP.Launcher.Core\RE4R.AP.Launcher.Core.csproj" />
+  </ItemGroup>
+
+  <!-- ExcludeFromSingleFile on every asset: under PublishSingleFile these Content
+       files (notably the 107 MB biorand-re4r.exe and its DLLs, plus lua-apclientpp.dll)
+       would otherwise be embedded INTO the launcher exe. BioRand is spawned as a
+       child process and the native DLL is loaded by REFramework, so both MUST stay
+       as loose files on disk beside the exe. This keeps them in assets\ where every
+       service resolves them via AppContext.BaseDirectory. -->
+  <ItemGroup>
+    <Content Include="..\..\assets\BioRand\**\*">
+      <Link>assets\BioRand\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </Content>
+    <Content Include="..\..\assets\Data\re4r_ap_static.json" Link="assets\Data\re4r_ap_static.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </Content>
+    <!-- The BioRand options catalog: GENERATED from BioRand's own
+         Re4rRandomizerConfigurationDefinition, so keys/labels/types/defaults match BioRand
+         exactly. BioRandOptionCatalog loads this; re-dump it when BioRand's options change. -->
+    <Content Include="..\..\assets\Data\biorand_options.json" Link="assets\Data\biorand_options.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </Content>
+    <!-- The shipped RE4R.apworld lives here (not in assets/Archipelago, which is
+         deleted with the hosting cut): Generation Guidance hands this file to the
+         organizer to copy into their own Archipelago's custom_worlds folder. -->
+    <Content Include="..\..\assets\Data\RE4R.apworld" Link="assets\Data\RE4R.apworld">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </Content>
+    <Content Include="..\..\assets\Lua\**\*">
+      <Link>assets\Lua\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </Content>
+    <Content Include="..\..\assets\native\**\*">
+      <Link>assets\native\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </Content>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <!-- Publish as a single self-contained exe so the distributable folder is just
+       RE4R.AP.Launcher.exe + assets\ instead of ~260 loose runtime DLLs (Cam's
+       "the folder is a mess" note). Guarded on RuntimeIdentifier so it engages
+       ONLY for a RID-targeted `dotnet publish`; a plain `dotnet build`/F5 dev run
+       is untouched. The assets\ tree stays loose beside the exe (Content +
+       CopyToOutputDirectory) and every service resolves it via
+       AppContext.BaseDirectory, which points at the exe's folder under single-file. -->
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <DebugType>none</DebugType>
+    <!-- Don't copy referenced projects' .pdb into the publish output (the RID
+         condition on the Core project alone doesn't stop the copy-local step),
+         so the distributable stays exe + assets\ only. -->
+    <AllowedReferenceRelatedFileExtensions>.xml</AllowedReferenceRelatedFileExtensions>
+  </PropertyGroup>
+
+</Project>

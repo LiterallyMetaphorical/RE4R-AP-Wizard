@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/RE4R.AP.Launcher.Core/RE4R.AP.Launcher.Core.csproj" />
+    <Project Path="src/RE4R.AP.Launcher/RE4R.AP.Launcher.csproj" />
+  </Folder>
+</Solution>

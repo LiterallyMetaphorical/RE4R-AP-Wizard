@@ -1,0 +1,139 @@
+BioRand fork binary provenance
+==============================
+This records what the launcher's assets/BioRand/ payload was built from.
+The payload itself is a build artifact (git-ignored); rebuild it with:
+
+  cd biorand-re4r-ap
+  dotnet publish src/biorand-re4r/biorand-re4r.csproj -c Release -r win-x64 --self-contained true -o <out>
+  copy <out>/* into RE4R-AP-Launcher/assets/BioRand/
+
+Source repo:    biorand-re4r-ap (fork; never upstream biorand/re4r)
+Source branch:  ap-manifest-input
+Source commit:  317ff85 (2026-07-23: AP LOGO MODEL v3 - second art revision
+                from Cam's modeler. Two of the 8 overlay files changed:
+                sm75_304_00.mesh and sm75_304_00_mat.mdf2 (the MATERIAL,
+                untouched by v2); all three texture pairs byte-identical
+                to v2, so this is a geometry + material-binding revision,
+                not a re-texture. Cross-payload diff vs c75545687 (same
+                cache/config/seed): only those 2 art files plus the
+                documented per-run GUID-churn set differ;
+                process_leon.log placement decisions line-identical
+                ("b0db3874-... becomes SW - Glasses x1 (AP)"); all 8
+                overlay files byte-identical to the modeler's delivery
+                in the generated output. On top of d265c93: AP LOGO
+                MODEL v2 - Cam's modeler's
+                refresh of the glasses-based logo. Three of the 8 overlay
+                files changed content (mesh geometry/UVs, albedo, normal
+                map; base + streaming pairs byte-identical to each other);
+                material and alpha-coverage texture unchanged. Entry paths
+                and count identical to c5f53b1, so pak wiring is untouched.
+                Cross-payload diff (same cache/config/seed, this exe vs
+                c371143d): the ONLY entry deltas are the 6 refreshed art
+                files plus the documented per-run GUID-churn set (logs,
+                modinfo.ini, 2 scn, itemmessageidsetting + 2 msg files);
+                process_leon.log placement decisions are line-identical.
+                On top of c5f53b1: GLASSES LOGO MODEL - Cam's
+                modeler delivered the Archipelago-logo model rebuilt against
+                sm75_304; ap_placeholder_model.zip is now 8 files (mesh +
+                mdf2 + 3 base tex + 3 STREAMING tex - the streaming variants
+                the crossbow overlay never had, closing the LOD-seam
+                cosmetic). All paths verified present in the vanilla pak
+                (pure overrides; the glasses' assets live under _chainsaw,
+                only its prefabs are _anotherorder, so world drop, valuables
+                tab and shop views all follow the one mesh swap). The wp6102
+                crossbow reskin is REMOVED - the crossbow is a real weapon
+                again. On top of 56da5b5: placeholder name is "AP Multiworld
+                Item" per Cam - verified via the pak harness msgcheck command
+                to land in every language; the msg string pool is scrambled
+                on disk so plaintext byte-search cannot see it. On top of
+                66e9f67, same night: AP PLACEHOLDER SWAP - the multiworld
+                placeholder moves from the SW Blast Crossbow (278198656, a
+                weapon) to SW - Glasses (120486400, a Separate Ways treasure,
+                it_sm75_304). Live fire proved the engine refuses to
+                instantiate a weapon drop the player already owns, so one
+                collected weapon placeholder suppressed all 361 later spawns
+                and RE4R has no field-discard. Treasures have no ownership
+                rule, no acquisition screen, harmless duplicates. New
+                ApPlaceholderItemPatch (ap-mode + Leon, idempotent) copies
+                from the _anotherorder files: drop-catalog entries into
+                _1st/_main, item definition, item message setting re-pointed
+                at new "AP Multiworld Item" name/caption (56da5b5, Cam's
+                wording; fills every language), keytreasure GUI
+                render, and the shop item setting with _SellingPrice zeroed
+                (+ shop model settings) so a leaked placeholder is worthless.
+                All referenced prefabs ship in the shared pak chain (no SW
+                DLC entitlement needed). Includes b27f7ac (drop-catalog fix)
+                and 90140f0 (purity gates).)
+Publish:        -c Release -r win-x64 --self-contained true (net10.0)
+biorand-re4r.exe SHA-256: a220258f7e21cce4ef6c9b005101ca74f33195b619ad5c05c99012a10dd53974
+Built with:     .NET SDK 10.0.301
+
+DOOR LOCKS ARE BANNED IN AP MODE - DO NOT "FIX" THIS
+    LockDoor/LockShutter CREATE a lock component vanilla does not have, keyed to
+    lock/unlock flags in BioRand's own placement data. Standalone BioRand is safe
+    because its item randomizer never relocates key items (CanChangeItem /
+    preserve), so keys stay vanilla-placed and match the lock design. Archipelago
+    DELIBERATELY shuffles the milestone keys, and its logic (rules.py) models
+    VANILLA progression with zero knowledge of these added locks - so an added
+    lock whose key AP placed behind it is a softlock (same class as the lodge-key
+    bug). Re-enabling requires rules.py to model BioRand's locks first.
+
+Verified:       This payload (the published single-file exe itself): ap-mode
+                scratch generation against the harvested cache (seed
+                146450803, one placement b0db3874 -> 120486400) produced:
+                dropitemcataloguserdata_1st + _main each with 120486400 ->
+                _AnotherOrder/Environment/Prefab/Item/it_sm75_304_00_0.pfb
+                (crossbow entries retained); Glasses + crossbow entries
+                byte-verified in itemdefinitionuserdata and
+                itemmessageidsettinguserdata (harness dump under-renders
+                those two files' tails - byte search is authoritative); the
+                copied message setting no longer references the AO name or
+                caption guids (re-pointed at the new "Archipelago Item"
+                entries); keytreasure GUI resource has the entry; shop item
+                setting shows _PurchasePrice -1 / _SellingPrice 0; shop
+                model settings _1st/_2nd have the entry;
+                process_leon.log: "b0db3874-... becomes SW - Glasses x1
+                (AP)". Build 0/0. THIS payload additionally verified: all 8
+                glasses-overlay files present byte-identical in the
+                generated output (vs the modeler's delivery) and ZERO stale
+                wp6102 reskin files; name + placement re-verified on the
+                same output.
+                The c5f53b1 3-spot protocol PASSED live 2026-07-23 on v18
+                (13 intercepts / 13 despawns / 15 checks sent, zero
+                failures - glasses placeholder verified end-to-end).
+                OWED IN-GAME for THIS payload: re-patch + eyeball the v3
+                art in world + valuables tab + shop sell view (art-only
+                change; behaviour already live-proven). The v2 art shipped
+                in v19 and was never eyeballed before v3 replaced it.
+Note:           setup cache rebuild is triggered by a BioRand version change
+                (LaunchWorkflowService compares SetupBioRandVersion), so
+                shipping this payload forces one ~1 min re-harvest per machine.
+                Existing sessions MUST RE-PATCH to receive the placeholder
+                swap; a pre-swap save with a crossbow in the inventory HEALS
+                on re-patch (the owned weapon no longer matches placeholder
+                drops).
+Prior payload:  c75545687cf6fc6d0a6f1d6606e2ef4b86bd6ada9eb70723485a3a5ad93b083d
+                (commit d265c93) - AP logo model v2 (mesh + albedo + normal);
+                shipped in v19, superseded same-day by the v3 revision.
+                c371143daf557327094e514dbd8dd11066cdfff7148ac3535d051ef9af4c2251
+                (commit c5f53b1) - glasses logo model v1 + "AP Multiworld
+                Item" rename; shipped in v18; superseded by the modeler's
+                v2 art refresh same-day.
+                ffe4393c14c51d77898c0a129052350c237aa41a939a9b88715dfa922a971c55
+                (commit 56da5b5) - "AP Multiworld Item" rename; crossbow-logo
+                overlay still present; never shipped to a player re-patch.
+                32d803be366df09fa140a8cc3d18592fe646815fa70beaa4b99d47e5a0a0fbc5
+                (commit 66e9f67) - glasses swap with "Archipelago Item" name;
+                superseded the same night by the rename, never shipped to a
+                player re-patch.
+                a29b0e5bd3a9daafd4249db0709149dd6a5a3569a30e9a7518a03995938e725e
+                (commit b27f7ac) - drop-catalog fix; crossbow-era placeholder.
+                5092654a28b530d1c47d9e5364f1c100c7a84df7d44e5507412053d47b6c9248
+                (commit da3c1d1) - AP-logo reskin; placeholder drops still dead
+                (catalog gap present since forever, first observed live here).
+                98dadc76d2aa76a02c885a56bc09ba5f688791d1870770e3b73b479fa1f2b425
+                (commit 90140f0) - per-mode purity gates; mode 3 unlocked.
+                d791b0f8df008674bcb22bcb64fc660524dcdb16ab95a0d347e3feb85442e12b
+                (commit a309282) - ap-mode gates skipped modifiers wholesale.
+                12cf330e7cb2227532ca5e1e62ada57fdd4e927ba9b4b79567573a50e22e0460
+                (commit 7241cff) - full setup+generation verified end-to-end.

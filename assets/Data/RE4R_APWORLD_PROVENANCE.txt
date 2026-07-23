@@ -1,0 +1,33 @@
+RE4R.apworld provenance
+=======================
+Relocated:   2026-07-11, redesign step 1b-prep (from assets/Archipelago/RE4R.apworld,
+             which is deleted with the hosting/generation cut - see
+             UI_REDESIGN_REVIEW_2026-07-11.md, finding apworld-orphaned).
+Rebuilt:     2026-07-12, redesign step 4 - the archipelago.json manifest moved to the
+             zip ROOT (the location AP's APWorldContainer tries first) and gained
+             minimum_ap_version/maximum_ap_version pins of 0.6.7, so a mismatched
+             Archipelago fails the world load with a clear message instead of a
+             traceback. Rebuild with ArchipelagoRE4R/build_apworld.py; keep the pins
+             in sync with ArchipelagoInstallationService.ApVersionPin.
+Rebuilt:     2026-07-12 (second rebuild), world_version 0.4.0 - "port BioRand's
+             placement curation": preserve-tagged rows (17) are no longer AP
+             locations (physically vanilla; kills the Hunter's-Lodge-Key softlock
+             class), 5 unmodeled locked-door keys (Bloodied Sword, Bunch of Keys,
+             Cubic Device, Dynamite, Halo Wheel) are option-gated behind the new
+             randomize_gated_keys YAML toggle (default off), and the 16 milestone
+             gate items stay shuffled under rules.py logic. Location pool: 476
+             defined = 471 always + 5 optional (was 493). Regenerate with
+             ArchipelagoRE4R/data_parser.py + build_apworld.py; refresh
+             assets/Data/re4r_ap_static.json and assets/Lua/data from the SAME
+             run (room location counts vary by option now). Rooms generated
+             with apworld <= 0.3.0 fail the scout/manifest count check by design.
+Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_version 0.4.0
+             per that repo's archipelago.json.
+AP target:   Archipelago 0.6.7 (the version the apworld was developed and
+             generation-validated against; pinned via the manifest as of 2026-07-12).
+SHA-256:     cfd7bd0e543c8d6b5e699ab1a8045c17f797e4a96a9f94ee7fb3f545d2c2fc56
+Consumed by: the Generation Guidance screen ("Copy RE4R.apworld to your Archipelago
+             custom_worlds folder") - ArchipelagoInstallationService reads the
+             world_version out of this zip's manifest for display and copies the
+             file into <AP>\custom_worlds. Keep this file's AP target in sync when
+             the apworld is rebuilt.

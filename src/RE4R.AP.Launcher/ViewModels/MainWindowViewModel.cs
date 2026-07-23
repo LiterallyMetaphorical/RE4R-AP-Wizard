@@ -1,0 +1,1795 @@
+using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
+using System.Net.Sockets;
+using System.Text.Json;
+using System.Windows;
+using RE4R.AP.Launcher.Core.Exceptions;
+using RE4R.AP.Launcher.Core.Models;
+using RE4R.AP.Launcher.Core.Services;
+using RE4R.AP.Launcher.Core.Utilities;
+using RE4R.AP.Launcher.Infrastructure;
+using RE4R.AP.Launcher.Models;
+using RE4R.AP.Launcher.Services;
+
+namespace RE4R.AP.Launcher.ViewModels;
+
+public sealed class MainWindowViewModel : ObservableObject, IDisposable
+{
+    private readonly IUiDialogService _dialogService;
+    private readonly SettingsStore _settingsStore;
+    private readonly SessionRecordStore _sessionRecordStore;
+    private readonly StaticGameDataProvider _staticGameDataProvider;
+    private readonly LaunchWorkflowService _workflowService;
+    private readonly GameInstallationInspector _gameInstallationInspector;
+    private readonly ReFrameworkInstallationService _reFrameworkInstallationService;
+    private readonly LuaInstallService _luaInstallService;
+    private readonly AsyncRelayCommand _browseCommand;
+    private readonly AsyncRelayCommand _installReFrameworkCommand;
+    private readonly AsyncRelayCommand _installArchipelagoLuaModCommand;
+    private readonly RelayCommand _dismissErrorCommand;
+    private readonly RelayCommand _openLogFolderCommand;
+    private readonly RelayCommand _showCreateGuidanceCommand;
+    private readonly RelayCommand _startJoinFlowCommand;
+    private readonly RelayCommand _startConfigureYamlCommand;
+    private readonly RelayCommand _returnToLandingCommand;
+    private readonly RelayCommand _openSetupCommand;
+    private readonly RelayCommand _openRoomPageCommand;
+    private readonly RelayCommand _reconnectPrefillCommand;
+    private readonly RelayCommand _repatchPrefillCommand;
+    private readonly AsyncRelayCommand _retireSessionCommand;
+    private readonly AsyncRelayCommand _unlockBioRandOptionsCommand;
+    private readonly RelayCommand _draftJoinCommand;
+    private readonly AsyncRelayCommand _retryPatchCommand;
+    private readonly AsyncRelayCommand _clearBioRandCacheCommand;
+    private readonly AsyncRelayCommand _fixAddressCommand;
+    private readonly RoomAddressHealService _roomAddressHealService;
+    private readonly BioRandProcessRunner _cacheManager;
+    private readonly PendingSessionDraftStore _draftStore;
+    private SessionRecord? _bannerRecord;
+    private PendingSessionDraft? _pendingDraft;
+    private LaunchWorkflowRequest? _lastWorkflowRequest;
+    private readonly System.Collections.Concurrent.ConcurrentQueue<string> _pendingWorkflowLogLines = new();
+    private readonly System.Windows.Threading.DispatcherTimer _workflowLogFlushTimer;
+
+    private LauncherSettings _settings = LauncherSettings.CreateDefault();
+    private StaticGameData? _staticData;
+    private GameInstallationInspectionResult _inspection = GameInstallationInspectionResult.CreateDefault();
+    private CancellationTokenSource? _installInspectionCancellationSource;
+    private CancellationTokenSource? _sessionRefreshCancellationSource;
+    private bool _isInitializing;
+    private string _lastAutoDetectedGameVersion = string.Empty;
+    private object? _currentScreen;
+
+    public MainWindowViewModel(
+        IUiDialogService dialogService,
+        SettingsStore? settingsStore = null,
+        SessionRecordStore? sessionRecordStore = null,
+        StaticGameDataProvider? staticGameDataProvider = null,
+        LaunchWorkflowService? workflowService = null,
+        GameInstallationInspector? gameInstallationInspector = null,
+        ReFrameworkInstallationService? reFrameworkInstallationService = null,
+        LuaInstallService? luaInstallService = null)
+    {
+        _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+        _settingsStore = settingsStore ?? new SettingsStore();
+        _sessionRecordStore = sessionRecordStore ?? new SessionRecordStore(_settingsStore.AppDataRootPath);
+        _staticGameDataProvider = staticGameDataProvider ?? new StaticGameDataProvider();
+        _workflowService = workflowService
+            ?? new LaunchWorkflowService(
+                settingsStore: _settingsStore,
+                staticGameDataProvider: _staticGameDataProvider,
+                sessionRecordStore: _sessionRecordStore);
+        _gameInstallationInspector = gameInstallationInspector ?? new GameInstallationInspector();
+        _reFrameworkInstallationService = reFrameworkInstallationService ?? new ReFrameworkInstallationService();
+        _luaInstallService = luaInstallService ?? new LuaInstallService();
+        // Dedicated runner instance purely for cache size/clear from the Setup
+        // panel. Its cache methods are pure path operations (no process launch),
+        // and sharing _settingsStore makes it resolve the exact same cache paths
+        // as the workflow service's own runner.
+        _cacheManager = new BioRandProcessRunner(settingsStore: _settingsStore);
+        _cacheManager.LogMessage += OnWorkflowLogMessage;
+        // Room probe + one-click address heal (archipelago.gg port churn).
+        // Shares the settings/record stores so it resolves the same
+        // ap_connection.json paths and session records as the workflow.
+        _roomAddressHealService = new RoomAddressHealService(_settingsStore, _sessionRecordStore);
+        _roomAddressHealService.LogMessage += OnWorkflowLogMessage;
+
+        Setup = new SetupViewModel();
+        Session = new SessionViewModel();
+        BioRandOptions = new BioRandOptionsViewModel();
+        Action = new ActionViewModel();
+        Landing = new LandingViewModel();
+
+        // Workflow log lines arrive per-line from worker threads at BioRand
+        // flood rates (~74k lines during a full setup harvest). They are teed
+        // to disk on the producer thread and drained here in one batched
+        // LogText rebuild per tick, at Background priority so WPF input
+        // always outranks log rendering (papercut #0: frozen Proceed/Cancel).
+        _workflowLogFlushTimer = new System.Windows.Threading.DispatcherTimer(
+            System.Windows.Threading.DispatcherPriority.Background)
+        {
+            Interval = TimeSpan.FromMilliseconds(200),
+        };
+        _workflowLogFlushTimer.Tick += OnWorkflowLogFlushTick;
+        _workflowLogFlushTimer.Start();
+        _draftStore = new PendingSessionDraftStore(_settingsStore.AppDataRootPath);
+        _draftStore.LogMessage += OnWorkflowLogMessage;
+        ConfigureYaml = new ConfigureYamlViewModel(
+            new Re4rYamlBuilder(),
+            _dialogService,
+            Action,
+            _draftStore);
+        ConfigureYaml.DraftSaved += OnDraftSaved;
+        GenerationGuidance = new GenerationGuidanceViewModel(
+            _dialogService,
+            Action,
+            _draftStore,
+            new YamlInspectionService(),
+            new ArchipelagoInstallationService(_settingsStore.AppDataRootPath));
+        GenerationGuidance.DraftSaved += OnDraftSaved;
+        GenerationGuidance.JoinRoomRequested += OnGuidanceJoinRoomRequested;
+        GenerationGuidance.ConfigureYamlRequested += OnGuidanceConfigureYamlRequested;
+        JoinFlow = new JoinFlowViewModel(Session, Action, BioRandOptions);
+        PatchLaunch = new PatchLaunchViewModel(_workflowService, Action);
+
+        foreach (var version in GameInstallationInspector.SupportedBioRandGameVersions)
+        {
+            Setup.SupportedGameVersions.Add(version);
+        }
+
+        Setup.SelectedGameVersion = Setup.SupportedGameVersions.Last();
+
+        // No "Please select..." sentinel: all modes are visible buttons, the
+        // unavailable ones disabled with a Coming Soon badge (plan fix #3).
+        //
+        // ALL THREE MODES ARE LIVE (2026-07-13). BioRand is gameplay-deterministic for a fixed
+        // seed+config (measured - the placement-decision log is identical across runs), and AP
+        // checks cannot be corrupted by item randomization (AP placements are written by explicit
+        // id and merged last). Mode 3 was unblocked by fork 90140f0, which reconciled the ap-mode
+        // purity gates per mode so modes 2/3 actually get the BioRand world their config asks for.
+        //
+        // Mode 3 caveat worth knowing: BioRand's door/shutter LOCKS stay disabled in every AP mode.
+        // They add locks vanilla lacks, and AP's logic (rules.py) models vanilla progression with
+        // no knowledge of them, so an added lock whose key AP placed behind it would softlock.
+        // Everything else in mode 3 (enemies, events, extra merchants, traps, containers) applies.
+        BioRandOptions.AvailableModes.Add(
+            new LaunchModeOption
+            {
+                Key = "mode1",
+                DisplayName = "AP Item Randomization Only",
+                Description = "Fixed item pickups hold what the multiworld placed there - what you find is what you (or another player) get. Enemies, merchant, and drops stay vanilla.",
+                IsAvailable = true,
+            });
+        BioRandOptions.AvailableModes.Add(
+            new LaunchModeOption
+            {
+                Key = "mode2",
+                DisplayName = "Full BioRand Item Randomization",
+                Description = "Multiworld checks stay exactly where the multiworld put them; BioRand re-rolls every other world pickup. Enemies and the merchant stay vanilla.",
+                IsAvailable = true,
+            });
+        BioRandOptions.AvailableModes.Add(
+            new LaunchModeOption
+            {
+                Key = "mode3",
+                DisplayName = "Full BioRand Item + Enemy Randomization",
+                Description = "Everything in Full BioRand Item Randomization, plus randomized enemies, bosses, the merchant, extra merchants and random events.",
+                IsAvailable = true,
+            });
+        BioRandOptions.SelectedMode = BioRandOptions.AvailableModes.First();
+
+        _browseCommand = new AsyncRelayCommand(BrowseInstallPathAsync, () => !Action.IsBusy);
+        _installReFrameworkCommand = new AsyncRelayCommand(InstallReFrameworkAsync, () => !Action.IsBusy);
+        _installArchipelagoLuaModCommand = new AsyncRelayCommand(InstallArchipelagoLuaModAsync, () => !Action.IsBusy);
+        // Always executable: the dismiss buttons are visibility-gated on
+        // HasError, and a CanExecute gate goes stale for writers that set
+        // Action.ErrorMessage without calling RefreshCommandStates.
+        _dismissErrorCommand = new RelayCommand(DismissError);
+        _openLogFolderCommand = new RelayCommand(OpenLogFolder);
+        // Ungated like Configure: organizing happens on the player's own
+        // Archipelago install, so the guidance must open even while the RE4R
+        // setup checks are failing.
+        _showCreateGuidanceCommand = new RelayCommand(ShowCreateGuidance);
+        _startJoinFlowCommand = new RelayCommand(StartJoinFlow, () => !Landing.HasBlockingIssues);
+        // Deliberately ungated: building a YAML settings file needs no game
+        // install, no room, and no network, so it must work even while setup
+        // checks are failing.
+        _startConfigureYamlCommand = new RelayCommand(StartConfigureYaml);
+        _returnToLandingCommand = new RelayCommand(NavigateToLanding);
+        _openSetupCommand = new RelayCommand(OpenSetupScreen);
+        _openRoomPageCommand = new RelayCommand(OpenRoomPage);
+        _reconnectPrefillCommand = new RelayCommand(StartJoinPrefilledFromBanner);
+        _repatchPrefillCommand = new RelayCommand(StartRepatchFromBanner);
+        _retireSessionCommand = new AsyncRelayCommand(RetireBannerSessionAsync, () => !Action.IsBusy);
+        _unlockBioRandOptionsCommand = new AsyncRelayCommand(UnlockBioRandOptionsAsync, () => !Action.IsBusy);
+        BioRandOptions.UnlockCommand = _unlockBioRandOptionsCommand;
+
+        // Pin the options to the previous patch of this room whenever the player reaches the
+        // options step, so a re-patch can't silently discard what they pick.
+        JoinFlow.EnteringBioRandOptions = ApplyBioRandPinIfRePatch;
+        _draftJoinCommand = new RelayCommand(StartJoinPrefilledFromDraft);
+        _retryPatchCommand = new AsyncRelayCommand(RetryPatchLaunchAsync, () => !PatchLaunch.IsRunning && _lastWorkflowRequest is not null);
+        PatchLaunch.RetryCommand = _retryPatchCommand;
+        _clearBioRandCacheCommand = new AsyncRelayCommand(
+            ClearBioRandCacheAsync,
+            () => !Action.IsBusy && !PatchLaunch.IsRunning && Setup.CanClearBioRandCache);
+        _fixAddressCommand = new AsyncRelayCommand(FixRoomAddressAsync, () => !Action.IsBusy);
+
+        Setup.BrowseCommand = _browseCommand;
+        Setup.InstallReFrameworkCommand = _installReFrameworkCommand;
+        Setup.InstallArchipelagoLuaModCommand = _installArchipelagoLuaModCommand;
+        Setup.ClearBioRandCacheCommand = _clearBioRandCacheCommand;
+        Setup.ContinueCommand = _returnToLandingCommand;
+        Action.DismissErrorCommand = _dismissErrorCommand;
+        Landing.StartCreateCommand = _showCreateGuidanceCommand;
+        Landing.StartJoinCommand = _startJoinFlowCommand;
+        Landing.StartConfigureYamlCommand = _startConfigureYamlCommand;
+        Landing.OpenRoomPageCommand = _openRoomPageCommand;
+        Landing.ReconnectPrefillCommand = _reconnectPrefillCommand;
+        Landing.FixAddressCommand = _fixAddressCommand;
+        Landing.RepatchCommand = _repatchPrefillCommand;
+        Landing.FinishPatchCommand = _reconnectPrefillCommand;
+        Landing.RetireCommand = _retireSessionCommand;
+        Landing.DraftJoinCommand = _draftJoinCommand;
+        Landing.DraftEditCommand = _startConfigureYamlCommand;
+        Landing.OpenSetupCommand = _openSetupCommand;
+        ConfigureYaml.BackToLandingCommand = _returnToLandingCommand;
+        GenerationGuidance.BackToLandingCommand = _returnToLandingCommand;
+        JoinFlow.BackToLandingCommand = _returnToLandingCommand;
+        PatchLaunch.BackToLandingCommand = _returnToLandingCommand;
+        JoinFlow.PatchRequested += OnJoinPatchRequested;
+        // Setup Status is the launcher's first screen (Cam's papercut #2 -
+        // no longer a collapsed strip above whatever else is happening).
+        CurrentScreen = Setup;
+
+        Setup.PropertyChanged += OnSetupPropertyChanged;
+        Session.PropertyChanged += OnSessionPropertyChanged;
+        BioRandOptions.PropertyChanged += OnBioRandOptionsPropertyChanged;
+        _workflowService.LogMessage += OnWorkflowLogMessage;
+        _reFrameworkInstallationService.LogMessage += OnWorkflowLogMessage;
+        _luaInstallService.LogMessage += OnWorkflowLogMessage;
+    }
+
+    public SetupViewModel Setup { get; }
+
+    public SessionViewModel Session { get; }
+
+    public BioRandOptionsViewModel BioRandOptions { get; }
+
+    public ActionViewModel Action { get; }
+
+    public LandingViewModel Landing { get; }
+
+    public ConfigureYamlViewModel ConfigureYaml { get; }
+
+    public GenerationGuidanceViewModel GenerationGuidance { get; }
+
+    public JoinFlowViewModel JoinFlow { get; }
+
+    public PatchLaunchViewModel PatchLaunch { get; }
+
+    public RelayCommand OpenLogFolderCommand => _openLogFolderCommand;
+
+    public object? CurrentScreen
+    {
+        get => _currentScreen;
+        set => SetProperty(ref _currentScreen, value);
+    }
+
+    public async Task InitializeAsync()
+    {
+        if (_isInitializing)
+        {
+            return;
+        }
+
+        _isInitializing = true;
+        Action.ClearLog();
+        Action.ClearError();
+        Action.StatusText = "Loading launcher state...";
+        Action.AppendLog("Loading launcher state.");
+
+        try
+        {
+            Action.AppendLog("Checking bundled RE4R AP world data.");
+            _staticData = await _staticGameDataProvider.LoadAsync();
+            Action.AppendLog(
+                $"Loaded bundled world data version {_staticData.WorldVersion} " +
+                $"({_staticData.Counts.LocationsTotal} locations, {_staticData.Counts.GuidLocations} GUID-backed).");
+
+            Action.AppendLog("Loading saved launcher settings.");
+            _settings = await _settingsStore.LoadAsync();
+            ApplySettings(_settings);
+
+            Action.AppendLog("Checking for a saved settings draft.");
+            _pendingDraft = await _draftStore.TryLoadAsync();
+            if (_pendingDraft is not null)
+            {
+                ConfigureYaml.ApplyDraft(_pendingDraft);
+            }
+
+            Action.AppendLog("Checking for saved AP connection info.");
+            var connectionInfo = await TryLoadConnectionInfoAsync();
+            if (connectionInfo is not null)
+            {
+                if (!string.IsNullOrWhiteSpace(connectionInfo.ServerAddress))
+                {
+                    Session.ServerAddress = connectionInfo.ServerAddress;
+                }
+
+                if (!string.IsNullOrWhiteSpace(connectionInfo.SlotName))
+                {
+                    Session.SlotName = connectionInfo.SlotName;
+                }
+
+                Session.Password = connectionInfo.Password ?? string.Empty;
+                Action.AppendLog($"Loaded AP connection info from {GetConnectionInfoFilePath()}.");
+            }
+
+            Action.AppendLog("Running startup checks for the RE4R install and saved sessions.");
+            await RefreshInstallInspectionAsync();
+            await RefreshSessionStateAsync();
+
+            // Fire-and-forget: walking ~850 MB of cache files must not delay the
+            // ready state. The Setup panel shows "checking size…" until it lands.
+            _ = RefreshBioRandCacheSizeAsync();
+
+            Action.StatusText = "Ready.";
+            Action.AppendLog("Launcher UI is ready.");
+        }
+        catch (Exception ex)
+        {
+            var message = $"Failed to initialize the launcher UI: {ex.Message}";
+            Action.AppendLog(message);
+            Action.ErrorMessage = message;
+            Action.StatusText = "Initialization failed.";
+        }
+        finally
+        {
+            _isInitializing = false;
+            RefreshCommandStates();
+        }
+    }
+
+    public void Dispose()
+    {
+        // Cancel the workflow first, while the log events are still hooked,
+        // so any shutdown activity leaves a trace in the file log.
+        PatchLaunch.CancelWorkflow();
+        _workflowLogFlushTimer.Stop();
+        _workflowLogFlushTimer.Tick -= OnWorkflowLogFlushTick;
+        _workflowService.LogMessage -= OnWorkflowLogMessage;
+        _reFrameworkInstallationService.LogMessage -= OnWorkflowLogMessage;
+        _luaInstallService.LogMessage -= OnWorkflowLogMessage;
+        _cacheManager.LogMessage -= OnWorkflowLogMessage;
+        _draftStore.LogMessage -= OnWorkflowLogMessage;
+        ConfigureYaml.DraftSaved -= OnDraftSaved;
+        GenerationGuidance.DraftSaved -= OnDraftSaved;
+        GenerationGuidance.JoinRoomRequested -= OnGuidanceJoinRoomRequested;
+        GenerationGuidance.ConfigureYamlRequested -= OnGuidanceConfigureYamlRequested;
+        JoinFlow.PatchRequested -= OnJoinPatchRequested;
+        Setup.PropertyChanged -= OnSetupPropertyChanged;
+        Session.PropertyChanged -= OnSessionPropertyChanged;
+        BioRandOptions.PropertyChanged -= OnBioRandOptionsPropertyChanged;
+        _installInspectionCancellationSource?.Cancel();
+        _installInspectionCancellationSource?.Dispose();
+        _sessionRefreshCancellationSource?.Cancel();
+        _sessionRefreshCancellationSource?.Dispose();
+    }
+
+    public bool HasBusyOperation => Action.IsBusy || PatchLaunch.IsRunning;
+
+    private void ShowCreateGuidance()
+    {
+        CurrentScreen = GenerationGuidance;
+        Action.AppendLog("Opening the organizer's Generation Guidance checklist.");
+        _ = GenerationGuidance.EnterAsync();
+    }
+
+    private void OnGuidanceConfigureYamlRequested()
+    {
+        // Configure opened from the organizer wizard's own-YAML step: Back
+        // returns to the guide (not the landing) and re-enters it so the
+        // step's Done state reflects the fresh draft.
+        ConfigureYaml.BackToLandingCommand = new RelayCommand(() =>
+        {
+            ConfigureYaml.BackToLandingCommand = _returnToLandingCommand;
+            CurrentScreen = GenerationGuidance;
+            _ = GenerationGuidance.EnterAsync();
+        });
+        ConfigureYaml.IsOrganizerContext = true;
+        CurrentScreen = ConfigureYaml;
+        Action.AppendLog("Opening Configure Your YAML from the organizer guide.");
+    }
+
+    private void OnGuidanceJoinRoomRequested()
+    {
+        // The Create branch ends at the Join screen, prefilled: address and
+        // room URL from the guidance paste-back, slot from the organizer's
+        // own Configure draft when they have one. Seed identity comes from
+        // the scout - no separate hand-back form exists by design.
+        Session.ServerAddress = GenerationGuidance.RoomAddress.Trim();
+        Session.RoomUrl = GenerationGuidance.RoomUrl.Trim();
+        if (!string.IsNullOrWhiteSpace(_pendingDraft?.SlotName))
+        {
+            Session.SlotName = _pendingDraft.SlotName;
+        }
+
+        StartJoinFlow();
+    }
+
+    private void StartJoinFlow()
+    {
+        if (string.IsNullOrWhiteSpace(Session.SlotName) && _pendingDraft is not null)
+        {
+            Session.SlotName = _pendingDraft.SlotName;
+            Action.AppendLog($"Prefilled your slot name from the saved draft ({_pendingDraft.SlotName}). It must match the YAML you sent - exactly, including capitalization.");
+        }
+
+        CurrentScreen = JoinFlow;
+        Action.AppendLog("Opening the join-session flow.");
+        JoinFlow.Enter();
+    }
+
+    private void StartJoinPrefilledFromDraft()
+    {
+        var draft = _pendingDraft;
+        if (draft is not null && draft.IsOrganizer && string.IsNullOrWhiteSpace(draft.RoomAddress))
+        {
+            // Mid-checklist organizer: the draft strip's primary action
+            // continues the guide, not Join (there is no room to join yet).
+            ShowCreateGuidance();
+            return;
+        }
+
+        if (draft is not null)
+        {
+            if (!string.IsNullOrWhiteSpace(draft.SlotName))
+            {
+                Session.SlotName = draft.SlotName;
+            }
+
+            if (draft.IsOrganizer && !string.IsNullOrWhiteSpace(draft.RoomAddress))
+            {
+                Session.ServerAddress = draft.RoomAddress;
+                Session.RoomUrl = draft.RoomUrl;
+            }
+        }
+
+        StartJoinFlow();
+    }
+
+    private void StartJoinPrefilledFromBanner()
+    {
+        var record = _bannerRecord;
+        if (record is not null)
+        {
+            Session.ServerAddress = record.NormalizedServer;
+            Session.SlotName = record.SlotName;
+            Session.RoomUrl = record.RoomUrl;
+            Action.AppendLog(string.Equals(record.Status, "patch_in_progress", StringComparison.OrdinalIgnoreCase)
+                ? "Finishing the interrupted patch: your details are prefilled - continue through to Patch My Game."
+                : "Reconnect: your details are prefilled. If the room moved, update the address - re-scouting the same seed just updates the connection info without re-patching.");
+        }
+
+        StartJoinFlow();
+    }
+
+    private void StartRepatchFromBanner()
+    {
+        // Re-patch the banner session without re-walking the organizer/join
+        // guidance: prefill from the record and jump straight to the options
+        // step, where the re-patch pin replays the recorded options and the
+        // only remaining action is Patch My Game.
+        var record = _bannerRecord;
+        if (record is null)
+        {
+            return;
+        }
+
+        Session.ServerAddress = record.NormalizedServer;
+        Session.SlotName = record.SlotName;
+        Session.RoomUrl = record.RoomUrl;
+        Action.AppendLog(
+            "Re-patch: your session details are prefilled and your recorded options will be replayed - "
+            + "the same world is rebuilt, with the same items in the same places, using the launcher's current BioRand. "
+            + "Just continue through to Patch My Game.");
+
+        StartJoinFlow();
+        JoinFlow.GoToBioRandOptionsCommand.Execute(null);
+    }
+
+    private void OpenRoomPage()
+    {
+        var url = _bannerRecord?.RoomUrl?.Trim();
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return;
+        }
+
+        if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+            && !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            url = "https://" + url;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            Action.AppendLog($"Opened the room page: {url}. Loading the page wakes a sleeping archipelago.gg room.");
+        }
+        catch (Exception ex)
+        {
+            SetError($"Failed to open the room page in your browser: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Re-patching an already-patched room REPLAYS the options recorded at the first patch. Show
+    /// those options, locked, so the screen can't silently discard whatever the player picks here.
+    /// Matched on slot name: the authoritative key is seed+slot, but the seed only exists after the
+    /// scout, and the launcher allows one multiworld at a time - so the open record IS the room
+    /// being re-patched. If the match turns out to be wrong (the room was regenerated, giving a new
+    /// seed), the workflow simply finds no record for that seed and treats it as a fresh patch.
+    /// </summary>
+    private void ApplyBioRandPinIfRePatch()
+    {
+        var record = _bannerRecord;
+        var slot = Session.SlotName.Trim();
+
+        if (record is null
+            || string.IsNullOrWhiteSpace(slot)
+            || !string.Equals(record.SlotName?.Trim(), slot, StringComparison.OrdinalIgnoreCase))
+        {
+            BioRandOptions.ClearPin();
+            return;
+        }
+
+        // Qualified: the BioRandOptions PROPERTY (the view-model) shadows the Core model type here.
+        var recorded = Core.Models.BioRandOptions.Sanitize(record.BioRandOptions);
+        BioRandOptions.PinToPreviousPatch(recorded, DescribeMode(recorded));
+    }
+
+    private static string DescribeMode(BioRandOptions options) => options.Mode switch
+    {
+        BioRandOptionCatalog.ModeApOnly => "AP Item Randomization Only",
+        BioRandOptionCatalog.ModeFullItem => "Full BioRand Item Randomization",
+        BioRandOptionCatalog.ModeFullItemEnemy => "Full BioRand Item + Enemy Randomization",
+        BioRandOptionCatalog.ModeCustom => "Custom settings",
+        _ => "your previous settings",
+    };
+
+    /// <summary>
+    /// The player wants to change a pinned config. Warn first - the non-check world re-rolls - then
+    /// unlock. Their multiworld checks are pinned by GUID and cannot desync either way.
+    /// </summary>
+    private async Task UnlockBioRandOptionsAsync()
+    {
+        var confirmed = await _dialogService.ConfirmProceedWithWarningAsync(
+            "Change This Multiworld's Options?",
+            "Your multiworld checks stay exactly where they are - the same items in the same places, "
+            + "so nothing desyncs and your friends are unaffected."
+            + Environment.NewLine + Environment.NewLine
+            + "But the REST of the world is re-rolled: other item pickups, and (in the enemy modes) "
+            + "enemies and the merchant. An in-progress save was built against the old world, so you "
+            + "should START A NEW GAME after patching."
+            + Environment.NewLine + Environment.NewLine
+            + "You can undo this by choosing the same options again."
+            + Environment.NewLine + Environment.NewLine + "Continue?");
+
+        if (confirmed)
+        {
+            BioRandOptions.IsUnlockedForChange = true;
+            Action.AppendLog("Options unlocked: this patch will re-roll the world around your multiworld checks. Start a new game afterwards.");
+        }
+    }
+
+    private async Task RetireBannerSessionAsync()
+    {
+        var record = _bannerRecord;
+        if (record is null)
+        {
+            return;
+        }
+
+        var confirmed = await _dialogService.ConfirmProceedWithWarningAsync(
+            "Done With This Multiworld?",
+            $"Mark {record.SlotName} on {record.SeedName} as finished?"
+            + Environment.NewLine + Environment.NewLine
+            + "RE4R will stop connecting to this room when launched."
+            + Environment.NewLine + Environment.NewLine + "Continue?");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        // Offer to restore vanilla now (delete the BioRand patch) rather than
+        // sending the player to Steam's Verify Integrity by hand. Re-patching
+        // this or another multiworld later is safe and reproduces the world.
+        var restoreVanilla = await _dialogService.ConfirmProceedWithWarningAsync(
+            "Restore Vanilla RE4R?",
+            "Also remove the BioRand patch now so RE4R plays normally again?"
+            + Environment.NewLine + Environment.NewLine
+            + "Choose Yes to restore vanilla - you can re-patch this or another multiworld anytime. "
+            + "Choose No to keep the patch installed (RE4R just won't connect to Archipelago)."
+            + Environment.NewLine + Environment.NewLine
+            + "Close RE4R first if it's running, or a patch file may be locked.");
+
+        var result = await _workflowService.RetireSessionAsync(record, restoreVanilla);
+        Action.AppendLog($"Marked {record.SlotName} on {record.SeedName} as finished. RE4R will no longer auto-connect to it.");
+        if (result.RestoreVanillaRequested)
+        {
+            if (result.VanillaRestored)
+            {
+                Action.AppendLog($"Restored vanilla RE4R (removed {result.PatchFilesRemoved} BioRand patch file(s)).");
+            }
+            else
+            {
+                Action.ErrorMessage = $"Removed {result.PatchFilesRemoved} BioRand patch file(s), but {result.PatchFilesFailed} could not be deleted - close RE4R and retire again, or use Steam > Verify integrity of game files.";
+            }
+        }
+        await RefreshSessionStateAsync();
+    }
+
+    private async void OnDraftSaved()
+    {
+        try
+        {
+            _pendingDraft = await _draftStore.TryLoadAsync();
+            await DispatchToUiAsync(UpdateLandingDraftState);
+        }
+        catch (Exception ex)
+        {
+            Action.AppendLog($"Could not refresh the settings draft state: {ex.Message}");
+        }
+    }
+
+    private void UpdateLandingDraftState()
+    {
+        var draft = _pendingDraft;
+        if (draft is null || Landing.IsBannerVisible)
+        {
+            Landing.SetDraft(null);
+            return;
+        }
+
+        if (draft.IsOrganizer)
+        {
+            if (string.IsNullOrWhiteSpace(draft.RoomAddress))
+            {
+                Landing.SetDraft(
+                    $"You're organizing a multiworld (last worked on {draft.SavedAtUtc.ToLocalTime():yyyy-MM-dd}). "
+                    + "Pick up the guide where you left off.",
+                    "Continue the Organizer Guide");
+            }
+            else
+            {
+                Landing.SetDraft(
+                    $"Your room {draft.RoomAddress} is created. Join it now"
+                    + (string.IsNullOrWhiteSpace(draft.SlotName) ? "." : $" as {draft.SlotName}."),
+                    "Join My Room");
+            }
+
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(draft.SlotName))
+        {
+            Landing.SetDraft(null);
+            return;
+        }
+
+        Landing.SetDraft(
+            $"You already configured your settings for slot {draft.SlotName} ({draft.SavedAtUtc.ToLocalTime():yyyy-MM-dd}). "
+            + "Got your room address? Join now - your slot name is prefilled.");
+    }
+
+    private void StartConfigureYaml()
+    {
+        ConfigureYaml.IsOrganizerContext = false;
+        CurrentScreen = ConfigureYaml;
+        Action.AppendLog("Opening the RE4R YAML configuration screen.");
+    }
+
+    private void NavigateToLanding()
+    {
+        CurrentScreen = Landing;
+        Action.AppendLog("Returned to the landing screen.");
+    }
+
+    private void OpenSetupScreen()
+    {
+        CurrentScreen = Setup;
+        Action.AppendLog("Opened the Setup Status screen.");
+    }
+
+    private void OnJoinPatchRequested()
+    {
+        _ = BeginJoinPatchLaunchAsync();
+    }
+
+    private async Task BeginJoinPatchLaunchAsync()
+    {
+        var request = await CreateLaunchWorkflowRequestAsync(
+            Session.ServerAddress,
+            Session.SlotName,
+            Session.Password,
+            isHostedSession: false);
+
+        if (request is null)
+        {
+            return;
+        }
+
+        PatchLaunch.Title = "Patch + Launch";
+        PatchLaunch.Description =
+            $"Joining {request.ServerAddress} as slot {request.SlotName}. " +
+            "Running the scout, manifest, BioRand, and Lua mod install workflow. " +
+            "RE4R connects to Archipelago by itself once launched.";
+        CurrentScreen = PatchLaunch;
+        await ExecutePatchLaunchAsync(request);
+    }
+
+    private async Task<LaunchWorkflowRequest?> CreateLaunchWorkflowRequestAsync(
+        string serverAddress,
+        string slotName,
+        string? password,
+        bool isHostedSession)
+    {
+        Action.ClearError();
+        RefreshCommandStates();
+
+        var trimmedServerAddress = serverAddress.Trim();
+        var trimmedSlotName = slotName.Trim();
+
+        if (string.IsNullOrWhiteSpace(Setup.InstallPath))
+        {
+            SetError("Choose your RE4R install path in the Setup section before starting a session.");
+            return null;
+        }
+
+        if (!_inspection.ExecutableFound)
+        {
+            SetError("The selected RE4R install path does not contain re4.exe. Pick your real Resident Evil 4 install folder and try again.");
+            return null;
+        }
+
+        if (!_inspection.ReFrameworkDetected)
+        {
+            SetError("REFramework is required but not detected in the selected RE4R install. Install it from the Setup section first.");
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(Setup.SelectedGameVersion))
+        {
+            SetError("Choose a BioRand game version in the Setup section before starting.");
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(trimmedServerAddress))
+        {
+            SetError("Enter the AP server address before continuing.");
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(trimmedSlotName))
+        {
+            SetError("Enter the AP slot name before continuing.");
+            return null;
+        }
+
+        if (!_inspection.SeparateWaysDetected)
+        {
+            var proceedWithoutDlc = await _dialogService.ConfirmProceedWithWarningAsync(
+                "Separate Ways DLC Not Detected",
+                "Separate Ways DLC is required for AP placeholder items. Please install it from Steam." +
+                Environment.NewLine + Environment.NewLine +
+                "The launcher could not detect the Separate Ways Steam DLC manifest next to your RE4R install." +
+                Environment.NewLine + Environment.NewLine +
+                "If your DLC is installed in a non-standard location, you can continue anyway. Proceed?");
+            if (!proceedWithoutDlc)
+            {
+                Action.AppendLog("Workflow stopped because Separate Ways DLC was not confirmed.");
+                Action.StatusText = "Waiting for DLC confirmation.";
+                return null;
+            }
+        }
+
+        await PersistSettingsAsync(trimmedServerAddress, trimmedSlotName);
+
+        return new LaunchWorkflowRequest
+        {
+            Re4rInstallPath = Setup.InstallPath.Trim(),
+            ServerAddress = trimmedServerAddress,
+            RoomUrl = Session.RoomUrl.Trim(),
+            SlotName = trimmedSlotName,
+            Password = password,
+            GameVersion = Setup.SelectedGameVersion,
+            CurrentGameFingerprint = GameFingerprint.Sanitize(_inspection.Fingerprint),
+            BioRandOptions = BioRandOptions.Build(),
+            OverrideRecordedOptions = BioRandOptions.IsUnlockedForChange,
+            IsHostedSession = isHostedSession,
+            NotifyAsync = message => _dialogService.ShowNotificationAsync("RE4R AP Launcher", message),
+            ConfirmOverwriteDifferentSeedAsync = prompt => _dialogService.ConfirmOverwriteDifferentSeedAsync(prompt),
+            ChooseResumeActionAsync = prompt => _dialogService.ChooseResumeActionAsync(prompt),
+            ConfirmPatchInstallAsync = confirmation => _dialogService.ConfirmInstallAsync(confirmation),
+            ConfirmLuaInstallAsync = confirmation => _dialogService.ConfirmInstallAsync(confirmation),
+            OnStepStarting = step => _ = DispatchToUiAsync(() => PatchLaunch.MarkStepStarting(step)),
+        };
+    }
+
+    private async Task ExecutePatchLaunchAsync(LaunchWorkflowRequest request)
+    {
+        _lastWorkflowRequest = request;
+        _retryPatchCommand.NotifyCanExecuteChanged();
+
+        var succeeded = await PatchLaunch.BeginAsync(request);
+        if (succeeded && _pendingDraft is not null)
+        {
+            // The draft's job is done - its session is now patched and has a
+            // real record; stop greeting the player with the waiting state.
+            await _draftStore.DeleteAsync();
+            _pendingDraft = null;
+        }
+
+        if (!succeeded && PatchLaunch.LastFailedStep is { } failedStep)
+        {
+            var friendly = TranslateWorkflowError(failedStep, PatchLaunch.LastErrorMessage);
+            if (IsPreCommitStep(failedStep))
+            {
+                // Nothing touched the game yet, so don't strand the player on
+                // a dead Patching screen - return them to their details with
+                // the translated error (review: patch-step-dead-end).
+                Action.ErrorMessage = friendly;
+                JoinFlow.CurrentStep = JoinFlowStep.SessionInfo;
+                CurrentScreen = JoinFlow;
+                Action.AppendLog("Returned to Session Info so the details can be corrected.");
+            }
+            else
+            {
+                Action.ErrorMessage = friendly;
+                PatchLaunch.ShowRetry = true;
+            }
+        }
+
+        _retryPatchCommand.NotifyCanExecuteChanged();
+        _settings = await _settingsStore.LoadAsync();
+        await RefreshInstallInspectionAsync();
+        await RefreshSessionStateAsync();
+    }
+
+    private async Task RetryPatchLaunchAsync()
+    {
+        var request = _lastWorkflowRequest;
+        if (request is null)
+        {
+            return;
+        }
+
+        Action.AppendLog("Retrying the patch + launch workflow.");
+        CurrentScreen = PatchLaunch;
+        await ExecutePatchLaunchAsync(request);
+    }
+
+    private static bool IsPreCommitStep(WorkflowStep step)
+    {
+        // Everything before the patch-confirm dialog: no game file has been
+        // touched, so bouncing back to the input fields is always safe.
+        return step is WorkflowStep.ValidateSettings
+            or WorkflowStep.CheckSetup
+            or WorkflowStep.ScoutApServer
+            or WorkflowStep.CheckExistingSession
+            or WorkflowStep.BuildManifest
+            or WorkflowStep.RunBioRandGeneration;
+    }
+
+    private static string TranslateWorkflowError(WorkflowStep step, string message)
+    {
+        var raw = message ?? string.Empty;
+
+        if (step == WorkflowStep.ScoutApServer)
+        {
+            if (raw.Contains("InvalidSlot", StringComparison.OrdinalIgnoreCase))
+            {
+                return "The room doesn't have a player with that slot name. It must match the settings file you sent - exactly, including capitalization (16 characters max). Fix it and try again.";
+            }
+
+            if (raw.Contains("InvalidPassword", StringComparison.OrdinalIgnoreCase))
+            {
+                return "The room refused the password. Check it with your organizer and try again.";
+            }
+
+            if (raw.Contains("InvalidGame", StringComparison.OrdinalIgnoreCase))
+            {
+                return "That slot exists but it isn't a Resident Evil 4 Remake slot. Double-check the slot name with your organizer.";
+            }
+
+            return "Couldn't reach the room at that address. archipelago.gg rooms fall asleep after inactivity, and only opening the ROOM PAGE in a browser wakes them - wake it, double-check the address for typos, then try again."
+                + Environment.NewLine + Environment.NewLine + $"Details: {raw}";
+        }
+
+        if (step == WorkflowStep.RunBioRandGeneration
+            && (raw.Contains("-532462766", StringComparison.Ordinal) || raw.Contains("0xE0434352", StringComparison.OrdinalIgnoreCase)))
+        {
+            return "BioRand crashed while generating your world. This usually means your RE4R version differs from what this launcher supports, or the BioRand cache is stale - verify your game files in Steam, then try again. If it keeps happening, send the launcher log to the developer."
+                + Environment.NewLine + Environment.NewLine + $"Details: {raw}";
+        }
+
+        return raw;
+    }
+
+    private void UpdateLandingBlockingState()
+    {
+        var blockers = new List<string>();
+
+        if (!_inspection.CanLaunch)
+        {
+            blockers.Add("RE4R install");
+        }
+
+        if (!_inspection.ReFrameworkDetected)
+        {
+            blockers.Add("REFramework");
+        }
+
+        // The banner carries its own Open Setup button - no auto-navigation,
+        // so a blocker appearing mid-flow never yanks the player off their
+        // current screen.
+        Landing.BlockingIssuesText = blockers.Count == 0
+            ? string.Empty
+            : $"Fix these on the Setup Status screen before joining a session: {string.Join(", ", blockers)}.";
+
+        _startJoinFlowCommand.NotifyCanExecuteChanged();
+    }
+
+    private void OnSetupPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (_isInitializing)
+        {
+            return;
+        }
+
+        if (string.Equals(e.PropertyName, nameof(SetupViewModel.InstallPath), StringComparison.Ordinal))
+        {
+            QueueInstallInspectionRefresh();
+        }
+
+        if (string.Equals(e.PropertyName, nameof(SetupViewModel.InstallPath), StringComparison.Ordinal)
+            || string.Equals(e.PropertyName, nameof(SetupViewModel.SelectedGameVersion), StringComparison.Ordinal))
+        {
+            RefreshCommandStates();
+        }
+    }
+
+    private void OnSessionPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (_isInitializing)
+        {
+            return;
+        }
+
+        if (string.Equals(e.PropertyName, nameof(SessionViewModel.ServerAddress), StringComparison.Ordinal)
+            || string.Equals(e.PropertyName, nameof(SessionViewModel.SlotName), StringComparison.Ordinal))
+        {
+            QueueSessionStateRefresh();
+            RefreshCommandStates();
+        }
+    }
+
+    private void OnBioRandOptionsPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (!string.Equals(e.PropertyName, nameof(BioRandOptionsViewModel.SelectedMode), StringComparison.Ordinal)
+            || _isInitializing)
+        {
+            return;
+        }
+
+        // Selecting a mode loads that mode's preset, so say so - otherwise a player who tweaked
+        // Advanced options and then switched modes would silently lose them.
+        if (BioRandOptions.HasSelectedMode && BioRandOptions.IsSelectedModeAvailable)
+        {
+            Action.AppendLog(
+                $"{BioRandOptions.SelectedMode?.DisplayName ?? "Selected mode"} selected. " +
+                "Options have been reset to this mode's defaults - open Advanced Options to change them.");
+        }
+
+        RefreshCommandStates();
+    }
+
+    private async Task BrowseInstallPathAsync()
+    {
+        var chosenPath = await _dialogService.BrowseForFolderAsync(Setup.InstallPath);
+        if (!string.IsNullOrWhiteSpace(chosenPath))
+        {
+            Setup.InstallPath = chosenPath;
+            _settings.Re4rInstallPath = chosenPath.Trim();
+            await _settingsStore.SaveAsync(_settings);
+            Action.AppendLog($"Saved RE4R install path to launcher settings: {chosenPath.Trim()}.");
+        }
+    }
+
+    private async Task InstallReFrameworkAsync()
+    {
+        if (Action.IsBusy)
+        {
+            return;
+        }
+
+        if (!_inspection.InstallPathExists || string.IsNullOrWhiteSpace(Setup.InstallPath))
+        {
+            SetError("Choose a valid RE4R install path before installing REFramework.");
+            return;
+        }
+
+        // One-dialog-per-install house pattern: writing a DLL into a Steam
+        // game folder unannounced reads as malware to a non-technical player
+        // (audit launcherui-9).
+        var confirmed = await _dialogService.ConfirmProceedWithWarningAsync(
+            "Install REFramework?",
+            "This downloads the latest REFramework release from GitHub and writes dinput8.dll plus the reframework folder into:"
+            + Environment.NewLine + Environment.NewLine + Setup.InstallPath.Trim()
+            + Environment.NewLine + Environment.NewLine + "Proceed?");
+        if (!confirmed)
+        {
+            Action.AppendLog("REFramework install was declined.");
+            return;
+        }
+
+        Action.ClearError();
+        Action.AppendLog($"Preparing to install REFramework into {Setup.InstallPath}.");
+        Action.StatusText = "Installing REFramework...";
+        Action.IsBusy = true;
+        // The chip narrates the real lifecycle instead of jumping
+        // Missing -> Present (plan fix #1); a failure below flips it to
+        // Failed with the button re-enabled as the retry.
+        Setup.SetReFrameworkStatus("Downloading...", "Downloading the latest REFramework release from GitHub.", "warning");
+        Setup.CanInstallReFramework = false;
+        RefreshCommandStates();
+
+        try
+        {
+            var result = await _reFrameworkInstallationService.InstallLatestAsync(Setup.InstallPath.Trim());
+            Action.AppendLog(
+                $"REFramework {result.ReleaseTag} installed from {result.AssetName}. " +
+                $"Wrote {result.FilesWrittenCount} files.");
+            Action.AppendLog("Re-checking the RE4R install for REFramework after installation.");
+            await RefreshInstallInspectionAsync();
+        }
+        catch (Exception ex)
+        {
+            var message = $"Failed to install REFramework: {ex.Message}";
+            Action.AppendLog(message);
+            SetError(message);
+            Action.StatusText = "REFramework install failed.";
+            Setup.SetReFrameworkStatus("Failed", $"{ex.Message} Click Download & Install REFramework to try again.", "error");
+            Setup.CanInstallReFramework = true;
+            return;
+        }
+        finally
+        {
+            Action.IsBusy = false;
+            RefreshCommandStates();
+        }
+
+        Action.StatusText = "REFramework install complete.";
+    }
+
+    private async Task InstallArchipelagoLuaModAsync()
+    {
+        if (Action.IsBusy)
+        {
+            return;
+        }
+
+        if (!_inspection.InstallPathExists || string.IsNullOrWhiteSpace(Setup.InstallPath))
+        {
+            SetError("Choose a valid RE4R install path before installing the Archipelago Lua mod.");
+            return;
+        }
+
+        Action.ClearError();
+        Action.AppendLog($"Preparing to copy the Archipelago Lua mod into {Setup.InstallPath}.");
+        Action.StatusText = "Installing Archipelago Lua mod...";
+        Action.IsBusy = true;
+        RefreshCommandStates();
+
+        try
+        {
+            var result = await _luaInstallService.InstallLuaModFilesAsync(
+                Setup.InstallPath.Trim(),
+                confirmation => _dialogService.ConfirmInstallAsync(confirmation));
+
+            if (result.Cancelled)
+            {
+                Action.AppendLog("Archipelago Lua mod installation was cancelled.");
+                Action.StatusText = "Lua mod install cancelled.";
+                return;
+            }
+
+            if (!result.Success)
+            {
+                var verificationMessage = result.VerificationFailures.Count > 0
+                    ? $"Archipelago Lua mod installation completed with {result.VerificationFailures.Count} verification failure(s)."
+                    : "Archipelago Lua mod installation did not complete successfully.";
+                Action.AppendLog(verificationMessage);
+                SetError(verificationMessage);
+                Action.StatusText = "Lua mod install failed.";
+                return;
+            }
+
+            Action.AppendLog($"Archipelago Lua mod installed successfully. {result.FilesCopiedCount} files were copied.");
+            Action.AppendLog("Re-checking the RE4R install for the Archipelago Lua mod after installation.");
+            await RefreshInstallInspectionAsync();
+        }
+        catch (Exception ex)
+        {
+            var message = $"Failed to install the Archipelago Lua mod: {ex.Message}";
+            Action.AppendLog(message);
+            SetError(message);
+            Action.StatusText = "Lua mod install failed.";
+            return;
+        }
+        finally
+        {
+            Action.IsBusy = false;
+            RefreshCommandStates();
+        }
+
+        Action.StatusText = "Archipelago Lua mod install complete.";
+    }
+
+    private void OpenLogFolder()
+    {
+        try
+        {
+            Directory.CreateDirectory(LauncherFileLog.LogDirectoryPath);
+            Process.Start(
+                new ProcessStartInfo("explorer.exe", $"\"{LauncherFileLog.LogDirectoryPath}\"")
+                {
+                    UseShellExecute = true,
+                });
+        }
+        catch (Exception ex)
+        {
+            var message = $"Failed to open the log folder: {ex.Message}";
+            Action.AppendLog(message);
+            SetError(message);
+        }
+    }
+
+    private void QueueInstallInspectionRefresh()
+    {
+        _installInspectionCancellationSource?.Cancel();
+        _installInspectionCancellationSource?.Dispose();
+        _installInspectionCancellationSource = new CancellationTokenSource();
+        _ = RefreshInstallInspectionAsync(_installInspectionCancellationSource.Token);
+    }
+
+    private async Task RefreshInstallInspectionAsync(CancellationToken cancellationToken = default)
+    {
+        await Task.Yield();
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+
+        var inspection = _gameInstallationInspector.Inspect(Setup.InstallPath);
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+
+        _inspection = inspection;
+
+        if (string.IsNullOrWhiteSpace(Setup.InstallPath))
+        {
+            Action.AppendLog("RE4R install path is not set yet. Choose your game folder in the Setup section.");
+        }
+        else if (!inspection.InstallPathExists)
+        {
+            Action.AppendLog($"RE4R install path check failed because {Setup.InstallPath} does not exist.");
+        }
+        else
+        {
+            Action.AppendLog($"Inspecting RE4R install at {inspection.InstallPath}.");
+            Action.AppendLog(inspection.FingerprintSummary);
+            Action.AppendLog(inspection.DetectionSummary);
+
+            if (string.IsNullOrWhiteSpace(_settings.SetupGameFingerprint))
+            {
+                Action.AppendLog("BioRand setup has not been run for this install yet.");
+            }
+            else if (string.Equals(_settings.SetupGameFingerprint, inspection.Fingerprint.FingerprintHash, StringComparison.Ordinal))
+            {
+                Action.AppendLog("BioRand setup matches the current game fingerprint.");
+            }
+            else
+            {
+                Action.AppendLog("BioRand setup is stale for this install because the game fingerprint changed. Setup will run again before patching.");
+            }
+        }
+
+        await DispatchToUiAsync(() =>
+        {
+            Setup.DetectedGameVersionText = inspection.DetectionSummary;
+            Setup.FingerprintSummaryText = inspection.FingerprintSummary;
+
+            if (!string.IsNullOrWhiteSpace(inspection.DetectedBioRandGameVersion)
+                && (string.IsNullOrWhiteSpace(Setup.SelectedGameVersion)
+                    || string.Equals(Setup.SelectedGameVersion, _lastAutoDetectedGameVersion, StringComparison.Ordinal)))
+            {
+                Setup.SelectedGameVersion = inspection.DetectedBioRandGameVersion;
+                _lastAutoDetectedGameVersion = inspection.DetectedBioRandGameVersion;
+            }
+
+            UpdateRe4rStatus(inspection);
+            UpdateSetupStatusText();
+            UpdateReFrameworkStatus(inspection);
+            UpdateArchipelagoLuaModStatus(inspection);
+            UpdateSeparateWaysStatus(inspection);
+            UpdateLandingBlockingState();
+        });
+
+        QueueSessionStateRefresh();
+    }
+
+    private void QueueSessionStateRefresh()
+    {
+        _sessionRefreshCancellationSource?.Cancel();
+        _sessionRefreshCancellationSource?.Dispose();
+        _sessionRefreshCancellationSource = new CancellationTokenSource();
+        _ = RefreshSessionStateAsync(_sessionRefreshCancellationSource.Token);
+    }
+
+    private async Task RefreshSessionStateAsync(CancellationToken cancellationToken = default)
+    {
+        await Task.Yield();
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+
+        // Session detection reads the record store directly - never gated on
+        // whatever happens to be typed in the address/slot boxes (review:
+        // multi-session-model). Identity is seed+slot, so a room that moved
+        // ports still surfaces. One-at-a-time: the newest open record is the
+        // session this install is patched for.
+        var openRecords = await _sessionRecordStore.LoadOpenSessionsAsync(cancellationToken);
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+
+        var currentRecord = openRecords.FirstOrDefault();
+        if (currentRecord is null)
+        {
+            _bannerRecord = null;
+            Action.AppendLog("No open session records were found.");
+            await DispatchToUiAsync(() =>
+            {
+                Session.CurrentSessionText = "Current session: none";
+                Session.LastPatchedText = "Last patched: n/a";
+                Session.WarningText = string.Empty;
+                Landing.HideBanner();
+                UpdateLandingDraftState();
+            });
+            return;
+        }
+
+        var warnings = new List<string>();
+        if (string.Equals(currentRecord.Status, "patch_in_progress", StringComparison.OrdinalIgnoreCase))
+        {
+            warnings.Add("Your last patch didn't finish. Run the patch again to fix it - that's safe: it rebuilds the same world, with the same items in the same places.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(_inspection.Fingerprint.FingerprintHash)
+            && !string.IsNullOrWhiteSpace(currentRecord.GameFingerprintAtPatch.FingerprintHash)
+            && !string.Equals(
+                _inspection.Fingerprint.FingerprintHash,
+                currentRecord.GameFingerprintAtPatch.FingerprintHash,
+                StringComparison.Ordinal))
+        {
+            warnings.Add("Game version changed since the last patch. Re-patch is required.");
+        }
+
+        if (_staticData is not null
+            && !string.Equals(_staticData.WorldVersion, currentRecord.WorldVersion, StringComparison.Ordinal))
+        {
+            warnings.Add("Bundled world data changed since the last patch. Re-patch is required.");
+        }
+
+        Action.AppendLog(
+            $"Found session {currentRecord.SeedName} (slot {currentRecord.SlotName}) with status {currentRecord.Status}.");
+        foreach (var warning in warnings)
+        {
+            Action.AppendLog(warning);
+        }
+
+        _bannerRecord = currentRecord;
+        var isInProgress = string.Equals(currentRecord.Status, "patch_in_progress", StringComparison.OrdinalIgnoreCase);
+        var serverDisplay = string.IsNullOrWhiteSpace(currentRecord.NormalizedServer)
+            ? "unknown address"
+            : currentRecord.NormalizedServer;
+
+        await DispatchToUiAsync(() =>
+        {
+            Session.CurrentSessionText =
+                $"Current session: {currentRecord.SlotName} on {currentRecord.SeedName} ({currentRecord.NormalizedServer}) - {currentRecord.Status}";
+            Session.LastPatchedText = currentRecord.PatchedAtUtc == default
+                ? "Last patched: n/a"
+                : $"Last patched: {currentRecord.PatchedAtUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss}";
+            Session.WarningText = string.Join(Environment.NewLine, warnings);
+            Landing.SetDraft(null);
+            if (isInProgress)
+            {
+                Landing.ShowUnfinishedPatchBanner(currentRecord.SlotName, currentRecord.SeedName);
+            }
+            else
+            {
+                Landing.ShowCheckingBanner(currentRecord.SlotName, serverDisplay);
+            }
+        });
+
+        if (isInProgress)
+        {
+            return;
+        }
+
+        // RoomInfo probe, not a bare TCP connect: archipelago.gg recycles
+        // ports, so an ANSWERING address is not necessarily this session's
+        // room (live 2026-07-22: a stranger's room answered the recorded port
+        // and the banner promised "all set" while the game got InvalidSlot).
+        // Only a matching RoomInfo seed_name earns the ready banner.
+        var probe = await _roomAddressHealService.ProbeRoomAsync(currentRecord.NormalizedServer, cancellationToken);
+        if (cancellationToken.IsCancellationRequested || !ReferenceEquals(_bannerRecord, currentRecord))
+        {
+            return;
+        }
+
+        var expectedSeed = (currentRecord.SeedName ?? string.Empty).Trim();
+        var seedVerified = probe.Answered
+            && expectedSeed.Length > 0
+            && string.Equals(probe.SeedName, expectedSeed, StringComparison.Ordinal);
+        // A record without a seed (legacy) cannot be verified - treat any
+        // answer as ready, as before.
+        var treatAsReady = probe.Answered && (seedVerified || expectedSeed.Length == 0);
+
+        if (!probe.Answered)
+        {
+            Action.AppendLog($"Room check: {serverDisplay} did not answer. The room may be asleep or its address may have changed.");
+        }
+        else if (treatAsReady)
+        {
+            Action.AppendLog(seedVerified
+                ? $"Room check: {serverDisplay} answered and confirmed seed {probe.SeedName} - the session is ready to play."
+                : $"Room check: {serverDisplay} answered - the session is ready to play.");
+        }
+        else
+        {
+            Action.AppendLog(probe.SeedName.Length > 0
+                ? $"Room check: {serverDisplay} answered with seed {probe.SeedName}, but this session is seed {expectedSeed} - a different room is on that address now."
+                : $"Room check: {serverDisplay} answered but did not identify as an Archipelago room - treating the address as stale.");
+        }
+
+        var hasRoomUrl = !string.IsNullOrWhiteSpace(currentRecord.RoomUrl);
+        await DispatchToUiAsync(() =>
+        {
+            if (treatAsReady)
+            {
+                Landing.ShowReadyBanner(currentRecord.SlotName, serverDisplay, hasRoomUrl, seedVerified);
+            }
+            else if (probe.Answered)
+            {
+                var foundSeedDisplay = probe.SeedName.Length > 0
+                    ? $"a different multiworld (seed {probe.SeedName})"
+                    : "not identifying itself as an Archipelago room";
+                Landing.ShowWrongRoomBanner(currentRecord.SlotName, serverDisplay, foundSeedDisplay, hasRoomUrl);
+            }
+            else
+            {
+                Landing.ShowUnreachableBanner(currentRecord.SlotName, serverDisplay, hasRoomUrl);
+            }
+        });
+    }
+
+    /// <summary>
+    /// One-click address heal from the banner: wake + read the room page,
+    /// verify the answering room's seed, rewrite the session record and both
+    /// ap_connection.json files, then re-run the room check. No re-patch.
+    /// </summary>
+    private async Task FixRoomAddressAsync()
+    {
+        var record = _bannerRecord;
+        if (record is null)
+        {
+            return;
+        }
+
+        Action.AppendLog($"Fixing the room address for {record.SlotName} on {record.SeedName} from the room page...");
+        var result = await _roomAddressHealService.HealAsync(record, Setup.InstallPath, CancellationToken.None);
+        if (result.Succeeded)
+        {
+            Action.AppendLog(result.AddressChanged
+                ? $"Room address fixed: RE4R will now connect to {result.HealedServer}."
+                : "The recorded address was already correct - the room is awake and verified.");
+            QueueSessionStateRefresh();
+        }
+        else
+        {
+            Action.ErrorMessage = result.FailureReason;
+        }
+    }
+
+    private async Task PersistSettingsAsync()
+    {
+        await PersistSettingsAsync(Session.ServerAddress.Trim(), Session.SlotName.Trim());
+    }
+
+    private async Task PersistSettingsAsync(string serverAddress, string slotName)
+    {
+        _settings.Re4rInstallPath = Setup.InstallPath.Trim();
+        _settings.LastServerAddress = serverAddress.Trim();
+        _settings.LastSlotName = slotName.Trim();
+        _settings.LastBioRandOptions = BioRandOptions.Build();
+        _settings.CurrentGameFingerprint = GameFingerprint.Sanitize(_inspection.Fingerprint);
+        await _settingsStore.SaveAsync(_settings);
+    }
+
+    private void ApplySettings(LauncherSettings settings)
+    {
+        settings = LauncherSettings.Sanitize(settings);
+        Setup.InstallPath = settings.Re4rInstallPath;
+        Session.ServerAddress = settings.LastServerAddress;
+        Session.SlotName = settings.LastSlotName;
+        BioRandOptions.Apply(settings.LastBioRandOptions);
+    }
+
+    private async Task<ApConnectionInfo?> TryLoadConnectionInfoAsync()
+    {
+        var filePath = GetConnectionInfoFilePath();
+        if (!File.Exists(filePath))
+        {
+            return null;
+        }
+
+        try
+        {
+            Action.AppendLog($"Checking AP connection info at {filePath}.");
+            await using var stream = File.OpenRead(filePath);
+            var loaded = await JsonSerializer.DeserializeAsync<ApConnectionInfo>(stream);
+            return loaded;
+        }
+        catch (JsonException)
+        {
+            Action.AppendLog($"Ignoring AP connection info at {filePath} because the file is malformed.");
+            return null;
+        }
+        catch (IOException)
+        {
+            Action.AppendLog($"Ignoring AP connection info at {filePath} because the file could not be read.");
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            Action.AppendLog($"Ignoring AP connection info at {filePath} because the file is not accessible.");
+            return null;
+        }
+    }
+
+    private string GetConnectionInfoFilePath()
+    {
+        return Path.Combine(_settingsStore.AppDataRootPath, "ap_connection.json");
+    }
+
+    private void UpdateRe4rStatus(GameInstallationInspectionResult inspection)
+    {
+        if (string.IsNullOrWhiteSpace(inspection.InstallPath))
+        {
+            Setup.SetRe4rStatus("Waiting", "Select your RE4R install path to detect the game and prerequisites.", "neutral");
+            return;
+        }
+
+        if (!inspection.InstallPathExists)
+        {
+            Setup.SetRe4rStatus("Missing", "The selected RE4R install path does not exist.", "error");
+            return;
+        }
+
+        if (!inspection.ExecutableFound)
+        {
+            Setup.SetRe4rStatus("Missing", "The selected folder does not contain re4.exe.", "error");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(inspection.Fingerprint.FingerprintHash))
+        {
+            Setup.SetRe4rStatus("Warning", "The launcher found RE4R, but could not read a stable game fingerprint yet.", "warning");
+            return;
+        }
+
+        Setup.SetRe4rStatus("Present", "RE4R was detected and the current game fingerprint was read successfully.", "success");
+    }
+
+    private void UpdateSetupStatusText()
+    {
+        if (string.IsNullOrWhiteSpace(Setup.InstallPath))
+        {
+            Setup.SetupStatusText = "Setup status will appear after you select an RE4R install path.";
+            return;
+        }
+
+        if (!_inspection.InstallPathExists)
+        {
+            Setup.SetupStatusText = "Setup status unavailable because the selected install path does not exist.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_inspection.Fingerprint.FingerprintHash))
+        {
+            Setup.SetupStatusText = "Setup status unavailable because the RE4R install fingerprint could not be read.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_settings.SetupGameFingerprint))
+        {
+            Setup.SetupStatusText = "BioRand setup has not been run for this install yet.";
+            return;
+        }
+
+        if (string.Equals(_settings.SetupGameFingerprint, _inspection.Fingerprint.FingerprintHash, StringComparison.Ordinal))
+        {
+            var setupTimestamp = _settings.SetupCompletedAtUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") ?? "unknown time";
+            Setup.SetupStatusText = $"BioRand setup is current for this install. Last completed at {setupTimestamp}.";
+            return;
+        }
+
+        Setup.SetupStatusText = "BioRand setup is stale for this install because the game fingerprint changed.";
+    }
+
+    private void UpdateReFrameworkStatus(GameInstallationInspectionResult inspection)
+    {
+        if (string.IsNullOrWhiteSpace(inspection.InstallPath))
+        {
+            Setup.SetReFrameworkStatus("Waiting", "Select your RE4R install path to detect REFramework.", "neutral");
+            Setup.CanInstallReFramework = false;
+            return;
+        }
+
+        if (!inspection.InstallPathExists)
+        {
+            Setup.SetReFrameworkStatus("Missing", "REFramework detection is unavailable because the install path does not exist.", "error");
+            Setup.CanInstallReFramework = false;
+            return;
+        }
+
+        if (inspection.ReFrameworkDetected)
+        {
+            Setup.SetReFrameworkStatus("Present", "REFramework was detected in your RE4R install.", "success");
+            Setup.CanInstallReFramework = false;
+            Action.AppendLog("REFramework detected in the selected RE4R install.");
+            return;
+        }
+
+        var message = "REFramework is required but not detected in your RE4R install.";
+        if (!inspection.ReFrameworkDllFound && !inspection.ReFrameworkDirectoryFound)
+        {
+            message += " Neither dinput8.dll nor the reframework folder was found.";
+        }
+        else if (!inspection.ReFrameworkDllFound)
+        {
+            message += " dinput8.dll was not found.";
+        }
+        else if (!inspection.ReFrameworkDirectoryFound)
+        {
+            message += " The reframework folder was not found.";
+        }
+
+        Setup.SetReFrameworkStatus("Missing", message, "error");
+        Setup.CanInstallReFramework = true;
+        Action.AppendLog(message);
+    }
+
+    private void UpdateArchipelagoLuaModStatus(GameInstallationInspectionResult inspection)
+    {
+        if (string.IsNullOrWhiteSpace(inspection.InstallPath))
+        {
+            Setup.SetArchipelagoLuaModStatus("Waiting", "Select your RE4R install path to detect the Archipelago Lua mod.", "neutral");
+            Setup.CanInstallArchipelagoLuaMod = false;
+            return;
+        }
+
+        if (!inspection.InstallPathExists)
+        {
+            Setup.SetArchipelagoLuaModStatus("Missing", "Archipelago Lua mod detection is unavailable because the install path does not exist.", "error");
+            Setup.CanInstallArchipelagoLuaMod = false;
+            return;
+        }
+
+        if (inspection.ArchipelagoLuaModDetected)
+        {
+            Setup.SetArchipelagoLuaModStatus("Present", "The Archipelago Lua mod was detected in your RE4R install.", "success");
+            Setup.CanInstallArchipelagoLuaMod = false;
+            Action.AppendLog("Archipelago Lua mod detected in the selected RE4R install.");
+            return;
+        }
+
+        var message =
+            "The Archipelago Lua mod is not fully installed in this RE4R folder yet. " +
+            "The launcher will copy it during patching or re-patching.";
+
+        if (!inspection.ArchipelagoLuaRootScriptFound && !inspection.ArchipelagoLuaDirectoryFound)
+        {
+            message += " Neither ArchipelagoRE4R.lua nor the ArchipelagoRE4R module folder was found.";
+        }
+        else if (!inspection.ArchipelagoLuaRootScriptFound)
+        {
+            message += " ArchipelagoRE4R.lua was not found.";
+        }
+        else if (!inspection.ArchipelagoLuaDirectoryFound)
+        {
+            message += " The ArchipelagoRE4R module folder was not found.";
+        }
+
+        Setup.SetArchipelagoLuaModStatus("Missing", message, "warning");
+        Setup.CanInstallArchipelagoLuaMod = true;
+        Action.AppendLog(message);
+    }
+
+    private void UpdateSeparateWaysStatus(GameInstallationInspectionResult inspection)
+    {
+        if (string.IsNullOrWhiteSpace(inspection.InstallPath))
+        {
+            Setup.SetSeparateWaysStatus("Waiting", "Select your RE4R install path to check for Separate Ways DLC.", "neutral");
+            return;
+        }
+
+        if (!inspection.InstallPathExists)
+        {
+            Setup.SetSeparateWaysStatus("Warning", "Separate Ways DLC detection is unavailable because the install path does not exist.", "warning");
+            return;
+        }
+
+        if (inspection.SeparateWaysDetected)
+        {
+            Setup.SetSeparateWaysStatus("Present", "Separate Ways DLC was detected next to this RE4R install.", "success");
+            Action.AppendLog("Separate Ways DLC detected.");
+            return;
+        }
+
+        var message =
+            "Separate Ways DLC is required for AP placeholder items. Please install it from Steam." +
+            " The launcher could not find the Separate Ways Steam DLC manifest next to this RE4R install.";
+        Setup.SetSeparateWaysStatus("Warning", message, "warning");
+        Action.AppendLog(message);
+    }
+
+    private void OnWorkflowLogMessage(string message)
+    {
+        // Tee to disk on the producer thread so a UI backlog can never drop
+        // lines, then queue for the batched Background-priority drain. A
+        // per-line Normal-priority dispatch starves WPF input under BioRand's
+        // output floods.
+        LauncherFileLog.Append(message);
+        _pendingWorkflowLogLines.Enqueue(message);
+    }
+
+    private void OnWorkflowLogFlushTick(object? sender, EventArgs e)
+    {
+        if (_pendingWorkflowLogLines.IsEmpty)
+        {
+            return;
+        }
+
+        var batch = new List<string>();
+        while (_pendingWorkflowLogLines.TryDequeue(out var line))
+        {
+            batch.Add(line);
+        }
+
+        Action.AppendLogBatch(batch);
+    }
+
+    private void SetError(string message)
+    {
+        Action.ErrorMessage = message;
+        RefreshCommandStates();
+    }
+
+    private void DismissError()
+    {
+        Action.ClearError();
+        RefreshCommandStates();
+    }
+
+    private void RefreshCommandStates()
+    {
+        _browseCommand.NotifyCanExecuteChanged();
+        _installReFrameworkCommand.NotifyCanExecuteChanged();
+        _installArchipelagoLuaModCommand.NotifyCanExecuteChanged();
+        _dismissErrorCommand.NotifyCanExecuteChanged();
+        _retireSessionCommand.NotifyCanExecuteChanged();
+        _clearBioRandCacheCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>
+    /// Recomputes the BioRand cache size off the UI thread and updates the
+    /// Setup panel's label + Clear-button availability. Safe to fire-and-forget.
+    /// </summary>
+    private async Task RefreshBioRandCacheSizeAsync()
+    {
+        long bytes;
+        try
+        {
+            bytes = await Task.Run(() => _cacheManager.GetCacheSizeBytes());
+        }
+        catch
+        {
+            bytes = 0;
+        }
+
+        await DispatchToUiAsync(() =>
+        {
+            Setup.BioRandCacheText = bytes > 0
+                ? $"BioRand cache: {BioRandProcessRunner.FormatSize(bytes)} (in LocalAppData)"
+                : "BioRand cache: empty (rebuilds automatically on next patch)";
+            Setup.CanClearBioRandCache = bytes > 0;
+            RefreshCommandStates();
+        });
+    }
+
+    private async Task ClearBioRandCacheAsync()
+    {
+        var confirmed = await _dialogService.ConfirmProceedWithWarningAsync(
+            "Clear the BioRand cache?",
+            "This deletes the BioRand file cache (about 850 MB). Your next patch will "
+            + "re-run BioRand setup once (about a minute) to rebuild it - no game files, "
+            + "saves, or sessions are affected.");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        Setup.CanClearBioRandCache = false;
+        RefreshCommandStates();
+        try
+        {
+            await Task.Run(() => _cacheManager.ClearCache());
+        }
+        finally
+        {
+            await RefreshBioRandCacheSizeAsync();
+        }
+    }
+
+    private static async Task DispatchToUiAsync(System.Action action)
+    {
+        if (Application.Current?.Dispatcher is null || Application.Current.Dispatcher.CheckAccess())
+        {
+            action();
+            return;
+        }
+
+        await Application.Current.Dispatcher.InvokeAsync(action);
+    }
+
+
+    private static string FormatWorkflowStep(WorkflowStep step)
+    {
+        return step switch
+        {
+            WorkflowStep.ValidateSettings => "settings validation",
+            WorkflowStep.CheckSetup => "setup validation",
+            WorkflowStep.ScoutApServer => "AP scouting",
+            WorkflowStep.CheckExistingSession => "session check",
+            WorkflowStep.BuildManifest => "manifest build",
+            WorkflowStep.RunBioRandGeneration => "BioRand generation",
+            WorkflowStep.InstallPatchFiles => "patch install",
+            WorkflowStep.InstallLuaModFiles => "Lua install",
+            WorkflowStep.SaveFileSafetyWarning => "save-file safety warning",
+            WorkflowStep.WriteSessionRecord => "session record write",
+            WorkflowStep.WriteConnectionInfo => "connection info write",
+            _ => step.ToString(),
+        };
+    }
+}

@@ -1,0 +1,6501 @@
+{
+ "_comment": "GENERATED from BioRand's own Re4rRandomizerConfigurationDefinition (fork biorand-re4r-ap). Do not hand-edit: re-dump when BioRand's options change. defaults[] = [mode1, mode2, mode3]. AP-locked keys (campaign/start-chapter/skip-ashley-section/game-version/ap-mode/ap-placements) are deliberately absent - ManifestBuilder forces them last so no preset can strand a check.",
+ "schema_version": 1,
+ "pages": [
+  {
+   "title": "General",
+   "groups": [
+    {
+     "title": "",
+     "items": [
+      {
+       "key": "enable-autosave-pro",
+       "label": "Professional Autosaves",
+       "description": "Enable autosaves on professional difficulty",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "disable-radio-calls",
+       "label": "Disable Radio Calls",
+       "description": "Disable radio calls so they do not interrupt gameplay.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "randomized-messages",
+       "label": "Randomize Text",
+       "description": "Randomize various text in the game to a meme.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        false,
+        false,
+        false
+       ]
+      },
+      {
+       "key": "random-events",
+       "label": "Random Events",
+       "description": "New environments, battle arenas and key movement. Requires Random Items AND Random Enemies - it is switched off automatically if either is disabled.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        false,
+        false,
+        true
+       ]
+      }
+     ]
+    },
+    {
+     "title": "",
+     "items": [
+      {
+       "key": "allow-bonus-items",
+       "label": "Allow Bonus Weapons",
+       "description": "Let Biorand include the unlockable weapons (Primal Knife, Chicago Sweeper, Handcannon, Infinite Rocket Launcher) in the pool. You must have all the weapons unlocked.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "allow-dlc-items",
+       "label": "Allow DLC Weapons",
+       "description": "DLC weapons can appear in the item pool. This does NOT affect the multiworld placeholder item, which is placed by id.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "allow-mercenaries-items",
+       "label": "Allow Mercenaries Weapons",
+       "description": "Let Biorand include the Mercenaries weapons (Sawed-off W-870, XM96E1) in the pool. You must have Mercenaries installed and enabled.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "zero-bonusdlc-weapon-sell-price",
+       "label": "Zero Bonus/DLC Weapon Sell Prices",
+       "description": "Set the sell price of bonus/DLC weapons to 0 (except starting ones). Sell them at first merchant so they can appear in the rando later on.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        false,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "automatic-bolt-thrower",
+       "label": "Automatic Bolt Thrower",
+       "description": "If enabled, the bolt thrower can be repeatedly fired without loading a new bolt each time.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      }
+     ]
+    },
+    {
+     "title": "",
+     "items": [
+      {
+       "key": "early-case-drops",
+       "label": "Front-loaded case drops",
+       "description": "Larger case upgrades are guaranteed to be available by certain chapters. If disabled, you may find larger case upgrades are not available until the second half of the game.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        false,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "valuable-limit-charm",
+       "label": "Charms",
+       "description": "The number of different charms to include in the seed.",
+       "type": "range",
+       "min": 0,
+       "max": 32,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        12,
+        12,
+        12
+       ]
+      },
+      {
+       "key": "valuable-limit-weapons-per-class",
+       "label": "Weapons (per class)",
+       "description": "The number of different weapons per class to include in the seed. 2 would include 2 shotguns, and 2 hanguns, etc.",
+       "type": "range",
+       "min": 1,
+       "max": 8,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        8,
+        8,
+        8
+       ]
+      }
+     ]
+    },
+    {
+     "title": "",
+     "items": [
+      {
+       "key": "extra-hiding-lockers",
+       "label": "Extra Hiding Lockers",
+       "description": "Whether to add additional lockers that Ashley can hide in.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        false,
+        false,
+        true
+       ]
+      }
+     ]
+    },
+    {
+     "title": "",
+     "items": [
+      {
+       "key": "gimmicks-traps",
+       "label": "Traps",
+       "description": "The amount of bear traps, and trip wires in the randomizer. Random events override any nearby traps.",
+       "type": "percent",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.0,
+        1,
+        1
+       ]
+      },
+      {
+       "key": "gimmicks-exploding-containers",
+       "label": "Exploding Containers",
+       "description": "The amount of breakable containers which explode.",
+       "type": "percent",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.0,
+        0,
+        0
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Merchant",
+   "groups": [
+    {
+     "title": "",
+     "items": [
+      {
+       "key": "extra-merchants",
+       "label": "Extra Merchants",
+       "description": "Adds extra merchant locations. Cannot affect multiworld checks.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        false,
+        false,
+        true
+       ]
+      },
+      {
+       "key": "merchant-buy-hold-time",
+       "label": "Purchase Hold Time",
+       "description": "The number of seconds you need to hold the purchase button down for. Setting to 0 is convenient for buying individual bullets. Vanilla game uses 0.6.",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.05,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      }
+     ]
+    },
+    {
+     "title": "",
+     "items": [
+      {
+       "key": "random-merchant",
+       "label": "Random Shop",
+       "description": "Let Biorand randomize the merchant's shop.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        false,
+        false,
+        true
+       ]
+      },
+      {
+       "key": "random-merchant-prices",
+       "label": "Random Shop Prices",
+       "description": "Let Biorand randomize the merchant's shop prices.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        false,
+        false,
+        true
+       ]
+      },
+      {
+       "key": "random-weapon-stats",
+       "label": "Random Upgraded Weapon Stats",
+       "description": "Let Biorand randomize the upgraded weapon stats.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        false,
+        false,
+        true
+       ]
+      },
+      {
+       "key": "random-weapon-upgrade-prices",
+       "label": "Random Weapon Upgrade Prices",
+       "description": "Let Biorand randomize the merchant's prices for weapon upgrades.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        false,
+        false,
+        true
+       ]
+      },
+      {
+       "key": "random-weapon-upgrades",
+       "label": "Random Weapon Upgrades",
+       "description": "Let Biorand randomize the weapon upgrade paths.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        false,
+        false,
+        true
+       ]
+      },
+      {
+       "key": "random-weapon-exclusives",
+       "label": "Random Weapon Exclusives",
+       "description": "Let Biorand randomize the weapon exclusive upgrades.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        false,
+        false,
+        true
+       ]
+      }
+     ]
+    },
+    {
+     "title": "Stock Increase per Chapter",
+     "items": [
+      {
+       "key": "merchant-stock-min-rocket-launcher",
+       "label": "Min. Rocket Launcher",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-max-rocket-launcher",
+       "label": "Max. Rocket Launcher",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-min-ammo-handgun",
+       "label": "Min. Ammo Handgun",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-max-ammo-handgun",
+       "label": "Max. Ammo Handgun",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        20,
+        20,
+        20
+       ]
+      },
+      {
+       "key": "merchant-stock-min-ammo-shotgun",
+       "label": "Min. Ammo Shotgun",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-max-ammo-shotgun",
+       "label": "Max. Ammo Shotgun",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        5,
+        5,
+        5
+       ]
+      },
+      {
+       "key": "merchant-stock-min-ammo-rifle",
+       "label": "Min. Ammo Rifle",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-max-ammo-rifle",
+       "label": "Max. Ammo Rifle",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        5,
+        5,
+        5
+       ]
+      },
+      {
+       "key": "merchant-stock-min-ammo-smg",
+       "label": "Min. Ammo Smg",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-max-ammo-smg",
+       "label": "Max. Ammo Smg",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        40,
+        40,
+        40
+       ]
+      },
+      {
+       "key": "merchant-stock-min-ammo-magnum",
+       "label": "Min. Ammo Magnum",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-max-ammo-magnum",
+       "label": "Max. Ammo Magnum",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        2,
+        2,
+        2
+       ]
+      },
+      {
+       "key": "merchant-stock-min-ammo-bolts",
+       "label": "Min. Ammo Bolts",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-max-ammo-bolts",
+       "label": "Max. Ammo Bolts",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        4,
+        4,
+        4
+       ]
+      },
+      {
+       "key": "merchant-stock-min-ammo-mines",
+       "label": "Min. Ammo Mines",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-max-ammo-mines",
+       "label": "Max. Ammo Mines",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        4,
+        4,
+        4
+       ]
+      },
+      {
+       "key": "merchant-stock-min-ammo-arrows",
+       "label": "Min. Ammo Arrows",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-max-ammo-arrows",
+       "label": "Max. Ammo Arrows",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        2,
+        2,
+        2
+       ]
+      },
+      {
+       "key": "merchant-stock-min-ammo-fuel",
+       "label": "Min. Ammo Fuel",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        50,
+        50,
+        50
+       ]
+      },
+      {
+       "key": "merchant-stock-max-ammo-fuel",
+       "label": "Max. Ammo Fuel",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        200,
+        200,
+        200
+       ]
+      },
+      {
+       "key": "merchant-stock-min-fas",
+       "label": "Min. First-Aid Spray",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        1,
+        1,
+        1
+       ]
+      },
+      {
+       "key": "merchant-stock-max-fas",
+       "label": "Max. First-Aid Spray",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        1,
+        1,
+        1
+       ]
+      },
+      {
+       "key": "merchant-stock-min-fish",
+       "label": "Min. Fish",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-max-fish",
+       "label": "Max. Fish",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-min-egg-brown",
+       "label": "Min. Egg Brown",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-max-egg-brown",
+       "label": "Max. Egg Brown",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-min-egg-white",
+       "label": "Min. Egg White",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-max-egg-white",
+       "label": "Max. Egg White",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-min-egg-gold",
+       "label": "Min. Egg Gold",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-max-egg-gold",
+       "label": "Max. Egg Gold",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-min-grenade-flash",
+       "label": "Min. Grenade Flash",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-max-grenade-flash",
+       "label": "Max. Grenade Flash",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        1,
+        1,
+        1
+       ]
+      },
+      {
+       "key": "merchant-stock-min-grenade-heavy",
+       "label": "Min. Grenade Heavy",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-max-grenade-heavy",
+       "label": "Max. Grenade Heavy",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        1,
+        1,
+        1
+       ]
+      },
+      {
+       "key": "merchant-stock-min-grenade-light",
+       "label": "Min. Grenade Light",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-max-grenade-light",
+       "label": "Max. Grenade Light",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        1,
+        1,
+        1
+       ]
+      },
+      {
+       "key": "merchant-stock-min-gunpowder",
+       "label": "Min. Gunpowder",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        10,
+        10,
+        10
+       ]
+      },
+      {
+       "key": "merchant-stock-max-gunpowder",
+       "label": "Max. Gunpowder",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        30,
+        30,
+        30
+       ]
+      },
+      {
+       "key": "merchant-stock-min-herb-g",
+       "label": "Min. Herb G",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-max-herb-g",
+       "label": "Max. Herb G",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-min-herb-gg",
+       "label": "Min. Herb G+G",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-max-herb-gg",
+       "label": "Max. Herb G+G",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-min-herb-ggy",
+       "label": "Min. Herb G+G+Y",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-max-herb-ggy",
+       "label": "Max. Herb G+G+Y",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-min-herb-ggg",
+       "label": "Min. Herb G+G+G",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-max-herb-ggg",
+       "label": "Max. Herb G+G+G",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-min-herb-gr",
+       "label": "Min. Herb G+G+R",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-max-herb-gr",
+       "label": "Max. Herb G+G+R",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-min-herb-gry",
+       "label": "Min. Herb G+R+Y",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-max-herb-gry",
+       "label": "Max. Herb G+R+Y",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-min-herb-gy",
+       "label": "Min. Herb G+Y",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-max-herb-gy",
+       "label": "Max. Herb G+Y",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-min-herb-r",
+       "label": "Min. Herb R",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-max-herb-r",
+       "label": "Max. Herb R",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-min-herb-ry",
+       "label": "Min. Herb R+Y",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-max-herb-ry",
+       "label": "Max. Herb R+Y",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-min-herb-y",
+       "label": "Min. Herb Y",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-max-herb-y",
+       "label": "Max. Herb Y",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-min-knife",
+       "label": "Min. Knife",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-max-knife",
+       "label": "Max. Knife",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        1,
+        1,
+        1
+       ]
+      },
+      {
+       "key": "merchant-stock-min-resource-large",
+       "label": "Min. Resource Large",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        1,
+        1,
+        1
+       ]
+      },
+      {
+       "key": "merchant-stock-max-resource-large",
+       "label": "Max. Resource Large",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        2,
+        2,
+        2
+       ]
+      },
+      {
+       "key": "merchant-stock-min-resource-small",
+       "label": "Min. Resource Small",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        1,
+        1,
+        1
+       ]
+      },
+      {
+       "key": "merchant-stock-max-resource-small",
+       "label": "Max. Resource Small",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        2,
+        2,
+        2
+       ]
+      },
+      {
+       "key": "merchant-stock-min-token-silver",
+       "label": "Min. Token Silver",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-max-token-silver",
+       "label": "Max. Token Silver",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-min-token-gold",
+       "label": "Min. Token Gold",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "merchant-stock-max-token-gold",
+       "label": "Max. Token Gold",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 10000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Inventory",
+   "groups": [
+    {
+     "title": "",
+     "items": [
+      {
+       "key": "random-inventory",
+       "label": "Random Inventory",
+       "description": "Let Biorand randomize your starting inventory.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        false,
+        false,
+        true
+       ]
+      },
+      {
+       "key": "inventory-additional-recipes",
+       "label": "Additional Recipes",
+       "description": "Adds additional recipes for crafting ammo from other ammo. Warning: replaces herb recipes which may be unwanted when stack multiplier is enabled.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        false,
+        false,
+        true
+       ]
+      }
+     ]
+    },
+    {
+     "title": "Primary Weapon",
+     "items": [
+      {
+       "key": "inventory-weapon-primary-none",
+       "label": "None",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        false,
+        false,
+        false
+       ]
+      },
+      {
+       "key": "inventory-weapon-primary-handgun",
+       "label": "Handgun",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "inventory-weapon-primary-shotgun",
+       "label": "Shotgun",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "inventory-weapon-primary-smg",
+       "label": "Smg",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "inventory-weapon-primary-magnum",
+       "label": "Magnum",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "inventory-weapon-primary-rifle",
+       "label": "Rifle",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "inventory-weapon-primary-bolt",
+       "label": "Bolt",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "inventory-weapon-primary-arrow",
+       "label": "Arrow",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "inventory-weapon-primary-flame",
+       "label": "Flame",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      }
+     ]
+    },
+    {
+     "title": "Secondary Weapon",
+     "items": [
+      {
+       "key": "inventory-weapon-secondary-none",
+       "label": "None",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        false,
+        false,
+        false
+       ]
+      },
+      {
+       "key": "inventory-weapon-secondary-handgun",
+       "label": "Handgun",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "inventory-weapon-secondary-shotgun",
+       "label": "Shotgun",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "inventory-weapon-secondary-smg",
+       "label": "Smg",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "inventory-weapon-secondary-magnum",
+       "label": "Magnum",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "inventory-weapon-secondary-rifle",
+       "label": "Rifle",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "inventory-weapon-secondary-bolt",
+       "label": "Bolt",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        false,
+        false,
+        false
+       ]
+      },
+      {
+       "key": "inventory-weapon-secondary-arrow",
+       "label": "Arrow",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        false,
+        false,
+        false
+       ]
+      },
+      {
+       "key": "inventory-weapon-secondary-flame",
+       "label": "Flame",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        false,
+        false,
+        false
+       ]
+      }
+     ]
+    },
+    {
+     "title": "Perks",
+     "items": [
+      {
+       "key": "random-case-perks",
+       "label": "Random Case Perks",
+       "description": "Randomize the perk and multiplier of each attach\u00e9 case.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        false,
+        false,
+        true
+       ]
+      }
+     ]
+    },
+    {
+     "title": "Stack Limits",
+     "items": [
+      {
+       "key": "inventory-stack-limit-ammo-handgun",
+       "label": "Ammo Handgun",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 9999,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "inventory-stack-limit-ammo-shotgun",
+       "label": "Ammo Shotgun",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 9999,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "inventory-stack-limit-ammo-rifle",
+       "label": "Ammo Rifle",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 9999,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "inventory-stack-limit-ammo-smg",
+       "label": "Ammo Smg",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 9999,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "inventory-stack-limit-ammo-magnum",
+       "label": "Ammo Magnum",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 9999,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "inventory-stack-limit-ammo-bolts",
+       "label": "Ammo Bolts",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 9999,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "inventory-stack-limit-ammo-mines",
+       "label": "Ammo Mines",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 9999,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "inventory-stack-limit-ammo-arrows",
+       "label": "Ammo Arrows",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 9999,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "inventory-stack-limit-ammo-fuel",
+       "label": "Ammo Fuel",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 9999,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "inventory-stack-limit-fas",
+       "label": "First-Aid Spray",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 9999,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "inventory-stack-limit-fish",
+       "label": "Fish",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 9999,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "inventory-stack-limit-viper",
+       "label": "Viper",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 9999,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "inventory-stack-limit-egg-brown",
+       "label": "Egg Brown",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 9999,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "inventory-stack-limit-egg-white",
+       "label": "Egg White",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 9999,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "inventory-stack-limit-egg-gold",
+       "label": "Egg Gold",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 9999,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "inventory-stack-limit-grenade-flash",
+       "label": "Grenade Flash",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 9999,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "inventory-stack-limit-grenade-heavy",
+       "label": "Grenade Heavy",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 9999,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "inventory-stack-limit-grenade-light",
+       "label": "Grenade Light",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 9999,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "inventory-stack-limit-gunpowder",
+       "label": "Gunpowder",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 9999,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "inventory-stack-limit-herb-gg",
+       "label": "Herb G+G",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 9999,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "inventory-stack-limit-herb-ggy",
+       "label": "Herb G+G+Y",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 9999,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "inventory-stack-limit-herb-ggg",
+       "label": "Herb G+G+G",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 9999,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "inventory-stack-limit-herb-gr",
+       "label": "Herb G+G+R",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 9999,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "inventory-stack-limit-herb-gry",
+       "label": "Herb G+R+Y",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 9999,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "inventory-stack-limit-herb-gy",
+       "label": "Herb G+Y",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 9999,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "inventory-stack-limit-herb-r",
+       "label": "Herb R",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 9999,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "inventory-stack-limit-herb-ry",
+       "label": "Herb R+Y",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 9999,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "inventory-stack-limit-herb-y",
+       "label": "Herb Y",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 9999,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "inventory-stack-limit-resource-large",
+       "label": "Resource Large",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 9999,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "inventory-stack-limit-resource-small",
+       "label": "Resource Small",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 9999,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Valuables",
+   "groups": [
+    {
+     "title": "",
+     "items": [
+      {
+       "key": "treasure-per-chapter-min",
+       "label": "Min. Average Chapter Treasure (\u00d7 1,000)",
+       "description": "The minimum total value of all treasure to include for an average length chapter.",
+       "type": "range",
+       "min": 0,
+       "max": 1000,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        100,
+        100,
+        100
+       ]
+      },
+      {
+       "key": "treasure-per-chapter-max",
+       "label": "Max. Average Chapter Treasure (\u00d7 1,000)",
+       "description": "The maximum total value of all treasure to include for an average length chapter.",
+       "type": "range",
+       "min": 0,
+       "max": 1000,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        100,
+        100,
+        100
+       ]
+      }
+     ]
+    },
+    {
+     "title": "Treasure Classes",
+     "items": [
+      {
+       "key": "treasure-ratio-low",
+       "label": "Low",
+       "description": "Higher value will result in a greater ratio of smaller treasures versus containers and large treasures.Small treasures are typically treasures with sub 10,000 pstas value.",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.65,
+        0.65,
+        0.65
+       ]
+      },
+      {
+       "key": "treasure-ratio-container",
+       "label": "Container",
+       "description": "Higher value will result in a greater ratio of treasures that contain slots for gems versus small and large treasures.Compatible gems will be also placed to fit inside the treasure.",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.25,
+        0.25,
+        0.25
+       ]
+      },
+      {
+       "key": "treasure-ratio-high",
+       "label": "High",
+       "description": "Higher value will result in a greater ratio of large treasures versus containers and small treasures.Large treasures are typically treasures with greater than 10,000 pstas value.",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.1,
+        0.1,
+        0.1
+       ]
+      }
+     ]
+    },
+    {
+     "title": "Per-treasure Options",
+     "items": [
+      {
+       "key": "treasure-slot-multiplier",
+       "label": "Slotted Treasure Multiplier",
+       "description": "The number of gems to place per slot in container type treasures. E.g. 2 will place twice as many compatible gems per container slot.",
+       "type": "range",
+       "min": 0,
+       "max": 5,
+       "step": 0.1,
+       "advanced": false,
+       "defaults": [
+        1,
+        1,
+        1
+       ]
+      }
+     ]
+    },
+    {
+     "title": "Treasure Distribution",
+     "items": [
+      {
+       "key": "treasure-distribution-enemies",
+       "label": "Enemies",
+       "description": "Ratio of treasure found as enemy drops.",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.75,
+        0.75,
+        0.75
+       ]
+      },
+      {
+       "key": "treasure-distribution-items",
+       "label": "Items",
+       "description": "Ratio of treasure found as static items.",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.25,
+        0.25,
+        0.25
+       ]
+      },
+      {
+       "key": "treasure-reward-min",
+       "label": "Min. Treasure Merchant Rewards",
+       "description": "The minimum number of treasures to include as a Merchant Spinel Reward.",
+       "type": "range",
+       "min": 0,
+       "max": 5,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "treasure-reward-max",
+       "label": "Max. Treasure Merchant Rewards",
+       "description": "The maximum number of treasures to include as a Merchant Spinel Reward.",
+       "type": "range",
+       "min": 0,
+       "max": 5,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        2,
+        2,
+        2
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Items",
+   "groups": [
+    {
+     "title": "",
+     "items": [
+      {
+       "key": "random-items",
+       "label": "Random Items",
+       "description": "BioRand re-rolls every NON-CHECK item in the world. Your Archipelago checks are always shuffled by the multiworld and are never touched by this.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        false,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "item-drop-ammo-only-available-weapons",
+       "label": "Ammo for available weapons only",
+       "description": "Only drop ammo for weapons that are available before or in the chapter with the drop.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        false,
+        false,
+        false
+       ]
+      },
+      {
+       "key": "item-drop-ammo-min",
+       "label": "Min. Ammo Quantity",
+       "description": "The minimum percentage of an ammo stack to drop.",
+       "type": "percent",
+       "min": 0.1,
+       "max": 1,
+       "step": 0.1,
+       "advanced": false,
+       "defaults": [
+        0.2,
+        0.2,
+        0.2
+       ]
+      },
+      {
+       "key": "item-drop-ammo-max",
+       "label": "Max. Ammo Quantity",
+       "description": "The maximum percentage of an ammo stack to drop.",
+       "type": "percent",
+       "min": 0.1,
+       "max": 10,
+       "step": 0.1,
+       "advanced": false,
+       "defaults": [
+        0.4,
+        0.4,
+        0.4
+       ]
+      },
+      {
+       "key": "item-drop-money-min",
+       "label": "Min. Money",
+       "description": "",
+       "type": "range",
+       "min": 100,
+       "max": 10000,
+       "step": 100,
+       "advanced": false,
+       "defaults": [
+        1000,
+        1000,
+        1000
+       ]
+      },
+      {
+       "key": "item-drop-money-max",
+       "label": "Max. Money",
+       "description": "",
+       "type": "range",
+       "min": 100,
+       "max": 10000,
+       "step": 100,
+       "advanced": false,
+       "defaults": [
+        2500,
+        2500,
+        2500
+       ]
+      },
+      {
+       "key": "preserve-item-models",
+       "label": "Preserve Item Models",
+       "description": "When randomizing items, keep the original item model in the world.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": true,
+       "defaults": [
+        false,
+        false,
+        false
+       ]
+      }
+     ]
+    },
+    {
+     "title": "General Drops",
+     "items": [
+      {
+       "key": "item-drop-ratio-ammo-handgun",
+       "label": "Ammo Handgun",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.2,
+        0.2,
+        0.2
+       ]
+      },
+      {
+       "key": "item-drop-ratio-ammo-shotgun",
+       "label": "Ammo Shotgun",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.2,
+        0.2,
+        0.2
+       ]
+      },
+      {
+       "key": "item-drop-ratio-ammo-rifle",
+       "label": "Ammo Rifle",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.2,
+        0.2,
+        0.2
+       ]
+      },
+      {
+       "key": "item-drop-ratio-ammo-smg",
+       "label": "Ammo Smg",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.2,
+        0.2,
+        0.2
+       ]
+      },
+      {
+       "key": "item-drop-ratio-ammo-magnum",
+       "label": "Ammo Magnum",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.05,
+        0.05,
+        0.05
+       ]
+      },
+      {
+       "key": "item-drop-ratio-ammo-bolts",
+       "label": "Ammo Bolts",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.05,
+        0.05,
+        0.05
+       ]
+      },
+      {
+       "key": "item-drop-ratio-ammo-mines",
+       "label": "Ammo Mines",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.04,
+        0.04,
+        0.04
+       ]
+      },
+      {
+       "key": "item-drop-ratio-ammo-arrows",
+       "label": "Ammo Arrows",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.04,
+        0.04,
+        0.04
+       ]
+      },
+      {
+       "key": "item-drop-ratio-ammo-fuel",
+       "label": "Ammo Fuel",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.15,
+        0.15,
+        0.15
+       ]
+      },
+      {
+       "key": "item-drop-ratio-fas",
+       "label": "First-Aid Spray",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.03,
+        0.03,
+        0.03
+       ]
+      },
+      {
+       "key": "item-drop-ratio-fish",
+       "label": "Fish",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.01,
+        0.01,
+        0.01
+       ]
+      },
+      {
+       "key": "item-drop-ratio-egg-brown",
+       "label": "Egg Brown",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.01,
+        0.01,
+        0.01
+       ]
+      },
+      {
+       "key": "item-drop-ratio-egg-white",
+       "label": "Egg White",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.01,
+        0.01,
+        0.01
+       ]
+      },
+      {
+       "key": "item-drop-ratio-egg-gold",
+       "label": "Egg Gold",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.01,
+        0.01,
+        0.01
+       ]
+      },
+      {
+       "key": "item-drop-ratio-grenade-flash",
+       "label": "Grenade Flash",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.06,
+        0.06,
+        0.06
+       ]
+      },
+      {
+       "key": "item-drop-ratio-grenade-heavy",
+       "label": "Grenade Heavy",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.08,
+        0.08,
+        0.08
+       ]
+      },
+      {
+       "key": "item-drop-ratio-grenade-light",
+       "label": "Grenade Light",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.1,
+        0.1,
+        0.1
+       ]
+      },
+      {
+       "key": "item-drop-ratio-gunpowder",
+       "label": "Gunpowder",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.3,
+        0.3,
+        0.3
+       ]
+      },
+      {
+       "key": "item-drop-ratio-herb-g",
+       "label": "Herb G",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.1,
+        0.1,
+        0.1
+       ]
+      },
+      {
+       "key": "item-drop-ratio-herb-gg",
+       "label": "Herb G+G",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.01,
+        0.01,
+        0.01
+       ]
+      },
+      {
+       "key": "item-drop-ratio-herb-ggy",
+       "label": "Herb G+G+Y",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.01,
+        0.01,
+        0.01
+       ]
+      },
+      {
+       "key": "item-drop-ratio-herb-ggg",
+       "label": "Herb G+G+G",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.01,
+        0.01,
+        0.01
+       ]
+      },
+      {
+       "key": "item-drop-ratio-herb-gr",
+       "label": "Herb G+G+R",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.01,
+        0.01,
+        0.01
+       ]
+      },
+      {
+       "key": "item-drop-ratio-herb-gry",
+       "label": "Herb G+R+Y",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.01,
+        0.01,
+        0.01
+       ]
+      },
+      {
+       "key": "item-drop-ratio-herb-gy",
+       "label": "Herb G+Y",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.01,
+        0.01,
+        0.01
+       ]
+      },
+      {
+       "key": "item-drop-ratio-herb-r",
+       "label": "Herb R",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.03,
+        0.03,
+        0.03
+       ]
+      },
+      {
+       "key": "item-drop-ratio-herb-ry",
+       "label": "Herb R+Y",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.01,
+        0.01,
+        0.01
+       ]
+      },
+      {
+       "key": "item-drop-ratio-herb-y",
+       "label": "Herb Y",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.03,
+        0.03,
+        0.03
+       ]
+      },
+      {
+       "key": "item-drop-ratio-knife",
+       "label": "Knife",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.15,
+        0.15,
+        0.15
+       ]
+      },
+      {
+       "key": "item-drop-ratio-money",
+       "label": "Money",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.4,
+        0.4,
+        0.4
+       ]
+      },
+      {
+       "key": "item-drop-ratio-resource-large",
+       "label": "Resource Large",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.1,
+        0.1,
+        0.1
+       ]
+      },
+      {
+       "key": "item-drop-ratio-resource-small",
+       "label": "Resource Small",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.1,
+        0.1,
+        0.1
+       ]
+      },
+      {
+       "key": "item-drop-ratio-token-silver",
+       "label": "Token Silver",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "item-drop-ratio-token-gold",
+       "label": "Token Gold",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      }
+     ]
+    },
+    {
+     "title": "Valuable Drops",
+     "items": [
+      {
+       "key": "item-drop-valuable-weapon",
+       "label": "Weapon",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "item-drop-valuable-attachment",
+       "label": "Attachment",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "item-drop-valuable-case-size",
+       "label": "Case Size",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "item-drop-valuable-case-perk",
+       "label": "Case Perk",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "item-drop-valuable-recipe",
+       "label": "Recipe",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "item-drop-valuable-small-key",
+       "label": "Small Key",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        false,
+        false,
+        false
+       ]
+      },
+      {
+       "key": "item-drop-valuable-charm",
+       "label": "Charm",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Enemies",
+   "groups": [
+    {
+     "title": "",
+     "items": [
+      {
+       "key": "random-enemies",
+       "label": "Random Enemies",
+       "description": "BioRand re-rolls enemy placements, types and bosses.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        false,
+        false,
+        true
+       ]
+      },
+      {
+       "key": "extra-enemy-amount",
+       "label": "Extra Enemies",
+       "description": "The percentage of extra enemy spawns to add. (Includes peaceful areas, and boss arenas.)",
+       "type": "percent",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.0,
+        0.0,
+        0.2
+       ]
+      }
+     ]
+    },
+    {
+     "title": "",
+     "items": [
+      {
+       "key": "enemy-multiplier",
+       "label": "Enemy Multiplier",
+       "description": "Duplicate enemies by this amount. Warning: high values can cause stability issues.",
+       "type": "range",
+       "min": 0.25,
+       "max": 5,
+       "step": 0.05,
+       "advanced": false,
+       "defaults": [
+        1.5,
+        1.5,
+        1.5
+       ]
+      },
+      {
+       "key": "enemy-variety",
+       "label": "Enemy Variety",
+       "description": "Controls how many different enemy types you can have in a single area.",
+       "type": "range",
+       "min": 1,
+       "max": 50,
+       "step": 1,
+       "advanced": true,
+       "defaults": [
+        20,
+        20,
+        20
+       ]
+      },
+      {
+       "key": "enemy-pack-max",
+       "label": "Enemy Max. Pack Size",
+       "description": "Controls the maximum size of an enemy pack. Enemy packs give you groups of similar enemies rather than every individual enemy being a different type.",
+       "type": "range",
+       "min": 1,
+       "max": 10,
+       "step": 1,
+       "advanced": true,
+       "defaults": [
+        1,
+        1,
+        1
+       ]
+      }
+     ]
+    },
+    {
+     "title": "Waves",
+     "items": [
+      {
+       "key": "enemy-waves-probability",
+       "label": "Enemy Wave Probability",
+       "description": "The percentage of enemy spawns that will have waves.",
+       "type": "percent",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.05,
+        0.05,
+        0.05
+       ]
+      },
+      {
+       "key": "enemy-waves-distance",
+       "label": "Enemy Wave Distance",
+       "description": "The minimum distance the player needs to be for a spawn point to spawn a new enemy.",
+       "type": "range",
+       "min": 1,
+       "max": 100,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        15,
+        15,
+        15
+       ]
+      },
+      {
+       "key": "enemy-waves-min",
+       "label": "Min. Enemy Waves",
+       "description": "The minimum number of waves per enemy. A value of 2 will mean a new enemy is spawned for each enemy killed.",
+       "type": "range",
+       "min": 2,
+       "max": 25,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        2,
+        2,
+        2
+       ]
+      },
+      {
+       "key": "enemy-waves-max",
+       "label": "Max. Enemy Waves",
+       "description": "The maximum number of waves per enemy. A value of 4 will mean some enemies will get another 3 extra enemies which spawn in, one after another, when the last one is killed.",
+       "type": "range",
+       "min": 2,
+       "max": 25,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        2,
+        2,
+        2
+       ]
+      }
+     ]
+    },
+    {
+     "title": "Size",
+     "items": [
+      {
+       "key": "enemy-scale-probability",
+       "label": "Unusual scale probability",
+       "description": "The percentage of enemies that are an unusual size.",
+       "type": "percent",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.03,
+        0.03,
+        0.03
+       ]
+      },
+      {
+       "key": "enemy-scale-min",
+       "label": "Min. Enemy Scale",
+       "description": "The minimum scale multiplier of enemies.",
+       "type": "range",
+       "min": 0.25,
+       "max": 4,
+       "step": 0.05,
+       "advanced": false,
+       "defaults": [
+        0.5,
+        0.5,
+        0.5
+       ]
+      },
+      {
+       "key": "enemy-scale-max",
+       "label": "Max. Enemy Scale",
+       "description": "The maximum scale multiplier of enemies.",
+       "type": "range",
+       "min": 0.25,
+       "max": 4,
+       "step": 0.05,
+       "advanced": false,
+       "defaults": [
+        2,
+        2,
+        2
+       ]
+      }
+     ]
+    },
+    {
+     "title": "Constraints",
+     "items": [
+      {
+       "key": "balanced-enemies",
+       "label": "Balanced Enemies",
+       "description": "Restrict certain enemies to a set of types that produce a more fair and consistent randomizer. Good for permadeath runs but may reduce chaos.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "nice-mendez-hill",
+       "label": "Safer Mendez Hill / Krauser Fight",
+       "description": "Prevent difficult enemies appearing on Mendez Hill and first Krauser fight. Enable this during your permadeath runs.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "ashley-safe-enemies",
+       "label": "Safer Ashley Escorting",
+       "description": "Disable enemies that can easily kill Ashley during chapters where you are escorting her.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      }
+     ]
+    },
+    {
+     "title": "Specific",
+     "items": [
+      {
+       "key": "enemy-strong-mini-boss",
+       "label": "Strong Mini Bosses",
+       "description": "Randomize mini bosses to strong elite enemies. Examples of mini bosses are bella sisters, red zealot with lantern, and garradors.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "mendez-down-resistance",
+       "label": "Mendez Down Resistance",
+       "description": "Higher percentage will increase required number of hits on Mendez to down him.",
+       "type": "percent",
+       "min": 0,
+       "max": 1,
+       "step": 0.1,
+       "advanced": false,
+       "defaults": [
+        0.2,
+        0.2,
+        0.2
+       ]
+      },
+      {
+       "key": "arana-latch-probability",
+       "label": "Ara\u00f1a Latch Probability",
+       "description": "The probability that an Ara\u00f1a (spider plaga thing) will latch onto another enemy and control it.",
+       "type": "percent",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.5,
+        0.5,
+        0.5
+       ]
+      },
+      {
+       "key": "enemies-unleashed",
+       "label": "Enemies Unleashed",
+       "description": "Reduce the colliders for Verdugo, Garrador, dogs, Novi, Mendez so they can move more freely.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      }
+     ]
+    },
+    {
+     "title": "Classes",
+     "items": [
+      {
+       "key": "enemy-ratio-villager",
+       "label": "Villager",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.5,
+        0.5,
+        0.5
+       ]
+      },
+      {
+       "key": "enemy-ratio-villager_range",
+       "label": "Villager (Ranged Attack)",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.5,
+        0.5,
+        0.5
+       ]
+      },
+      {
+       "key": "enemy-ratio-zealot",
+       "label": "Zealot",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.5,
+        0.5,
+        0.5
+       ]
+      },
+      {
+       "key": "enemy-ratio-zealot_shield",
+       "label": "Zealot (Shield)",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.3,
+        0.3,
+        0.3
+       ]
+      },
+      {
+       "key": "enemy-ratio-zealot_range",
+       "label": "Zealot (Ranged Attack)",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.3,
+        0.3,
+        0.3
+       ]
+      },
+      {
+       "key": "enemy-ratio-zealot_red",
+       "label": "Zealot (Red)",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.05,
+        0.05,
+        0.05
+       ]
+      },
+      {
+       "key": "enemy-ratio-soldier",
+       "label": "Soldier",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.4,
+        0.4,
+        0.4
+       ]
+      },
+      {
+       "key": "enemy-ratio-soldier_range",
+       "label": "Soldier (Ranged Attack)",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.25,
+        0.25,
+        0.25
+       ]
+      },
+      {
+       "key": "enemy-ratio-soldier_shield",
+       "label": "Soldier (Shield)",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.35,
+        0.35,
+        0.35
+       ]
+      },
+      {
+       "key": "enemy-ratio-colmillos",
+       "label": "Colmillos",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.3,
+        0.3,
+        0.3
+       ]
+      },
+      {
+       "key": "enemy-ratio-super-colmillos",
+       "label": "Savage Mutt",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.04,
+        0.04,
+        0.04
+       ]
+      },
+      {
+       "key": "enemy-ratio-novistador",
+       "label": "Novistador",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.5,
+        0.5,
+        0.5
+       ]
+      },
+      {
+       "key": "enemy-ratio-arana",
+       "label": "Plaga Ara\u00f1a",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.3,
+        0.3,
+        0.3
+       ]
+      },
+      {
+       "key": "enemy-ratio-brute",
+       "label": "Brute (Unarmed)",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.15,
+        0.15,
+        0.15
+       ]
+      },
+      {
+       "key": "enemy-ratio-brute_hammer",
+       "label": "Brute (Hammer)",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.1,
+        0.1,
+        0.1
+       ]
+      },
+      {
+       "key": "enemy-ratio-brute_jj",
+       "label": "Brute (JJ)",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.08,
+        0.08,
+        0.08
+       ]
+      },
+      {
+       "key": "enemy-ratio-brute_range",
+       "label": "Brute (Ranged Attack)",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.1,
+        0.1,
+        0.1
+       ]
+      },
+      {
+       "key": "enemy-ratio-brute_weapon",
+       "label": "Brute (Weapon)",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.1,
+        0.1,
+        0.1
+       ]
+      },
+      {
+       "key": "enemy-ratio-armadura",
+       "label": "Armadura",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.15,
+        0.15,
+        0.15
+       ]
+      },
+      {
+       "key": "enemy-ratio-gold-armadura",
+       "label": "Gold Armadura",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.05,
+        0.05,
+        0.05
+       ]
+      },
+      {
+       "key": "enemy-ratio-chainsaw",
+       "label": "Chainsaw (Normal)",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.25,
+        0.25,
+        0.25
+       ]
+      },
+      {
+       "key": "enemy-ratio-chainsaw_mad",
+       "label": "Chainsaw (Mad)",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.04,
+        0.04,
+        0.04
+       ]
+      },
+      {
+       "key": "enemy-ratio-garrador",
+       "label": "Garrador",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.1,
+        0.1,
+        0.1
+       ]
+      },
+      {
+       "key": "enemy-ratio-regenerador",
+       "label": "Regenerador",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.04,
+        0.04,
+        0.04
+       ]
+      },
+      {
+       "key": "enemy-ratio-iron_maiden",
+       "label": "Iron Maiden",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.02,
+        0.02,
+        0.02
+       ]
+      },
+      {
+       "key": "enemy-ratio-super_iron_maiden",
+       "label": "Super Iron Maiden",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.01,
+        0.01,
+        0.01
+       ]
+      },
+      {
+       "key": "enemy-ratio-mendez_chase",
+       "label": "Mendez (Chase)",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.08,
+        0.08,
+        0.08
+       ]
+      },
+      {
+       "key": "enemy-ratio-verdugo",
+       "label": "Verdugo",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.01,
+        0.01,
+        0.01
+       ]
+      },
+      {
+       "key": "enemy-ratio-mendez_2",
+       "label": "Mendez (Phase 1)",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.01,
+        0.01,
+        0.01
+       ]
+      },
+      {
+       "key": "enemy-ratio-krauser_1",
+       "label": "Krauser (Human)",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.12,
+        0.12,
+        0.12
+       ]
+      },
+      {
+       "key": "enemy-ratio-krauser_2",
+       "label": "Krauser (Mutated)",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.01,
+        0.01,
+        0.01
+       ]
+      },
+      {
+       "key": "enemy-ratio-pesanta",
+       "label": "Pesanta",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "enemy-ratio-u3",
+       "label": "U3",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "enemy-ratio-sadler_human",
+       "label": "Sadler (Human)",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "enemy-ratio-cow",
+       "label": "Cow",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.25,
+        0.25,
+        0.25
+       ]
+      },
+      {
+       "key": "enemy-ratio-pig",
+       "label": "Pig",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      }
+     ]
+    },
+    {
+     "title": "Parasite",
+     "items": [
+      {
+       "key": "parasite-ratio-none",
+       "label": "None",
+       "description": "No Plaga",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.93,
+        0.93,
+        0.93
+       ]
+      },
+      {
+       "key": "parasite-ratio-a",
+       "label": "Plaga Guada\u00f1a",
+       "description": "Tenticle Plaga that slice you",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.05,
+        0.05,
+        0.05
+       ]
+      },
+      {
+       "key": "parasite-ratio-b",
+       "label": "Plaga Mand\u00edbula",
+       "description": "Hungry Plaga that eat your head",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.02,
+        0.02,
+        0.02
+       ]
+      },
+      {
+       "key": "parasite-ratio-c",
+       "label": "Plaga Ara\u00f1a",
+       "description": "Spider Plaga that come off and attack you or control another enemy.",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.05,
+        0.05,
+        0.05
+       ]
+      }
+     ]
+    },
+    {
+     "title": "Drops",
+     "items": [
+      {
+       "key": "random-enemy-drops",
+       "label": "Random enemy drops",
+       "description": "Let Biorand randomize the enemy drops.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        false,
+        false,
+        true
+       ]
+      },
+      {
+       "key": "enemy-drop-ammo-only-available-weapons",
+       "label": "Ammo for available weapons only",
+       "description": "Only drop ammo for weapons that are available before or in the chapter with the drop.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        false,
+        false,
+        false
+       ]
+      },
+      {
+       "key": "enemy-drop-ammo-min",
+       "label": "Min. Ammo Quantity",
+       "description": "The minimum percentage of an ammo stack to drop.",
+       "type": "percent",
+       "min": 0.1,
+       "max": 1,
+       "step": 0.1,
+       "advanced": false,
+       "defaults": [
+        0.1,
+        0.1,
+        0.1
+       ]
+      },
+      {
+       "key": "enemy-drop-ammo-max",
+       "label": "Max. Ammo Quantity",
+       "description": "The maximum percentage of an ammo stack to drop.",
+       "type": "percent",
+       "min": 0.1,
+       "max": 1,
+       "step": 0.1,
+       "advanced": false,
+       "defaults": [
+        0.4,
+        0.4,
+        0.4
+       ]
+      },
+      {
+       "key": "enemy-drop-money-min",
+       "label": "Min. Money Drop",
+       "description": "",
+       "type": "range",
+       "min": 100,
+       "max": 10000,
+       "step": 100,
+       "advanced": false,
+       "defaults": [
+        1000,
+        1000,
+        1000
+       ]
+      },
+      {
+       "key": "enemy-drop-money-max",
+       "label": "Max. Money Drop",
+       "description": "",
+       "type": "range",
+       "min": 100,
+       "max": 10000,
+       "step": 100,
+       "advanced": false,
+       "defaults": [
+        2500,
+        2500,
+        2500
+       ]
+      }
+     ]
+    },
+    {
+     "title": "",
+     "items": [
+      {
+       "key": "enemy-drop-ratio-none",
+       "label": "None",
+       "description": "No item is dropped.",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-automatic",
+       "label": "Automatic",
+       "description": "Let the game decide, usually based on DA.",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.6,
+        0.6,
+        0.6
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-ammo-handgun",
+       "label": "Ammo Handgun",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.2,
+        0.2,
+        0.2
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-ammo-shotgun",
+       "label": "Ammo Shotgun",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.2,
+        0.2,
+        0.2
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-ammo-rifle",
+       "label": "Ammo Rifle",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.2,
+        0.2,
+        0.2
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-ammo-smg",
+       "label": "Ammo Smg",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.2,
+        0.2,
+        0.2
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-ammo-magnum",
+       "label": "Ammo Magnum",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.12,
+        0.12,
+        0.12
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-ammo-bolts",
+       "label": "Ammo Bolts",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.05,
+        0.05,
+        0.05
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-ammo-mines",
+       "label": "Ammo Mines",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.05,
+        0.05,
+        0.05
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-ammo-arrows",
+       "label": "Ammo Arrows",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.05,
+        0.05,
+        0.05
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-ammo-fuel",
+       "label": "Ammo Fuel",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.15,
+        0.15,
+        0.15
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-fas",
+       "label": "First-Aid Spray",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.03,
+        0.03,
+        0.03
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-fish",
+       "label": "Fish",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.05,
+        0.05,
+        0.05
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-egg-brown",
+       "label": "Egg Brown",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.03,
+        0.03,
+        0.03
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-egg-white",
+       "label": "Egg White",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.05,
+        0.05,
+        0.05
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-egg-gold",
+       "label": "Egg Gold",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.01,
+        0.01,
+        0.01
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-grenade-flash",
+       "label": "Grenade Flash",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.1,
+        0.1,
+        0.1
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-grenade-heavy",
+       "label": "Grenade Heavy",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.08,
+        0.08,
+        0.08
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-grenade-light",
+       "label": "Grenade Light",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.15,
+        0.15,
+        0.15
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-gunpowder",
+       "label": "Gunpowder",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.35,
+        0.35,
+        0.35
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-herb-g",
+       "label": "Herb G",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.2,
+        0.2,
+        0.2
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-herb-gg",
+       "label": "Herb G+G",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.01,
+        0.01,
+        0.01
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-herb-ggy",
+       "label": "Herb G+G+Y",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.01,
+        0.01,
+        0.01
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-herb-ggg",
+       "label": "Herb G+G+G",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-herb-gr",
+       "label": "Herb G+G+R",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.01,
+        0.01,
+        0.01
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-herb-gry",
+       "label": "Herb G+R+Y",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-herb-gy",
+       "label": "Herb G+Y",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.01,
+        0.01,
+        0.01
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-herb-r",
+       "label": "Herb R",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.04,
+        0.04,
+        0.04
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-herb-ry",
+       "label": "Herb R+Y",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.01,
+        0.01,
+        0.01
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-herb-y",
+       "label": "Herb Y",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.03,
+        0.03,
+        0.03
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-knife",
+       "label": "Knife",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-money",
+       "label": "Money",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.7,
+        0.7,
+        0.7
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-resource-large",
+       "label": "Resource Large",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.1,
+        0.1,
+        0.1
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-resource-small",
+       "label": "Resource Small",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0.15,
+        0.15,
+        0.15
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-token-silver",
+       "label": "Token Silver",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "enemy-drop-ratio-token-gold",
+       "label": "Token Gold",
+       "description": "",
+       "type": "range",
+       "min": 0,
+       "max": 1,
+       "step": 0.01,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      }
+     ]
+    },
+    {
+     "title": "Valuable Drops",
+     "items": [
+      {
+       "key": "enemy-drop-valuable-weapon",
+       "label": "Weapon",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "enemy-drop-valuable-attachment",
+       "label": "Attachment",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "enemy-drop-valuable-case-size",
+       "label": "Case Size",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "enemy-drop-valuable-case-perk",
+       "label": "Case Perk",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "enemy-drop-valuable-recipe",
+       "label": "Recipe",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "enemy-drop-valuable-small-key",
+       "label": "Small Key",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "enemy-drop-valuable-charm",
+       "label": "Charm",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Health",
+   "groups": [
+    {
+     "title": "",
+     "items": [
+      {
+       "key": "boss-random-health",
+       "label": "Random Boss Health",
+       "description": "Let Biorand randomize the boss health using the min/max values.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        false,
+        false,
+        true
+       ]
+      },
+      {
+       "key": "enemy-random-health",
+       "label": "Random Enemy Health",
+       "description": "Let Biorand randomize the enemy health using the min/max values.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        false,
+        false,
+        true
+       ]
+      },
+      {
+       "key": "enemy-health-progressive-difficulty",
+       "label": "Progressive Difficulty",
+       "description": "",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        false,
+        false,
+        true
+       ]
+      }
+     ]
+    },
+    {
+     "title": "Enemies",
+     "items": [
+      {
+       "key": "enemy-health-min-villager",
+       "label": "Min. Villager HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        600,
+        600,
+        600
+       ]
+      },
+      {
+       "key": "enemy-health-max-villager",
+       "label": "Max. Villager HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        2600,
+        2600,
+        2600
+       ]
+      },
+      {
+       "key": "enemy-health-min-villager_range",
+       "label": "Min. Villager (Ranged Attack) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        600,
+        600,
+        600
+       ]
+      },
+      {
+       "key": "enemy-health-max-villager_range",
+       "label": "Max. Villager (Ranged Attack) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        2600,
+        2600,
+        2600
+       ]
+      },
+      {
+       "key": "enemy-health-min-zealot",
+       "label": "Min. Zealot HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        800,
+        800,
+        800
+       ]
+      },
+      {
+       "key": "enemy-health-max-zealot",
+       "label": "Max. Zealot HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        3000,
+        3000,
+        3000
+       ]
+      },
+      {
+       "key": "enemy-health-min-zealot_shield",
+       "label": "Min. Zealot (Shield) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        800,
+        800,
+        800
+       ]
+      },
+      {
+       "key": "enemy-health-max-zealot_shield",
+       "label": "Max. Zealot (Shield) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        3000,
+        3000,
+        3000
+       ]
+      },
+      {
+       "key": "enemy-health-min-zealot_range",
+       "label": "Min. Zealot (Ranged Attack) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        800,
+        800,
+        800
+       ]
+      },
+      {
+       "key": "enemy-health-max-zealot_range",
+       "label": "Max. Zealot (Ranged Attack) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        3000,
+        3000,
+        3000
+       ]
+      },
+      {
+       "key": "enemy-health-min-zealot_red",
+       "label": "Min. Zealot (Red) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        1000,
+        1000,
+        1000
+       ]
+      },
+      {
+       "key": "enemy-health-max-zealot_red",
+       "label": "Max. Zealot (Red) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        8000,
+        8000,
+        8000
+       ]
+      },
+      {
+       "key": "enemy-health-min-soldier",
+       "label": "Min. Soldier HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        1500,
+        1500,
+        1500
+       ]
+      },
+      {
+       "key": "enemy-health-max-soldier",
+       "label": "Max. Soldier HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        3500,
+        3500,
+        3500
+       ]
+      },
+      {
+       "key": "enemy-health-min-soldier_range",
+       "label": "Min. Soldier (Ranged Attack) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        1500,
+        1500,
+        1500
+       ]
+      },
+      {
+       "key": "enemy-health-max-soldier_range",
+       "label": "Max. Soldier (Ranged Attack) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        3500,
+        3500,
+        3500
+       ]
+      },
+      {
+       "key": "enemy-health-min-soldier_shield",
+       "label": "Min. Soldier (Shield) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        1500,
+        1500,
+        1500
+       ]
+      },
+      {
+       "key": "enemy-health-max-soldier_shield",
+       "label": "Max. Soldier (Shield) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        3500,
+        3500,
+        3500
+       ]
+      },
+      {
+       "key": "enemy-health-min-colmillos",
+       "label": "Min. Colmillos HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        500,
+        500,
+        500
+       ]
+      },
+      {
+       "key": "enemy-health-max-colmillos",
+       "label": "Max. Colmillos HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        2000,
+        2000,
+        2000
+       ]
+      },
+      {
+       "key": "enemy-health-min-super-colmillos",
+       "label": "Min. Savage Mutt HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        1000,
+        1000,
+        1000
+       ]
+      },
+      {
+       "key": "enemy-health-max-super-colmillos",
+       "label": "Max. Savage Mutt HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        8000,
+        8000,
+        8000
+       ]
+      },
+      {
+       "key": "enemy-health-min-novistador",
+       "label": "Min. Novistador HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        500,
+        500,
+        500
+       ]
+      },
+      {
+       "key": "enemy-health-max-novistador",
+       "label": "Max. Novistador HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        1500,
+        1500,
+        1500
+       ]
+      },
+      {
+       "key": "enemy-health-min-arana",
+       "label": "Min. Plaga Ara\u00f1a HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        500,
+        500,
+        500
+       ]
+      },
+      {
+       "key": "enemy-health-max-arana",
+       "label": "Max. Plaga Ara\u00f1a HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        2000,
+        2000,
+        2000
+       ]
+      },
+      {
+       "key": "enemy-health-min-brute",
+       "label": "Min. Brute (Unarmed) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        3000,
+        3000,
+        3000
+       ]
+      },
+      {
+       "key": "enemy-health-max-brute",
+       "label": "Max. Brute (Unarmed) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        10000,
+        10000,
+        10000
+       ]
+      },
+      {
+       "key": "enemy-health-min-brute_hammer",
+       "label": "Min. Brute (Hammer) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        3000,
+        3000,
+        3000
+       ]
+      },
+      {
+       "key": "enemy-health-max-brute_hammer",
+       "label": "Max. Brute (Hammer) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        10000,
+        10000,
+        10000
+       ]
+      },
+      {
+       "key": "enemy-health-min-brute_jj",
+       "label": "Min. Brute (JJ) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        3000,
+        3000,
+        3000
+       ]
+      },
+      {
+       "key": "enemy-health-max-brute_jj",
+       "label": "Max. Brute (JJ) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        10000,
+        10000,
+        10000
+       ]
+      },
+      {
+       "key": "enemy-health-min-brute_range",
+       "label": "Min. Brute (Ranged Attack) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        1800,
+        1800,
+        1800
+       ]
+      },
+      {
+       "key": "enemy-health-max-brute_range",
+       "label": "Max. Brute (Ranged Attack) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        5000,
+        5000,
+        5000
+       ]
+      },
+      {
+       "key": "enemy-health-min-brute_weapon",
+       "label": "Min. Brute (Weapon) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        1800,
+        1800,
+        1800
+       ]
+      },
+      {
+       "key": "enemy-health-max-brute_weapon",
+       "label": "Max. Brute (Weapon) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        5000,
+        5000,
+        5000
+       ]
+      },
+      {
+       "key": "enemy-health-min-armadura",
+       "label": "Min. Armadura HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        2000,
+        2000,
+        2000
+       ]
+      },
+      {
+       "key": "enemy-health-max-armadura",
+       "label": "Max. Armadura HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        4000,
+        4000,
+        4000
+       ]
+      },
+      {
+       "key": "enemy-health-min-gold-armadura",
+       "label": "Min. Gold Armadura HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        4000,
+        4000,
+        4000
+       ]
+      },
+      {
+       "key": "enemy-health-max-gold-armadura",
+       "label": "Max. Gold Armadura HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        20000,
+        20000,
+        20000
+       ]
+      },
+      {
+       "key": "enemy-health-min-chainsaw",
+       "label": "Min. Chainsaw (Normal) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        4000,
+        4000,
+        4000
+       ]
+      },
+      {
+       "key": "enemy-health-max-chainsaw",
+       "label": "Max. Chainsaw (Normal) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        15000,
+        15000,
+        15000
+       ]
+      },
+      {
+       "key": "enemy-health-min-chainsaw_mad",
+       "label": "Min. Chainsaw (Mad) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        8000,
+        8000,
+        8000
+       ]
+      },
+      {
+       "key": "enemy-health-max-chainsaw_mad",
+       "label": "Max. Chainsaw (Mad) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        25000,
+        25000,
+        25000
+       ]
+      },
+      {
+       "key": "enemy-health-min-garrador",
+       "label": "Min. Garrador HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        4500,
+        4500,
+        4500
+       ]
+      },
+      {
+       "key": "enemy-health-max-garrador",
+       "label": "Max. Garrador HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        12000,
+        12000,
+        12000
+       ]
+      },
+      {
+       "key": "enemy-health-min-regenerador",
+       "label": "Min. Regenerador HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        7000,
+        7000,
+        7000
+       ]
+      },
+      {
+       "key": "enemy-health-max-regenerador",
+       "label": "Max. Regenerador HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        35000,
+        35000,
+        35000
+       ]
+      },
+      {
+       "key": "enemy-health-min-iron_maiden",
+       "label": "Min. Iron Maiden HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        7000,
+        7000,
+        7000
+       ]
+      },
+      {
+       "key": "enemy-health-max-iron_maiden",
+       "label": "Max. Iron Maiden HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        40000,
+        40000,
+        40000
+       ]
+      },
+      {
+       "key": "enemy-health-min-super_iron_maiden",
+       "label": "Min. Super Iron Maiden HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        10000,
+        10000,
+        10000
+       ]
+      },
+      {
+       "key": "enemy-health-max-super_iron_maiden",
+       "label": "Max. Super Iron Maiden HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        50000,
+        50000,
+        50000
+       ]
+      },
+      {
+       "key": "enemy-health-min-verdugo",
+       "label": "Min. Verdugo HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        3500,
+        3500,
+        3500
+       ]
+      },
+      {
+       "key": "enemy-health-max-verdugo",
+       "label": "Max. Verdugo HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        10000,
+        10000,
+        10000
+       ]
+      },
+      {
+       "key": "enemy-health-min-mendez_2",
+       "label": "Min. Mendez (Phase 1) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        7500,
+        7500,
+        7500
+       ]
+      },
+      {
+       "key": "enemy-health-max-mendez_2",
+       "label": "Max. Mendez (Phase 1) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        15000,
+        15000,
+        15000
+       ]
+      },
+      {
+       "key": "enemy-health-min-krauser_1",
+       "label": "Min. Krauser (Human) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        1000,
+        1000,
+        1000
+       ]
+      },
+      {
+       "key": "enemy-health-max-krauser_1",
+       "label": "Max. Krauser (Human) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        8000,
+        8000,
+        8000
+       ]
+      },
+      {
+       "key": "enemy-health-min-krauser_2",
+       "label": "Min. Krauser (Mutated) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        4000,
+        4000,
+        4000
+       ]
+      },
+      {
+       "key": "enemy-health-max-krauser_2",
+       "label": "Max. Krauser (Mutated) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        10000,
+        10000,
+        10000
+       ]
+      },
+      {
+       "key": "enemy-health-min-pesanta",
+       "label": "Min. Pesanta HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        1,
+        1,
+        1
+       ]
+      },
+      {
+       "key": "enemy-health-max-pesanta",
+       "label": "Max. Pesanta HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        3,
+        3,
+        3
+       ]
+      },
+      {
+       "key": "enemy-health-min-u3",
+       "label": "Min. U3 HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        700,
+        700,
+        700
+       ]
+      },
+      {
+       "key": "enemy-health-max-u3",
+       "label": "Max. U3 HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        3000,
+        3000,
+        3000
+       ]
+      },
+      {
+       "key": "enemy-health-min-sadler_human",
+       "label": "Min. Sadler (Human) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        20000,
+        20000,
+        20000
+       ]
+      },
+      {
+       "key": "enemy-health-max-sadler_human",
+       "label": "Max. Sadler (Human) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        50000,
+        50000,
+        50000
+       ]
+      },
+      {
+       "key": "enemy-health-min-cow",
+       "label": "Min. Cow HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        500,
+        500,
+        500
+       ]
+      },
+      {
+       "key": "enemy-health-max-cow",
+       "label": "Max. Cow HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        600,
+        600,
+        600
+       ]
+      },
+      {
+       "key": "enemy-health-min-pig",
+       "label": "Min. Pig HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        500,
+        500,
+        500
+       ]
+      },
+      {
+       "key": "enemy-health-max-pig",
+       "label": "Max. Pig HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 100000,
+       "step": 1,
+       "advanced": false,
+       "defaults": [
+        600,
+        600,
+        600
+       ]
+      }
+     ]
+    },
+    {
+     "title": "Bosses (Leon)",
+     "items": [
+      {
+       "key": "boss-health-min-dellago",
+       "label": "Min. Del Lago HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        0,
+        0,
+        0
+       ]
+      },
+      {
+       "key": "boss-health-max-dellago",
+       "label": "Max. Del Lago HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        1,
+        1,
+        1
+       ]
+      },
+      {
+       "key": "boss-health-min-elgigante-1",
+       "label": "Min. El Gigante (Village) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        28000,
+        28000,
+        28000
+       ]
+      },
+      {
+       "key": "boss-health-max-elgigante-1",
+       "label": "Max. El Gigante (Village) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        38000,
+        38000,
+        38000
+       ]
+      },
+      {
+       "key": "boss-health-min-mendez-1",
+       "label": "Min. Mendez (Phase 1) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        12000,
+        12000,
+        12000
+       ]
+      },
+      {
+       "key": "boss-health-max-mendez-1",
+       "label": "Max. Mendez (Phase 1) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        25000,
+        25000,
+        25000
+       ]
+      },
+      {
+       "key": "boss-health-min-mendez-2",
+       "label": "Min. Mendez (Phase 2) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        12000,
+        12000,
+        12000
+       ]
+      },
+      {
+       "key": "boss-health-max-mendez-2",
+       "label": "Max. Mendez (Phase 2) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        25000,
+        25000,
+        25000
+       ]
+      },
+      {
+       "key": "boss-health-min-verdugo",
+       "label": "Min. Verdugo HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        40000,
+        40000,
+        40000
+       ]
+      },
+      {
+       "key": "boss-health-max-verdugo",
+       "label": "Max. Verdugo HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        60000,
+        60000,
+        60000
+       ]
+      },
+      {
+       "key": "boss-health-min-elgigante-2",
+       "label": "Min. El Gigante (Lava A) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        12000,
+        12000,
+        12000
+       ]
+      },
+      {
+       "key": "boss-health-max-elgigante-2",
+       "label": "Max. El Gigante (Lava A) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        32000,
+        32000,
+        32000
+       ]
+      },
+      {
+       "key": "boss-health-min-elgigante-3",
+       "label": "Min. El Gigante (Lava B) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        12000,
+        12000,
+        12000
+       ]
+      },
+      {
+       "key": "boss-health-max-elgigante-3",
+       "label": "Max. El Gigante (Lava B) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        32000,
+        32000,
+        32000
+       ]
+      },
+      {
+       "key": "boss-health-min-krauser-1",
+       "label": "Min. Krauser (Knife) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        4000,
+        4000,
+        4000
+       ]
+      },
+      {
+       "key": "boss-health-max-krauser-1",
+       "label": "Max. Krauser (Knife) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        12000,
+        12000,
+        12000
+       ]
+      },
+      {
+       "key": "boss-health-min-salazar-1",
+       "label": "Min. Salazar HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        36000,
+        36000,
+        36000
+       ]
+      },
+      {
+       "key": "boss-health-max-salazar-1",
+       "label": "Max. Salazar HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        55000,
+        55000,
+        55000
+       ]
+      },
+      {
+       "key": "boss-health-min-krauser-2",
+       "label": "Min. Krauser Fight 1 HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        4500,
+        4500,
+        4500
+       ]
+      },
+      {
+       "key": "boss-health-max-krauser-2",
+       "label": "Max. Krauser Fight 1 HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        15000,
+        15000,
+        15000
+       ]
+      },
+      {
+       "key": "boss-health-min-krauser-3",
+       "label": "Min. Krauser Fight 2 HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        8000,
+        8000,
+        8000
+       ]
+      },
+      {
+       "key": "boss-health-max-krauser-3",
+       "label": "Max. Krauser Fight 2 HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        20000,
+        20000,
+        20000
+       ]
+      },
+      {
+       "key": "boss-health-min-krauser-4",
+       "label": "Min. Krauser Fight 3 HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        26000,
+        26000,
+        26000
+       ]
+      },
+      {
+       "key": "boss-health-max-krauser-4",
+       "label": "Max. Krauser Fight 3 HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        50000,
+        50000,
+        50000
+       ]
+      },
+      {
+       "key": "boss-health-min-sadler",
+       "label": "Min. Sadler HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        40000,
+        40000,
+        40000
+       ]
+      },
+      {
+       "key": "boss-health-max-sadler",
+       "label": "Max. Sadler HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        90000,
+        90000,
+        90000
+       ]
+      }
+     ]
+    },
+    {
+     "title": "Bosses (Ada)",
+     "items": [
+      {
+       "key": "boss-health-min-pesanta-1",
+       "label": "Min. Pesanta (Ch. 1) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        2100,
+        2100,
+        2100
+       ]
+      },
+      {
+       "key": "boss-health-max-pesanta-1",
+       "label": "Max. Pesanta (Ch. 1) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        2200,
+        2200,
+        2200
+       ]
+      },
+      {
+       "key": "boss-health-min-pesanta-2",
+       "label": "Min. Pesanta (Ch. 2) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        6000,
+        6000,
+        6000
+       ]
+      },
+      {
+       "key": "boss-health-max-pesanta-2",
+       "label": "Max. Pesanta (Ch. 2) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        6500,
+        6500,
+        6500
+       ]
+      },
+      {
+       "key": "boss-health-min-elgigante-4",
+       "label": "Min. El Gigante (Farm) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        35000,
+        35000,
+        35000
+       ]
+      },
+      {
+       "key": "boss-health-max-elgigante-4",
+       "label": "Max. El Gigante (Farm) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        35000,
+        35000,
+        35000
+       ]
+      },
+      {
+       "key": "boss-health-min-u3-1",
+       "label": "Min. U3 (Phase 1) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        8000,
+        8000,
+        8000
+       ]
+      },
+      {
+       "key": "boss-health-max-u3-1",
+       "label": "Max. U3 (Phase 1) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        8000,
+        8000,
+        8000
+       ]
+      },
+      {
+       "key": "boss-health-min-u3-2",
+       "label": "Min. U3 (Phase 2) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        11000,
+        11000,
+        11000
+       ]
+      },
+      {
+       "key": "boss-health-max-u3-2",
+       "label": "Max. U3 (Phase 2) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        11000,
+        11000,
+        11000
+       ]
+      },
+      {
+       "key": "boss-health-min-sadler-2",
+       "label": "Min. Sadler (Human) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        23000,
+        23000,
+        23000
+       ]
+      },
+      {
+       "key": "boss-health-max-sadler-2",
+       "label": "Max. Sadler (Human) HP",
+       "description": "",
+       "type": "scale",
+       "min": 0,
+       "max": 1000000,
+       "step": 1000,
+       "advanced": false,
+       "defaults": [
+        24000,
+        24000,
+        24000
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
