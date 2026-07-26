@@ -2,7 +2,6 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Windows;
 using System.Windows.Input;
 using RE4R.AP.Launcher.Core.Models;
 using RE4R.AP.Launcher.Core.Services;
@@ -519,11 +518,11 @@ public sealed class GenerationGuidanceViewModel : ObservableObject
         }
 
         var inspection = _apService.Inspect(chosen);
-        if (!inspection.GenerateExeFound)
+        if (!inspection.GeneratorFound)
         {
             _action.ErrorMessage =
-                $"That folder doesn't contain {ArchipelagoInstallationService.GenerateExeName}, so it isn't a full Archipelago install. "
-                + "Pick the folder you installed Archipelago into (usually C:\\ProgramData\\Archipelago).";
+                $"That folder doesn't contain a supported Archipelago generator ({string.Join(", ", ArchipelagoInstallationService.GeneratorFileNames)}). "
+                + "Pick the folder where Archipelago is installed.";
             return;
         }
 
@@ -663,8 +662,22 @@ public sealed class GenerationGuidanceViewModel : ObservableObject
                 lines.AddRange(parsedRows.Select(row => $"- {row.PlayerName} ({row.GameName})"));
             }
 
-            Clipboard.SetText(string.Join(Environment.NewLine, lines));
+            _ = CopySummaryTextAsync(string.Join(Environment.NewLine, lines));
             _action.AppendLog("Copied the room summary for your friends to the clipboard.");
+        }
+        catch (Exception ex)
+        {
+            ReportActionFailure(
+                "Could not copy to the clipboard - another program may be using it. "
+                    + $"Try again in a moment. ({ex.Message})");
+        }
+    }
+
+    private async Task CopySummaryTextAsync(string text)
+    {
+        try
+        {
+            await _dialogService.SetClipboardTextAsync(text);
         }
         catch (Exception ex)
         {
@@ -805,11 +818,11 @@ public sealed class GenerationGuidanceViewModel : ObservableObject
             return;
         }
 
-        if (!_inspection.GenerateExeFound)
+        if (!_inspection.GeneratorFound)
         {
             Step1Done = false;
             ApInstallStatusText =
-                $"{ApInstallPath} exists but has no {ArchipelagoInstallationService.GenerateExeName} - it isn't a full Archipelago install.";
+                $"{ApInstallPath} exists but has no supported Archipelago generator - it isn't a full Archipelago install.";
             ApVersionNoteText = string.Empty;
             return;
         }
@@ -1003,15 +1016,7 @@ public sealed class GenerationGuidanceViewModel : ObservableObject
                     await Task.Delay(TimeSpan.FromMilliseconds(700), token);
                     // Back onto the dispatcher: SaveDraftAsync snapshots the
                     // CollectedYamls collection, which belongs to the UI thread.
-                    var dispatcher = Application.Current?.Dispatcher;
-                    if (dispatcher is null || dispatcher.CheckAccess())
-                    {
-                        await SaveDraftAsync();
-                    }
-                    else
-                    {
-                        await await dispatcher.InvokeAsync(SaveDraftAsync);
-                    }
+                    await _dialogService.InvokeOnUiThreadAsync(SaveDraftAsync);
                 }
                 catch (OperationCanceledException)
                 {
@@ -1062,8 +1067,8 @@ public sealed class GenerationGuidanceViewModel : ObservableObject
                 Directory.CreateDirectory(path);
             }
 
-            Process.Start(new ProcessStartInfo("explorer.exe", $"\"{path}\"") { UseShellExecute = true });
-            _action.AppendLog($"Opened {path} in Explorer.");
+            _ = _dialogService.OpenFolderAsync(path);
+            _action.AppendLog($"Opened {path}.");
         }
         catch (Exception ex)
         {

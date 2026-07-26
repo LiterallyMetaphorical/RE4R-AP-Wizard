@@ -904,7 +904,7 @@
                         <TextBlock Margin="38,6,0,0"
                                    Foreground="DimGray"
                                    TextWrapping="Wrap"
-                                   Text="In your Archipelago folder, run ArchipelagoGenerate.exe. It reads every settings file in Players and writes an AP_*.zip into the output folder (a console window opens and closes by itself). If it fails, the error names the settings file or game that broke - fix that player's file or add the missing world; the launcher can't diagnose other games' errors." />
+                                   Text="In your Archipelago folder, run its generator (ArchipelagoGenerate.exe on Windows, or the provided generator on Linux). It reads every settings file in Players and writes an AP_*.zip into the output folder. If it fails, the error names the settings file or game that broke - fix that player's file or add the missing world; the launcher can't diagnose other games' errors." />
                         <StackPanel Margin="38,10,0,0"
                                     Orientation="Horizontal">
                             <Button Style="{StaticResource GuidanceButtonStyle}"

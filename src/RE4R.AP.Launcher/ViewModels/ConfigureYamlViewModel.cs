@@ -2,7 +2,6 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Windows;
 using System.Windows.Input;
 using RE4R.AP.Launcher.Core.Models;
 using RE4R.AP.Launcher.Core.Services;
@@ -291,19 +290,34 @@ public sealed class ConfigureYamlViewModel : ObservableObject
 
         try
         {
-            Clipboard.SetText(BuildYaml());
-            _action.AppendLog("Copied the RE4R YAML to the clipboard.");
-            StatusText = "YAML copied. Paste it into a file or a message to whoever is generating your multiworld - the launcher will remember these settings.";
-            _autoSaveCancellationSource?.Cancel();
-            _ = PersistDraftAsync();
+            _ = CopyYamlToClipboardAsync();
         }
         catch (Exception ex)
         {
-            ReportActionFailure(
-                "Could not copy to the clipboard - another program may be using it. "
-                    + $"Try again in a moment. ({ex.Message})");
+            ReportClipboardFailure(ex);
         }
     }
+
+    private async Task CopyYamlToClipboardAsync()
+    {
+        try
+        {
+            await _dialogService.SetClipboardTextAsync(BuildYaml());
+            _action.AppendLog("Copied the RE4R YAML to the clipboard.");
+            StatusText = "YAML copied. Paste it into a file or a message to whoever is generating your multiworld - the launcher will remember these settings.";
+            _autoSaveCancellationSource?.Cancel();
+            await PersistDraftAsync();
+        }
+        catch (Exception ex)
+        {
+            ReportClipboardFailure(ex);
+        }
+    }
+
+    private void ReportClipboardFailure(Exception ex) =>
+        ReportActionFailure(
+            "Could not copy to the clipboard - another program may be using it. "
+                + $"Try again in a moment. ({ex.Message})");
 
     /// <summary>
     /// Restores a previously saved draft (slot + options) so the joiner who
@@ -440,15 +454,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
                     await Task.Delay(TimeSpan.FromMilliseconds(700), token);
                     // Back onto the dispatcher: PersistDraftAsync snapshots
                     // TypewriterOptions, which belongs to the UI thread.
-                    var dispatcher = Application.Current?.Dispatcher;
-                    if (dispatcher is null || dispatcher.CheckAccess())
-                    {
-                        await PersistIfUsableAsync();
-                    }
-                    else
-                    {
-                        await await dispatcher.InvokeAsync(PersistIfUsableAsync);
-                    }
+                    await _dialogService.InvokeOnUiThreadAsync(PersistIfUsableAsync);
                 }
                 catch (OperationCanceledException)
                 {

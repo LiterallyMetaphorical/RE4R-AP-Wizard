@@ -19,4 +19,10 @@ public interface IUiDialogService
     Task<bool> ConfirmInstallAsync(InstallConfirmation confirmation);
 
     Task<bool> ConfirmProceedWithWarningAsync(string title, string message);
+
+    Task SetClipboardTextAsync(string text);
+
+    Task OpenFolderAsync(string path);
+
+    Task InvokeOnUiThreadAsync(Func<Task> action);
 }

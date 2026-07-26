@@ -2,6 +2,22 @@
 
 Launcher for Resident Evil 4 Remake Archipelago multiworld sessions.
 
+## Linux
+
+The Linux build provides the RE4R Archipelago launcher as a native desktop application.
+It accepts Windows, extensionless Linux, and source-tree generators instead of
+requiring `ArchipelagoGenerate.exe`.
+
+```bash
+dotnet publish src/RE4R.AP.Launcher.Linux/RE4R.AP.Launcher.Linux.csproj \
+  -c Release -r linux-x64 --self-contained
+
+./re4r-ap-launcher
+```
+
+Command-line operations are also available through
+`./re4r-ap-launcher --help`.
+
 This repository holds the Windows launcher that sets up, generates, patches,
 and joins a Resident Evil 4 Remake (2023) Archipelago multiworld. It bundles
 the world-patching pipeline, the in-game client scripts, and the compiled

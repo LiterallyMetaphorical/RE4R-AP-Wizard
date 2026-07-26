@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using Microsoft.Win32;
 using System.Windows;
@@ -144,6 +145,30 @@ public sealed class WpfDialogService : IUiDialogService
             MessageBoxImage.Warning);
 
         return Task.FromResult(result == MessageBoxResult.Yes);
+    }
+
+    public Task SetClipboardTextAsync(string text)
+    {
+        Clipboard.SetText(text);
+        return Task.CompletedTask;
+    }
+
+    public Task OpenFolderAsync(string path)
+    {
+        Directory.CreateDirectory(path);
+        Process.Start(new ProcessStartInfo("explorer.exe", $"\"{path}\"") { UseShellExecute = true });
+        return Task.CompletedTask;
+    }
+
+    public async Task InvokeOnUiThreadAsync(Func<Task> action)
+    {
+        if (_owner.Dispatcher.CheckAccess())
+        {
+            await action();
+            return;
+        }
+
+        await await _owner.Dispatcher.InvokeAsync(action);
     }
 
     private static string FormatTimestamp(DateTimeOffset? timestamp)

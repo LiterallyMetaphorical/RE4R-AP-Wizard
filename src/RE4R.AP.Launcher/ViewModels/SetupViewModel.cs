@@ -1,20 +1,19 @@
 using System.Collections.ObjectModel;
 using System.Windows.Input;
-using System.Windows.Media;
 using RE4R.AP.Launcher.Infrastructure;
 
 namespace RE4R.AP.Launcher.ViewModels;
 
 public sealed class SetupViewModel : ObservableObject
 {
-    private static readonly Brush SuccessBrush = new SolidColorBrush(Color.FromRgb(0xD9, 0xF2, 0xE3));
-    private static readonly Brush SuccessForegroundBrush = new SolidColorBrush(Color.FromRgb(0x11, 0x5E, 0x2D));
-    private static readonly Brush WarningBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0xF4, 0xD6));
-    private static readonly Brush WarningForegroundBrush = new SolidColorBrush(Color.FromRgb(0x8A, 0x58, 0x00));
-    private static readonly Brush ErrorBrush = new SolidColorBrush(Color.FromRgb(0xFD, 0xE5, 0xE5));
-    private static readonly Brush ErrorForegroundBrush = new SolidColorBrush(Color.FromRgb(0x8A, 0x1F, 0x1F));
-    private static readonly Brush NeutralBrush = new SolidColorBrush(Color.FromRgb(0xEF, 0xEF, 0xEF));
-    private static readonly Brush NeutralForegroundBrush = new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x55));
+    private const string SuccessBrush = "#D9F2E3";
+    private const string SuccessForegroundBrush = "#115E2D";
+    private const string WarningBrush = "#FFF4D6";
+    private const string WarningForegroundBrush = "#8A5800";
+    private const string ErrorBrush = "#FDE5E5";
+    private const string ErrorForegroundBrush = "#8A1F1F";
+    private const string NeutralBrush = "#EFEFEF";
+    private const string NeutralForegroundBrush = "#555555";
 
     private string _installPath = string.Empty;
     private string _detectedGameVersionText = "Select your RE4R install path to detect the game version.";
@@ -23,25 +22,25 @@ public sealed class SetupViewModel : ObservableObject
     private string _selectedGameVersion = string.Empty;
     private string _re4rStatusLabel = "Unknown";
     private string _re4rStatusText = "RE4R install detection has not run yet.";
-    private Brush _re4rStatusBackground = NeutralBrush;
-    private Brush _re4rStatusForeground = NeutralForegroundBrush;
+    private string _re4rStatusBackground = NeutralBrush;
+    private string _re4rStatusForeground = NeutralForegroundBrush;
     private ICommand? _browseCommand;
     private ICommand? _installReFrameworkCommand;
     private ICommand? _installArchipelagoLuaModCommand;
     private string _reFrameworkStatusLabel = "Unknown";
     private string _reFrameworkStatusText = "REFramework detection has not run yet.";
-    private Brush _reFrameworkStatusBackground = NeutralBrush;
-    private Brush _reFrameworkStatusForeground = NeutralForegroundBrush;
+    private string _reFrameworkStatusBackground = NeutralBrush;
+    private string _reFrameworkStatusForeground = NeutralForegroundBrush;
     private bool _canInstallReFramework;
     private string _archipelagoLuaModStatusLabel = "Unknown";
     private string _archipelagoLuaModStatusText = "Archipelago Lua mod detection has not run yet.";
-    private Brush _archipelagoLuaModStatusBackground = NeutralBrush;
-    private Brush _archipelagoLuaModStatusForeground = NeutralForegroundBrush;
+    private string _archipelagoLuaModStatusBackground = NeutralBrush;
+    private string _archipelagoLuaModStatusForeground = NeutralForegroundBrush;
     private bool _canInstallArchipelagoLuaMod;
     private string _separateWaysStatusLabel = "Unknown";
     private string _separateWaysStatusText = "Separate Ways DLC detection has not run yet.";
-    private Brush _separateWaysStatusBackground = NeutralBrush;
-    private Brush _separateWaysStatusForeground = NeutralForegroundBrush;
+    private string _separateWaysStatusBackground = NeutralBrush;
+    private string _separateWaysStatusForeground = NeutralForegroundBrush;
     private ICommand? _clearBioRandCacheCommand;
     private string _bioRandCacheText = "BioRand cache: checking size…";
     private bool _canClearBioRandCache;
@@ -91,13 +90,13 @@ public sealed class SetupViewModel : ObservableObject
         set => SetProperty(ref _re4rStatusText, value);
     }
 
-    public Brush Re4rStatusBackground
+    public string Re4rStatusBackground
     {
         get => _re4rStatusBackground;
         set => SetProperty(ref _re4rStatusBackground, value);
     }
 
-    public Brush Re4rStatusForeground
+    public string Re4rStatusForeground
     {
         get => _re4rStatusForeground;
         set => SetProperty(ref _re4rStatusForeground, value);
@@ -177,13 +176,13 @@ public sealed class SetupViewModel : ObservableObject
         set => SetProperty(ref _reFrameworkStatusText, value);
     }
 
-    public Brush ReFrameworkStatusBackground
+    public string ReFrameworkStatusBackground
     {
         get => _reFrameworkStatusBackground;
         set => SetProperty(ref _reFrameworkStatusBackground, value);
     }
 
-    public Brush ReFrameworkStatusForeground
+    public string ReFrameworkStatusForeground
     {
         get => _reFrameworkStatusForeground;
         set => SetProperty(ref _reFrameworkStatusForeground, value);
@@ -215,13 +214,13 @@ public sealed class SetupViewModel : ObservableObject
         set => SetProperty(ref _archipelagoLuaModStatusText, value);
     }
 
-    public Brush ArchipelagoLuaModStatusBackground
+    public string ArchipelagoLuaModStatusBackground
     {
         get => _archipelagoLuaModStatusBackground;
         set => SetProperty(ref _archipelagoLuaModStatusBackground, value);
     }
 
-    public Brush ArchipelagoLuaModStatusForeground
+    public string ArchipelagoLuaModStatusForeground
     {
         get => _archipelagoLuaModStatusForeground;
         set => SetProperty(ref _archipelagoLuaModStatusForeground, value);
@@ -253,13 +252,13 @@ public sealed class SetupViewModel : ObservableObject
         set => SetProperty(ref _separateWaysStatusText, value);
     }
 
-    public Brush SeparateWaysStatusBackground
+    public string SeparateWaysStatusBackground
     {
         get => _separateWaysStatusBackground;
         set => SetProperty(ref _separateWaysStatusBackground, value);
     }
 
-    public Brush SeparateWaysStatusForeground
+    public string SeparateWaysStatusForeground
     {
         get => _separateWaysStatusForeground;
         set => SetProperty(ref _separateWaysStatusForeground, value);
@@ -301,7 +300,7 @@ public sealed class SetupViewModel : ObservableObject
         ArchipelagoLuaModStatusForeground = foreground;
     }
 
-    private static void ApplySeverity(string severity, out Brush background, out Brush foreground)
+    private static void ApplySeverity(string severity, out string background, out string foreground)
     {
         switch (severity)
         {

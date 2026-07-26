@@ -29,6 +29,9 @@ public sealed class ArchipelagoInstallationService
 
     public const string GenerateExeName = "ArchipelagoGenerate.exe";
 
+    public static IReadOnlyList<string> GeneratorFileNames { get; } =
+        new[] { GenerateExeName, "ArchipelagoGenerate", "Generate.py" };
+
     private const string CollectedYamlCacheDirectoryName = "collected_yamls";
 
     public ArchipelagoInstallationService(string appDataRootPath, string? apworldSourcePath = null)
@@ -43,8 +46,11 @@ public sealed class ArchipelagoInstallationService
 
     public string ApworldSourcePath { get; }
 
-    public static string DefaultInstallPath =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Archipelago");
+    public static string DefaultInstallPath => OperatingSystem.IsWindows()
+        ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Archipelago")
+        : Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            "Archipelago");
 
     public static string GetCustomWorldsPath(string apRootPath) => Path.Combine(apRootPath, "custom_worlds");
 
@@ -54,8 +60,9 @@ public sealed class ArchipelagoInstallationService
 
     /// <summary>
     /// Inspects a candidate Archipelago folder. Usable = the folder exists
-    /// and contains ArchipelagoGenerate.exe; the exe's file version (stamped
-    /// by AP's build) is compared against <see cref="ApVersionPin"/> so the
+    /// and contains a Windows executable, extensionless Linux executable, or
+    /// source-tree Generate.py; a readable file version is compared against
+    /// <see cref="ApVersionPin"/> so the
     /// screen can warn - never block - on a mismatch.
     /// </summary>
     public ArchipelagoInstallInspection Inspect(string? apRootPath)
@@ -66,18 +73,20 @@ public sealed class ArchipelagoInstallationService
             return new ArchipelagoInstallInspection { RootPath = trimmed, RootExists = false };
         }
 
-        var generateExePath = Path.Combine(trimmed, GenerateExeName);
-        if (!File.Exists(generateExePath))
+        var generatorPath = GeneratorFileNames
+            .Select(fileName => Path.Combine(trimmed, fileName))
+            .FirstOrDefault(File.Exists);
+        if (generatorPath is null)
         {
             return new ArchipelagoInstallInspection { RootPath = trimmed, RootExists = true };
         }
 
-        var version = TryReadExecutableVersion(generateExePath);
+        var version = TryReadExecutableVersion(generatorPath);
         return new ArchipelagoInstallInspection
         {
             RootPath = trimmed,
             RootExists = true,
-            GenerateExeFound = true,
+            GeneratorPath = generatorPath,
             DetectedVersion = version,
             MatchesVersionPin = string.Equals(version, ApVersionPin, StringComparison.Ordinal),
         };

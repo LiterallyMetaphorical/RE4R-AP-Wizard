@@ -1,5 +1,4 @@
 using System.Windows.Input;
-using System.Windows.Media;
 using RE4R.AP.Launcher.Core.Utilities;
 using RE4R.AP.Launcher.Infrastructure;
 
@@ -7,10 +6,10 @@ namespace RE4R.AP.Launcher.ViewModels;
 
 public sealed class ActionViewModel : ObservableObject
 {
-    private static readonly Brush HighlightBackgroundBrush = new SolidColorBrush(Color.FromRgb(0x27, 0xAE, 0x60));
-    private static readonly Brush HighlightForegroundBrush = Brushes.White;
-    private static readonly Brush NeutralBackgroundBrush = new SolidColorBrush(Color.FromRgb(0xE1, 0xE1, 0xE1));
-    private static readonly Brush NeutralForegroundBrush = new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x55));
+    private const string HighlightBackgroundBrush = "#27AE60";
+    private const string HighlightForegroundBrush = "#FFFFFF";
+    private const string NeutralBackgroundBrush = "#E1E1E1";
+    private const string NeutralForegroundBrush = "#555555";
 
     // The visible log keeps only a rolling window. Every appended line
     // rebuilds the bound LogText string and re-renders the TextBox on a
@@ -105,9 +104,9 @@ public sealed class ActionViewModel : ObservableObject
 
     public bool IsCancelVisible => IsBusy;
 
-    public Brush GoButtonBackground => IsPrimaryActionHighlighted ? HighlightBackgroundBrush : NeutralBackgroundBrush;
+    public string GoButtonBackground => IsPrimaryActionHighlighted ? HighlightBackgroundBrush : NeutralBackgroundBrush;
 
-    public Brush GoButtonForeground => IsPrimaryActionHighlighted ? HighlightForegroundBrush : NeutralForegroundBrush;
+    public string GoButtonForeground => IsPrimaryActionHighlighted ? HighlightForegroundBrush : NeutralForegroundBrush;
 
     public ICommand? GoCommand
     {

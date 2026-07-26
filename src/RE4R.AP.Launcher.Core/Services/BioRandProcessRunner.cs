@@ -8,6 +8,8 @@ namespace RE4R.AP.Launcher.Core.Services;
 
 public sealed class BioRandProcessRunner
 {
+    private const string Re4rSteamAppId = "2050650";
+
     public delegate Task<int> ProcessExecutor(
         ProcessStartInfo startInfo,
         Action<string> onStdOut,
@@ -98,7 +100,7 @@ public sealed class BioRandProcessRunner
 
         Log($"Running BioRand setup for {request.Re4rInstallPath}");
 
-        var startInfo = CreateProcessStartInfo(command, BioRandCacheDirectoryPath);
+        var startInfo = CreateProcessStartInfo(command, BioRandCacheDirectoryPath, request.Re4rInstallPath);
         // --full is the fork's default since 2026-07-12, but stay explicit so a
         // future upstream rebase that flips the default back cannot silently
         // reintroduce the missing-file crash class (step-0 lights-scene crash).
@@ -120,7 +122,14 @@ public sealed class BioRandProcessRunner
         // scenes (2026-07-21: "Unable to find door to replace"). Set our own
         // paks aside for the duration of the harvest.
         RestoreLeftoverPakStashes(request.Re4rInstallPath);
-        var stashedPaks = StashApPatchPaks(request.Re4rInstallPath, request.ApPatchFileNames);
+        var protonRecordedPatchFileNames = await CollectProtonRecordedPatchFileNamesAsync(
+            request.Re4rInstallPath,
+            cancellationToken);
+        var knownPatchFileNames = request.ApPatchFileNames
+            .Concat(protonRecordedPatchFileNames)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var stashedPaks = StashApPatchPaks(request.Re4rInstallPath, knownPatchFileNames);
 
         int exitCode;
         try
@@ -211,7 +220,15 @@ public sealed class BioRandProcessRunner
     // the GUID was read through a BioRand pak still installed in the game
     // folder - generation would later die with "Unable to find door to
     // replace". Guid.ToByteArray() matches the RSZ on-disk GUID layout.
-    private const string HarvestSentinelRelativePath = @"natives\stm\_chainsaw\environment\scene\gimmick\st40\gimmick_st40_903_p000.scn.20";
+    private static readonly string HarvestSentinelRelativePath = Path.Combine(
+        "natives",
+        "stm",
+        "_chainsaw",
+        "environment",
+        "scene",
+        "gimmick",
+        "st40",
+        "gimmick_st40_903_p000.scn.20");
     private static readonly byte[] HarvestSentinelDoorGuid = new Guid("9a8b310d-6521-4905-bf55-fd1aeefbf2a3").ToByteArray();
 
     private List<(string StashPath, string OriginalPath)> StashApPatchPaks(
@@ -241,6 +258,63 @@ public sealed class BioRandProcessRunner
         }
 
         return stashed;
+    }
+
+    private async Task<IReadOnlyList<string>> CollectProtonRecordedPatchFileNamesAsync(
+        string installPath,
+        CancellationToken cancellationToken)
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            return Array.Empty<string>();
+        }
+
+        var steamAppsPath = FindSteamAppsPath(installPath);
+        if (steamAppsPath is null)
+        {
+            return Array.Empty<string>();
+        }
+
+        var usersPath = Path.Combine(
+            steamAppsPath,
+            "compatdata",
+            Re4rSteamAppId,
+            "pfx",
+            "drive_c",
+            "users");
+        if (!Directory.Exists(usersPath))
+        {
+            return Array.Empty<string>();
+        }
+
+        var patchFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var userPath in Directory.EnumerateDirectories(usersPath))
+        {
+            var protonAppDataRoot = Path.Combine(userPath, "AppData", "Roaming", "RE4R-AP");
+            if (!Directory.Exists(protonAppDataRoot))
+            {
+                continue;
+            }
+
+            var protonSessionStore = new SessionRecordStore(protonAppDataRoot);
+            var records = await protonSessionStore.LoadAllAsync(cancellationToken);
+            foreach (var fileName in records
+                         .SelectMany(record => record.BioRandPatchFiles)
+                         .Select(file => Path.GetFileName(file.RelativePath))
+                         .Where(fileName => !string.IsNullOrWhiteSpace(fileName)))
+            {
+                patchFileNames.Add(fileName!);
+            }
+        }
+
+        if (patchFileNames.Count > 0)
+        {
+            Log(
+                $"Found {patchFileNames.Count} BioRand patch file name(s) in the RE4R Proton prefix; "
+                + "they will be set aside while setup harvests the vanilla game.");
+        }
+
+        return patchFileNames.ToList();
     }
 
     private void RestorePakStashes(List<(string StashPath, string OriginalPath)> stashedPaks)
@@ -501,7 +575,7 @@ public sealed class BioRandProcessRunner
         var stdoutLines = new List<string>();
         var stderrLines = new List<string>();
 
-        var startInfo = CreateProcessStartInfo(command, stagingDirectoryPath);
+        var startInfo = CreateProcessStartInfo(command, stagingDirectoryPath, request.Re4rInstallPath);
         AppendCommandArguments(
             startInfo,
             command,
@@ -680,10 +754,28 @@ public sealed class BioRandProcessRunner
 
     private static ProcessStartInfo CreateProcessStartInfo(
         ResolvedBioRandCommand command,
-        string workingDirectory)
+        string workingDirectory,
+        string re4rInstallPath)
     {
-        var fileName = command.UseDotNetHost ? "dotnet" : command.ExecutablePath;
-        return new ProcessStartInfo
+        if (OperatingSystem.IsLinux()
+            && string.Equals(Path.GetExtension(command.ExecutablePath), ".exe", StringComparison.OrdinalIgnoreCase))
+        {
+            var proton = ResolveProtonRuntime(re4rInstallPath);
+            var protonStartInfo = CreateBaseProcessStartInfo(proton.ProtonPath, workingDirectory);
+            protonStartInfo.ArgumentList.Add("run");
+            protonStartInfo.ArgumentList.Add(command.ExecutablePath);
+            protonStartInfo.Environment["STEAM_COMPAT_DATA_PATH"] = proton.CompatDataPath;
+            protonStartInfo.Environment["STEAM_COMPAT_CLIENT_INSTALL_PATH"] = proton.SteamClientInstallPath;
+            return protonStartInfo;
+        }
+
+        return CreateBaseProcessStartInfo(
+            command.UseDotNetHost ? "dotnet" : command.ExecutablePath,
+            workingDirectory);
+    }
+
+    private static ProcessStartInfo CreateBaseProcessStartInfo(string fileName, string workingDirectory) =>
+        new()
         {
             FileName = fileName,
             WorkingDirectory = workingDirectory,
@@ -692,7 +784,6 @@ public sealed class BioRandProcessRunner
             RedirectStandardError = true,
             CreateNoWindow = true,
         };
-    }
 
     private static void AppendCommandArguments(
         ProcessStartInfo startInfo,
@@ -706,8 +797,102 @@ public sealed class BioRandProcessRunner
 
         foreach (var argument in arguments)
         {
-            startInfo.ArgumentList.Add(argument);
+            startInfo.ArgumentList.Add(
+                OperatingSystem.IsLinux()
+                    && string.Equals(Path.GetExtension(command.ExecutablePath), ".exe", StringComparison.OrdinalIgnoreCase)
+                    ? ConvertUnixPathForWine(argument)
+                    : argument);
         }
+    }
+
+    private static string ConvertUnixPathForWine(string argument)
+    {
+        if (!Path.IsPathRooted(argument))
+        {
+            return argument;
+        }
+
+        return $"Z:{argument.Replace('/', '\\')}";
+    }
+
+    private static ProtonRuntime ResolveProtonRuntime(string re4rInstallPath)
+    {
+        if (string.IsNullOrWhiteSpace(re4rInstallPath) || !Directory.Exists(re4rInstallPath))
+        {
+            throw new BioRandProcessException(
+                "BioRand needs the selected RE4R Steam install path to locate its Proton prefix.");
+        }
+
+        var steamAppsPath = FindSteamAppsPath(re4rInstallPath);
+        if (steamAppsPath is null)
+        {
+            throw new BioRandProcessException(
+                $"Could not locate the steamapps folder above the selected RE4R install at {re4rInstallPath}.");
+        }
+
+        var compatDataPath = Path.Combine(steamAppsPath, "compatdata", Re4rSteamAppId);
+        if (!Directory.Exists(compatDataPath))
+        {
+            throw new BioRandProcessException(
+                $"The RE4R Proton prefix was not found at {compatDataPath}. Launch the game through Steam once, then try again.");
+        }
+
+        var configuredProtonPath = Environment.GetEnvironmentVariable("RE4R_AP_PROTON_PATH");
+        var protonPath = !string.IsNullOrWhiteSpace(configuredProtonPath) && File.Exists(configuredProtonPath)
+            ? configuredProtonPath
+            : FindProtonPath(steamAppsPath);
+        if (protonPath is null)
+        {
+            throw new BioRandProcessException(
+                $"No Steam Proton runtime was found in {Path.Combine(steamAppsPath, "common")}. "
+                + "Install Proton for this Steam library or set RE4R_AP_PROTON_PATH.");
+        }
+
+        var defaultSteamClientPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".local",
+            "share",
+            "Steam");
+        var steamClientInstallPath = Directory.Exists(defaultSteamClientPath)
+            ? defaultSteamClientPath
+            : Directory.GetParent(steamAppsPath)?.FullName ?? steamAppsPath;
+
+        return new ProtonRuntime(protonPath, compatDataPath, steamClientInstallPath);
+    }
+
+    private static string? FindSteamAppsPath(string installPath)
+    {
+        var current = new DirectoryInfo(Path.GetFullPath(installPath));
+        while (current is not null)
+        {
+            if (string.Equals(current.Name, "steamapps", StringComparison.OrdinalIgnoreCase))
+            {
+                return current.FullName;
+            }
+
+            current = current.Parent;
+        }
+
+        return null;
+    }
+
+    private static string? FindProtonPath(string steamAppsPath)
+    {
+        var commonPath = Path.Combine(steamAppsPath, "common");
+        if (!Directory.Exists(commonPath))
+        {
+            return null;
+        }
+
+        return Directory.EnumerateDirectories(commonPath, "Proton*", SearchOption.TopDirectoryOnly)
+            .OrderByDescending(
+                path => string.Equals(
+                    Path.GetFileName(path),
+                    "Proton - Experimental",
+                    StringComparison.OrdinalIgnoreCase))
+            .ThenByDescending(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
+            .Select(path => Path.Combine(path, "proton"))
+            .FirstOrDefault(File.Exists);
     }
 
     private static async Task<int> RunProcessAsync(
@@ -829,4 +1014,9 @@ public sealed class BioRandProcessRunner
         string ExecutablePath,
         bool UseDotNetHost,
         string VersionDescriptor);
+
+    private sealed record ProtonRuntime(
+        string ProtonPath,
+        string CompatDataPath,
+        string SteamClientInstallPath);
 }
