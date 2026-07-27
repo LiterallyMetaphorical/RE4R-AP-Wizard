@@ -201,6 +201,15 @@ return function(ctx)
         return "FILLER"
     end
 
+    local function truncate_overlay_text(value, maximum_length)
+        local text = tostring(value or "")
+        maximum_length = math.max(8, math.floor(tonumber(maximum_length) or 60))
+        if #text <= maximum_length then
+            return text
+        end
+        return text:sub(1, maximum_length - 3) .. "..."
+    end
+
     -- [Overlay] Push a toast into the shared check_notifications queue ui_overlay renders
     -- (same schema as detector.lua's toasts; id from next_check_notification_id).
     local function enqueue_toast(title, detail, classification, kind, title_segments)
@@ -587,6 +596,14 @@ return function(ctx)
                         inject_failure_counts[idx] = nil
                         info(string.format("injected idx=%d ap=%s engine=%d x%d [%s]",
                             idx, tostring(entry.item), mapping.re4r_item_id, mapping.count, status))
+                        -- Commit delivery before presentation. A broken toast must never
+                        -- make an already-injected AP item eligible for injection again.
+                        bridge.last_received_index = idx
+                        pop_head(idx)
+                        injected = injected + 1
+                        processed = processed + 1
+                        need_flush = false
+                        if not persist() then break end
                         -- [Overlay] Toast the incoming item (invisible before now). Own-
                         -- world grants (player==self) show no "from"; a case-full fallback
                         -- to Storage is surfaced in the detail.
@@ -648,15 +665,6 @@ return function(ctx)
                                 enqueue_toast(title, detail, classification, "received", title_segments)
                             end
                         end
-                        bridge.last_received_index = idx
-                        pop_head(idx)
-                        injected = injected + 1
-                        processed = processed + 1
-                        -- Persist BEFORE processing further items; on failure, halt
-                        -- (back-pressure) so the disk watermark can't fall behind an
-                        -- item that's already in the live inventory.
-                        need_flush = false
-                        if not persist() then break end
                     else
                         local n = (inject_failure_counts[idx] or 0) + 1
                         inject_failure_counts[idx] = n
