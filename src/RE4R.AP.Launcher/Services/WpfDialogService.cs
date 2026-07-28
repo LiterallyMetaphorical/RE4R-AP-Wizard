@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using Microsoft.Win32;
 using System.Windows;
+using System.Windows.Threading;
 using RE4R.AP.Launcher.Core.Models;
 using RE4R.AP.Launcher.Views;
 
@@ -160,7 +161,7 @@ public sealed class WpfDialogService : IUiDialogService
         return Task.CompletedTask;
     }
 
-    public async Task InvokeOnUiThreadAsync(Func<Task> action)
+    public async Task InvokeOnUiThreadAsync(Func<Task> action, UiThreadPriority priority = UiThreadPriority.Normal)
     {
         if (_owner.Dispatcher.CheckAccess())
         {
@@ -168,7 +169,10 @@ public sealed class WpfDialogService : IUiDialogService
             return;
         }
 
-        await await _owner.Dispatcher.InvokeAsync(action);
+        var dispatcherPriority = priority == UiThreadPriority.Background
+            ? DispatcherPriority.Background
+            : DispatcherPriority.Normal;
+        await await _owner.Dispatcher.InvokeAsync(action, dispatcherPriority);
     }
 
     private static string FormatTimestamp(DateTimeOffset? timestamp)

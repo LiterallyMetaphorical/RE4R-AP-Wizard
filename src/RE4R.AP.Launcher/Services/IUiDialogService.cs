@@ -2,6 +2,19 @@ using RE4R.AP.Launcher.Core.Models;
 
 namespace RE4R.AP.Launcher.Services;
 
+/// <summary>
+/// Priority for work marshaled onto the UI thread. Background keeps the work
+/// below user input, so a busy render path (the batched workflow-log flush)
+/// cannot starve the buttons. The log-flush timer depends on this: it was a
+/// Background-priority DispatcherTimer specifically to keep Proceed/Cancel
+/// responsive under heavy generation output.
+/// </summary>
+public enum UiThreadPriority
+{
+    Normal,
+    Background,
+}
+
 public interface IUiDialogService
 {
     Task<string?> BrowseForFolderAsync(string? initialDirectory);
@@ -24,5 +37,5 @@ public interface IUiDialogService
 
     Task OpenFolderAsync(string path);
 
-    Task InvokeOnUiThreadAsync(Func<Task> action);
+    Task InvokeOnUiThreadAsync(Func<Task> action, UiThreadPriority priority = UiThreadPriority.Normal);
 }
