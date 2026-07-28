@@ -111,7 +111,8 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
                 {
                     OnWorkflowLogFlushTick();
                     return Task.CompletedTask;
-                }),
+                },
+                UiThreadPriority.Background),
             null,
             TimeSpan.FromMilliseconds(200),
             TimeSpan.FromMilliseconds(200));

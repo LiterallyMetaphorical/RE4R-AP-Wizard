@@ -132,7 +132,7 @@ internal sealed class AvaloniaDialogService : IUiDialogService
         return Task.CompletedTask;
     }
 
-    public async Task InvokeOnUiThreadAsync(Func<Task> action)
+    public async Task InvokeOnUiThreadAsync(Func<Task> action, UiThreadPriority priority = UiThreadPriority.Normal)
     {
         if (Dispatcher.UIThread.CheckAccess())
         {
@@ -140,7 +140,10 @@ internal sealed class AvaloniaDialogService : IUiDialogService
             return;
         }
 
-        await Dispatcher.UIThread.InvokeAsync(action);
+        var dispatcherPriority = priority == UiThreadPriority.Background
+            ? DispatcherPriority.Background
+            : DispatcherPriority.Normal;
+        await Dispatcher.UIThread.InvokeAsync(action, dispatcherPriority);
     }
 
     private async Task<IStorageFolder?> TryGetFolderAsync(string? path)
