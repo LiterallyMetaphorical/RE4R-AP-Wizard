@@ -30,11 +30,18 @@ Rebuilt:     2026-07-28, missable + small-key logic (world_version left at 0.4.0
              (476 = 471 always + 5 optional), so the launcher count-check contract holds.
              Verified: 100/100-seed generation sweep, 0 progression on any missable
              location, both slots reach Victory.
+Rebuilt:     2026-07-28 (rev 2), forbid progression inside small-key drawers. The count
+             rule gated a drawer's reachability but not its contents, so ~55% of 2-player
+             seeds placed a gate item behind a key puzzle (e.g. the Insignia Key in the
+             Chapter 2 Abandoned Factory drawer), a stranding softlock since the required
+             keys are not guaranteed reachable in the drawer's chapter window. rules.py now
+             adds an item rule keeping advancement off every small-key drawer (0/20 after);
+             the count rule stays for tracker gating of the useful/filler still allowed there.
 Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_version 0.4.0
              per that repo's archipelago.json.
 AP target:   Archipelago 0.6.7 (the version the apworld was developed and
              generation-validated against; pinned via the manifest as of 2026-07-12).
-SHA-256:     39929680a34174cc5d9e99d1e0d74bad4e6cef6ba2c28b3ff82ed0fdb376e002
+SHA-256:     e5edf6aad9f44cfe59a9867f62b7205550b3a372ecfe5a76f1e012a78658bd7b
 Consumed by: the Generation Guidance screen ("Copy RE4R.apworld to your Archipelago
              custom_worlds folder") - ArchipelagoInstallationService reads the
              world_version out of this zip's manifest for display and copies the
