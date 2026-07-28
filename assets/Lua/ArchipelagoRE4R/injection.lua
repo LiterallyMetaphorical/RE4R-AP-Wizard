@@ -49,6 +49,7 @@ local function install(ctx)
     local inject_is_currency_item
     local inject_is_key_item_kind
     local inject_is_unique_item_kind
+    local inject_is_token_kind
     local inject_is_treasure_kind
     local inject_get_route_label
     local inject_get_expected_commit_count
@@ -66,6 +67,7 @@ local function install(ctx)
     }
 
     local INJECTABLE_KIND_DISPLAY_LABELS = {
+        accessory = "Accessory",
         ammo = "Ammo",
         armor = "Armor",
         attachment = "Attachment",
@@ -166,6 +168,9 @@ local function install(ctx)
         if inject_is_unique_item_kind(kind) then
             return "Unique inventory"
         end
+        if inject_is_token_kind(kind) then
+            return "Token item in main inventory"
+        end
         if inject_is_treasure_kind(kind, item_id) then
             return "Treasure partition"
         end
@@ -246,6 +251,12 @@ local function install(ctx)
                     normalized_kind = "knife"
                 elseif normalized_kind == nil and string.find(entry.label, "Recipe:", 1, true) == 1 then
                     normalized_kind = "recipe"
+                elseif normalized_kind == nil
+                    and (string.find(entry.label, "Accessory:", 1, true) == 1
+                        or entry.label == "Blue"
+                        or entry.label == "Red"
+                        or entry.label == "Wellington") then
+                    normalized_kind = "accessory"
                 end
 
                 local normalized_class = nil
@@ -924,7 +935,11 @@ local function install(ctx)
     end
 
     inject_is_unique_item_kind = function(kind)
-        return kind == "charm" or kind == "case-perk" or kind == "case-size"
+        return kind == "accessory" or kind == "charm" or kind == "case-perk" or kind == "case-size"
+    end
+
+    inject_is_token_kind = function(kind)
+        return kind == "token"
     end
 
     inject_is_treasure_kind = function(kind, item_id)
@@ -932,7 +947,7 @@ local function install(ctx)
         -- tokens in the Key Items & Treasures case (the token machine consumes
         -- from there), and the main-grid fallthrough put received Gold Tokens
         -- into the attache grid (live 2026-07-23). Spinel stays currency.
-        return (kind == "treasure" or kind == "token") and not inject_is_spinel_item(item_id)
+        return kind == "treasure" and not inject_is_spinel_item(item_id)
     end
 
     inject_get_route_label = function(kind, item_id)
@@ -947,6 +962,9 @@ local function install(ctx)
         end
         if inject_is_unique_item_kind(kind) then
             return "Unique"
+        end
+        if inject_is_token_kind(kind) then
+            return "Token"
         end
         if inject_is_treasure_kind(kind, item_id) then
             return "Treasure"
@@ -968,6 +986,9 @@ local function install(ctx)
         end
         if inject_is_key_item_kind(kind) or inject_is_unique_item_kind(kind) then
             return "key items"
+        end
+        if inject_is_token_kind(kind) then
+            return "inventory"
         end
         if inject_is_treasure_kind(kind, normalized_item_id) then
             return "treasures"
@@ -1272,7 +1293,14 @@ local function install(ctx)
         return string.format("%s inject failed: unknown currency item", route_label)
     end
 
-    local function inject_write_main_inventory(controller_table, item, normalized_item_id, normalized_count, route_label)
+    local function inject_write_main_inventory(
+        controller_table,
+        item,
+        normalized_item_id,
+        normalized_count,
+        route_label,
+        allow_storage_fallback
+    )
         local controller, controller_error = inject_lookup_controller(controller_table, 4, 2, 0, 4000)
         if controller == nil then
             return string.format("%s inject failed: %s", route_label, tostring(controller_error))
@@ -1305,6 +1333,9 @@ local function install(ctx)
         end)
         local empty_slot_count = inject_get_collection_count(empty_slots)
         if type(empty_slot_count) ~= "number" or empty_slot_count <= 0 then
+            if allow_storage_fallback == false then
+                return string.format("%s inject failed: attache case full", route_label)
+            end
             return inject_write_storage(item, normalized_item_id, normalized_count, route_label, "attache case full")
         end
 
@@ -1548,6 +1579,17 @@ local function install(ctx)
             return inject_write_treasure_inventory(normalized_item_id, 1, item, route_label)
         end
 
+        if inject_is_token_kind(item_kind) then
+            return inject_write_main_inventory(
+                controller_table,
+                item,
+                normalized_item_id,
+                normalized_count,
+                route_label,
+                false
+            )
+        end
+
         return inject_write_main_inventory(controller_table, item, normalized_item_id, normalized_count, route_label)
     end
 
@@ -1585,6 +1627,7 @@ local function install(ctx)
     export("inject_is_currency_item", inject_is_currency_item)
     export("inject_is_key_item_kind", inject_is_key_item_kind)
     export("inject_is_unique_item_kind", inject_is_unique_item_kind)
+    export("inject_is_token_kind", inject_is_token_kind)
     export("inject_is_treasure_kind", inject_is_treasure_kind)
     export("inject_get_route_label", inject_get_route_label)
     export("inject_get_route_destination", inject_get_route_destination)
@@ -1593,4 +1636,3 @@ local function install(ctx)
 end
 
 return install
-

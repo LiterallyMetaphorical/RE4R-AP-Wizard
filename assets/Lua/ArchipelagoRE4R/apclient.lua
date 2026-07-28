@@ -85,6 +85,7 @@ return function(ctx)
     -- processed (cheap skips included) so a huge Sync backlog can't stall a frame.
     local MAX_INJECTS_PER_TICK = 3
     local MAX_ITEMS_PER_TICK = 40
+    local INVENTORY_STABILITY_SECONDS = 3.0
     -- A repeatedly-failing inject retries this many ticks (while in a safe state)
     -- before being skipped to unblock the queue.
     local MAX_INJECT_RETRIES = 20
@@ -519,8 +520,28 @@ return function(ctx)
             return
         end
 
-        if not safe_to_inject(get_runtime_state()) then
+        local runtime_state = get_runtime_state()
+        local runtime_clock = os.clock()
+        if not safe_to_inject(runtime_state) then
+            st.item_delivery_resume_not_before = runtime_clock + INVENTORY_STABILITY_SECONDS
+            st.item_delivery_stability_logged = false
             return -- busy state: defer the whole drain, do not advance
+        end
+        local resume_not_before = tonumber(st.item_delivery_resume_not_before)
+        if resume_not_before ~= nil and runtime_clock < resume_not_before then
+            if not st.item_delivery_stability_logged then
+                info(string.format(
+                    "inventory transition ended; deferring received items for %.1fs stability window",
+                    INVENTORY_STABILITY_SECONDS
+                ))
+                st.item_delivery_stability_logged = true
+            end
+            return
+        end
+        if resume_not_before ~= nil then
+            info("inventory state stable; resuming received-item delivery")
+            st.item_delivery_resume_not_before = nil
+            st.item_delivery_stability_logged = false
         end
 
         table.sort(pending, function(a, b) return a.index < b.index end)
@@ -1001,6 +1022,8 @@ return function(ctx)
         pending = {}
         pending_by_index = {}
         inject_failure_counts = {}
+        st.item_delivery_resume_not_before = nil
+        st.item_delivery_stability_logged = false
         sent_location_checks = {} -- new socket: let the persisted checks resend once
         -- [Overlay] Fresh connection: reset the received-item burst coalescer, and
         -- open a short grace window during which replayed Hint/Goal PrintJSON (the
