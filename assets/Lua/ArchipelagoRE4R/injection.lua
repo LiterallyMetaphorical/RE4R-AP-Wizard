@@ -56,6 +56,8 @@ local function install(ctx)
     local inject_get_route_hint
     local inject_record_recent_item
 
+    local INJECT_RHINOCEROS_BEETLE_ITEM_ID = 114424000
+
     local FALLBACK_INJECTABLE_ITEMS = {
         { label = "First Aid Spray", item_id = 114416000, kind = "health" },
         { label = "Flash Grenade", item_id = 277078656, kind = "grenade" },
@@ -169,7 +171,7 @@ local function install(ctx)
             return "Unique inventory"
         end
         if inject_is_token_kind(kind) then
-            return "Token item in main inventory"
+            return "Key item partition"
         end
         if inject_is_treasure_kind(kind, item_id) then
             return "Treasure partition"
@@ -247,7 +249,9 @@ local function install(ctx)
                 if type(entry.kind) == "string" and entry.kind ~= "" then
                     normalized_kind = string.lower(entry.kind)
                 end
-                if normalized_kind == nil and entry.label == "Broken Knife" then
+                if entry.item_id == INJECT_RHINOCEROS_BEETLE_ITEM_ID then
+                    normalized_kind = "health"
+                elseif normalized_kind == nil and entry.label == "Broken Knife" then
                     normalized_kind = "knife"
                 elseif normalized_kind == nil and string.find(entry.label, "Recipe:", 1, true) == 1 then
                     normalized_kind = "recipe"
@@ -935,7 +939,13 @@ local function install(ctx)
     end
 
     inject_is_unique_item_kind = function(kind)
-        return kind == "accessory" or kind == "charm" or kind == "case-perk" or kind == "case-size"
+        return kind == "accessory"
+            or kind == "armor"
+            or kind == "charm"
+            or kind == "case-perk"
+            or kind == "case-size"
+            or kind == "map"
+            or kind == "recipe"
     end
 
     inject_is_token_kind = function(kind)
@@ -943,10 +953,11 @@ local function install(ctx)
     end
 
     inject_is_treasure_kind = function(kind, item_id)
-        -- "token" rides the treasure route: vanilla stores shooting-gallery
-        -- tokens in the Key Items & Treasures case (the token machine consumes
-        -- from there), and the main-grid fallthrough put received Gold Tokens
-        -- into the attache grid (live 2026-07-23). Spinel stays currency.
+        -- Tokens are deliberately excluded. TreasureInventoryController accepts
+        -- their generated Item object but leaves a malformed entry which crashes
+        -- Key Items & Treasures UI while dereferencing it. Tokens must go through
+        -- KeyItemInventoryController:pickupItem so the controller can initialize
+        -- and stack them using the same path as a normal in-game pickup.
         return kind == "treasure" and not inject_is_spinel_item(item_id)
     end
 
@@ -988,7 +999,7 @@ local function install(ctx)
             return "key items"
         end
         if inject_is_token_kind(kind) then
-            return "inventory"
+            return "key items"
         end
         if inject_is_treasure_kind(kind, normalized_item_id) then
             return "treasures"
@@ -1007,6 +1018,7 @@ local function install(ctx)
 
         if inject_is_weapon_item_kind(item_kind)
             or inject_is_key_item_kind(item_kind)
+            or inject_is_token_kind(item_kind)
             or inject_is_unique_item_kind(item_kind)
             or inject_is_treasure_kind(item_kind, normalized_item_id) then
             return 1
@@ -1293,14 +1305,7 @@ local function install(ctx)
         return string.format("%s inject failed: unknown currency item", route_label)
     end
 
-    local function inject_write_main_inventory(
-        controller_table,
-        item,
-        normalized_item_id,
-        normalized_count,
-        route_label,
-        allow_storage_fallback
-    )
+    local function inject_write_main_inventory(controller_table, item, normalized_item_id, normalized_count, route_label)
         local controller, controller_error = inject_lookup_controller(controller_table, 4, 2, 0, 4000)
         if controller == nil then
             return string.format("%s inject failed: %s", route_label, tostring(controller_error))
@@ -1333,9 +1338,6 @@ local function install(ctx)
         end)
         local empty_slot_count = inject_get_collection_count(empty_slots)
         if type(empty_slot_count) ~= "number" or empty_slot_count <= 0 then
-            if allow_storage_fallback == false then
-                return string.format("%s inject failed: attache case full", route_label)
-            end
             return inject_write_storage(item, normalized_item_id, normalized_count, route_label, "attache case full")
         end
 
@@ -1405,119 +1407,33 @@ local function install(ctx)
 
         local controller_type = inject_get_value_type(controller)
         local controller_managed = inject_get_managed(controller)
-        local add_method = inject_find_method(controller_type, "add", 1)
-        local enable_add_method = inject_find_method(controller_type, "enableAddItem", 2)
-        local key_inventory = inject_safe_call(function()
-            return controller_managed:get_field("<_Inventory>k__BackingField")
+        local pickup_method = inject_find_method(controller_type, "pickupItem", 1)
+        if pickup_method == nil then
+            return string.format("%s inject failed: KeyItemInventoryController pickupItem missing", route_label)
+        end
+
+        local ok, pickup_result = pcall(function()
+            return pickup_method:call(controller_managed, item)
         end)
-        if key_inventory ~= nil then
-            key_inventory = inject_try_add_ref(key_inventory)
+        if not ok then
+            return string.format("%s inject failed: pickupItem err=%s", route_label, tostring(pickup_result))
         end
 
-        local key_inventory_type = inject_get_value_type(key_inventory)
-        local get_blank_slot = inject_find_method(key_inventory_type, "getBlankSlotIndex", 0)
-        local add_with_slot = inject_find_method(key_inventory_type, "add", 2)
-        local enable_add_with_slot = inject_find_method(key_inventory_type, "enableAddItem", 2)
-        local set_item_with_slot = inject_find_method(key_inventory_type, "setItem", 2)
-
-        if key_inventory == nil then
-            if add_method == nil then
-                return string.format("%s inject failed: KeyItemInventory backing field missing", route_label)
-            end
-
-            local enable_result = nil
-            if enable_add_method ~= nil then
-                enable_result = inject_safe_call(function()
-                    return enable_add_method:call(controller_managed, item, 0)
-                end)
-                local enable_bool = coerce_to_bool(enable_result)
-                if enable_bool == false then
-                    return string.format("%s inject failed: controller enableAddItem rejected item", route_label)
-                end
-            end
-
-            local add_result = inject_safe_call(function()
-                return add_method:call(controller_managed, item)
-            end)
-            if add_result ~= nil then
-                return string.format(
-                    "%s added %d x%d via controller add (%s)",
-                    route_label,
-                    normalized_item_id,
-                    normalized_count,
-                    inject_value_to_string(add_result)
-                )
-            end
-
-            return string.format("%s inject failed: controller add returned nil", route_label)
-        end
-
-        if get_blank_slot == nil then
-            return string.format("%s inject failed: getBlankSlotIndex missing", route_label)
-        end
-
-        local blank_slot = inject_safe_call(function()
-            return get_blank_slot:call(inject_get_managed(key_inventory))
-        end)
-        if blank_slot == nil then
-            return string.format("%s inject failed: blank key-item slot unavailable", route_label)
-        end
-
-        local row, column = inject_get_slot_row_column(blank_slot)
-        if type(row) == "number" and type(column) == "number" and (row < 0 or column < 0) then
-            return string.format("%s inject failed: no blank key-item slots", route_label)
-        end
-
-        if enable_add_with_slot ~= nil then
-            local enable_result = inject_safe_call(function()
-                return enable_add_with_slot:call(inject_get_managed(key_inventory), item, blank_slot)
-            end)
-            local enable_bool = coerce_to_bool(enable_result)
-            if enable_bool == false then
-                return string.format("%s inject failed: key inventory rejected item for blank slot", route_label)
-            end
-        end
-
-        if add_with_slot ~= nil then
-            local add_result = inject_safe_call(function()
-                return add_with_slot:call(inject_get_managed(key_inventory), item, blank_slot)
-            end)
-            if add_result ~= nil then
-                return string.format(
-                    "%s added %d x%d at slot (%s,%s)",
-                    route_label,
-                    normalized_item_id,
-                    normalized_count,
-                    tostring(row or "?"),
-                    tostring(column or "?")
-                )
-            end
-        end
-
-        if set_item_with_slot ~= nil then
-            local set_result = inject_safe_call(function()
-                return set_item_with_slot:call(inject_get_managed(key_inventory), item, blank_slot)
-            end)
-            local set_bool = coerce_to_bool(set_result)
-            if set_bool or set_result == true or set_result ~= nil then
-                return string.format(
-                    "%s set %d x%d at slot (%s,%s)",
-                    route_label,
-                    normalized_item_id,
-                    normalized_count,
-                    tostring(row or "?"),
-                    tostring(column or "?")
-                )
-            end
+        if coerce_to_bool(pickup_result) or pickup_result == true then
             return string.format(
-                "%s inject failed: setItem type=%s value=%s",
+                "%s picked up %d x%d via controller",
                 route_label,
-                inject_get_value_type_name(set_result),
-                inject_value_to_string(set_result)
+                normalized_item_id,
+                normalized_count
             )
         end
 
-        return string.format("%s inject failed: add/set write surface missing", route_label)
+        return string.format(
+            "%s inject failed: pickupItem type=%s value=%s",
+            route_label,
+            inject_get_value_type_name(pickup_result),
+            inject_value_to_string(pickup_result)
+        )
     end
 
     inject_item_to_inventory = function(item_id, count)
@@ -1580,13 +1496,12 @@ local function install(ctx)
         end
 
         if inject_is_token_kind(item_kind) then
-            return inject_write_main_inventory(
+            return inject_write_key_inventory(
                 controller_table,
                 item,
                 normalized_item_id,
                 normalized_count,
-                route_label,
-                false
+                route_label
             )
         end
 

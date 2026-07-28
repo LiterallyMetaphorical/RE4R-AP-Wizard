@@ -12,14 +12,37 @@ public sealed class LuaInstallService
         string? assetsNativeDirectoryPath = null)
     {
         AssetsLuaDirectoryPath = assetsLuaDirectoryPath
-            ?? Path.Combine(AppContext.BaseDirectory, "assets", "Lua");
+            ?? ResolveAssetsDirectory("Lua");
         AssetsNativeDirectoryPath = assetsNativeDirectoryPath
-            ?? Path.Combine(AppContext.BaseDirectory, "assets", "native");
+            ?? ResolveAssetsDirectory("native");
     }
 
     public string AssetsLuaDirectoryPath { get; }
 
     public string AssetsNativeDirectoryPath { get; }
+
+    private static string ResolveAssetsDirectory(string subPath)
+    {
+        var localPath = Path.Combine(AppContext.BaseDirectory, "assets", subPath);
+        var currentDir = new DirectoryInfo(AppContext.BaseDirectory);
+
+        for (var i = 0; i < 12 && currentDir != null; i++)
+        {
+            var solutionMarker = Path.Combine(currentDir.FullName, "RE4R-AP-Launcher.slnx");
+            if (File.Exists(solutionMarker))
+            {
+                var sourcePath = Path.Combine(currentDir.FullName, "assets", subPath);
+                if (Directory.Exists(sourcePath))
+                {
+                    return sourcePath;
+                }
+            }
+
+            currentDir = currentDir.Parent;
+        }
+
+        return localPath;
+    }
 
     public event Action<string>? LogMessage;
 
@@ -213,6 +236,9 @@ public sealed class LuaInstallService
         string re4rInstallPath,
         CancellationToken cancellationToken)
     {
+        Log($"Using Lua assets from {AssetsLuaDirectoryPath}.");
+        Log($"Using native assets from {AssetsNativeDirectoryPath}.");
+
         var rootScriptSource = Path.Combine(AssetsLuaDirectoryPath, "ArchipelagoRE4R.lua");
         var moduleDirectorySource = Path.Combine(AssetsLuaDirectoryPath, "ArchipelagoRE4R");
         var dataDirectorySource = Path.Combine(AssetsLuaDirectoryPath, "data", "ArchipelagoRE4R");
