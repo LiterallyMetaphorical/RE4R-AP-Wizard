@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Net.Sockets;
 using System.Text.Json;
-using System.Windows;
 using RE4R.AP.Launcher.Core.Exceptions;
 using RE4R.AP.Launcher.Core.Models;
 using RE4R.AP.Launcher.Core.Services;
@@ -50,7 +49,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     private PendingSessionDraft? _pendingDraft;
     private LaunchWorkflowRequest? _lastWorkflowRequest;
     private readonly System.Collections.Concurrent.ConcurrentQueue<string> _pendingWorkflowLogLines = new();
-    private readonly System.Windows.Threading.DispatcherTimer _workflowLogFlushTimer;
+    private readonly Timer _workflowLogFlushTimer;
 
     private LauncherSettings _settings = LauncherSettings.CreateDefault();
     private StaticGameData? _staticData;
@@ -106,13 +105,17 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         // to disk on the producer thread and drained here in one batched
         // LogText rebuild per tick, at Background priority so WPF input
         // always outranks log rendering (papercut #0: frozen Proceed/Cancel).
-        _workflowLogFlushTimer = new System.Windows.Threading.DispatcherTimer(
-            System.Windows.Threading.DispatcherPriority.Background)
-        {
-            Interval = TimeSpan.FromMilliseconds(200),
-        };
-        _workflowLogFlushTimer.Tick += OnWorkflowLogFlushTick;
-        _workflowLogFlushTimer.Start();
+        _workflowLogFlushTimer = new Timer(
+            _ => _ = _dialogService.InvokeOnUiThreadAsync(
+                () =>
+                {
+                    OnWorkflowLogFlushTick();
+                    return Task.CompletedTask;
+                },
+                UiThreadPriority.Background),
+            null,
+            TimeSpan.FromMilliseconds(200),
+            TimeSpan.FromMilliseconds(200));
         _draftStore = new PendingSessionDraftStore(_settingsStore.AppDataRootPath);
         _draftStore.LogMessage += OnWorkflowLogMessage;
         ConfigureYaml = new ConfigureYamlViewModel(
@@ -357,8 +360,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         // Cancel the workflow first, while the log events are still hooked,
         // so any shutdown activity leaves a trace in the file log.
         PatchLaunch.CancelWorkflow();
-        _workflowLogFlushTimer.Stop();
-        _workflowLogFlushTimer.Tick -= OnWorkflowLogFlushTick;
+        _workflowLogFlushTimer.Dispose();
         _workflowService.LogMessage -= OnWorkflowLogMessage;
         _reFrameworkInstallationService.LogMessage -= OnWorkflowLogMessage;
         _luaInstallService.LogMessage -= OnWorkflowLogMessage;
@@ -1144,11 +1146,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         try
         {
             Directory.CreateDirectory(LauncherFileLog.LogDirectoryPath);
-            Process.Start(
-                new ProcessStartInfo("explorer.exe", $"\"{LauncherFileLog.LogDirectoryPath}\"")
-                {
-                    UseShellExecute = true,
-                });
+            _ = _dialogService.OpenFolderAsync(LauncherFileLog.LogDirectoryPath);
         }
         catch (Exception ex)
         {
@@ -1674,7 +1672,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         _pendingWorkflowLogLines.Enqueue(message);
     }
 
-    private void OnWorkflowLogFlushTick(object? sender, EventArgs e)
+    private void OnWorkflowLogFlushTick()
     {
         if (_pendingWorkflowLogLines.IsEmpty)
         {
@@ -1762,15 +1760,14 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         }
     }
 
-    private static async Task DispatchToUiAsync(System.Action action)
+    private Task DispatchToUiAsync(System.Action action)
     {
-        if (Application.Current?.Dispatcher is null || Application.Current.Dispatcher.CheckAccess())
-        {
+        return _dialogService.InvokeOnUiThreadAsync(
+            () =>
+            {
             action();
-            return;
-        }
-
-        await Application.Current.Dispatcher.InvokeAsync(action);
+                return Task.CompletedTask;
+            });
     }
 
 

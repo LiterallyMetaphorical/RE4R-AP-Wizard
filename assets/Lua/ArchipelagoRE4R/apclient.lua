@@ -85,6 +85,7 @@ return function(ctx)
     -- processed (cheap skips included) so a huge Sync backlog can't stall a frame.
     local MAX_INJECTS_PER_TICK = 3
     local MAX_ITEMS_PER_TICK = 40
+    local INVENTORY_STABILITY_SECONDS = 3.0
     -- A repeatedly-failing inject retries this many ticks (while in a safe state)
     -- before being skipped to unblock the queue.
     local MAX_INJECT_RETRIES = 20
@@ -199,6 +200,15 @@ return function(ctx)
         if (flags & 1) ~= 0 then return "PROGRESSION" end
         if (flags & 2) ~= 0 then return "USEFUL" end
         return "FILLER"
+    end
+
+    local function truncate_overlay_text(value, maximum_length)
+        local text = tostring(value or "")
+        maximum_length = math.max(8, math.floor(tonumber(maximum_length) or 60))
+        if #text <= maximum_length then
+            return text
+        end
+        return text:sub(1, maximum_length - 3) .. "..."
     end
 
     -- [Overlay] Push a toast into the shared check_notifications queue ui_overlay renders
@@ -510,8 +520,28 @@ return function(ctx)
             return
         end
 
-        if not safe_to_inject(get_runtime_state()) then
+        local runtime_state = get_runtime_state()
+        local runtime_clock = os.clock()
+        if not safe_to_inject(runtime_state) then
+            st.item_delivery_resume_not_before = runtime_clock + INVENTORY_STABILITY_SECONDS
+            st.item_delivery_stability_logged = false
             return -- busy state: defer the whole drain, do not advance
+        end
+        local resume_not_before = tonumber(st.item_delivery_resume_not_before)
+        if resume_not_before ~= nil and runtime_clock < resume_not_before then
+            if not st.item_delivery_stability_logged then
+                info(string.format(
+                    "inventory transition ended; deferring received items for %.1fs stability window",
+                    INVENTORY_STABILITY_SECONDS
+                ))
+                st.item_delivery_stability_logged = true
+            end
+            return
+        end
+        if resume_not_before ~= nil then
+            info("inventory state stable; resuming received-item delivery")
+            st.item_delivery_resume_not_before = nil
+            st.item_delivery_stability_logged = false
         end
 
         table.sort(pending, function(a, b) return a.index < b.index end)
@@ -587,6 +617,14 @@ return function(ctx)
                         inject_failure_counts[idx] = nil
                         info(string.format("injected idx=%d ap=%s engine=%d x%d [%s]",
                             idx, tostring(entry.item), mapping.re4r_item_id, mapping.count, status))
+                        -- Commit delivery before presentation. A broken toast must never
+                        -- make an already-injected AP item eligible for injection again.
+                        bridge.last_received_index = idx
+                        pop_head(idx)
+                        injected = injected + 1
+                        processed = processed + 1
+                        need_flush = false
+                        if not persist() then break end
                         -- [Overlay] Toast the incoming item (invisible before now). Own-
                         -- world grants (player==self) show no "from"; a case-full fallback
                         -- to Storage is surfaced in the detail.
@@ -648,15 +686,6 @@ return function(ctx)
                                 enqueue_toast(title, detail, classification, "received", title_segments)
                             end
                         end
-                        bridge.last_received_index = idx
-                        pop_head(idx)
-                        injected = injected + 1
-                        processed = processed + 1
-                        -- Persist BEFORE processing further items; on failure, halt
-                        -- (back-pressure) so the disk watermark can't fall behind an
-                        -- item that's already in the live inventory.
-                        need_flush = false
-                        if not persist() then break end
                     else
                         local n = (inject_failure_counts[idx] or 0) + 1
                         inject_failure_counts[idx] = n
@@ -993,6 +1022,8 @@ return function(ctx)
         pending = {}
         pending_by_index = {}
         inject_failure_counts = {}
+        st.item_delivery_resume_not_before = nil
+        st.item_delivery_stability_logged = false
         sent_location_checks = {} -- new socket: let the persisted checks resend once
         -- [Overlay] Fresh connection: reset the received-item burst coalescer, and
         -- open a short grace window during which replayed Hint/Goal PrintJSON (the

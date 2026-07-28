@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\RE4R.AP.Launcher.Core\RE4R.AP.Launcher.Core.csproj" />
+  </ItemGroup>
+
+  <!-- The Linux frontend compiles the exact same view-model, command, model,
+       inspection, and installation sources as the Windows frontend. Only the
+       toolkit-specific window/dialog implementations differ. -->
+  <ItemGroup>
+    <Compile Include="..\RE4R.AP.Launcher\Infrastructure\AsyncRelayCommand.cs" Link="Shared\Infrastructure\AsyncRelayCommand.cs" />
+    <Compile Include="..\RE4R.AP.Launcher\Infrastructure\ObservableObject.cs" Link="Shared\Infrastructure\ObservableObject.cs" />
+    <Compile Include="..\RE4R.AP.Launcher\Infrastructure\RelayCommand.cs" Link="Shared\Infrastructure\RelayCommand.cs" />
+    <Compile Include="..\RE4R.AP.Launcher\Models\*.cs" Link="Shared\Models\%(Filename)%(Extension)" />
+    <Compile Include="..\RE4R.AP.Launcher\Services\GameInstallationInspector.cs" Link="Shared\Services\GameInstallationInspector.cs" />
+    <Compile Include="..\RE4R.AP.Launcher\Services\IUiDialogService.cs" Link="Shared\Services\IUiDialogService.cs" />
+    <Compile Include="..\RE4R.AP.Launcher\Services\ReFrameworkInstallationService.cs" Link="Shared\Services\ReFrameworkInstallationService.cs" />
+    <Compile Include="..\RE4R.AP.Launcher\ViewModels\*.cs" Link="Shared\ViewModels\%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.0.0" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.0.0" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.0" />
+    <PackageReference Include="Tmds.DBus.Protocol" Version="0.92.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\..\assets\**\*" Exclude="..\..\assets\Lua\**\*">
+      <Link>assets\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </Content>
+    <Content Include="..\..\assets\Lua\**\*">
+      <Link>assets\Lua\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </Content>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>re4r-ap-launcher</AssemblyName>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
+    <PublishSingleFile>true</PublishSingleFile>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+</Project>

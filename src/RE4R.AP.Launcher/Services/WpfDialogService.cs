@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using System.IO;
 using Microsoft.Win32;
 using System.Windows;
+using System.Windows.Threading;
 using RE4R.AP.Launcher.Core.Models;
 using RE4R.AP.Launcher.Views;
 
@@ -144,6 +146,33 @@ public sealed class WpfDialogService : IUiDialogService
             MessageBoxImage.Warning);
 
         return Task.FromResult(result == MessageBoxResult.Yes);
+    }
+
+    public Task SetClipboardTextAsync(string text)
+    {
+        Clipboard.SetText(text);
+        return Task.CompletedTask;
+    }
+
+    public Task OpenFolderAsync(string path)
+    {
+        Directory.CreateDirectory(path);
+        Process.Start(new ProcessStartInfo("explorer.exe", $"\"{path}\"") { UseShellExecute = true });
+        return Task.CompletedTask;
+    }
+
+    public async Task InvokeOnUiThreadAsync(Func<Task> action, UiThreadPriority priority = UiThreadPriority.Normal)
+    {
+        if (_owner.Dispatcher.CheckAccess())
+        {
+            await action();
+            return;
+        }
+
+        var dispatcherPriority = priority == UiThreadPriority.Background
+            ? DispatcherPriority.Background
+            : DispatcherPriority.Normal;
+        await await _owner.Dispatcher.InvokeAsync(action, dispatcherPriority);
     }
 
     private static string FormatTimestamp(DateTimeOffset? timestamp)

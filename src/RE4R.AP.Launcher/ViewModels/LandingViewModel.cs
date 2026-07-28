@@ -1,5 +1,4 @@
 using System.Windows.Input;
-using System.Windows.Media;
 using RE4R.AP.Launcher.Infrastructure;
 
 namespace RE4R.AP.Launcher.ViewModels;
@@ -14,19 +13,19 @@ namespace RE4R.AP.Launcher.ViewModels;
 /// </summary>
 public sealed class LandingViewModel : ObservableObject
 {
-    private static readonly Brush OkBackground = new SolidColorBrush(Color.FromRgb(0xD9, 0xF2, 0xE3));
-    private static readonly Brush OkBorder = new SolidColorBrush(Color.FromRgb(0x9C, 0xD6, 0xB4));
-    private static readonly Brush WarnBackground = new SolidColorBrush(Color.FromRgb(0xFF, 0xF4, 0xD6));
-    private static readonly Brush WarnBorder = new SolidColorBrush(Color.FromRgb(0xE8, 0xC9, 0x7A));
-    private static readonly Brush NeutralBackground = new SolidColorBrush(Color.FromRgb(0xEF, 0xEF, 0xEF));
-    private static readonly Brush NeutralBorder = new SolidColorBrush(Color.FromRgb(0xD4, 0xD4, 0xD4));
+    private const string OkBackground = "#D9F2E3";
+    private const string OkBorder = "#9CD6B4";
+    private const string WarnBackground = "#FFF4D6";
+    private const string WarnBorder = "#E8C97A";
+    private const string NeutralBackground = "#EFEFEF";
+    private const string NeutralBorder = "#D4D4D4";
 
     private string _blockingIssuesText = string.Empty;
     private bool _isBannerVisible;
     private string _bannerTitle = string.Empty;
     private string _bannerBody = string.Empty;
-    private Brush _bannerBackground = NeutralBackground;
-    private Brush _bannerBorder = NeutralBorder;
+    private string _bannerBackground = NeutralBackground;
+    private string _bannerBorder = NeutralBorder;
     private bool _showOpenRoomPage;
     private bool _showReconnectPrefill;
     private bool _showFixAddress;
@@ -83,13 +82,13 @@ public sealed class LandingViewModel : ObservableObject
         private set => SetProperty(ref _bannerBody, value);
     }
 
-    public Brush BannerBackground
+    public string BannerBackground
     {
         get => _bannerBackground;
         private set => SetProperty(ref _bannerBackground, value);
     }
 
-    public Brush BannerBorder
+    public string BannerBorder
     {
         get => _bannerBorder;
         private set => SetProperty(ref _bannerBorder, value);

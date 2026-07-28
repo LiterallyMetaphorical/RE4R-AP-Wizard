@@ -760,6 +760,7 @@ public sealed class LaunchWorkflowService
             var result = await _bioRandProcessRunner.RunGenerationAsync(
                 new BioRandGenerationRequest
                 {
+                    Re4rInstallPath = request.Re4rInstallPath,
                     Seed = bioRandSeed,
                     ConfigJson = manifestResult.ConfigJson,
                 },

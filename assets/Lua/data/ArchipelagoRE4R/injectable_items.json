@@ -2,7 +2,8 @@
   "items": [
     {
       "label": "Accessory: Stylish Mask",
-      "item_id": 124646400
+      "item_id": 124646400,
+      "kind": "accessory"
     },
     {
       "label": "Alexandrite",
@@ -90,7 +91,8 @@
     },
     {
       "label": "Blue",
-      "item_id": 124641600
+      "item_id": 124641600,
+      "kind": "accessory"
     },
     {
       "label": "Blue Dial",
@@ -980,7 +982,8 @@
     },
     {
       "label": "Red",
-      "item_id": 124640000
+      "item_id": 124640000,
+      "kind": "accessory"
     },
     {
       "label": "Red Beryl",
@@ -1023,7 +1026,7 @@
     {
       "label": "Rhinoceros Beetle",
       "item_id": 114424000,
-      "kind": "treasure"
+      "kind": "health"
     },
     {
       "label": "Rifle Ammo",
@@ -1444,7 +1447,8 @@
     },
     {
       "label": "Wellington",
-      "item_id": 124643200
+      "item_id": 124643200,
+      "kind": "accessory"
     },
     {
       "label": "Wooden Cog",
