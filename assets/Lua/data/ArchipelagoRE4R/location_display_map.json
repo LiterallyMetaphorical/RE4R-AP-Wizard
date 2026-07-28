@@ -124,7 +124,7 @@
       },
       "5146332b-4869-4271-840b-ccfa61814e3b": {
         "location_id": 2546164502,
-        "location_name": "Chapter 3 - Village Square - Silver Token x1 [5146332b]",
+        "location_name": "Chapter 3 - Village Square - Silver Token x1 (hanging) [5146332b]",
         "toast_title": "Silver Token",
         "item_name": "Silver Token x1",
         "classification": "FILLER",
@@ -134,7 +134,7 @@
         "x": -15.38,
         "y": 5.01,
         "z": -2.07,
-        "container": "",
+        "container": "hanging",
         "note": ""
       }
     },
@@ -280,7 +280,7 @@
       },
       "853f288f-987c-487f-bbc2-e52ac167f827": {
         "location_id": 15971165,
-        "location_name": "Chapter 3 - Town Hall - Velvet Blue x1 [853f288f]",
+        "location_name": "Chapter 3 - Town Hall - Velvet Blue x1 (hanging) [853f288f]",
         "toast_title": "Velvet Blue",
         "item_name": "Velvet Blue x1",
         "classification": "FILLER",
@@ -290,7 +290,7 @@
         "x": 36.11,
         "y": 0.83,
         "z": 12.56,
-        "container": "",
+        "container": "hanging",
         "note": ""
       },
       "c58965fd-0c42-4bd4-9001-af81a1b72bdb": {
@@ -731,7 +731,7 @@
       },
       "63b02474-6c38-42e3-8b7d-1949474e03dd": {
         "location_id": 3465696690,
-        "location_name": "Chapter 4 - Lake - Sapphire x1 [63b02474]",
+        "location_name": "Chapter 4 - Lake - Sapphire x1 (hanging) [63b02474]",
         "toast_title": "Sapphire",
         "item_name": "Sapphire x1",
         "classification": "FILLER",
@@ -741,7 +741,7 @@
         "x": 213.55,
         "y": 3.79,
         "z": -125.33,
-        "container": "",
+        "container": "hanging",
         "note": ""
       }
     },
@@ -829,7 +829,7 @@
     "44101": {
       "2c317553-d2b0-4a76-8672-0b6f6ac02e61": {
         "location_id": 3313882389,
-        "location_name": "Chapter 2 - Village Chief's Manor - Hand Grenade x1 [2c317553]",
+        "location_name": "Chapter 2 - Village Chief's Manor - Hand Grenade x1 (hanging) [2c317553]",
         "toast_title": "Hand Grenade",
         "item_name": "Hand Grenade x1",
         "classification": "FILLER",
@@ -839,7 +839,7 @@
         "x": -17.27,
         "y": 10.97,
         "z": 123.61,
-        "container": "",
+        "container": "hanging",
         "note": ""
       },
       "7cf403d5-2ecc-4464-b2c7-e386b842d37c": {
@@ -859,7 +859,7 @@
       },
       "5ed77469-09e3-4d81-8e7a-ab955bf970eb": {
         "location_id": 1524704154,
-        "location_name": "Chapter 2 - Village Chief's Manor - Sapphire x1 [5ed77469]",
+        "location_name": "Chapter 2 - Village Chief's Manor - Sapphire x1 (hanging) [5ed77469]",
         "toast_title": "Sapphire",
         "item_name": "Sapphire x1",
         "classification": "FILLER",
@@ -869,7 +869,7 @@
         "x": -12.73,
         "y": 5.6,
         "z": 133.72,
-        "container": "",
+        "container": "hanging",
         "note": ""
       }
     },
@@ -1090,7 +1090,7 @@
       },
       "ce9baef9-fdb9-4c71-ace1-d4f70c2c7b3d": {
         "location_id": 4240025224,
-        "location_name": "Chapter 2 - Abandoned Factory - Alexandrite x1 [ce9baef9]",
+        "location_name": "Chapter 2 - Abandoned Factory - Alexandrite x1 (hanging) [ce9baef9]",
         "toast_title": "Alexandrite",
         "item_name": "Alexandrite x1",
         "classification": "FILLER",
@@ -1100,7 +1100,7 @@
         "x": 20.62,
         "y": -0.66,
         "z": 158.56,
-        "container": "",
+        "container": "hanging",
         "note": ""
       }
     },
@@ -1340,7 +1340,7 @@
       },
       "56f1673f-5db8-4a1e-84bc-22fbcd733064": {
         "location_id": 4211929842,
-        "location_name": "Chapter 4 - Church - Emerald x1 [56f1673f]",
+        "location_name": "Chapter 4 - Church - Emerald x1 (hanging) [56f1673f]",
         "toast_title": "Emerald",
         "item_name": "Emerald x1",
         "classification": "FILLER",
@@ -1350,7 +1350,7 @@
         "x": 70.38,
         "y": 4.51,
         "z": 59.35,
-        "container": "",
+        "container": "hanging",
         "note": ""
       },
       "1f5c91ce-4726-4dde-9a88-65cdcb05df55": {
@@ -1616,7 +1616,7 @@
       },
       "01d18f77-12d2-4c30-9758-676897c031e0": {
         "location_id": 896489704,
-        "location_name": "Chapter 4 - Quarry - Ruby x1 [01d18f77]",
+        "location_name": "Chapter 4 - Quarry - Ruby x1 (hanging) [01d18f77]",
         "toast_title": "Ruby",
         "item_name": "Ruby x1",
         "classification": "FILLER",
@@ -1626,7 +1626,7 @@
         "x": 185.91,
         "y": 8.18,
         "z": 130.46,
-        "container": "",
+        "container": "hanging",
         "note": ""
       }
     },
@@ -1939,7 +1939,7 @@
       },
       "228db5bc-9b12-4496-8aa9-6d321214b8e0": {
         "location_id": 994272591,
-        "location_name": "Chapter 3 - Fish Farm - Silver Token x1 [228db5bc]",
+        "location_name": "Chapter 3 - Fish Farm - Silver Token x1 (hanging) [228db5bc]",
         "toast_title": "Silver Token",
         "item_name": "Silver Token x1",
         "classification": "FILLER",
@@ -1949,7 +1949,7 @@
         "x": 111.12,
         "y": 1.16,
         "z": 48.29,
-        "container": "",
+        "container": "hanging",
         "note": ""
       }
     },
@@ -2170,7 +2170,7 @@
       },
       "348cfb43-4eda-4535-8351-e6a53e9db0ac": {
         "location_id": 4083741643,
-        "location_name": "Chapter 4 - Small Cave Shrine - Ruby x1 [348cfb43]",
+        "location_name": "Chapter 4 - Small Cave Shrine - Ruby x1 (hanging) [348cfb43]",
         "toast_title": "Ruby",
         "item_name": "Ruby x1",
         "classification": "FILLER",
@@ -2180,12 +2180,12 @@
         "x": 403.28,
         "y": -2.19,
         "z": -154.54,
-        "container": "",
+        "container": "hanging",
         "note": ""
       },
       "8de2b01c-e6fc-44ad-b672-e0e5885cfb59": {
         "location_id": 348506377,
-        "location_name": "Chapter 4 - Small Cave Shrine - Ruby x1 [8de2b01c]",
+        "location_name": "Chapter 4 - Small Cave Shrine - Ruby x1 (hanging) [8de2b01c]",
         "toast_title": "Ruby",
         "item_name": "Ruby x1",
         "classification": "FILLER",
@@ -2195,7 +2195,7 @@
         "x": 396.64,
         "y": 2.2,
         "z": -152.72,
-        "container": "",
+        "container": "hanging",
         "note": ""
       }
     },
@@ -2279,7 +2279,7 @@
       },
       "f52e1075-53c8-49fa-b93a-55c4a19f1461": {
         "location_id": 1276584188,
-        "location_name": "Chapter 4 - Large Cave Shrine - Silver Token x1 [f52e1075]",
+        "location_name": "Chapter 4 - Large Cave Shrine - Silver Token x1 (hanging) [f52e1075]",
         "toast_title": "Silver Token",
         "item_name": "Silver Token x1",
         "classification": "FILLER",
@@ -2289,7 +2289,7 @@
         "x": 253.87,
         "y": -5.99,
         "z": 142.85,
-        "container": "",
+        "container": "hanging",
         "note": ""
       }
     },
@@ -2903,7 +2903,7 @@
       },
       "24ae996d-afea-4a63-87fc-edde770bd9a3": {
         "location_id": 3845057070,
-        "location_name": "Chapter 7 - Castle Gate - Sapphire x1 [24ae996d]",
+        "location_name": "Chapter 7 - Castle Gate - Sapphire x1 (hanging) [24ae996d]",
         "toast_title": "Sapphire",
         "item_name": "Sapphire x1",
         "classification": "FILLER",
@@ -2913,7 +2913,7 @@
         "x": -229.7,
         "y": 2.9,
         "z": 48.97,
-        "container": "",
+        "container": "hanging",
         "note": ""
       }
     },
@@ -3155,7 +3155,7 @@
       },
       "3cd3b05f-21b2-4355-8f26-41472780c6eb": {
         "location_id": 3369918806,
-        "location_name": "Chapter 7 - Treasury - Silver Token x1 [3cd3b05f]",
+        "location_name": "Chapter 7 - Treasury - Silver Token x1 (hanging) [3cd3b05f]",
         "toast_title": "Silver Token",
         "item_name": "Silver Token x1",
         "classification": "FILLER",
@@ -3165,7 +3165,7 @@
         "x": -122.39,
         "y": 17.95,
         "z": 11.95,
-        "container": "",
+        "container": "hanging",
         "note": ""
       }
     },
@@ -3456,7 +3456,7 @@
       },
       "02e03326-edb7-4d04-89f8-386d8364599b": {
         "location_id": 1558868374,
-        "location_name": "Chapter 8 - Wine Cellar - Yellow Diamond x1 [02e03326]",
+        "location_name": "Chapter 8 - Wine Cellar - Yellow Diamond x1 (hanging) [02e03326]",
         "toast_title": "Yellow Diamond",
         "item_name": "Yellow Diamond x1",
         "classification": "FILLER",
@@ -3466,14 +3466,14 @@
         "x": 4.77,
         "y": 24.94,
         "z": -3.52,
-        "container": "",
+        "container": "hanging",
         "note": ""
       }
     },
     "51500": {
       "e2460fe6-d4ae-4d48-95a2-e3b4b859f396": {
         "location_id": 4147198940,
-        "location_name": "Chapter 8 - Bindery - Alexandrite x1 [e2460fe6]",
+        "location_name": "Chapter 8 - Bindery - Alexandrite x1 (hanging) [e2460fe6]",
         "toast_title": "Alexandrite",
         "item_name": "Alexandrite x1",
         "classification": "FILLER",
@@ -3483,7 +3483,7 @@
         "x": 32.45,
         "y": 26.87,
         "z": -32.93,
-        "container": "",
+        "container": "hanging",
         "note": ""
       }
     },
@@ -3625,7 +3625,7 @@
       },
       "285d0109-fee4-4fa7-8d3e-a17081174aeb": {
         "location_id": 1630145785,
-        "location_name": "Chapter 8 - Bindery - Silver Token x1 [285d0109]",
+        "location_name": "Chapter 8 - Bindery - Silver Token x1 (hanging) [285d0109]",
         "toast_title": "Silver Token",
         "item_name": "Silver Token x1",
         "classification": "FILLER",
@@ -3635,7 +3635,7 @@
         "x": 4.53,
         "y": 26.85,
         "z": -30.21,
-        "container": "",
+        "container": "hanging",
         "note": ""
       }
     },
@@ -3751,7 +3751,7 @@
     "51612": {
       "142073d1-731a-427f-8159-1568f3c32449": {
         "location_id": 1061925518,
-        "location_name": "Chapter 8 - Mines - Ruby x1 [142073d1]",
+        "location_name": "Chapter 8 - Mines - Ruby x1 (hanging) [142073d1]",
         "toast_title": "Ruby",
         "item_name": "Ruby x1",
         "classification": "FILLER",
@@ -3761,7 +3761,7 @@
         "x": 85.12,
         "y": 19.18,
         "z": -76.39,
-        "container": "",
+        "container": "hanging",
         "note": ""
       },
       "377cda0f-d9de-4ecc-84da-9e12d125ce2e": {
@@ -3783,7 +3783,7 @@
     "52101": {
       "8114dd3c-df18-4a01-96a4-d897b3e1d785": {
         "location_id": 1033172125,
-        "location_name": "Chapter 9 - Grand Hall - Alexandrite x1 [8114dd3c]",
+        "location_name": "Chapter 9 - Grand Hall - Alexandrite x1 (hanging) [8114dd3c]",
         "toast_title": "Alexandrite",
         "item_name": "Alexandrite x1",
         "classification": "FILLER",
@@ -3793,7 +3793,7 @@
         "x": 114.34,
         "y": 24.2,
         "z": 43.03,
-        "container": "",
+        "container": "hanging",
         "note": ""
       }
     },
@@ -3924,7 +3924,7 @@
       },
       "0d2236bf-8569-4efa-b32d-897b4ea10c23": {
         "location_id": 4227412291,
-        "location_name": "Chapter 9 - Armory - Silver Token x1 [0d2236bf]",
+        "location_name": "Chapter 9 - Armory - Silver Token x1 (hanging) [0d2236bf]",
         "toast_title": "Silver Token",
         "item_name": "Silver Token x1",
         "classification": "FILLER",
@@ -3934,7 +3934,7 @@
         "x": 109.04,
         "y": 30.72,
         "z": 18.19,
-        "container": "",
+        "container": "hanging",
         "note": ""
       }
     },
@@ -4174,7 +4174,7 @@
     "53201": {
       "8f5be12f-9ca6-455e-bf40-9533705adb52": {
         "location_id": 4214161125,
-        "location_name": "Chapter 10 - Library - Yellow Diamond x1 [8f5be12f]",
+        "location_name": "Chapter 10 - Library - Yellow Diamond x1 (hanging) [8f5be12f]",
         "toast_title": "Yellow Diamond",
         "item_name": "Yellow Diamond x1",
         "classification": "FILLER",
@@ -4184,7 +4184,7 @@
         "x": 141.72,
         "y": 27.4,
         "z": 71.4,
-        "container": "",
+        "container": "hanging",
         "note": ""
       }
     },
@@ -4304,7 +4304,7 @@
       },
       "b1137a19-e4e6-4ead-8b6c-6879a62b3f76": {
         "location_id": 2269722414,
-        "location_name": "Chapter 10 - Hive - Silver Token x1 [b1137a19]",
+        "location_name": "Chapter 10 - Hive - Silver Token x1 (hanging) [b1137a19]",
         "toast_title": "Silver Token",
         "item_name": "Silver Token x1",
         "classification": "FILLER",
@@ -4314,14 +4314,14 @@
         "x": 165.64,
         "y": 33.65,
         "z": 35.13,
-        "container": "",
+        "container": "hanging",
         "note": ""
       }
     },
     "54200": {
       "17bdb728-8c36-4ee8-be97-d8fa995737df": {
         "location_id": 1380103,
-        "location_name": "Chapter 10 - Ballroom - Ruby x1 [17bdb728]",
+        "location_name": "Chapter 10 - Ballroom - Ruby x1 (hanging) [17bdb728]",
         "toast_title": "Ruby",
         "item_name": "Ruby x1",
         "classification": "FILLER",
@@ -4331,7 +4331,7 @@
         "x": 182.9,
         "y": 26.4,
         "z": 61.69,
-        "container": "",
+        "container": "hanging",
         "note": ""
       },
       "0707014c-37e5-435a-857a-a0a25bb12328": {
@@ -4678,7 +4678,7 @@
       },
       "2c6dc819-92db-48af-b6f5-3bb33ad54355": {
         "location_id": 4153607658,
-        "location_name": "Chapter 10 - Underground Laboratory - Emerald x1 [2c6dc819]",
+        "location_name": "Chapter 10 - Underground Laboratory - Emerald x1 (hanging) [2c6dc819]",
         "toast_title": "Emerald",
         "item_name": "Emerald x1",
         "classification": "FILLER",
@@ -4688,7 +4688,7 @@
         "x": 209.19,
         "y": -30.38,
         "z": -8.43,
-        "container": "",
+        "container": "hanging",
         "note": ""
       }
     },
@@ -5383,7 +5383,7 @@
     "56301": {
       "163f855a-534f-486c-85bc-121c0486e9cd": {
         "location_id": 2892833831,
-        "location_name": "Chapter 12 - Dock - Yellow Diamond x1 [163f855a]",
+        "location_name": "Chapter 12 - Dock - Yellow Diamond x1 (hanging) [163f855a]",
         "toast_title": "Yellow Diamond",
         "item_name": "Yellow Diamond x1",
         "classification": "FILLER",
@@ -5393,7 +5393,7 @@
         "x": 303.64,
         "y": 1.35,
         "z": -80.5,
-        "container": "",
+        "container": "hanging",
         "note": ""
       }
     },
