@@ -1142,15 +1142,16 @@ public sealed class LaunchWorkflowService
             };
 
             var connectionInfoPath = Path.Combine(_settingsStore.AppDataRootPath, "ap_connection.json");
-            var bridgeDirectoryPath = Path.Combine(_settingsStore.AppDataRootPath, "bridge");
             Log($"Writing AP connection info for server {normalizedServer} and slot {request.SlotName}.");
             Directory.CreateDirectory(_settingsStore.AppDataRootPath);
-            Directory.CreateDirectory(bridgeDirectoryPath);
             var json = JsonSerializer.Serialize(connectionInfo, new JsonSerializerOptions { WriteIndented = true });
             await File.WriteAllTextAsync(connectionInfoPath, json, cancellationToken);
 
             Log($"Wrote AP connection info to {connectionInfoPath}.");
-            Log($"Ensured shared bridge directory exists at {bridgeDirectoryPath}.");
+            // The %APPDATA% copy of ap_connection.json is read by the launcher's
+            // own reconnect/room-heal flow. The mod's bridge store is NOT here -
+            // it lives game-relative at reframework/data/ArchipelagoRE4R/bridge
+            // (created below), so no bridge directory is needed beside this file.
 
             // Also write connection info into the game-relative reframework/data
             // folder so the Lua mod can read it without os.getenv (REFramework's
