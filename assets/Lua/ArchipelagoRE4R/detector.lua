@@ -705,9 +705,8 @@ local function install(ctx)
                         -- despawn. SKIP_ORIGINAL means the vanilla accept path
                         -- never records the pickup, so the drop respawned on
                         -- every reload and its map icon never cleared (Cam
-                        -- 2026-07-29). onFirstGetAndPickedUp (0 params, found
-                        -- via the flag probe) is the drop's own first-get +
-                        -- picked-up state write.
+                        -- 2026-07-29). Two writes, both mined via the flag probe:
+                        -- onFirstGetAndPickedUp = the drop's first-get record.
                         local ok_got, got_err = pcall(function()
                             drop_item:call("onFirstGetAndPickedUp")
                         end)
@@ -715,6 +714,28 @@ local function install(ctx)
                             "[RE4R AP] placeholder onFirstGetAndPickedUp %s%s",
                             ok_got and "ok" or "FAILED",
                             ok_got and "" or (": " .. tostring(got_err))
+                        ))
+                        -- setCountZero = the PERSISTENT consumption. Probe v5
+                        -- proved every vanilla pickup flips the context's
+                        -- _SaveCur.Count to 0 and changes nothing else (8/8);
+                        -- this is the context's own method for that write and
+                        -- it fires the _OnSetCountZero deletion delegates.
+                        -- onFirstGetAndPickedUp alone was NOT enough (already-
+                        -- sent placeholders respawned at 50401/50501 live).
+                        local ok_zero, zero_err = pcall(function()
+                            local context_object = drop_item:call("get_DropItemContext")
+                            if context_object == nil then
+                                context_object = drop_item:get_field("<DropItemContext>k__BackingField")
+                            end
+                            if context_object == nil then
+                                error("DropItemContext unreachable")
+                            end
+                            context_object:call("setCountZero")
+                        end)
+                        log.info(string.format(
+                            "[RE4R AP] placeholder setCountZero %s%s",
+                            ok_zero and "ok" or "FAILED",
+                            ok_zero and "" or (": " .. tostring(zero_err))
                         ))
                         queue_placeholder_despawn(drop_item)
                         log.info(string.format(
