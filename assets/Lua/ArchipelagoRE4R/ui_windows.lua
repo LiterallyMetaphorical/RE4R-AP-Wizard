@@ -394,15 +394,23 @@ local function install(ctx)
             imgui.text("No typewriter warp points loaded")
         end
 
-        if #bridge.typewriter_warp_points > 0 then
-            imgui.same_line()
-        end
-        local warp_clicked = imgui.button("Warp")
+        -- [Warp diagnosis round 2] Hover reached the button but the click never
+        -- registered (18:06 session). Experiment: unique ID + own row (off the
+        -- combo's same_line), plus an is_item_clicked cross-check so a click
+        -- the button call itself misses still leaves evidence.
+        local warp_clicked = imgui.button("Warp Now##ap_warp_exec")
         if type(imgui.is_item_hovered) == "function"
             and bridge.warp_button_hover_logged ~= true
             and imgui.is_item_hovered() then
             bridge.warp_button_hover_logged = true
             log.info("[RE4R AP] warp button hovered - mouse input reaches this button")
+        end
+        if not warp_clicked
+            and type(imgui.is_item_clicked) == "function" then
+            local ok_clicked, clicked_raw = pcall(imgui.is_item_clicked, 0)
+            if ok_clicked and clicked_raw then
+                log.info("[RE4R AP] warp button is_item_clicked fired but imgui.button returned false")
+            end
         end
         if warp_clicked then
             local selected_warp_point = bridge.typewriter_warp_points[bridge.selected_typewriter_warp_index]

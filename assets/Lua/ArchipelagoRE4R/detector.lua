@@ -701,6 +701,21 @@ local function install(ctx)
                         elseif not pending then
                             queue_pending_check(guid, stage)
                         end
+                        -- Run the engine's own collected bookkeeping before the
+                        -- despawn. SKIP_ORIGINAL means the vanilla accept path
+                        -- never records the pickup, so the drop respawned on
+                        -- every reload and its map icon never cleared (Cam
+                        -- 2026-07-29). onFirstGetAndPickedUp (0 params, found
+                        -- via the flag probe) is the drop's own first-get +
+                        -- picked-up state write.
+                        local ok_got, got_err = pcall(function()
+                            drop_item:call("onFirstGetAndPickedUp")
+                        end)
+                        log.info(string.format(
+                            "[RE4R AP] placeholder onFirstGetAndPickedUp %s%s",
+                            ok_got and "ok" or "FAILED",
+                            ok_got and "" or (": " .. tostring(got_err))
+                        ))
                         queue_placeholder_despawn(drop_item)
                         log.info(string.format(
                             "[RE4R AP] placeholder intercept stage=%s guid=%s context=%s (check %s) - drop despawns, inventory untouched",
