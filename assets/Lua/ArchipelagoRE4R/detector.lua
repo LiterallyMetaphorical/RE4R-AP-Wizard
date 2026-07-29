@@ -89,6 +89,12 @@ local function install(ctx)
 
         local me = tonumber(bridge.ap_numeric_slot)
         local toast_title, detail_line, toast_kind, toast_title_segments
+        -- The own-pickup Option-C line ("Collected X from Y in Z", Cam 2026-07-29)
+        -- can run long, so it gets a wider title budget than the 52-char default.
+        -- The overlay card width is dynamic and the Message Log wraps, so a longer
+        -- title just grows to fit rather than clipping.
+        local title_max_chars = 52
+        local own_pickup_single_line = false
         -- Native-rail routing (native_log.lua): "suppress" = the game's own
         -- organic pickup toast already shows this item, so in native mode the
         -- imgui duplicate is simply skipped; "text" = push a composed line.
@@ -129,16 +135,45 @@ local function install(ctx)
                     }
                 end
             else
-                toast_title = "Collected " .. actual_name
+                -- Option C (Cam 2026-07-29): one line -- "Collected <actual> from
+                -- <vanilla origin> in <area>". The vanilla name is the location's
+                -- find-hint identity; the section is the pause-map area. Both are
+                -- secondary context (dim white) and fall away when unavailable.
+                -- A trailing " x1" is dropped so singletons read clean; real stack
+                -- counts (x5, x10) stay.
+                local actual_display = actual_name:gsub("%s+[xX]1$", "")
+                local actual_base = actual_name:gsub("%s+[xX]%d+$", "")
+                local section_name = trim_string(display_entry.section_name)
                 toast_kind = "received"
                 toast_native_route = "suppress" -- organic native pickup toast covers it
+                own_pickup_single_line = true
+                title_max_chars = 78
+                toast_title = "Collected " .. actual_display
                 toast_title_segments = {
                     { text = "Collected", color = CHECK_OVERLAY_TEXT_COLOR_FILLER },
-                    { text = truncate_overlay_text(actual_name, 32),
+                    { text = truncate_overlay_text(actual_display, 30),
                       color = get_check_overlay_classification_color(classification), entity = "item" },
                 }
+                -- Skip the origin clause when the item you got IS what vanilla had
+                -- here ("Collected Green Herb from Green Herb" reads silly).
+                if vanilla_name ~= "" and vanilla_name:lower() ~= actual_base:lower() then
+                    toast_title = toast_title .. " from " .. vanilla_name
+                    toast_title_segments[#toast_title_segments + 1] =
+                        { text = "from", color = CHECK_OVERLAY_TEXT_COLOR_FILLER }
+                    toast_title_segments[#toast_title_segments + 1] =
+                        { text = truncate_overlay_text(vanilla_name, 24), color = CHECK_OVERLAY_TEXT_COLOR_DETAIL }
+                end
+                if section_name ~= "" then
+                    toast_title = toast_title .. " in " .. section_name
+                    toast_title_segments[#toast_title_segments + 1] =
+                        { text = "in", color = CHECK_OVERLAY_TEXT_COLOR_FILLER }
+                    toast_title_segments[#toast_title_segments + 1] =
+                        { text = truncate_overlay_text(section_name, 24), color = CHECK_OVERLAY_TEXT_COLOR_DETAIL }
+                end
             end
-            if vanilla_name ~= "" and detail_line == nil then
+            -- Other-player (sent) toasts still carry the vanilla origin in the
+            -- detail line; the own-pickup line already folds it into the title.
+            if vanilla_name ~= "" and detail_line == nil and not own_pickup_single_line then
                 detail_line = "was " .. vanilla_name
             end
         else
@@ -169,7 +204,7 @@ local function install(ctx)
             id = bridge.next_check_notification_id,
             stage = stage,
             guid = normalize_guid(guid),
-            title = truncate_overlay_text(toast_title, 52),
+            title = truncate_overlay_text(toast_title, title_max_chars),
             detail = truncate_overlay_text(detail_line, 74),
             classification = classification,
             kind = toast_kind, -- received (own pickup) or sent (another player's item)
