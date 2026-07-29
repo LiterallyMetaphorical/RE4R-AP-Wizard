@@ -283,6 +283,26 @@ local function install(ctx)
     local PUSHES_PER_SECOND = 3
     local DEFERRED_CAP = 12
 
+    -- [Two-line pacing] A multi-line notice (\n) is taller than one stack slot, so it
+    -- must not sit adjacent to another. Enforce a gap BEFORE it (so it enters clear
+    -- space) and AFTER it (so the next notice doesn't overlap its second line).
+    local last_push_clock = -1e9
+    local multiline_hold_until = 0.0
+    local MULTILINE_PACE_SEC = tonumber(config.NATIVE_MULTILINE_PACE_SEC) or 1.2
+
+    local function is_multiline(text)
+        return type(text) == "string" and text:find("\n", 1, true) ~= nil
+    end
+
+    local function pacing_allows(text)
+        local now = os.clock()
+        if now < multiline_hold_until then return false end
+        if is_multiline(text) and (now - last_push_clock) < MULTILINE_PACE_SEC then
+            return false
+        end
+        return true
+    end
+
     local function rate_gate_allows()
         local now = os.clock()
         if (now - push_window_start) >= 1.0 then
@@ -328,20 +348,29 @@ local function install(ctx)
         if opts.wide then
             set_wide(req)
         end
-        return submit(req, "notice(" .. tostring(text):sub(1, 40) .. ")")
+        local ok_submit = submit(req, "notice(" .. tostring(text):sub(1, 40) .. ")")
+        if ok_submit then
+            last_push_clock = os.clock()
+            if is_multiline(text) then
+                multiline_hold_until = last_push_clock + MULTILINE_PACE_SEC
+            end
+        end
+        return ok_submit
     end
 
     local function push_text(text, opts)
         if type(text) ~= "string" or text == "" then
             return false
         end
-        if not rate_gate_allows() then
-            if #deferred < DEFERRED_CAP then
-                deferred[#deferred + 1] = { text = text, opts = opts }
-            end
-            return true -- queued counts as handled; drain happens in the tick
+        -- Pacing first (no side effect), then the rate gate (consumes a slot only on
+        -- success). Either miss -> queue and let the per-frame drain retry.
+        if pacing_allows(text) and rate_gate_allows() then
+            return push_text_now(text, opts)
         end
-        return push_text_now(text, opts)
+        if #deferred < DEFERRED_CAP then
+            deferred[#deferred + 1] = { text = text, opts = opts }
+        end
+        return true -- queued counts as handled; drain happens in the tick
     end
 
     local function push_item_get(item_id, count, opts)
@@ -505,15 +534,25 @@ local function install(ctx)
                 pieces[#pieces + 1] = color and wrap_color(title, color) or title
             end
         end
-        local line = table.concat(pieces, " ")
+        local title = table.concat(pieces, " ")
         local detail = tostring(rec.detail or "")
-        if detail ~= "" and detail:sub(1, 4) ~= "was " then
-            line = (line ~= "") and (line .. " - " .. detail) or detail
+        local has_detail = detail ~= "" and detail:sub(1, 4) ~= "was "
+        local prefix = native_glyph_prefix(rec.kind, rec.classification)
+        local one_line = title
+        if has_detail then
+            one_line = (title ~= "") and (title .. " - " .. detail) or detail
         end
-        if line == "" then
+        if one_line == "" then
             return ""
         end
-        return native_glyph_prefix(rec.kind, rec.classification) .. line
+        -- [Two-line] One compact line normally; if title + detail would overflow the
+        -- wide panel and cram, break onto two lines instead (the rail renders \n).
+        -- The glyph prefix + coloured title lead line 1; the detail rides line 2.
+        local threshold = tonumber(config.NATIVE_TWO_LINE_THRESHOLD) or 58
+        if has_detail and title ~= "" and visible_length(prefix .. one_line) > threshold then
+            return prefix .. title .. "\n" .. detail
+        end
+        return prefix .. one_line
     end
 
     local function is_ap_connected()
@@ -541,8 +580,8 @@ local function install(ctx)
             return
         end
 
-        -- Drain one deferred rate-gated push per frame.
-        if #deferred > 0 and rate_gate_allows() then
+        -- Drain one deferred push per frame, honouring both pacing and the rate gate.
+        if #deferred > 0 and pacing_allows(deferred[1].text) and rate_gate_allows() then
             local item = table.remove(deferred, 1)
             push_text_now(item.text, item.opts)
         end
@@ -629,6 +668,19 @@ local function install(ctx)
                 "Wide log test - a much longer Archipelago line to see how the rail wraps or clips it",
                 { wide = true }
             )
+        end
+        -- [Two-line probe] Does the wide native panel render an embedded line break
+        -- as a real second line (Cam's goal), or ignore/cram it? The break convention
+        -- differs across RE Engine text elements, so probe all three; whichever shows
+        -- two lines is the one the composer would use for long notices.
+        if imgui.button("Notice: 2-line \\n") then
+            push_text_now("Restored First Aid Spray x1\nfrom before your reload", { wide = true })
+        end
+        if imgui.button("Notice: 2-line \\r\\n") then
+            push_text_now("Restored First Aid Spray x1\r\nfrom before your reload", { wide = true })
+        end
+        if imgui.button("Notice: 2-line <br>") then
+            push_text_now("Restored First Aid Spray x1<br>from before your reload", { wide = true })
         end
         if imgui.button("Notice: unicode") then
             push_text_now("Unicode test: \u{00C5}lice \u{2605} \u{2192} works?", {})

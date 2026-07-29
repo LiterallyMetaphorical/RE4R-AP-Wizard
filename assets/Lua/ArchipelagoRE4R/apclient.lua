@@ -744,7 +744,9 @@ return function(ctx)
                             local detail
                             if is_restore then
                                 -- The player didn't just find this -- it's being re-granted
-                                -- because a reload rolled their inventory back past it.
+                                -- because a reload rolled their inventory back past it. Native
+                                -- notices now break to two lines when long (native_log
+                                -- composer), so the full explanation fits.
                                 detail = "received since your last save, restored on reload"
                             else
                                 detail = "routing to " .. dest

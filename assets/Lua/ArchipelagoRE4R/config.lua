@@ -48,6 +48,14 @@ local function install(ctx)
         -- Live-tunable in the Debug tab; this is only the boot default. The
         -- imgui rail code is fully intact regardless of mode.
         NATIVE_TOAST_MODE = "native",
+        -- [Two-line] Break a native notice onto two lines (title \n detail) once the
+        -- one-line form would exceed this many on-screen chars -- the wide panel crams
+        -- past roughly this. Short notices stay one compact line.
+        NATIVE_TWO_LINE_THRESHOLD = 58,
+        -- [Two-line pacing] A two-line notice is taller than one stack slot, so it must
+        -- not sit next to another. Enforce this gap (seconds) before AND after each
+        -- multi-line notice so two never overlap on the rail.
+        NATIVE_MULTILINE_PACE_SEC = 1.2,
         -- Native rail only: filler items are WHITE on the imgui overlay, but on
         -- the rail white is the connective colour - item names tagged
         -- entity="item" that would render white get this parchment tint
