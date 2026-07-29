@@ -27,9 +27,18 @@ public sealed class Re4rYamlBuilder
             { "game", "Resident Evil 4 Remake" },
         };
 
+        // progression_balancing is emitted as a bare integer scalar so PyYAML
+        // types it as an int (which AP's NamedRange option expects); the 0-99
+        // clamp guards against a malformed draft. check_guidance is one of a
+        // fixed set of keys - an unknown value falls back to the safe default.
+        var progressionBalancing = Math.Clamp(request.ProgressionBalancing, 0, 99);
+        var checkGuidance = NormalizeCheckGuidance(request.CheckGuidance);
+
         var gameOptions = new YamlMappingNode
         {
             { "difficulty", request.Difficulty.Trim().ToLowerInvariant() },
+            { "progression_balancing", progressionBalancing.ToString(System.Globalization.CultureInfo.InvariantCulture) },
+            { "check_guidance", checkGuidance },
             { "death_link", request.DeathLink ? "true" : "false" },
             { "allow_missable_locations", request.AllowMissableLocations ? "true" : "false" },
             { "randomize_gated_keys", request.RandomizeGatedKeys ? "true" : "false" },
@@ -48,6 +57,12 @@ public sealed class Re4rYamlBuilder
         using var writer = new StringWriter();
         yaml.Save(writer, assignAnchors: false);
         return writer.ToString();
+    }
+
+    private static string NormalizeCheckGuidance(string? value)
+    {
+        var normalized = (value ?? string.Empty).Trim().ToLowerInvariant();
+        return normalized is "off" or "markers" or "markers_rarity" ? normalized : "markers";
     }
 
     private static YamlScalarNode SingleQuotedScalar(string value) =>

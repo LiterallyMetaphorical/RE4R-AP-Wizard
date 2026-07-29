@@ -29,6 +29,8 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     private string _slotName = string.Empty;
     private string _slotNameError = string.Empty;
     private string _selectedDifficulty = "Standard";
+    private int _progressionBalancing = 70;
+    private CheckGuidanceOption _selectedCheckGuidance = CheckGuidanceOptionList[0];
     private bool _deathLink;
     private bool _allowMissableLocations;
     private bool _randomizeGatedKeys;
@@ -67,6 +69,29 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     public ObservableCollection<TypewriterOptionViewModel> TypewriterOptions { get; } = new();
 
     public IReadOnlyList<string> DifficultyOptions { get; } = ["Standard", "Hardcore", "Assisted", "Professional"];
+
+    // Mirrors ArchipelagoRE4R/options.py CheckGuidance (off/markers/markers_rarity).
+    // The friendly label is shown in the dropdown; Value is written to the YAML.
+    private static readonly IReadOnlyList<CheckGuidanceOption> CheckGuidanceOptionList =
+    [
+        new("Markers (recommended)", "markers"),
+        new("Markers + rarity colours", "markers_rarity"),
+        new("Off (no markers)", "off"),
+    ];
+
+    public IReadOnlyList<CheckGuidanceOption> CheckGuidanceOptions => CheckGuidanceOptionList;
+
+    // Landmarks the progression-balancing slider soft-snaps to. Any 0-99 value
+    // is still selectable; the snap just makes the common picks easy to land on.
+    private static readonly (int Value, string Name)[] ProgressionBalancingLandmarks =
+    [
+        (0, "Disabled"),
+        (50, "Normal"),
+        (70, "Recommended"),
+        (99, "Aggressive"),
+    ];
+
+    private const int ProgressionBalancingSnapRadius = 2;
 
     public event Action? DraftSaved;
 
@@ -135,6 +160,64 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         set
         {
             if (SetProperty(ref _selectedDifficulty, value))
+            {
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Stock AP progression balancing (0-99). The setter soft-snaps to the
+    /// nearest landmark so the slider lands cleanly on Disabled/Normal/
+    /// Recommended/Aggressive without forbidding the values in between.
+    /// </summary>
+    public int ProgressionBalancing
+    {
+        get => _progressionBalancing;
+        set
+        {
+            var snapped = SoftSnapProgressionBalancing(value);
+            if (SetProperty(ref _progressionBalancing, snapped))
+            {
+                OnPropertyChanged(nameof(ProgressionBalancingLabel));
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+            else if (snapped != value)
+            {
+                // The raw slider value snapped back to where we already were
+                // (e.g. nudging 71 -> 70). SetProperty saw no change, so the
+                // slider still shows the un-snapped value - pull it back.
+                OnPropertyChanged(nameof(ProgressionBalancing));
+            }
+        }
+    }
+
+    /// <summary>Numeric value plus its landmark name, e.g. "70 - Recommended".</summary>
+    public string ProgressionBalancingLabel
+    {
+        get
+        {
+            foreach (var (value, name) in ProgressionBalancingLandmarks)
+            {
+                if (value == _progressionBalancing)
+                {
+                    return $"{_progressionBalancing} - {name}";
+                }
+            }
+
+            return $"{_progressionBalancing} - Custom";
+        }
+    }
+
+    public CheckGuidanceOption SelectedCheckGuidance
+    {
+        get => _selectedCheckGuidance;
+        set
+        {
+            // The ComboBox can push a transient null while its items rebuild.
+            if (value is not null && SetProperty(ref _selectedCheckGuidance, value))
             {
                 RebuildYamlPreview();
                 QueueDraftSave();
@@ -347,6 +430,14 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             SelectedDifficulty = draft.Difficulty;
         }
 
+        ProgressionBalancing = draft.ProgressionBalancing;
+        var guidance = CheckGuidanceOptions.FirstOrDefault(
+            option => string.Equals(option.Value, draft.CheckGuidance, StringComparison.OrdinalIgnoreCase));
+        if (guidance is not null)
+        {
+            SelectedCheckGuidance = guidance;
+        }
+
         DeathLink = draft.DeathLink;
         AllowMissableLocations = draft.AllowMissableLocations;
         RandomizeGatedKeys = draft.RandomizeGatedKeys;
@@ -370,6 +461,8 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             {
                 draft.SlotName = SlotName.Trim();
                 draft.Difficulty = SelectedDifficulty;
+                draft.ProgressionBalancing = ProgressionBalancing;
+                draft.CheckGuidance = SelectedCheckGuidance.Value;
                 draft.DeathLink = DeathLink;
                 draft.AllowMissableLocations = AllowMissableLocations;
                 draft.RandomizeGatedKeys = RandomizeGatedKeys;
@@ -398,6 +491,8 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         {
             SlotName = SlotName.Trim(),
             Difficulty = SelectedDifficulty.Trim().ToLowerInvariant(),
+            ProgressionBalancing = ProgressionBalancing,
+            CheckGuidance = SelectedCheckGuidance.Value,
             DeathLink = DeathLink,
             AllowMissableLocations = AllowMissableLocations,
             RandomizeGatedKeys = RandomizeGatedKeys,
@@ -480,6 +575,20 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         _copyYamlCommand.NotifyCanExecuteChanged();
     }
 
+    private static int SoftSnapProgressionBalancing(int value)
+    {
+        var clamped = Math.Clamp(value, 0, 99);
+        foreach (var (landmark, _) in ProgressionBalancingLandmarks)
+        {
+            if (Math.Abs(clamped - landmark) <= ProgressionBalancingSnapRadius)
+            {
+                return landmark;
+            }
+        }
+
+        return clamped;
+    }
+
     private static IEnumerable<TypewriterOptionViewModel> CreateTypewriterOptions()
     {
         // Mirrored from ArchipelagoRE4R/options.py. The UI displays the human-readable
@@ -518,3 +627,10 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         ];
     }
 }
+
+/// <summary>
+/// One entry in the Check Guidance dropdown: the friendly label shown to the
+/// player and the underlying apworld option key (off / markers / markers_rarity)
+/// written into the YAML.
+/// </summary>
+public sealed record CheckGuidanceOption(string Label, string Value);

@@ -28,6 +28,15 @@ public sealed class PendingSessionDraft
     [JsonPropertyName("difficulty")]
     public string Difficulty { get; set; } = "Standard";
 
+    // Defaults live on the property so a schema-1/legacy draft that predates
+    // these keys deserializes to the intended values (70 / markers) instead of
+    // int-zero / null - System.Text.Json leaves an absent key at its initializer.
+    [JsonPropertyName("progression_balancing")]
+    public int ProgressionBalancing { get; set; } = 70;
+
+    [JsonPropertyName("check_guidance")]
+    public string CheckGuidance { get; set; } = "markers";
+
     [JsonPropertyName("death_link")]
     public bool DeathLink { get; set; }
 

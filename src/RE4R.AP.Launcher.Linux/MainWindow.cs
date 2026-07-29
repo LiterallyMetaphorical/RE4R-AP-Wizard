@@ -212,6 +212,16 @@ internal sealed class MainWindow : Window
         body.Children.Add(slotError);
         body.Children.Add(Label("Difficulty"));
         body.Children.Add(Combo("DifficultyOptions", "SelectedDifficulty"));
+        body.Children.Add(Label("Progression balancing"));
+        body.Children.Add(Text("ProgressionBalancingLabel"));
+        body.Children.Add(new Slider
+        {
+            Minimum = 0,
+            Maximum = 99,
+            [!RangeBase.ValueProperty] = Binding("ProgressionBalancing", BindingMode.TwoWay),
+        });
+        body.Children.Add(Label("Check guidance"));
+        body.Children.Add(Combo("CheckGuidanceOptions", "SelectedCheckGuidance", "Label"));
         body.Children.Add(Check("Death Link", "DeathLink"));
         body.Children.Add(Check("Allow missable locations", "AllowMissableLocations"));
         body.Children.Add(Check("Randomize gated keys", "RandomizeGatedKeys"));

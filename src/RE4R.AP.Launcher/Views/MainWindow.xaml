@@ -457,21 +457,25 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />   <!-- 0  Slot Name -->
                         <RowDefinition Height="12" />
-                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />   <!-- 2  Difficulty -->
                         <RowDefinition Height="12" />
-                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />   <!-- 4  Progression Balancing -->
                         <RowDefinition Height="12" />
-                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />   <!-- 6  Check Guidance -->
                         <RowDefinition Height="12" />
-                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />   <!-- 8  Death Link -->
                         <RowDefinition Height="12" />
-                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />   <!-- 10 Allow Missable Locations -->
                         <RowDefinition Height="12" />
-                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />   <!-- 12 Randomize Gated Keys -->
+                        <RowDefinition Height="12" />
+                        <RowDefinition Height="Auto" />   <!-- 14 Unlocked Typewriters -->
+                        <RowDefinition Height="12" />
+                        <RowDefinition Height="Auto" />   <!-- 16 auto-updates note -->
                         <RowDefinition Height="18" />
-                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />   <!-- 18 YAML Preview + buttons -->
                     </Grid.RowDefinitions>
 
                     <TextBlock VerticalAlignment="Top"
@@ -503,8 +507,43 @@
 
                     <TextBlock Grid.Row="4"
                                VerticalAlignment="Top"
-                               Text="Death Link" />
+                               Text="Progression Balancing" />
                     <StackPanel Grid.Row="4"
+                                Grid.Column="1">
+                        <Slider Minimum="0"
+                                Maximum="99"
+                                TickFrequency="1"
+                                IsSnapToTickEnabled="True"
+                                Value="{Binding ProgressionBalancing, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Margin="0,4,0,0"
+                                   FontWeight="SemiBold"
+                                   Text="{Binding ProgressionBalancingLabel}" />
+                        <TextBlock Margin="0,6,0,0"
+                                   Foreground="DimGray"
+                                   TextWrapping="Wrap"
+                                   Text="How aggressively Archipelago front-loads your own useful and progression items so you spend less time stuck waiting on other worlds. Disabled (0) turns it off, Normal (50) is the Archipelago default, Recommended (70) suits RE4R's long gated chapters, Aggressive (99) pushes the hardest." />
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="6"
+                               VerticalAlignment="Top"
+                               Text="Check Guidance" />
+                    <StackPanel Grid.Row="6"
+                                Grid.Column="1">
+                        <ComboBox Width="260"
+                                  HorizontalAlignment="Left"
+                                  ItemsSource="{Binding CheckGuidanceOptions}"
+                                  DisplayMemberPath="Label"
+                                  SelectedItem="{Binding SelectedCheckGuidance, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Margin="0,6,0,0"
+                                   Foreground="DimGray"
+                                   TextWrapping="Wrap"
+                                   Text="Controls the in-game world markers that point to your unchecked locations. Markers shows neutral [AP] markers you can toggle and tune in-game. Markers + rarity colours also unlocks optional colours that reveal each check's item importance (hint-level information). Off disables the markers entirely. The on-screen area header and check counts are always shown." />
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="8"
+                               VerticalAlignment="Top"
+                               Text="Death Link" />
+                    <StackPanel Grid.Row="8"
                                 Grid.Column="1">
                         <CheckBox IsChecked="{Binding DeathLink}"
                                   Content="Enable Death Link" />
@@ -514,10 +553,10 @@
                                    Text="Dying sends a death to all Death Link players." />
                     </StackPanel>
 
-                    <TextBlock Grid.Row="6"
+                    <TextBlock Grid.Row="10"
                                VerticalAlignment="Top"
                                Text="Allow Missable Locations" />
-                    <StackPanel Grid.Row="6"
+                    <StackPanel Grid.Row="10"
                                 Grid.Column="1">
                         <CheckBox IsChecked="{Binding AllowMissableLocations}"
                                   Content="Allow missable locations" />
@@ -527,10 +566,10 @@
                                    Text="Off by default - progression items may be placed at locations that cannot be reached." />
                     </StackPanel>
 
-                    <TextBlock Grid.Row="8"
+                    <TextBlock Grid.Row="12"
                                VerticalAlignment="Top"
                                Text="Randomize Gated Keys" />
-                    <StackPanel Grid.Row="8"
+                    <StackPanel Grid.Row="12"
                                 Grid.Column="1">
                         <CheckBox IsChecked="{Binding RandomizeGatedKeys}"
                                   Content="Shuffle extra gate keys (no logic - playtesting)" />
@@ -540,10 +579,10 @@
                                    Text="Off by default: the multiworld shuffles only the 16 milestone gate items (Boat Fuel, the Hexagon Pieces, Insignia Key, Checkpoint Crank, Dungeon Key, the Lithographic Stones, the Lion/Goat/Serpent Heads, Salazar Family Insignia, and the three Keycards) - protected by logic so every seed can be finished. Other locked-door keys (like the Cubic Device or the Bunch of Keys) stay at their normal spots and are not checks. Turning this on shuffles those extra keys too WITHOUT any logic: a key can land beyond the very door it opens, so seeds may be impossible to finish. Playtesting only." />
                     </StackPanel>
 
-                    <TextBlock Grid.Row="10"
+                    <TextBlock Grid.Row="14"
                                VerticalAlignment="Top"
                                Text="Unlocked Typewriters" />
-                    <Border Grid.Row="10"
+                    <Border Grid.Row="14"
                             Grid.Column="1"
                             Padding="8"
                             BorderBrush="#FFE0E0E0"
@@ -563,13 +602,13 @@
                         </ScrollViewer>
                     </Border>
 
-                    <TextBlock Grid.Row="12"
+                    <TextBlock Grid.Row="16"
                                Grid.ColumnSpan="2"
                                Foreground="DimGray"
                                TextWrapping="Wrap"
                                Text="Your RE4R YAML updates automatically from these settings." />
 
-                    <StackPanel Grid.Row="14"
+                    <StackPanel Grid.Row="18"
                                 Grid.ColumnSpan="2">
                         <TextBlock FontWeight="SemiBold"
                                    Text="YAML Preview" />
