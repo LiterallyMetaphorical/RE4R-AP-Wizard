@@ -137,6 +137,22 @@
     "68203": 30000,
     "68300": 30000
   },
+  "stage_sections": {
+    "43311": "Villa",
+    "43400": "Lakeside Settlement",
+    "43410": "Lakeside Settlement Cabin",
+    "45100": "Church Grounds",
+    "45200": "Church Grounds",
+    "45300": "Lakeside Shrine",
+    "46100": "Lake",
+    "46200": "Large Cave Shrine",
+    "46210": "Merchant Hideout (Upper)",
+    "46900": "Lake",
+    "47100": "Checkpoint Alley",
+    "47101": "Checkpoint Alley",
+    "47102": "Checkpoint",
+    "47200": "Checkpoint"
+  },
   "labels": [
     {
       "scene": 10000,

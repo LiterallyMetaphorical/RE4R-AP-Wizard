@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-07-17T17:10:47Z",
+  "generated_at_utc": "2026-07-29T21:15:14Z",
   "game": "Resident Evil 4 Remake",
   "world_version": "0.4.0",
   "placeholder_item_id": 120486400,
@@ -508,7 +508,7 @@
       "note": ""
     },
     "1406857531": {
-      "name": "Chapter 4 - Lake - Rhinoceros Beetle x1 [3902f4d3]",
+      "name": "Chapter 4 - Lakeside Settlement - Rhinoceros Beetle x1 [3902f4d3]",
       "guid": "3902f4d3-d654-47fb-bbf7-f100d0d64072",
       "identity_kind": "guid",
       "chapter": 4,
@@ -516,7 +516,7 @@
       "region": "Lake",
       "source_item_name": "Rhinoceros Beetle x1",
       "ap_eligibility": "always",
-      "section_name": "Lake",
+      "section_name": "Lakeside Settlement",
       "x": 183.05,
       "y": -4.55,
       "z": -104.37,
@@ -1100,7 +1100,7 @@
       "note": ""
     },
     "2546164502": {
-      "name": "Chapter 3 - Village Square - Silver Token x1 [5146332b]",
+      "name": "Chapter 3 - Village Square - Silver Token x1 (hanging) [5146332b]",
       "guid": "5146332b-4869-4271-840b-ccfa61814e3b",
       "identity_kind": "guid",
       "chapter": 3,
@@ -1112,7 +1112,7 @@
       "x": -15.38,
       "y": 5.01,
       "z": -2.07,
-      "container": "",
+      "container": "hanging",
       "note": ""
     },
     "3310140270": {
@@ -1132,7 +1132,7 @@
       "note": ""
     },
     "15971165": {
-      "name": "Chapter 3 - Town Hall - Velvet Blue x1 [853f288f]",
+      "name": "Chapter 3 - Town Hall - Velvet Blue x1 (hanging) [853f288f]",
       "guid": "853f288f-987c-487f-bbc2-e52ac167f827",
       "identity_kind": "guid",
       "chapter": 3,
@@ -1144,7 +1144,7 @@
       "x": 36.11,
       "y": 0.83,
       "z": 12.56,
-      "container": "",
+      "container": "hanging",
       "note": ""
     },
     "3348623832": {
@@ -1292,7 +1292,7 @@
       "note": ""
     },
     "3124753747": {
-      "name": "Chapter 4 - Lake - Resources (Small) x1 [8eee05a5]",
+      "name": "Chapter 4 - Lakeside Settlement - Resources (Small) x1 [8eee05a5]",
       "guid": "8eee05a5-29b2-477d-afcf-f7046857d74a",
       "identity_kind": "guid",
       "chapter": 4,
@@ -1300,7 +1300,7 @@
       "region": "Lake",
       "source_item_name": "Resources (Small) x1",
       "ap_eligibility": "always",
-      "section_name": "Lake",
+      "section_name": "Lakeside Settlement",
       "x": 188.29,
       "y": -4.84,
       "z": -118.05,
@@ -1308,7 +1308,7 @@
       "note": ""
     },
     "2877332385": {
-      "name": "Chapter 4 - Lake - Gunpowder x3 [0ff7851a]",
+      "name": "Chapter 4 - Lakeside Settlement - Gunpowder x3 [0ff7851a]",
       "guid": "0ff7851a-ef8b-4d1c-afc8-58d96b4301fd",
       "identity_kind": "guid",
       "chapter": 4,
@@ -1316,7 +1316,7 @@
       "region": "Lake",
       "source_item_name": "Gunpowder x3",
       "ap_eligibility": "always",
-      "section_name": "Lake",
+      "section_name": "Lakeside Settlement",
       "x": 223.88,
       "y": -3.31,
       "z": -155.24,
@@ -1356,7 +1356,7 @@
       "note": ""
     },
     "1830376409": {
-      "name": "Chapter 4 - Lake - Handgun Ammo x5 [47ea5d75]",
+      "name": "Chapter 4 - Lakeside Settlement - Handgun Ammo x5 [47ea5d75]",
       "guid": "47ea5d75-1530-4634-a5c4-d002180ec9d1",
       "identity_kind": "guid",
       "chapter": 4,
@@ -1364,7 +1364,7 @@
       "region": "Lake",
       "source_item_name": "Handgun Ammo x5",
       "ap_eligibility": "always",
-      "section_name": "Lake",
+      "section_name": "Lakeside Settlement",
       "x": 206.5,
       "y": -4.58,
       "z": -116.31,
@@ -1388,7 +1388,7 @@
       "note": ""
     },
     "806989628": {
-      "name": "Chapter 4 - Lake - Pearl Bangle x1 (locked cache) [20fdbe51]",
+      "name": "Chapter 4 - Lakeside Settlement - Pearl Bangle x1 (locked cache) [20fdbe51]",
       "guid": "20fdbe51-1286-4cc2-bf55-b4b267647900",
       "identity_kind": "guid",
       "chapter": 4,
@@ -1396,7 +1396,7 @@
       "region": "Lake",
       "source_item_name": "Pearl Bangle x1",
       "ap_eligibility": "always",
-      "section_name": "Lake",
+      "section_name": "Lakeside Settlement",
       "x": 230.64,
       "y": -3.6,
       "z": -144.14,
@@ -1404,7 +1404,7 @@
       "note": ""
     },
     "2705323619": {
-      "name": "Chapter 1 - Lakeside Settlement - Gold Bar x1 (small-key drawer) [6b18f016]",
+      "name": "Chapter 1 - Lakeside Settlement Cabin - Gold Bar x1 (small-key drawer) [6b18f016]",
       "guid": "6b18f016-6936-492a-93d2-0881695a5679",
       "identity_kind": "guid",
       "chapter": 1,
@@ -1412,7 +1412,7 @@
       "region": "Village",
       "source_item_name": "Gold Bar x1",
       "ap_eligibility": "always",
-      "section_name": "Lakeside Settlement",
+      "section_name": "Lakeside Settlement Cabin",
       "x": 226.81,
       "y": -2.64,
       "z": -133.09,
@@ -1420,7 +1420,7 @@
       "note": ""
     },
     "1257184391": {
-      "name": "Chapter 1 - Forest Altar - Red Gemstone Ring x1 (long chest) [d9d70aa6]",
+      "name": "Chapter 1 - Lakeside Settlement Cabin - Red Gemstone Ring x1 (long chest) [d9d70aa6]",
       "guid": "d9d70aa6-477f-4612-a330-05724f036e2b",
       "identity_kind": "guid",
       "chapter": 1,
@@ -1428,7 +1428,7 @@
       "region": "Village",
       "source_item_name": "Red Gemstone Ring x1",
       "ap_eligibility": "always",
-      "section_name": "Forest Altar",
+      "section_name": "Lakeside Settlement Cabin",
       "x": 254.75,
       "y": -6.25,
       "z": -140.93,
@@ -1452,7 +1452,7 @@
       "note": ""
     },
     "3465696690": {
-      "name": "Chapter 4 - Lake - Sapphire x1 [63b02474]",
+      "name": "Chapter 4 - Lakeside Settlement - Sapphire x1 (hanging) [63b02474]",
       "guid": "63b02474-6c38-42e3-8b7d-1949474e03dd",
       "identity_kind": "guid",
       "chapter": 4,
@@ -1460,11 +1460,11 @@
       "region": "Lake",
       "source_item_name": "Sapphire x1",
       "ap_eligibility": "always",
-      "section_name": "Lake",
+      "section_name": "Lakeside Settlement",
       "x": 213.55,
       "y": 3.79,
       "z": -125.33,
-      "container": "",
+      "container": "hanging",
       "note": ""
     },
     "1912529288": {
@@ -1612,7 +1612,7 @@
       "note": ""
     },
     "3313882389": {
-      "name": "Chapter 2 - Village Chief's Manor - Hand Grenade x1 [2c317553]",
+      "name": "Chapter 2 - Village Chief's Manor - Hand Grenade x1 (hanging) [2c317553]",
       "guid": "2c317553-d2b0-4a76-8672-0b6f6ac02e61",
       "identity_kind": "guid",
       "chapter": 2,
@@ -1624,7 +1624,7 @@
       "x": -17.27,
       "y": 10.97,
       "z": 123.61,
-      "container": "",
+      "container": "hanging",
       "note": ""
     },
     "1813193432": {
@@ -1820,7 +1820,7 @@
       "note": ""
     },
     "1524704154": {
-      "name": "Chapter 2 - Village Chief's Manor - Sapphire x1 [5ed77469]",
+      "name": "Chapter 2 - Village Chief's Manor - Sapphire x1 (hanging) [5ed77469]",
       "guid": "5ed77469-09e3-4d81-8e7a-ab955bf970eb",
       "identity_kind": "guid",
       "chapter": 2,
@@ -1832,7 +1832,7 @@
       "x": -12.73,
       "y": 5.6,
       "z": 133.72,
-      "container": "",
+      "container": "hanging",
       "note": ""
     },
     "3312977059": {
@@ -1900,7 +1900,7 @@
       "note": ""
     },
     "4240025224": {
-      "name": "Chapter 2 - Abandoned Factory - Alexandrite x1 [ce9baef9]",
+      "name": "Chapter 2 - Abandoned Factory - Alexandrite x1 (hanging) [ce9baef9]",
       "guid": "ce9baef9-fdb9-4c71-ace1-d4f70c2c7b3d",
       "identity_kind": "guid",
       "chapter": 2,
@@ -1912,7 +1912,7 @@
       "x": 20.62,
       "y": -0.66,
       "z": 158.56,
-      "container": "",
+      "container": "hanging",
       "note": ""
     },
     "3321382803": {
@@ -2172,7 +2172,7 @@
       "note": ""
     },
     "3016662218": {
-      "name": "Chapter 3 - Town Hall - Rifle Ammo x3 [f154c8b4]",
+      "name": "Chapter 3 - Church Grounds - Rifle Ammo x3 [f154c8b4]",
       "guid": "f154c8b4-2f9a-4845-93bc-0af7dcb67e06",
       "identity_kind": "guid",
       "chapter": 3,
@@ -2180,7 +2180,7 @@
       "region": "Village",
       "source_item_name": "Rifle Ammo x3",
       "ap_eligibility": "always",
-      "section_name": "Town Hall",
+      "section_name": "Church Grounds",
       "x": 62.9,
       "y": 0.11,
       "z": 38.46,
@@ -2188,7 +2188,7 @@
       "note": ""
     },
     "2566556648": {
-      "name": "Chapter 4 - Church - Handgun Ammo x10 [bc3fb2b3]",
+      "name": "Chapter 4 - Church Grounds - Handgun Ammo x10 [bc3fb2b3]",
       "guid": "bc3fb2b3-369e-4ef5-bd49-bb514b995cf9",
       "identity_kind": "guid",
       "chapter": 4,
@@ -2196,7 +2196,7 @@
       "region": "Lake",
       "source_item_name": "Handgun Ammo x10",
       "ap_eligibility": "always",
-      "section_name": "Church",
+      "section_name": "Church Grounds",
       "x": 67.4,
       "y": 5.45,
       "z": 48.25,
@@ -2204,7 +2204,7 @@
       "note": ""
     },
     "3378340952": {
-      "name": "Chapter 4 - Church - Resources (Small) x1 [01c70b00]",
+      "name": "Chapter 4 - Church Grounds - Resources (Small) x1 [01c70b00]",
       "guid": "01c70b00-cad3-44ba-8c5f-aff487acc610",
       "identity_kind": "guid",
       "chapter": 4,
@@ -2212,7 +2212,7 @@
       "region": "Lake",
       "source_item_name": "Resources (Small) x1",
       "ap_eligibility": "always",
-      "section_name": "Church",
+      "section_name": "Church Grounds",
       "x": 63.33,
       "y": 5.06,
       "z": 48.95,
@@ -2220,7 +2220,7 @@
       "note": ""
     },
     "1289575852": {
-      "name": "Chapter 4 - Church - Chicken Egg x1 [49910003]",
+      "name": "Chapter 4 - Church Grounds - Chicken Egg x1 [49910003]",
       "guid": "49910003-c896-4c5e-acb8-3d231b3ef918",
       "identity_kind": "guid",
       "chapter": 4,
@@ -2228,7 +2228,7 @@
       "region": "Lake",
       "source_item_name": "Chicken Egg x1",
       "ap_eligibility": "always",
-      "section_name": "Church",
+      "section_name": "Church Grounds",
       "x": 75.45,
       "y": 5.51,
       "z": 68.91,
@@ -2252,7 +2252,7 @@
       "note": ""
     },
     "3184495528": {
-      "name": "Chapter 4 - Church - Resource (Large) x1 [62c6da2f]",
+      "name": "Chapter 4 - Church Grounds - Resource (Large) x1 [62c6da2f]",
       "guid": "62c6da2f-cf29-4ed0-aa53-fb5064dd2441",
       "identity_kind": "guid",
       "chapter": 4,
@@ -2260,7 +2260,7 @@
       "region": "Lake",
       "source_item_name": "Resource (Large) x1",
       "ap_eligibility": "always",
-      "section_name": "Church",
+      "section_name": "Church Grounds",
       "x": 116.55,
       "y": 11.34,
       "z": 110.57,
@@ -2268,7 +2268,7 @@
       "note": ""
     },
     "685836783": {
-      "name": "Chapter 4 - Church - Hand Grenade x1 [77df8e41]",
+      "name": "Chapter 4 - Lakeside Shrine - Hand Grenade x1 [77df8e41]",
       "guid": "77df8e41-2a23-4e64-876f-a981a0765357",
       "identity_kind": "guid",
       "chapter": 4,
@@ -2276,7 +2276,7 @@
       "region": "Lake",
       "source_item_name": "Hand Grenade x1",
       "ap_eligibility": "always",
-      "section_name": "Church",
+      "section_name": "Lakeside Shrine",
       "x": 110.74,
       "y": 12.74,
       "z": 128.23,
@@ -2284,7 +2284,7 @@
       "note": ""
     },
     "1347906916": {
-      "name": "Chapter 4 - Church - Gunpowder x3 [ca7c0a7b]",
+      "name": "Chapter 4 - Lakeside Shrine - Gunpowder x3 [ca7c0a7b]",
       "guid": "ca7c0a7b-45c0-458e-969e-c2f1cea651c3",
       "identity_kind": "guid",
       "chapter": 4,
@@ -2292,7 +2292,7 @@
       "region": "Lake",
       "source_item_name": "Gunpowder x3",
       "ap_eligibility": "always",
-      "section_name": "Church",
+      "section_name": "Lakeside Shrine",
       "x": 109.15,
       "y": 9.71,
       "z": 129.24,
@@ -2332,7 +2332,7 @@
       "note": ""
     },
     "4211929842": {
-      "name": "Chapter 4 - Church - Emerald x1 [56f1673f]",
+      "name": "Chapter 4 - Church Grounds - Emerald x1 (hanging) [56f1673f]",
       "guid": "56f1673f-5db8-4a1e-84bc-22fbcd733064",
       "identity_kind": "guid",
       "chapter": 4,
@@ -2340,11 +2340,11 @@
       "region": "Lake",
       "source_item_name": "Emerald x1",
       "ap_eligibility": "always",
-      "section_name": "Church",
+      "section_name": "Church Grounds",
       "x": 70.38,
       "y": 4.51,
       "z": 59.35,
-      "container": "",
+      "container": "hanging",
       "note": ""
     },
     "1476300534": {
@@ -2364,7 +2364,7 @@
       "note": ""
     },
     "1860434857": {
-      "name": "Chapter 4 - Church - Red Gemstone Ring x1 [1f5c91ce]",
+      "name": "Chapter 4 - Church Grounds - Red Gemstone Ring x1 [1f5c91ce]",
       "guid": "1f5c91ce-4726-4dde-9a88-65cdcb05df55",
       "identity_kind": "guid",
       "chapter": 4,
@@ -2372,7 +2372,7 @@
       "region": "Lake",
       "source_item_name": "Red Gemstone Ring x1",
       "ap_eligibility": "always",
-      "section_name": "Church",
+      "section_name": "Church Grounds",
       "x": 100.44,
       "y": 10.7,
       "z": 87.56,
@@ -2380,7 +2380,7 @@
       "note": ""
     },
     "896489704": {
-      "name": "Chapter 4 - Quarry - Ruby x1 [01d18f77]",
+      "name": "Chapter 4 - Quarry - Ruby x1 (hanging) [01d18f77]",
       "guid": "01d18f77-12d2-4c30-9758-676897c031e0",
       "identity_kind": "guid",
       "chapter": 4,
@@ -2392,11 +2392,11 @@
       "x": 185.91,
       "y": 8.18,
       "z": 130.46,
-      "container": "",
+      "container": "hanging",
       "note": ""
     },
     "1793291604": {
-      "name": "Chapter 4 - Church - Elegant Headdress x1 (chest) [5eec4331]",
+      "name": "Chapter 4 - Church Grounds - Elegant Headdress x1 (chest) [5eec4331]",
       "guid": "5eec4331-ab42-4a19-a379-77138517e693",
       "identity_kind": "guid",
       "chapter": 4,
@@ -2404,7 +2404,7 @@
       "region": "Lake",
       "source_item_name": "Elegant Headdress x1",
       "ap_eligibility": "always",
-      "section_name": "Church",
+      "section_name": "Church Grounds",
       "x": 116.03,
       "y": 11.7,
       "z": 111.94,
@@ -2444,7 +2444,7 @@
       "note": ""
     },
     "1081806973": {
-      "name": "Chapter 4 - Church - Alexandrite x1 [eb597315]",
+      "name": "Chapter 4 - Lakeside Shrine - Alexandrite x1 [eb597315]",
       "guid": "eb597315-f2b7-4f58-8c8a-ccaace88db81",
       "identity_kind": "guid",
       "chapter": 4,
@@ -2452,7 +2452,7 @@
       "region": "Lake",
       "source_item_name": "Alexandrite x1",
       "ap_eligibility": "always",
-      "section_name": "Church",
+      "section_name": "Lakeside Shrine",
       "x": 125.45,
       "y": -4.48,
       "z": 142.32,
@@ -2492,7 +2492,7 @@
       "note": ""
     },
     "994272591": {
-      "name": "Chapter 3 - Fish Farm - Silver Token x1 [228db5bc]",
+      "name": "Chapter 3 - Fish Farm - Silver Token x1 (hanging) [228db5bc]",
       "guid": "228db5bc-9b12-4496-8aa9-6d321214b8e0",
       "identity_kind": "guid",
       "chapter": 3,
@@ -2504,7 +2504,7 @@
       "x": 111.12,
       "y": 1.16,
       "z": 48.29,
-      "container": "",
+      "container": "hanging",
       "note": ""
     },
     "1666167729": {
@@ -2604,7 +2604,7 @@
       "note": ""
     },
     "127038901": {
-      "name": "Chapter 4 - Boat House - Red Herb x1 [8abf1ac0]",
+      "name": "Chapter 4 - Lake - Red Herb x1 [8abf1ac0]",
       "guid": "8abf1ac0-ad4f-49f6-91f4-4512f8da1a33",
       "identity_kind": "guid",
       "chapter": 4,
@@ -2612,7 +2612,7 @@
       "region": "Lake",
       "source_item_name": "Red Herb x1",
       "ap_eligibility": "always",
-      "section_name": "Boat House",
+      "section_name": "Lake",
       "x": 354.26,
       "y": -6.58,
       "z": 117.33,
@@ -2636,7 +2636,7 @@
       "note": ""
     },
     "1314803934": {
-      "name": "Chapter 4 - Quarry - Flash Grenade x1 [37849b90]",
+      "name": "Chapter 4 - Large Cave Shrine - Flash Grenade x1 [37849b90]",
       "guid": "37849b90-5395-43c4-a11a-ad9dd79d8218",
       "identity_kind": "guid",
       "chapter": 4,
@@ -2644,7 +2644,7 @@
       "region": "Lake",
       "source_item_name": "Flash Grenade x1",
       "ap_eligibility": "always",
-      "section_name": "Quarry",
+      "section_name": "Large Cave Shrine",
       "x": 202.89,
       "y": -6.86,
       "z": 185.05,
@@ -2732,7 +2732,7 @@
       "note": ""
     },
     "4266056736": {
-      "name": "Chapter 4 - Quarry - Hexagon Piece A x1 [b7e52462]",
+      "name": "Chapter 4 - Merchant Hideout (Upper) - Hexagon Piece A x1 [b7e52462]",
       "guid": "b7e52462-cfc7-4c0b-8b5c-11ff2aa92072",
       "identity_kind": "guid",
       "chapter": 4,
@@ -2740,7 +2740,7 @@
       "region": "Lake",
       "source_item_name": "Hexagon Piece A x1",
       "ap_eligibility": "always",
-      "section_name": "Quarry",
+      "section_name": "Merchant Hideout (Upper)",
       "x": 210.96,
       "y": 2.32,
       "z": 102.21,
@@ -2764,7 +2764,7 @@
       "note": ""
     },
     "660388321": {
-      "name": "Chapter 4 - Quarry - Brass Pocket Watch x1 (small-key drawer) [936c3bfb]",
+      "name": "Chapter 4 - Merchant Hideout (Upper) - Brass Pocket Watch x1 (small-key drawer) [936c3bfb]",
       "guid": "936c3bfb-4af3-4271-88cf-45f00f57a675",
       "identity_kind": "guid",
       "chapter": 4,
@@ -2772,7 +2772,7 @@
       "region": "Lake",
       "source_item_name": "Brass Pocket Watch x1",
       "ap_eligibility": "always",
-      "section_name": "Quarry",
+      "section_name": "Merchant Hideout (Upper)",
       "x": 221.16,
       "y": -6.04,
       "z": 117.11,
@@ -2780,7 +2780,7 @@
       "note": ""
     },
     "1158197127": {
-      "name": "Chapter 4 - Church - Splendid Bangle x1 (locked cache) [93f90f71]",
+      "name": "Chapter 4 - Lakeside Shrine - Splendid Bangle x1 (locked cache) [93f90f71]",
       "guid": "93f90f71-2757-487d-af43-8764d4bacd2e",
       "identity_kind": "guid",
       "chapter": 4,
@@ -2788,7 +2788,7 @@
       "region": "Lake",
       "source_item_name": "Splendid Bangle x1",
       "ap_eligibility": "always",
-      "section_name": "Church",
+      "section_name": "Lakeside Shrine",
       "x": 116.55,
       "y": -5.23,
       "z": 138.16,
@@ -2796,7 +2796,7 @@
       "note": ""
     },
     "4083741643": {
-      "name": "Chapter 4 - Small Cave Shrine - Ruby x1 [348cfb43]",
+      "name": "Chapter 4 - Small Cave Shrine - Ruby x1 (hanging) [348cfb43]",
       "guid": "348cfb43-4eda-4535-8351-e6a53e9db0ac",
       "identity_kind": "guid",
       "chapter": 4,
@@ -2808,7 +2808,7 @@
       "x": 403.28,
       "y": -2.19,
       "z": -154.54,
-      "container": "",
+      "container": "hanging",
       "note": ""
     },
     "2225151346": {
@@ -2828,7 +2828,7 @@
       "note": ""
     },
     "281322348": {
-      "name": "Chapter 4 - Small Cave Shrine - Velvet Blue x1 [98470ac3]",
+      "name": "Chapter 4 - Lake - Velvet Blue x1 [98470ac3]",
       "guid": "98470ac3-e051-4782-8407-c3b7e04e2855",
       "identity_kind": "guid",
       "chapter": 4,
@@ -2836,7 +2836,7 @@
       "region": "Lake",
       "source_item_name": "Velvet Blue x1",
       "ap_eligibility": "always",
-      "section_name": "Small Cave Shrine",
+      "section_name": "Lake",
       "x": 413.84,
       "y": -6.71,
       "z": -30.01,
@@ -2860,7 +2860,7 @@
       "note": ""
     },
     "1276584188": {
-      "name": "Chapter 4 - Large Cave Shrine - Silver Token x1 [f52e1075]",
+      "name": "Chapter 4 - Large Cave Shrine - Silver Token x1 (hanging) [f52e1075]",
       "guid": "f52e1075-53c8-49fa-b93a-55c4a19f1461",
       "identity_kind": "guid",
       "chapter": 4,
@@ -2872,11 +2872,11 @@
       "x": 253.87,
       "y": -5.99,
       "z": 142.85,
-      "container": "",
+      "container": "hanging",
       "note": ""
     },
     "348506377": {
-      "name": "Chapter 4 - Small Cave Shrine - Ruby x1 [8de2b01c]",
+      "name": "Chapter 4 - Small Cave Shrine - Ruby x1 (hanging) [8de2b01c]",
       "guid": "8de2b01c-e6fc-44ad-b672-e0e5885cfb59",
       "identity_kind": "guid",
       "chapter": 4,
@@ -2888,7 +2888,7 @@
       "x": 396.64,
       "y": 2.2,
       "z": -152.72,
-      "container": "",
+      "container": "hanging",
       "note": ""
     },
     "3521206084": {
@@ -3004,7 +3004,7 @@
       "note": ""
     },
     "1182834364": {
-      "name": "Chapter 6 - Villa - Resources (Small) x1 [b4193850]",
+      "name": "Chapter 6 - Checkpoint Alley - Resources (Small) x1 [b4193850]",
       "guid": "b4193850-9562-4178-b57d-c9de191908c8",
       "identity_kind": "guid",
       "chapter": 6,
@@ -3012,7 +3012,7 @@
       "region": "Church",
       "source_item_name": "Resources (Small) x1",
       "ap_eligibility": "always",
-      "section_name": "Villa",
+      "section_name": "Checkpoint Alley",
       "x": 89.84,
       "y": 9.29,
       "z": -163.18,
@@ -3020,7 +3020,7 @@
       "note": ""
     },
     "1262347450": {
-      "name": "Chapter 6 - Villa - Resource (Large) x1 [957aaa45]",
+      "name": "Chapter 6 - Checkpoint Alley - Resource (Large) x1 [957aaa45]",
       "guid": "957aaa45-dc06-46a6-833c-349b9ce4b19d",
       "identity_kind": "guid",
       "chapter": 6,
@@ -3028,7 +3028,7 @@
       "region": "Church",
       "source_item_name": "Resource (Large) x1",
       "ap_eligibility": "always",
-      "section_name": "Villa",
+      "section_name": "Checkpoint Alley",
       "x": 80.95,
       "y": 8.81,
       "z": -208.07,
@@ -3036,7 +3036,7 @@
       "note": ""
     },
     "1575497065": {
-      "name": "Chapter 6 - Villa - Rifle Ammo x5 [791be4b1]",
+      "name": "Chapter 6 - Checkpoint Alley - Rifle Ammo x5 [791be4b1]",
       "guid": "791be4b1-590d-40c0-8e6a-e293c111c971",
       "identity_kind": "guid",
       "chapter": 6,
@@ -3044,7 +3044,7 @@
       "region": "Church",
       "source_item_name": "Rifle Ammo x5",
       "ap_eligibility": "always",
-      "section_name": "Villa",
+      "section_name": "Checkpoint Alley",
       "x": 91.06,
       "y": 8.94,
       "z": -167.17,
@@ -3052,7 +3052,7 @@
       "note": ""
     },
     "155972827": {
-      "name": "Chapter 6 - Villa - Shotgun Shells x3 [1283e04d]",
+      "name": "Chapter 6 - Checkpoint Alley - Shotgun Shells x3 [1283e04d]",
       "guid": "1283e04d-9864-4bef-a4b9-ebadfee44cd6",
       "identity_kind": "guid",
       "chapter": 6,
@@ -3060,7 +3060,7 @@
       "region": "Church",
       "source_item_name": "Shotgun Shells x3",
       "ap_eligibility": "always",
-      "section_name": "Villa",
+      "section_name": "Checkpoint Alley",
       "x": 94.35,
       "y": 8.69,
       "z": -170.47,
@@ -3068,7 +3068,7 @@
       "note": ""
     },
     "3850153263": {
-      "name": "Chapter 6 - Villa - Yellow Diamond x1 (chest) [5e4dc33a]",
+      "name": "Chapter 6 - Checkpoint Alley - Yellow Diamond x1 (chest) [5e4dc33a]",
       "guid": "5e4dc33a-67dc-4391-97c0-291714c27ff4",
       "identity_kind": "guid",
       "chapter": 6,
@@ -3076,7 +3076,7 @@
       "region": "Church",
       "source_item_name": "Yellow Diamond x1",
       "ap_eligibility": "always",
-      "section_name": "Villa",
+      "section_name": "Checkpoint Alley",
       "x": 75.67,
       "y": 11.39,
       "z": -188.28,
@@ -3084,7 +3084,7 @@
       "note": ""
     },
     "3458256202": {
-      "name": "Chapter 6 - Villa - Hand Grenade x1 [af2bd380]",
+      "name": "Chapter 6 - Checkpoint Alley - Hand Grenade x1 [af2bd380]",
       "guid": "af2bd380-4f62-4a42-9fbc-fb146d8dfb02",
       "identity_kind": "guid",
       "chapter": 6,
@@ -3092,7 +3092,7 @@
       "region": "Church",
       "source_item_name": "Hand Grenade x1",
       "ap_eligibility": "always",
-      "section_name": "Villa",
+      "section_name": "Checkpoint Alley",
       "x": 74.05,
       "y": 8.88,
       "z": -218.0,
@@ -3100,7 +3100,7 @@
       "note": ""
     },
     "1177588693": {
-      "name": "Chapter 6 - Villa - Red Beryl x1 [e4edc52f]",
+      "name": "Chapter 6 - Checkpoint Alley - Red Beryl x1 [e4edc52f]",
       "guid": "e4edc52f-3143-430a-b6d0-4ba430b87715",
       "identity_kind": "guid",
       "chapter": 6,
@@ -3108,7 +3108,7 @@
       "region": "Church",
       "source_item_name": "Red Beryl x1",
       "ap_eligibility": "always",
-      "section_name": "Villa",
+      "section_name": "Checkpoint Alley",
       "x": 99.18,
       "y": 15.42,
       "z": -174.2,
@@ -3836,7 +3836,7 @@
       "note": ""
     },
     "3845057070": {
-      "name": "Chapter 7 - Castle Gate - Sapphire x1 [24ae996d]",
+      "name": "Chapter 7 - Castle Gate - Sapphire x1 (hanging) [24ae996d]",
       "guid": "24ae996d-afea-4a63-87fc-edde770bd9a3",
       "identity_kind": "guid",
       "chapter": 7,
@@ -3848,11 +3848,11 @@
       "x": -229.7,
       "y": 2.9,
       "z": 48.97,
-      "container": "",
+      "container": "hanging",
       "note": ""
     },
     "3369918806": {
-      "name": "Chapter 7 - Treasury - Silver Token x1 [3cd3b05f]",
+      "name": "Chapter 7 - Treasury - Silver Token x1 (hanging) [3cd3b05f]",
       "guid": "3cd3b05f-21b2-4355-8f26-41472780c6eb",
       "identity_kind": "guid",
       "chapter": 7,
@@ -3864,7 +3864,7 @@
       "x": -122.39,
       "y": 17.95,
       "z": 11.95,
-      "container": "",
+      "container": "hanging",
       "note": ""
     },
     "3425277917": {
@@ -3948,7 +3948,7 @@
       "note": ""
     },
     "1558868374": {
-      "name": "Chapter 8 - Wine Cellar - Yellow Diamond x1 [02e03326]",
+      "name": "Chapter 8 - Wine Cellar - Yellow Diamond x1 (hanging) [02e03326]",
       "guid": "02e03326-edb7-4d04-89f8-386d8364599b",
       "identity_kind": "guid",
       "chapter": 8,
@@ -3960,7 +3960,7 @@
       "x": 4.77,
       "y": 24.94,
       "z": -3.52,
-      "container": "",
+      "container": "hanging",
       "note": ""
     },
     "4144842286": {
@@ -4012,7 +4012,7 @@
       "note": ""
     },
     "1061925518": {
-      "name": "Chapter 8 - Mines - Ruby x1 [142073d1]",
+      "name": "Chapter 8 - Mines - Ruby x1 (hanging) [142073d1]",
       "guid": "142073d1-731a-427f-8159-1568f3c32449",
       "identity_kind": "guid",
       "chapter": 8,
@@ -4024,7 +4024,7 @@
       "x": 85.12,
       "y": 19.18,
       "z": -76.39,
-      "container": "",
+      "container": "hanging",
       "note": ""
     },
     "2925879259": {
@@ -4316,7 +4316,7 @@
       "note": ""
     },
     "4147198940": {
-      "name": "Chapter 8 - Bindery - Alexandrite x1 [e2460fe6]",
+      "name": "Chapter 8 - Bindery - Alexandrite x1 (hanging) [e2460fe6]",
       "guid": "e2460fe6-d4ae-4d48-95a2-e3b4b859f396",
       "identity_kind": "guid",
       "chapter": 8,
@@ -4328,11 +4328,11 @@
       "x": 32.45,
       "y": 26.87,
       "z": -32.93,
-      "container": "",
+      "container": "hanging",
       "note": ""
     },
     "1630145785": {
-      "name": "Chapter 8 - Bindery - Silver Token x1 [285d0109]",
+      "name": "Chapter 8 - Bindery - Silver Token x1 (hanging) [285d0109]",
       "guid": "285d0109-fee4-4fa7-8d3e-a17081174aeb",
       "identity_kind": "guid",
       "chapter": 8,
@@ -4344,7 +4344,7 @@
       "x": 4.53,
       "y": 26.85,
       "z": -30.21,
-      "container": "",
+      "container": "hanging",
       "note": ""
     },
     "2881858764": {
@@ -4396,7 +4396,7 @@
       "note": ""
     },
     "1033172125": {
-      "name": "Chapter 9 - Grand Hall - Alexandrite x1 [8114dd3c]",
+      "name": "Chapter 9 - Grand Hall - Alexandrite x1 (hanging) [8114dd3c]",
       "guid": "8114dd3c-df18-4a01-96a4-d897b3e1d785",
       "identity_kind": "guid",
       "chapter": 9,
@@ -4408,7 +4408,7 @@
       "x": 114.34,
       "y": 24.2,
       "z": 43.03,
-      "container": "",
+      "container": "hanging",
       "note": ""
     },
     "867815651": {
@@ -4700,7 +4700,7 @@
       "note": ""
     },
     "4227412291": {
-      "name": "Chapter 9 - Armory - Silver Token x1 [0d2236bf]",
+      "name": "Chapter 9 - Armory - Silver Token x1 (hanging) [0d2236bf]",
       "guid": "0d2236bf-8569-4efa-b32d-897b4ea10c23",
       "identity_kind": "guid",
       "chapter": 9,
@@ -4712,7 +4712,7 @@
       "x": 109.04,
       "y": 30.72,
       "z": 18.19,
-      "container": "",
+      "container": "hanging",
       "note": ""
     },
     "3535467731": {
@@ -4780,7 +4780,7 @@
       "note": ""
     },
     "4214161125": {
-      "name": "Chapter 10 - Library - Yellow Diamond x1 [8f5be12f]",
+      "name": "Chapter 10 - Library - Yellow Diamond x1 (hanging) [8f5be12f]",
       "guid": "8f5be12f-9ca6-455e-bf40-9533705adb52",
       "identity_kind": "guid",
       "chapter": 10,
@@ -4792,7 +4792,7 @@
       "x": 141.72,
       "y": 27.4,
       "z": 71.4,
-      "container": "",
+      "container": "hanging",
       "note": ""
     },
     "979265628": {
@@ -4876,7 +4876,7 @@
       "note": ""
     },
     "1380103": {
-      "name": "Chapter 10 - Ballroom - Ruby x1 [17bdb728]",
+      "name": "Chapter 10 - Ballroom - Ruby x1 (hanging) [17bdb728]",
       "guid": "17bdb728-8c36-4ee8-be97-d8fa995737df",
       "identity_kind": "guid",
       "chapter": 10,
@@ -4888,7 +4888,7 @@
       "x": 182.9,
       "y": 26.4,
       "z": 61.69,
-      "container": "",
+      "container": "hanging",
       "note": ""
     },
     "3840671653": {
@@ -5356,7 +5356,7 @@
       "note": ""
     },
     "2269722414": {
-      "name": "Chapter 10 - Hive - Silver Token x1 [b1137a19]",
+      "name": "Chapter 10 - Hive - Silver Token x1 (hanging) [b1137a19]",
       "guid": "b1137a19-e4e6-4ead-8b6c-6879a62b3f76",
       "identity_kind": "guid",
       "chapter": 10,
@@ -5368,11 +5368,11 @@
       "x": 165.64,
       "y": 33.65,
       "z": 35.13,
-      "container": "",
+      "container": "hanging",
       "note": ""
     },
     "4153607658": {
-      "name": "Chapter 10 - Underground Laboratory - Emerald x1 [2c6dc819]",
+      "name": "Chapter 10 - Underground Laboratory - Emerald x1 (hanging) [2c6dc819]",
       "guid": "2c6dc819-92db-48af-b6f5-3bb33ad54355",
       "identity_kind": "guid",
       "chapter": 10,
@@ -5384,7 +5384,7 @@
       "x": 209.19,
       "y": -30.38,
       "z": -8.43,
-      "container": "",
+      "container": "hanging",
       "note": ""
     },
     "262918373": {
@@ -5884,7 +5884,7 @@
       "note": ""
     },
     "2892833831": {
-      "name": "Chapter 12 - Dock - Yellow Diamond x1 [163f855a]",
+      "name": "Chapter 12 - Dock - Yellow Diamond x1 (hanging) [163f855a]",
       "guid": "163f855a-534f-486c-85bc-121c0486e9cd",
       "identity_kind": "guid",
       "chapter": 12,
@@ -5896,7 +5896,7 @@
       "x": 303.64,
       "y": 1.35,
       "z": -80.5,
-      "container": "",
+      "container": "hanging",
       "note": ""
     },
     "3184783528": {
