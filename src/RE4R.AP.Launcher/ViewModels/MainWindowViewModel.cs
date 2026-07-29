@@ -57,6 +57,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? _installInspectionCancellationSource;
     private CancellationTokenSource? _sessionRefreshCancellationSource;
     private bool _isInitializing;
+    private bool _initialSetupRedirectDecided;
     private string _lastAutoDetectedGameVersion = string.Empty;
     private object? _currentScreen;
 
@@ -242,9 +243,12 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         JoinFlow.BackToLandingCommand = _returnToLandingCommand;
         PatchLaunch.BackToLandingCommand = _returnToLandingCommand;
         JoinFlow.PatchRequested += OnJoinPatchRequested;
-        // Setup Status is the launcher's first screen (Cam's papercut #2 -
-        // no longer a collapsed strip above whatever else is happening).
-        CurrentScreen = Setup;
+        // Land on the role/landing screen; Setup Status only takes the first
+        // screen when the boot inspection actually finds blockers (Cam
+        // 2026-07-29 - a healthy install should not open on a checklist).
+        // The redirect decision rides the FIRST inspection completion, in
+        // UpdateLandingBlockingState.
+        CurrentScreen = Landing;
 
         Setup.PropertyChanged += OnSetupPropertyChanged;
         Session.PropertyChanged += OnSessionPropertyChanged;
@@ -941,6 +945,19 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         Landing.BlockingIssuesText = blockers.Count == 0
             ? string.Empty
             : $"Fix these on the Setup Status screen before joining a session: {string.Join(", ", blockers)}.";
+
+        // One-shot boot redirect: the FIRST inspection decides whether Setup
+        // Status takes over as the opening screen. Only ever fires while the
+        // player is still on the landing (a fast click elsewhere wins), and
+        // never again afterwards - mid-flow blockers stay banner-only.
+        if (!_initialSetupRedirectDecided)
+        {
+            _initialSetupRedirectDecided = true;
+            if (blockers.Count > 0 && ReferenceEquals(CurrentScreen, Landing))
+            {
+                CurrentScreen = Setup;
+            }
+        }
 
         _startJoinFlowCommand.NotifyCanExecuteChanged();
     }
