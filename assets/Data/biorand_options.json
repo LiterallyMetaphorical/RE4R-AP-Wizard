@@ -269,6 +269,356 @@
        ]
       }
      ]
+    },
+    {
+     "title": "Built-in Patches",
+     "items": [
+      {
+       "key": "early-upgrades",
+       "label": "Early Shop Upgrades",
+       "description": "Exclusive weapon upgrades can be purchased from the first chapters instead of unlocking over the campaign.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "flamethrower",
+       "label": "Flamethrower Weapon",
+       "description": "Adds BioRand's custom flamethrower and its fuel to the merchant's stock.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "laser-sight-combos",
+       "label": "Extra Laser Sight Combos",
+       "description": "The laser sight can be fitted to the Red9, Blacktail, and Matilda.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "corpse-disposal",
+       "label": "Universal Corpse Disposal",
+       "description": "Every enemy corpse can be used with the corpse disposal mechanic.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "early-cabin-door",
+       "label": "Unlocked Cabin Door",
+       "description": "Removes the lock on the cabin's iron door so the area opens earlier than vanilla.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "add-scope-reticle",
+       "label": "Scope Reticle",
+       "description": "Shows a reticle while a scope is attached.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": true,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "armadura-bridges",
+       "label": "Armadura Bridge Crossing",
+       "description": "Lets Armadura cross suspension bridges. Mostly matters with randomized enemies.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": true,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "biorand-title",
+       "label": "BioRand Title Branding",
+       "description": "Shows BioRand branding on the title screen.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": true,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "chicago-size",
+       "label": "Chicago Typewriter Size",
+       "description": "Adjusts the Chicago Typewriter's item definition.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": true,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "disable-case-open",
+       "label": "Skip Auto Case Open",
+       "description": "Removes the automatic attache case opening trigger at the start of the game.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": true,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "disable-start-inhibitor",
+       "label": "Disable Start Inhibitor",
+       "description": "Removes a start-of-game input inhibitor.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": true,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "lake-heads",
+       "label": "Quick Statue Heads",
+       "description": "Statue heads can be placed without inspecting the wall first.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": true,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "krauser-drops",
+       "label": "Krauser Item Drops",
+       "description": "Allows Krauser to drop items. Turning this off can strand randomized drops.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": true,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "montage-costumes",
+       "label": "Costume Montages",
+       "description": "Copies animation data used for costume variety. Turning this off can break randomized costumes.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": true,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "novis-navigation-fix",
+       "label": "Novistador Navigation Fix",
+       "description": "Fixes Novistador pathing across areas. Leave on.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": true,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "lighting-fix",
+       "label": "Factory Lighting Fix",
+       "description": "Copies lighting between chapter variants of the factory scenes. Leave on.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": true,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "garrador-room-fix",
+       "label": "Garrador Room Fix",
+       "description": "Fixes enemy spawn timing in the Separate Ways Garrador room. Leave on.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": true,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "enemy-collider-fix",
+       "label": "Enemy Collider Fix",
+       "description": "Collider correction for a boss character. Leave on.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": true,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "force-ng-merchant",
+       "label": "Force NG Merchant",
+       "description": "Forces the New Game merchant state. Turning this off can desync shop stock in randomized games.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": true,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "missing-enemies",
+       "label": "Extended Enemy Catalog",
+       "description": "Registers extra characters in spawn catalogs. Turning this off can break randomized enemies.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": true,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "craft-window",
+       "label": "Craft Menu Models",
+       "description": "Item models in the crafting window for randomized recipes. Leave on.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": true,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "additional-weapons",
+       "label": "Additional Weapons Support",
+       "description": "Registers extra weapon definitions randomized items may use. Turning this off can break item randomization.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": true,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "skip-first-cabin-door",
+       "label": "Cabin Door Replacement",
+       "description": "Replaces the first cabin door for randomizer routing. Leave on.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": true,
+       "defaults": [
+        true,
+        true,
+        true
+       ]
+      }
+     ]
     }
    ]
   },
@@ -1756,7 +2106,7 @@
       {
        "key": "random-case-perks",
        "label": "Random Case Perks",
-       "description": "Randomize the perk and multiplier of each attach\u00e9 case.",
+       "description": "Randomize the perk and multiplier of each attaché case.",
        "type": "switch",
        "min": null,
        "max": null,
@@ -2235,7 +2585,7 @@
      "items": [
       {
        "key": "treasure-per-chapter-min",
-       "label": "Min. Average Chapter Treasure (\u00d7 1,000)",
+       "label": "Min. Average Chapter Treasure (× 1,000)",
        "description": "The minimum total value of all treasure to include for an average length chapter.",
        "type": "range",
        "min": 0,
@@ -2250,7 +2600,7 @@
       },
       {
        "key": "treasure-per-chapter-max",
-       "label": "Max. Average Chapter Treasure (\u00d7 1,000)",
+       "label": "Max. Average Chapter Treasure (× 1,000)",
        "description": "The maximum total value of all treasure to include for an average length chapter.",
        "type": "range",
        "min": 0,
@@ -3430,8 +3780,8 @@
       },
       {
        "key": "arana-latch-probability",
-       "label": "Ara\u00f1a Latch Probability",
-       "description": "The probability that an Ara\u00f1a (spider plaga thing) will latch onto another enemy and control it.",
+       "label": "Araña Latch Probability",
+       "description": "The probability that an Araña (spider plaga thing) will latch onto another enemy and control it.",
        "type": "percent",
        "min": 0,
        "max": 1,
@@ -3645,7 +3995,7 @@
       },
       {
        "key": "enemy-ratio-arana",
-       "label": "Plaga Ara\u00f1a",
+       "label": "Plaga Araña",
        "description": "",
        "type": "range",
        "min": 0,
@@ -4025,7 +4375,7 @@
       },
       {
        "key": "parasite-ratio-a",
-       "label": "Plaga Guada\u00f1a",
+       "label": "Plaga Guadaña",
        "description": "Tenticle Plaga that slice you",
        "type": "range",
        "min": 0,
@@ -4040,7 +4390,7 @@
       },
       {
        "key": "parasite-ratio-b",
-       "label": "Plaga Mand\u00edbula",
+       "label": "Plaga Mandíbula",
        "description": "Hungry Plaga that eat your head",
        "type": "range",
        "min": 0,
@@ -4055,7 +4405,7 @@
       },
       {
        "key": "parasite-ratio-c",
-       "label": "Plaga Ara\u00f1a",
+       "label": "Plaga Araña",
        "description": "Spider Plaga that come off and attack you or control another enemy.",
        "type": "range",
        "min": 0,
@@ -5240,7 +5590,7 @@
       },
       {
        "key": "enemy-health-min-arana",
-       "label": "Min. Plaga Ara\u00f1a HP",
+       "label": "Min. Plaga Araña HP",
        "description": "",
        "type": "scale",
        "min": 0,
@@ -5255,7 +5605,7 @@
       },
       {
        "key": "enemy-health-max-arana",
-       "label": "Max. Plaga Ara\u00f1a HP",
+       "label": "Max. Plaga Araña HP",
        "description": "",
        "type": "scale",
        "min": 0,
