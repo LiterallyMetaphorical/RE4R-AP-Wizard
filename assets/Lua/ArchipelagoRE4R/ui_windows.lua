@@ -367,20 +367,6 @@ local function install(ctx)
     -- Typewriter warp + chapter switch (Warp tab). Warp system originally
     -- created by JumperDenfer.
     local function draw_warp_content()
-        -- [Warp diagnosis 2026-07-29] Cam's clicks produce ZERO verdict lines
-        -- even though every branch of the click handler logs - so prove the
-        -- surface: one line when this tab first renders, one when the mouse
-        -- first hovers the button. Render+hover+no-click = swallowed click;
-        -- no hover = the click never reaches THIS button; no render = he is
-        -- looking at some other surface entirely. Remove once solved.
-        if bridge.warp_tab_render_logged ~= true then
-            bridge.warp_tab_render_logged = true
-            log.info(string.format(
-                "[RE4R AP] warp tab rendered: %d typewriter points, selected=%s, %d names",
-                #bridge.typewriter_warp_points,
-                tostring(bridge.selected_typewriter_warp_index),
-                #bridge.typewriter_warp_point_names))
-        end
         if #bridge.typewriter_warp_points > 0 then
             local changed_warp_index, warp_index = imgui.combo(
                 "##warp_point_selector",
@@ -394,23 +380,17 @@ local function install(ctx)
             imgui.text("No typewriter warp points loaded")
         end
 
-        -- [Warp diagnosis round 2] Hover reached the button but the click never
-        -- registered (18:06 session). Experiment: unique ID + own row (off the
-        -- combo's same_line), plus an is_item_clicked cross-check so a click
-        -- the button call itself misses still leaves evidence.
+        -- Unique imgui ID on its OWN row - load-bearing, not style. The
+        -- original bare "Warp" button on the combo's same_line NEVER received
+        -- clicks (hover reached it, clicks vanished; proven via staged
+        -- instrumentation 2026-07-29). Do not rename back or re-inline.
         local warp_clicked = imgui.button("Warp Now##ap_warp_exec")
-        if type(imgui.is_item_hovered) == "function"
-            and bridge.warp_button_hover_logged ~= true
-            and imgui.is_item_hovered() then
-            bridge.warp_button_hover_logged = true
-            log.info("[RE4R AP] warp button hovered - mouse input reaches this button")
-        end
-        if not warp_clicked
-            and type(imgui.is_item_clicked) == "function" then
-            local ok_clicked, clicked_raw = pcall(imgui.is_item_clicked, 0)
-            if ok_clicked and clicked_raw then
-                log.info("[RE4R AP] warp button is_item_clicked fired but imgui.button returned false")
-            end
+        if warp_clicked and bridge.pending_warp ~= nil then
+            -- Debounce: a warp is a ~1s preload then execute; rapid clicks
+            -- during that window each requeued and re-executed it (5 clicks =
+            -- 2 warps + toast spam in the first live run).
+            push_warp_feedback_toast("Already warping", "hold on - preloading the area")
+            warp_clicked = false
         end
         if warp_clicked then
             local selected_warp_point = bridge.typewriter_warp_points[bridge.selected_typewriter_warp_index]
