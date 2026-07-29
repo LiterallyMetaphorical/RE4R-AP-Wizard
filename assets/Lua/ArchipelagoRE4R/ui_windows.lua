@@ -386,10 +386,9 @@ local function install(ctx)
         -- instrumentation 2026-07-29). Do not rename back or re-inline.
         local warp_clicked = imgui.button("Warp Now##ap_warp_exec")
         if warp_clicked and bridge.pending_warp ~= nil then
-            -- Debounce: a warp is a ~1s preload then execute; rapid clicks
-            -- during that window each requeued and re-executed it (5 clicks =
-            -- 2 warps + toast spam in the first live run).
-            push_warp_feedback_toast("Already warping", "hold on - preloading the area")
+            -- Debounce the sub-tick window between click and execute so a
+            -- double-click cannot queue the warp twice.
+            push_warp_feedback_toast("Warp already in progress", nil)
             warp_clicked = false
         end
         if warp_clicked then
@@ -428,7 +427,7 @@ local function install(ctx)
                 if ok then
                     push_warp_feedback_toast(
                         "Warping to " .. tostring(selected_warp_point.name),
-                        "hold on - preloading the area")
+                        "you may need to warp a few times over")
                 else
                     bridge.last_warp_status = "Warp failed"
                     push_warp_feedback_toast(

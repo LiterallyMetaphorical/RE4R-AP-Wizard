@@ -398,7 +398,7 @@ local function install(ctx)
             queued_at_clock = os.clock(),
             last_preload_clock = os.clock(),
         }
-        bridge.last_warp_status = string.format("Preloading warp to %s", tostring(normalized_stage_id))
+        bridge.last_warp_status = string.format("Warp requested to %s", tostring(normalized_stage_id))
         log.info(
             string.format(
                 "[RE4R AP] warpToLocation queued stage=%s pos=(%.3f, %.3f, %.3f)",

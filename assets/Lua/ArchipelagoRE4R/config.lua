@@ -3,7 +3,7 @@ local function install(ctx)
         -- Logged at boot next to the launcher's install stamp so a player's
         -- re2_framework_log.txt identifies the exact deployed build. Bump on
         -- every Lua change that ships (date.rev).
-        MOD_VERSION = "2026.07.29-3",
+        MOD_VERSION = "2026.07.29-4",
         DATA_DIR = "ArchipelagoRE4R",
         WRITE_INTERVAL_SECONDS = 0.25,
         SCAN_INTERVAL_SECONDS = 1 / 30,
@@ -31,7 +31,10 @@ local function install(ctx)
         PLACEHOLDER_INTERCEPT = true,
         LOCAL_INJECTION_SUPPRESSION_WINDOW_MS = 5000,
         LOCAL_INJECTION_ACCEPT_SUPPRESSION_WINDOW_MS = 250,
-        SAFE_WARP_PRELOAD_DELAY_SECONDS = 1.0,
+        -- Zero = execute on the next scan tick. The old 1s "preloading" wait
+        -- bought nothing (the area streams in around you either way; warping
+        -- again is the actual remedy) - Cam 2026-07-29.
+        SAFE_WARP_PRELOAD_DELAY_SECONDS = 0.0,
         CHECK_NOTIFICATION_DURATION_MS = 4500,
         CHECK_NOTIFICATION_MAX_VISIBLE = 4,
         -- When a burst of this many or more received items lands at once (the
