@@ -367,6 +367,20 @@ local function install(ctx)
     -- Typewriter warp + chapter switch (Warp tab). Warp system originally
     -- created by JumperDenfer.
     local function draw_warp_content()
+        -- [Warp diagnosis 2026-07-29] Cam's clicks produce ZERO verdict lines
+        -- even though every branch of the click handler logs - so prove the
+        -- surface: one line when this tab first renders, one when the mouse
+        -- first hovers the button. Render+hover+no-click = swallowed click;
+        -- no hover = the click never reaches THIS button; no render = he is
+        -- looking at some other surface entirely. Remove once solved.
+        if bridge.warp_tab_render_logged ~= true then
+            bridge.warp_tab_render_logged = true
+            log.info(string.format(
+                "[RE4R AP] warp tab rendered: %d typewriter points, selected=%s, %d names",
+                #bridge.typewriter_warp_points,
+                tostring(bridge.selected_typewriter_warp_index),
+                #bridge.typewriter_warp_point_names))
+        end
         if #bridge.typewriter_warp_points > 0 then
             local changed_warp_index, warp_index = imgui.combo(
                 "##warp_point_selector",
@@ -383,7 +397,14 @@ local function install(ctx)
         if #bridge.typewriter_warp_points > 0 then
             imgui.same_line()
         end
-        if imgui.button("Warp") then
+        local warp_clicked = imgui.button("Warp")
+        if type(imgui.is_item_hovered) == "function"
+            and bridge.warp_button_hover_logged ~= true
+            and imgui.is_item_hovered() then
+            bridge.warp_button_hover_logged = true
+            log.info("[RE4R AP] warp button hovered - mouse input reaches this button")
+        end
+        if warp_clicked then
             local selected_warp_point = bridge.typewriter_warp_points[bridge.selected_typewriter_warp_index]
             -- Log EVERY click verdict: a warp report with zero [RE4R AP] warp
             -- lines means the click died in a silent branch here - that
