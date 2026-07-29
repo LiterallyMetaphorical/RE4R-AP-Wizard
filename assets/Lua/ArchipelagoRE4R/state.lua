@@ -13,6 +13,16 @@ local function install(ctx)
         -- re-inject. injected_ap_item_indexes above is only a within-boot secondary
         -- guard (wiped on reset/reload); this is the durable source of truth.
         last_received_index = -1,
+        -- [F8] Save-reconciliation. Per-campaign-guid record of the received-item
+        -- watermark baked into each campaign save version (_SaveCount), persisted
+        -- alongside last_received_index (bridge.lua save/load_session_state). On a
+        -- campaign load that rolled inventory back to an older save, the AP client
+        -- re-delivers items that save did not contain. Shape:
+        --   guid -> { save_watermarks = { [saveCountString] = watermark } }
+        save_reconcile_map = {},
+        -- [F8] Set by the loadGameSaveData hook to { guid, save_count } of the save
+        -- being loaded; consumed once by the AP client's drain to reconcile. nil = none.
+        pending_save_reconcile = nil,
         -- Consolidated window (ui_main_window.lua): one flag for the whole
         -- tabbed "Archipelago RE4R" window; Developer Tools reveals the Debug
         -- tab (probe, inject, warp editor). The legacy per-window flags below
@@ -96,6 +106,12 @@ local function install(ctx)
         world_markers_max_distance = 40.0,
         world_markers_show_distance = true,
         world_markers_importance_colors = false,
+        -- Marker detail tier the player picks (basic | locate | identify); capped
+        -- by the YAML host ceiling and, for identify, by Developer Tools.
+        world_markers_detail = "basic",
+        -- Markers whose chapter differs from the current one are muted + tagged;
+        -- this toggle hides those off-chapter markers outright instead.
+        world_markers_hide_offchapter = false,
         -- [Hints] "[HINT]" markers over locations with an unfound purchased
         -- hint: whole-stage range, independent of the ambient toggle above
         -- (bought information), still killed by check_guidance "off".
@@ -183,6 +199,8 @@ local function install(ctx)
         bridge.recent_holder_hit = nil
         bridge.injected_ap_item_indexes = {}
         bridge.last_received_index = -1
+        bridge.save_reconcile_map = {}
+        bridge.pending_save_reconcile = nil
         bridge.location_classifications = {}
         bridge.watched_guid_count = 0
         bridge.visible_guid_count = 0

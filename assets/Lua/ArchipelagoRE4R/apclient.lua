@@ -117,6 +117,12 @@ return function(ctx)
     -- Pending received-items queue + an index set for O(1) enqueue dedup.
     local pending = {}
     local pending_by_index = {}
+    -- [F8] Full ledger of every item the server has delivered this connection,
+    -- keyed by absolute index -> { item, player, location, flags }. Unlike
+    -- `pending` (drained + popped), it is never cleared during play, so a save
+    -- rollback can re-queue items already injected. Reset on (re)connect, then
+    -- rebuilt by the server's on-connect ReceivedItems replay.
+    local received_ledger = {}
     -- index -> consecutive failed-inject tick count (poison retry bookkeeping).
     local inject_failure_counts = {}
     -- [Phase 3] AP location ids already submitted this socket (avoid re-spamming).
@@ -237,14 +243,18 @@ return function(ctx)
     -- toast instead of N individual toasts. bump() creates/updates the summary and
     -- keeps it alive; finalize() ends the burst (leaving the toast on screen) so the
     -- next live item toasts normally again.
-    local function bump_sync_summary(added)
+    local function bump_sync_summary(added, is_restore)
         local bridge = ctx.bridge
         if bridge == nil or type(bridge.check_notifications) ~= "table" then return end
         st.sync_summary_count = (st.sync_summary_count or 0) + (tonumber(added) or 1)
+        if is_restore then st.sync_summary_is_restore = true end
         local now = ctx.now_unix_ms or _G.now_unix_ms
         local now_ms = (type(now) == "function") and now() or (os.time() * 1000)
         local n = st.sync_summary_count
-        local label = (n == 1) and "Synced 1 item" or ("Synced " .. n .. " items")
+        -- [F8] A burst that includes reconciled (re-delivered) items reads as a
+        -- restore, so a post-death catch-up doesn't look like a fresh windfall.
+        local verb = (st.sync_summary_is_restore == true) and "Restored" or "Synced"
+        local label = (n == 1) and (verb .. " 1 item") or (verb .. " " .. n .. " items")
         local existing = nil
         for _, t in ipairs(bridge.check_notifications) do
             if t.id == st.sync_summary_toast_id then existing = t break end
@@ -292,6 +302,7 @@ return function(ctx)
         end
         st.sync_summary_count = 0
         st.sync_summary_toast_id = nil
+        st.sync_summary_is_restore = nil
     end
 
     -- [Overlay] Resolve an AP slot number to a display name via get_player_alias
@@ -468,6 +479,61 @@ return function(ctx)
             if not persist() then return end
         end
 
+        -- [F8] Save-reconciliation. A campaign load (die->Continue, manual Load, or
+        -- the boot load) restored inventory to a saved version; any items received
+        -- and injected AFTER that version was written were dropped by the rollback.
+        -- The loadGameSaveData hook recorded which version loaded; here we roll the
+        -- delivery watermark back to what that version baked in and re-queue the gap
+        -- for the normal drain below to re-inject. An unknown version is NEVER
+        -- guessed (no re-delivery), so a load can never double-grant.
+        do
+            local req = bridge.pending_save_reconcile
+            if req ~= nil then
+                local lookup = ctx.lookup_save_floor
+                local floor = (type(lookup) == "function") and lookup(req.guid, req.save_count) or nil
+                if floor ~= nil then
+                    local old_wm = math.floor(tonumber(bridge.last_received_index) or -1)
+                    if old_wm > floor then
+                        local requeued = 0
+                        for idx = floor + 1, old_wm do
+                            if not pending_by_index[idx] then
+                                local led = received_ledger[idx]
+                                if led ~= nil then
+                                    pending[#pending + 1] = {
+                                        index = idx,
+                                        item = led.item,
+                                        player = led.player,
+                                        location = led.location,
+                                        flags = led.flags,
+                                        reconcile = true, -- [F8] mark as a restore for the toast wording
+                                    }
+                                    pending_by_index[idx] = true
+                                    requeued = requeued + 1
+                                end
+                            end
+                        end
+                        bridge.last_received_index = floor
+                        bridge.state_dirty = true
+                        info(string.format(
+                            "F8 reconcile: save '%s' #%s baked watermark %d; live was %d -> rolled back, re-queued %d item(s) for re-delivery",
+                            tostring(req.guid), tostring(req.save_count), floor, old_wm, requeued))
+                        persist()
+                    end
+                    bridge.pending_save_reconcile = nil
+                elseif bridge.loaded_session_state_path ~= nil then
+                    -- Session state is loaded but this exact save version has no
+                    -- recorded watermark (a pre-fix save, or one never observed being
+                    -- written) -> safe: decline to re-deliver rather than guess.
+                    info(string.format(
+                        "F8 reconcile: no recorded watermark for save '%s' #%s -> no re-delivery (safe; pre-fix or uncaptured save)",
+                        tostring(req.guid), tostring(req.save_count)))
+                    bridge.pending_save_reconcile = nil
+                end
+                -- else: session state not loaded yet (pre-connect) -> keep the request
+                -- pending until the per-seed watermark + reconcile map are available.
+            end
+        end
+
         if #pending == 0 then return end
 
         -- Refuse to touch the item stream until the AP-id -> engine map is loaded:
@@ -635,6 +701,10 @@ return function(ctx)
                                 .. ((mapping.count > 1) and (" x" .. mapping.count) or "")
                             local is_self_find = (entry.player == st.numeric_slot)
                             local from = (not is_self_find) and ap_player_name(entry.player) or nil
+                            -- [F8] A re-delivery after a save rollback (reconcile) reads as a
+                            -- "Restored ..." toast so the player understands the game is giving
+                            -- back items received since their last save, not duplicating them.
+                            local is_restore = entry.reconcile == true
                             local classification = classify_flags(entry.flags)
                             local item_color = get_check_overlay_classification_color(classification)
                             -- "<sender> sent you <item> - routing to <where>" (Cam's format,
@@ -646,7 +716,14 @@ return function(ctx)
                                 or ((type(route_fn) == "function") and route_fn(mapping.re4r_item_id))
                                 or "inventory"
                             local title, title_segments
-                            if from ~= nil then
+                            if is_restore then
+                                title = "Restored " .. item_label
+                                title_segments = {
+                                    { text = "Restored", color = CHECK_OVERLAY_TEXT_COLOR_FILLER },
+                                    { text = truncate_overlay_text(item_label, 32),
+                                      color = item_color, entity = "item" },
+                                }
+                            elseif from ~= nil then
                                 title = from .. " sent you " .. item_label
                                 title_segments = {
                                     { text = truncate_overlay_text(from, 18),
@@ -664,14 +741,21 @@ return function(ctx)
                                       color = item_color, entity = "item" },
                                 }
                             end
-                            local detail = "routing to " .. dest
-                            -- [Celebration] Progression items are what actually move a
-                            -- multiworld forward, so a key must never read like ammo.
-                            -- Deliberately an elevated TOAST, not a centre-screen banner:
-                            -- these can land several at once (and mid-fight), so loud here
-                            -- would become noise. The goal is the only banner.
-                            if classification == "PROGRESSION" then
-                                detail = detail .. " - a path just opened"
+                            local detail
+                            if is_restore then
+                                -- The player didn't just find this -- it's being re-granted
+                                -- because a reload rolled their inventory back past it.
+                                detail = "received since your last save, restored on reload"
+                            else
+                                detail = "routing to " .. dest
+                                -- [Celebration] Progression items are what actually move a
+                                -- multiworld forward, so a key must never read like ammo.
+                                -- Deliberately an elevated TOAST, not a centre-screen banner:
+                                -- these can land several at once (and mid-fight), so loud here
+                                -- would become noise. The goal is the only banner.
+                                if classification == "PROGRESSION" then
+                                    detail = detail .. " - a path just opened"
+                                end
                             end
                             -- In a reconnect/offline catch-up burst, fold into the
                             -- single rolling summary; otherwise toast this item live.
@@ -679,9 +763,14 @@ return function(ctx)
                             -- detector's "Collected X" - suppress the duplicate, UNLESS it went
                             -- to Storage (a case-full signal the pickup toast can't know about).
                             if st.in_sync_burst then
-                                bump_sync_summary(1)
-                            elseif is_self_find and not to_storage then
-                                -- covered by the unified pickup toast
+                                bump_sync_summary(1, is_restore)
+                            elseif is_self_find and type(entry.location) == "number"
+                                and entry.location > 0 and not to_storage then
+                                -- A genuine own-world physical pickup is already toasted by
+                                -- detector's unified "Collected X" toast, so suppress the dupe.
+                                -- Server/self grants (!getitem, !collect) carry location <= 0
+                                -- and have NO pickup toast, so they fall through and toast below
+                                -- instead of injecting silently.
                             else
                                 enqueue_toast(title, detail, classification, "received", title_segments)
                             end
@@ -1021,6 +1110,7 @@ return function(ctx)
         end
         pending = {}
         pending_by_index = {}
+        received_ledger = {} -- [F8] fresh identity: rebuilt from the on-connect replay
         inject_failure_counts = {}
         st.item_delivery_resume_not_before = nil
         st.item_delivery_stability_logged = false
@@ -1133,18 +1223,28 @@ return function(ctx)
         local queued, lo, hi = 0, nil, nil
         for _, item in ipairs(items) do
             local idx = item.index
-            if type(idx) == "number" and idx > watermark and not pending_by_index[idx] then
-                pending[#pending + 1] = {
-                    index = idx,
+            if type(idx) == "number" then
+                -- [F8] Ledger every delivered item (independent of the watermark) so
+                -- a save rollback can re-queue items already popped from `pending`.
+                received_ledger[idx] = {
                     item = item.item,
                     player = item.player,
                     location = item.location,
                     flags = item.flags,
                 }
-                pending_by_index[idx] = true
-                queued = queued + 1
-                if lo == nil or idx < lo then lo = idx end
-                if hi == nil or idx > hi then hi = idx end
+                if idx > watermark and not pending_by_index[idx] then
+                    pending[#pending + 1] = {
+                        index = idx,
+                        item = item.item,
+                        player = item.player,
+                        location = item.location,
+                        flags = item.flags,
+                    }
+                    pending_by_index[idx] = true
+                    queued = queued + 1
+                    if lo == nil or idx < lo then lo = idx end
+                    if hi == nil or idx > hi then hi = idx end
+                end
             end
         end
         info(string.format(

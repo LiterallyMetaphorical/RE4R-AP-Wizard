@@ -85,14 +85,13 @@ local function install(ctx)
         -- 2026-07-23); with it our notices draw the same backing plate as the
         -- game's own pickup toasts (Cam: "we want the backing plate").
         NATIVE_TOAST_PANEL_STATE = "DEFAULT",
-        -- [World markers] Identity suffix on every marker label: the vanilla
-        -- item name + container gloss + short guid ("[AP] Sapphire x1 (crate)
-        -- [768028fb] 4m"), so a floating tag is findable in the world and
-        -- nameable in a bug report. Playtest default ON (Cam 2026-07-23: "this
-        -- is floating here, but i have no idea what it is"); flip to false for
-        -- release, where guidance deliberately says WHERE, never WHAT.
-        -- Status-window checkbox overrides at runtime.
-        WORLD_MARKER_DEBUG_IDENTITY = true,
+        -- [World markers] Default detail tier for marker labels (marker_detail
+        -- ladder): "basic" (distance / direction / height / area), "locate"
+        -- (+ what to look for: vanilla item + container), or "identify" (+ the
+        -- actual AP item and recipient -- a spoiler gated behind Developer Tools).
+        -- The Status-window picker overrides at runtime, capped by the YAML host
+        -- ceiling (marker_detail_ceiling). Guidance default says WHERE, not WHAT.
+        WORLD_MARKER_DETAIL = "basic",
         -- Developer pickup-probe telemetry (GUID / stage / ctx / "Not in dataset" /
         -- "No accept hook") in the header overlay. OFF for players; flip to true to
         -- diagnose detection during testing.

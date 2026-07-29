@@ -43,6 +43,8 @@ local function install(ctx)
             last_received_index = math.floor(tonumber(bridge.last_received_index) or -1),
             -- [Phase 3] durable per-seed checked set ("stage|guid" -> true).
             acknowledged_guid_keys = bridge.acknowledged_guid_keys,
+            -- [F8] per-guid, per-save-version received-item watermarks.
+            save_reconcile = bridge.save_reconcile_map or {},
         }, 4)
         if not ok then
             log.error("[ArchipelagoRE4R] Failed to write session state to " .. tostring(session_state_path))
@@ -57,6 +59,7 @@ local function install(ctx)
         bridge.victory_pending = false
         bridge.last_received_index = -1
         bridge.acknowledged_guid_keys = {}
+        bridge.save_reconcile_map = {}
 
         local payload = json.load_file(session_state_path)
         local migrated_from = nil
@@ -79,6 +82,20 @@ local function install(ctx)
                 for k, v in pairs(payload.acknowledged_guid_keys) do
                     if type(k) == "string" and v == true then
                         bridge.acknowledged_guid_keys[k] = true
+                    end
+                end
+            end
+            -- [F8] per-guid save-version watermarks (received-item reconciliation).
+            if type(payload.save_reconcile) == "table" then
+                for guid, rec in pairs(payload.save_reconcile) do
+                    if type(guid) == "string" and type(rec) == "table"
+                        and type(rec.save_watermarks) == "table" then
+                        local sw = {}
+                        for count_key, wm in pairs(rec.save_watermarks) do
+                            local wmn = tonumber(wm)
+                            if wmn ~= nil then sw[tostring(count_key)] = math.floor(wmn) end
+                        end
+                        bridge.save_reconcile_map[guid] = { save_watermarks = sw }
                     end
                 end
             end
@@ -150,9 +167,82 @@ local function install(ctx)
         end
     end
 
+    -- [F8] Read the campaign save identity off a chainsaw.CampaignManager.GameData
+    -- managed object: its stable per-playthrough guid string + monotonic _SaveCount.
+    -- Every native read is pcall-guarded and the guid is only returned when its
+    -- canonical ToString() succeeds, so the key format can never drift between the
+    -- save and load sides; returns (nil, nil) on any failure -> caller declines to
+    -- reconcile rather than acting on bad data.
+    local function read_campaign_save_ids(save_data)
+        if save_data == nil then return nil, nil end
+        local guid = nil
+        pcall(function()
+            local g = save_data:get_field("_CurrentCampaignUniqueGuid")
+            if g ~= nil then
+                local s = g:call("ToString()")
+                if type(s) == "string" and s ~= "" then guid = s end
+            end
+        end)
+        local count = nil
+        pcall(function()
+            local c = save_data:get_field("_SaveCount")
+            if type(c) == "number" then count = math.floor(c) end
+        end)
+        return guid, count
+    end
+
+    -- [F8] Record that campaign save version <save_count> for <guid> baked in
+    -- received items up to <watermark>. Bounded to the most recent counts so a long
+    -- playthrough cannot grow the session file without limit. Caller persists.
+    local SAVE_WATERMARK_KEEP = 64
+    local function record_save_watermark(guid, save_count, watermark)
+        if type(guid) ~= "string" or guid == "" then return end
+        local count = tonumber(save_count)
+        if count == nil then return end
+        local wm = math.floor(tonumber(watermark) or -1)
+        bridge.save_reconcile_map = bridge.save_reconcile_map or {}
+        local rec = bridge.save_reconcile_map[guid]
+        if type(rec) ~= "table" or type(rec.save_watermarks) ~= "table" then
+            rec = { save_watermarks = {} }
+            bridge.save_reconcile_map[guid] = rec
+        end
+        rec.save_watermarks[tostring(math.floor(count))] = wm
+        -- Prune to the most recent SAVE_WATERMARK_KEEP counts (numeric order).
+        local counts = {}
+        for k in pairs(rec.save_watermarks) do
+            local n = tonumber(k)
+            if n ~= nil then counts[#counts + 1] = n end
+        end
+        if #counts > SAVE_WATERMARK_KEEP then
+            table.sort(counts)
+            for i = 1, #counts - SAVE_WATERMARK_KEEP do
+                rec.save_watermarks[tostring(counts[i])] = nil
+            end
+        end
+    end
+
+    -- [F8] The received-item watermark baked into save version <save_count> of
+    -- <guid>, or nil if we have no record of that exact version. The caller then
+    -- declines to reconcile -- it never guesses, so a load can never double-grant
+    -- an item the save already contains.
+    local function lookup_save_floor(guid, save_count)
+        if type(guid) ~= "string" then return nil end
+        local map = bridge.save_reconcile_map
+        if type(map) ~= "table" then return nil end
+        local rec = map[guid]
+        if type(rec) ~= "table" or type(rec.save_watermarks) ~= "table" then return nil end
+        local count = tonumber(save_count)
+        if count == nil then return nil end
+        local wm = rec.save_watermarks[tostring(math.floor(count))]
+        return (type(wm) == "number") and wm or nil
+    end
+
     export("save_session_state", save_session_state)
     export("set_ap_session_identity", set_ap_session_identity)
     export("refresh_launcher_bridge_files", refresh_launcher_bridge_files)
+    export("read_campaign_save_ids", read_campaign_save_ids)
+    export("record_save_watermark", record_save_watermark)
+    export("lookup_save_floor", lookup_save_floor)
 end
 
 return install

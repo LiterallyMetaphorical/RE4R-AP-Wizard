@@ -25,8 +25,65 @@ local function install(ctx)
 
     -- Text floats a little above the pickup so it reads at eye level.
     local MARKER_Y_OFFSET = 1.4
-    -- Beyond this vertical gap the label gets an above/below hint glyph.
-    local MARKER_ELEVATION_HINT = 3.0
+    -- Height is shown as signed metres once the vertical gap exceeds this.
+    local MARKER_HEIGHT_MIN = 1.0
+    -- Off-chapter (future/past) markers are muted to this translucent grey so
+    -- they read as "not this chapter" without hiding the data.
+    local MARKER_COLOR_OFFCHAPTER = 0x99AAAAAA
+
+    -- Enrichment ladder (marker_detail): basic < locate < identify, each tier a
+    -- superset of the prior. The player's client pick is capped by the YAML host
+    -- ceiling (bridge.marker_detail_ceiling, absent = permissive "identify"), and
+    -- identify additionally needs Developer Tools (a self-spoiler gate). A HINTED
+    -- check always renders identify regardless (you paid to know).
+    local DETAIL_TIER = { basic = 1, locate = 2, identify = 3 }
+
+    local function detail_tier_of(name)
+        return DETAIL_TIER[name] or 1
+    end
+
+    local function frame_detail_tier()
+        local pick = bridge.world_markers_detail
+        if type(pick) ~= "string" then
+            pick = (type(_G.WORLD_MARKER_DETAIL) == "string" and _G.WORLD_MARKER_DETAIL) or "basic"
+        end
+        local tier = math.min(detail_tier_of(pick), detail_tier_of(bridge.marker_detail_ceiling or "identify"))
+        if tier >= DETAIL_TIER.identify and bridge.developer_tools_enabled ~= true then
+            tier = DETAIL_TIER.locate
+        end
+        return tier
+    end
+
+    -- identify: the ACTUAL AP placement here (real item + recipient) from the
+    -- LocationScouts data. Foreign item names degrade to "Player N's item" until
+    -- that game's data package resolves. Mirrors detector.lua's resolution.
+    local function identify_suffix(entry)
+        local loc = entry.location_id
+        if loc == nil then
+            return nil
+        end
+        local key = tostring(math.floor(loc))
+        local owner = (type(bridge.location_scout_player) == "table") and tonumber(bridge.location_scout_player[key]) or nil
+        local item_id = (type(bridge.location_scout_item) == "table") and tonumber(bridge.location_scout_item[key]) or nil
+        if item_id == nil then
+            return nil
+        end
+        local resolve_item = ctx.ap_item_name or _G.ap_item_name
+        local item_name = (type(resolve_item) == "function") and resolve_item(item_id, owner) or nil
+        if type(item_name) ~= "string" or item_name == "" then
+            return nil
+        end
+        local me = tonumber(bridge.ap_numeric_slot)
+        if owner ~= nil and me ~= nil and owner == me then
+            return "-> your " .. item_name
+        end
+        if owner ~= nil then
+            local resolve_player = ctx.ap_player_name or _G.ap_player_name
+            local who = (type(resolve_player) == "function" and resolve_player(owner)) or ("Player " .. tostring(owner))
+            return "-> " .. tostring(who) .. ": " .. item_name
+        end
+        return "-> " .. item_name
+    end
 
     local marker_cache = {
         family = nil,
@@ -79,6 +136,7 @@ local function install(ctx)
                         item_name = (display_entry and display_entry.item_name) or "",
                         section_name = (display_entry and display_entry.section_name) or "",
                         gloss = gloss,
+                        chapter = display_entry and tonumber(display_entry.chapter),
                     })
                 end
             end
@@ -130,6 +188,33 @@ local function install(ctx)
         return MARKER_COLOR_NEUTRAL
     end
 
+    -- The set of currently dispatched (loaded) stages, from DropItemManager. A
+    -- marker whose stage is not in this set points at a pickup that has not
+    -- spawned in the loaded scene yet -- unlike the item's data chapter, this is
+    -- the honest "is it grabbable now" signal.
+    local function get_dispatched_stages()
+        local manager = sdk.get_managed_singleton("chainsaw.DropItemManager")
+        if manager == nil then
+            return nil
+        end
+        local ok, dict = pcall(function() return manager:get_field("_DispatchedStage") end)
+        if ok and dict ~= nil then
+            return dict
+        end
+        return nil
+    end
+
+    local function stage_loaded(dispatched, stage)
+        if dispatched == nil or type(stage) ~= "number" then
+            return true -- no data -> fail safe, do not dim
+        end
+        local ok, contained = pcall(function() return dispatched:call("ContainsKey", stage) end)
+        if not ok then
+            return true -- lookup failed -> fail safe
+        end
+        return contained == true
+    end
+
     local function draw_world_check_markers()
         -- YAML ceiling: check_guidance "off" disables ALL world guidance,
         -- including hinted markers (the ceiling is absolute).
@@ -159,6 +244,15 @@ local function install(ctx)
             return
         end
 
+        local frame_tier = frame_detail_tier()
+        -- Availability dimming: a marker whose stage is not currently dispatched
+        -- (loaded) is a pickup that has not spawned yet, so mute or hide it. This
+        -- replaces the old chapter comparison, which was unreliable because an
+        -- item's data chapter is its area's canonical chapter, not when it is
+        -- grabbable. Failure to read the set fails safe (dim nothing).
+        local dispatched = get_dispatched_stages()
+        local hide_unavailable = bridge.world_markers_hide_offchapter == true
+
         local max_distance = tonumber(bridge.world_markers_max_distance) or 40.0
         local entries = get_marker_entries(state.current_stage)
         for _, entry in ipairs(entries) do
@@ -179,35 +273,60 @@ local function install(ctx)
                 color = get_marker_color(entry.location_id)
             end
 
-            if label_prefix ~= nil then
-                local label = label_prefix
-                -- [Debug identity] "[AP] Sapphire x1 (crate) [768028fb] 4m":
-                -- playtest aid (config default) - a bare tag over rubble is
-                -- unfindable and unreportable. Checkbox lives in the Status
-                -- window next to the other marker toggles.
-                local debug_identity = bridge.world_markers_debug_identity
-                if debug_identity == nil then
-                    debug_identity = (WORLD_MARKER_DEBUG_IDENTITY == true)
+            -- Availability: mute (or hide) a marker whose stage is not loaded --
+            -- its pickup has not spawned, so it is not grabbable from here yet.
+            -- The [Ch N] tag still shows the item's canonical chapter regardless.
+            local unavailable = not stage_loaded(dispatched, entry.stage)
+            if unavailable then
+                if hide_unavailable then
+                    label_prefix = nil
+                else
+                    color = MARKER_COLOR_OFFCHAPTER
                 end
-                if debug_identity then
+            end
+
+            if label_prefix ~= nil then
+                -- Hinted checks always render identify (paid to know); everything
+                -- else uses this frame's allowed tier (client pick, capped).
+                local eff_tier = entry.hinted and DETAIL_TIER.identify or frame_tier
+                local parts = { string.format("%s %dm", label_prefix, math.floor(distance + 0.5)) }
+
+                -- Basic: height (signed metres) + area.
+                if dy >= MARKER_HEIGHT_MIN then
+                    parts[#parts + 1] = string.format("+%dm", math.floor(dy + 0.5))
+                elseif dy <= -MARKER_HEIGHT_MIN then
+                    parts[#parts + 1] = string.format("-%dm", math.floor((-dy) + 0.5))
+                end
+                if type(entry.section_name) == "string" and entry.section_name ~= "" then
+                    parts[#parts + 1] = entry.section_name
+                end
+
+                -- Locate: what to look for = vanilla item name + container tag.
+                if eff_tier >= DETAIL_TIER.locate then
                     local item_name = tostring(entry.item_name or "")
                     if item_name ~= "" then
-                        label = label .. " " .. item_name
-                    end
-                    if entry.gloss ~= nil and entry.gloss ~= "" then
-                        label = label .. " (" .. entry.gloss .. ")"
-                    end
-                    if type(entry.guid) == "string" and #entry.guid >= 8 then
-                        label = label .. " [" .. entry.guid:sub(1, 8) .. "]"
+                        local tag = ""
+                        if type(entry.gloss) == "string" and entry.gloss ~= "" then
+                            tag = " (" .. entry.gloss .. ")"
+                        end
+                        parts[#parts + 1] = '"' .. item_name .. '"' .. tag
                     end
                 end
-                if bridge.world_markers_show_distance then
-                    label = string.format("%s %dm", label, math.floor(distance + 0.5))
+
+                local label = table.concat(parts, " | ")
+                -- Every marker leads with its chapter (off-chapter ones are also
+                -- muted grey to stand out), so a leaked future check reads as
+                -- "[Ch5] ... not now" and same-chapter checks confirm the chapter.
+                if type(entry.chapter) == "number" then
+                    label = "[Ch" .. tostring(entry.chapter) .. "] " .. label
                 end
-                if dy > MARKER_ELEVATION_HINT then
-                    label = label .. " ^"
-                elseif dy < -MARKER_ELEVATION_HINT then
-                    label = label .. " v"
+
+                -- Identify: the real AP placement, appended after the spatial line.
+                if eff_tier >= DETAIL_TIER.identify then
+                    local id = identify_suffix(entry)
+                    if id ~= nil then
+                        label = label .. "  " .. id
+                    end
                 end
 
                 local ok_draw = pcall(
@@ -259,11 +378,18 @@ local function install(ctx)
             return (left.distance or math.huge) < (right.distance or math.huge)
         end)
 
+        local dispatched = get_dispatched_stages()
+        local dispatched_count = "?"
+        if dispatched ~= nil then
+            local ok, c = pcall(function() return dispatched:call("get_Count") end)
+            if ok then dispatched_count = tostring(c) end
+        end
         log.info(string.format(
-            "[RE4R AP] marker dump: stage=%s family=%s unchecked=%d",
+            "[RE4R AP] marker dump: stage=%s family=%s unchecked=%d dispatched_stages=%s",
             tostring(state.current_stage),
             tostring(math.floor(state.current_stage / 100)),
-            #rows
+            #rows,
+            dispatched_count
         ))
         for _, row in ipairs(rows) do
             local entry = row.entry
@@ -272,8 +398,9 @@ local function install(ctx)
                 place = place .. " (" .. entry.gloss .. ")"
             end
             log.info(string.format(
-                "[RE4R AP]   marker stage=%s guid=%s dist=%s item='%s' loc_id=%s section='%s' pos=(%.1f,%.1f,%.1f)%s",
+                "[RE4R AP]   marker stage=%s loaded=%s guid=%s dist=%s item='%s' loc_id=%s section='%s' pos=(%.1f,%.1f,%.1f)%s",
                 tostring(entry.stage),
+                tostring(stage_loaded(dispatched, entry.stage)),
                 tostring(entry.guid),
                 row.distance ~= nil and string.format("%dm", math.floor(row.distance + 0.5)) or "?",
                 place,

@@ -106,6 +106,23 @@ local function install_chapter_switch_hook()
         load_save_method,
         function(args)
             clear_pending_pickup_accepts("loadGameSaveData")
+            -- [F8] Record which campaign save version is being loaded so the AP
+            -- client can reconcile received-item delivery against it (restore items
+            -- a rollback dropped). Runs on EVERY load (chapter switch or not);
+            -- reconciliation is itself a safe no-op when nothing was lost or the
+            -- loaded version has no recorded watermark.
+            do
+                local reader = ctx.read_campaign_save_ids
+                if type(reader) == "function" then
+                    local ok, guid, count = pcall(function()
+                        return reader(sdk.to_managed_object(args[3]))
+                    end)
+                    if ok and type(guid) == "string" and guid ~= ""
+                        and type(count) == "number" then
+                        bridge.pending_save_reconcile = { guid = guid, save_count = math.floor(count) }
+                    end
+                end
+            end
             if not bridge.chapter_switch_pending then
                 return sdk.PreHookResult.CALL_ORIGINAL
             end
@@ -170,6 +187,54 @@ local function install_chapter_switch_hook()
             return sdk.PreHookResult.CALL_ORIGINAL
         end,
         function(retval)
+            return retval
+        end
+    )
+end
+
+-- [F8] Record, at each campaign save, the received-item watermark baked into the
+-- resulting save version (guid + _SaveCount). The AP client's load-time
+-- reconciliation reads these back to restore items a later rollback dropped. The
+-- populated GameData is the method's RETURN value (saveGameSaveData builds and
+-- returns it), mirroring the probe that mapped this choke point.
+local function install_save_watermark_hook()
+    local campaign_type = sdk.find_type_definition("chainsaw.CampaignManager")
+    if campaign_type == nil then
+        log.info("[RE4R AP] CampaignManager type not found -- F8 save-watermark capture disabled")
+        return
+    end
+    local save_method = campaign_type:get_method("saveGameSaveData")
+    if save_method == nil then
+        log.info("[RE4R AP] CampaignManager.saveGameSaveData not found -- F8 save-watermark capture disabled")
+        return
+    end
+    sdk.hook(
+        save_method,
+        function(args)
+            return sdk.PreHookResult.CALL_ORIGINAL
+        end,
+        function(retval)
+            local ok, err = pcall(function()
+                local reader = ctx.read_campaign_save_ids
+                local record = ctx.record_save_watermark
+                if type(reader) ~= "function" or type(record) ~= "function" then
+                    return
+                end
+                local guid, count = reader(sdk.to_managed_object(retval))
+                if type(guid) == "string" and guid ~= "" and type(count) == "number" then
+                    local watermark = math.floor(tonumber(bridge.last_received_index) or -1)
+                    record(guid, count, watermark)
+                    if type(save_session_state) == "function" then
+                        save_session_state()
+                    end
+                    log.info(string.format(
+                        "[RE4R AP] F8: recorded save watermark guid=%s save#%d watermark=%d",
+                        guid, count, watermark))
+                end
+            end)
+            if not ok then
+                log.error("[RE4R AP] F8 save-watermark hook error: " .. tostring(err))
+            end
             return retval
         end
     )
@@ -244,6 +309,7 @@ end
 install_pickup_accept_hook()
 install_pickup_commit_hook()
 install_chapter_switch_hook()
+install_save_watermark_hook()
 install_interact_holder_hit_hook()
 
 re.on_pre_application_entry("UpdateBehavior", function()
@@ -280,9 +346,23 @@ re.on_pre_application_entry("UpdateBehavior", function()
             refresh_launcher_bridge_files()
         end
         local state = build_state(runtime_state)
-        bridge.ui_current_chapter, bridge.ui_current_chapter_display, bridge.ui_chapter_source = resolve_chapter_for_ui(
-            state.current_stage
-        )
+        -- Prefer the game's authoritative current chapter (CampaignManager); fall
+        -- back to the stage-derived map only when it is unavailable (menus/boot).
+        local auth_chapter = nil
+        local auth_getter = ctx.get_authoritative_chapter or _G.get_authoritative_chapter
+        if type(auth_getter) == "function" then
+            local ok_auth, value = pcall(auth_getter)
+            if ok_auth then auth_chapter = value end
+        end
+        if type(auth_chapter) == "number" then
+            bridge.ui_current_chapter = auth_chapter
+            bridge.ui_current_chapter_display = tostring(auth_chapter)
+            bridge.ui_chapter_source = "campaign_manager"
+        else
+            bridge.ui_current_chapter, bridge.ui_current_chapter_display, bridge.ui_chapter_source = resolve_chapter_for_ui(
+                state.current_stage
+            )
+        end
         local previous_state = bridge.last_state
         maybe_show_progression_warning(previous_state, state)
         maybe_trigger_victory_condition(previous_state, state)
@@ -356,22 +436,43 @@ re.on_draw_ui(function()
                 bridge.world_markers_max_distance = marker_distance_value
             end
 
-            local changed_marker_text, marker_text_value =
-                imgui.checkbox("Marker Distance Text", bridge.world_markers_show_distance)
-            if changed_marker_text then
-                bridge.world_markers_show_distance = marker_text_value
+            -- Marker detail ladder (marker_detail): how much a label says.
+            -- Distance, direction and height are always shown (the Basic tier);
+            -- higher tiers add what-to-look-for and, gated behind Developer Tools,
+            -- the actual AP placement. The pick is capped by the YAML host ceiling
+            -- (marker_detail_ceiling, absent = permissive).
+            local detail_tier_index = { basic = 1, locate = 2, identify = 3 }
+            local detail_names = { "basic", "locate", "identify" }
+            local detail_labels = {
+                "Basic (distance, direction, height, area)",
+                "Locate (+ what to look for)",
+                "Identify (+ actual AP item -- spoiler)",
+            }
+            local ceiling_tier = detail_tier_index[bridge.marker_detail_ceiling or "identify"] or 3
+            local max_tier = math.min(ceiling_tier, bridge.developer_tools_enabled and 3 or 2)
+            local detail_options = {}
+            for i = 1, max_tier do detail_options[i] = detail_labels[i] end
+            local cur_name = bridge.world_markers_detail
+            if type(cur_name) ~= "string" then
+                cur_name = (type(WORLD_MARKER_DETAIL) == "string" and WORLD_MARKER_DETAIL) or "basic"
+            end
+            local cur_tier = math.min(detail_tier_index[cur_name] or 1, max_tier)
+            local changed_detail, new_tier = imgui.combo("Marker Detail", cur_tier, detail_options)
+            if changed_detail then
+                bridge.world_markers_detail = detail_names[new_tier]
+            elseif detail_names[cur_tier] ~= cur_name then
+                bridge.world_markers_detail = detail_names[cur_tier]
+            end
+            if ceiling_tier >= 3 and not bridge.developer_tools_enabled then
+                imgui.text("    Identify: turn on Developer Tools to reveal placements.")
             end
 
-            -- Playtest aid (config WORLD_MARKER_DEBUG_IDENTITY default): name
-            -- the check on the marker itself. nil = follow the config default.
-            local debug_identity_effective = bridge.world_markers_debug_identity
-            if debug_identity_effective == nil then
-                debug_identity_effective = (WORLD_MARKER_DEBUG_IDENTITY == true)
-            end
-            local changed_marker_identity, marker_identity_value =
-                imgui.checkbox("Marker Debug Identity (item name + guid)", debug_identity_effective)
-            if changed_marker_identity then
-                bridge.world_markers_debug_identity = marker_identity_value
+            -- Off-chapter markers (e.g. a Ch5 check the shared map family leaked
+            -- into Ch1) are muted grey + [Ch N] tagged; this hides them outright.
+            local changed_hide_oc, hide_oc_value =
+                imgui.checkbox("Hide Off-Chapter Markers", bridge.world_markers_hide_offchapter == true)
+            if changed_hide_oc then
+                bridge.world_markers_hide_offchapter = hide_oc_value
             end
 
             -- Colours reveal the scouted importance of what a check HOLDS - that is

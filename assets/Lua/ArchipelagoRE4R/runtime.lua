@@ -412,6 +412,29 @@ local function install(ctx)
         return ok_call == true
     end
 
+    -- The game's own current campaign chapter as a 1-16 number, read from
+    -- CampaignManager (authoritative, unlike the stage-derived map). Returns nil
+    -- outside an active campaign (menus/boot) so callers fall back. The values are
+    -- the ChapterID enum ids the chapter-select also uses (21100 = Ch1 ...).
+    local CHAPTER_ID_TO_NUMBER = {
+        [21100] = 1, [21200] = 2, [21300] = 3,
+        [22100] = 4, [22200] = 5, [22300] = 6,
+        [23100] = 7, [23200] = 8, [23300] = 9,
+        [24100] = 10, [24200] = 11, [24300] = 12,
+        [25100] = 13, [25200] = 14, [25300] = 15, [25400] = 16,
+    }
+    local function get_authoritative_chapter()
+        local manager = sdk.get_managed_singleton("chainsaw.CampaignManager")
+        if manager == nil then
+            return nil
+        end
+        local chapter_id = tonumber(safe_call(manager, "get_CurrentChapter"))
+        if chapter_id == nil then
+            return nil
+        end
+        return CHAPTER_ID_TO_NUMBER[chapter_id]
+    end
+
     local exports = {
         safe_call = safe_call,
         safe_call_bool = safe_call_bool,
@@ -430,6 +453,7 @@ local function install(ctx)
         set_player_position = set_player_position,
         get_runtime_state = get_runtime_state,
         get_active_runtime_stage = get_active_runtime_stage,
+        get_authoritative_chapter = get_authoritative_chapter,
     }
 
     for key, value in pairs(exports) do
