@@ -353,6 +353,17 @@ local function install(ctx)
         end
     end
 
+    -- Every Warp click verdict rides the normal toast pipeline (HUD/native
+    -- rail + Message Log), because the old feedback - a one-line "Last Warp:"
+    -- status update - read as "the button did nothing" (Cam 2026-07-29).
+    -- Shared pusher lives in data.lua (warp.lua's deferred failure uses it too).
+    local function push_warp_feedback_toast(title, detail)
+        local push = ctx.push_info_toast or _G.push_info_toast
+        if type(push) == "function" then
+            push(title, detail)
+        end
+    end
+
     -- Typewriter warp + chapter switch (Warp tab). Warp system originally
     -- created by JumperDenfer.
     local function draw_warp_content()
@@ -374,19 +385,46 @@ local function install(ctx)
         end
         if imgui.button("Warp") then
             local selected_warp_point = bridge.typewriter_warp_points[bridge.selected_typewriter_warp_index]
+            -- Log EVERY click verdict: a warp report with zero [RE4R AP] warp
+            -- lines means the click died in a silent branch here - that
+            -- ambiguity is exactly what made "warp does nothing" undiagnosable
+            -- from the 2026-07-29 log.
             if selected_warp_point == nil then
                 bridge.last_warp_status = "No typewriter warp selected"
+                log.info(string.format(
+                    "[RE4R AP] warp click: no selection (index=%s of %d points)",
+                    tostring(bridge.selected_typewriter_warp_index),
+                    #bridge.typewriter_warp_points))
+                push_warp_feedback_toast("Warp: nothing selected", "pick a typewriter first")
             elseif not is_warp_stage_unlocked(selected_warp_point.stage_id) then
                 bridge.last_warp_status = selected_warp_point.name .. " is locked until visited"
+                log.info(string.format(
+                    "[RE4R AP] warp click: %s (stage %s) is LOCKED - stand at that typewriter once this seed to unlock it",
+                    tostring(selected_warp_point.name),
+                    tostring(selected_warp_point.stage_id)))
+                push_warp_feedback_toast(
+                    "Warp locked: " .. tostring(selected_warp_point.name),
+                    "visit that typewriter once this seed to unlock it")
             else
+                log.info(string.format(
+                    "[RE4R AP] warp click: %s (stage %s) unlocked - executing",
+                    tostring(selected_warp_point.name),
+                    tostring(selected_warp_point.stage_id)))
                 local ok = warpToLocation(
                     selected_warp_point.stage_id,
                     selected_warp_point.x,
                     selected_warp_point.y,
                     selected_warp_point.z
                 )
-                if not ok then
+                if ok then
+                    push_warp_feedback_toast(
+                        "Warping to " .. tostring(selected_warp_point.name),
+                        "hold on - preloading the area")
+                else
                     bridge.last_warp_status = "Warp failed"
+                    push_warp_feedback_toast(
+                        "Warp failed: " .. tostring(selected_warp_point.name),
+                        "see re2_framework_log.txt for the reason")
                 end
             end
         end

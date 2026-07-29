@@ -93,6 +93,45 @@ local function install(ctx)
         return key ~= nil and ctx.bridge.acknowledged_guid_keys[key] == true
     end
 
+    -- Plain informational toast (no item, no classification) through the
+    -- normal notification pipeline: HUD/native rail now, Message Log history.
+    -- For subsystem feedback that must be SEEN (warp verdicts, connection
+    -- notices) - a status-line-only update reads as "the button did nothing".
+    local function push_info_toast(title, detail)
+        local bridge = ctx.bridge
+        if bridge == nil or type(bridge.check_notifications) ~= "table" then
+            return
+        end
+        local state = bridge.last_state or {}
+        local now_fn = ctx.now_unix_ms or _G.now_unix_ms
+        table.insert(bridge.check_notifications, {
+            id = bridge.next_check_notification_id,
+            stage = tonumber(state.current_stage),
+            guid = nil,
+            title = tostring(title or ""),
+            detail = detail ~= nil and tostring(detail) or nil,
+            classification = "",
+            kind = nil,
+            title_segments = nil,
+            native_route = "text",
+            queued_at_unix_ms = (type(now_fn) == "function") and now_fn() or 0,
+            display_started_at_unix_ms = nil,
+        })
+        bridge.next_check_notification_id = bridge.next_check_notification_id + 1
+    end
+
+    -- THE membership rule for "this location still owes a check": a valid
+    -- tracked key that is neither acknowledged (sent/persisted) nor in flight.
+    -- Every list, counter, and marker that surfaces open locations funnels
+    -- through this one predicate so a rule change lands everywhere at once
+    -- (Cam 2026-07-29; the Actions-tab nearby list previously re-implemented
+    -- it and drifted from the markers).
+    local function is_location_key_open(key)
+        return key ~= nil
+            and not ctx.bridge.acknowledged_guid_keys[key]
+            and not ctx.bridge.pending_check_keys[key]
+    end
+
     local function rebuild_progression_warning_chapter_maps()
         ctx.bridge.progression_warning_chapter_stage_map = {}
         ctx.bridge.progression_warning_stage_chapter_membership = {}
@@ -470,8 +509,7 @@ local function install(ctx)
                             end
                             bucket.total = bucket.total + 1
                             local key = make_stage_guid_key(stage_id, guid)
-                            if key ~= nil
-                                and (ctx.bridge.acknowledged_guid_keys[key] or ctx.bridge.pending_check_keys[key]) then
+                            if key ~= nil and not is_location_key_open(key) then
                                 bucket.checked = bucket.checked + 1
                             end
                         end
@@ -601,6 +639,37 @@ local function install(ctx)
         return stage_entries[normalized_guid]
     end
 
+    -- Every open (unchecked, not in flight) tracked location across the
+    -- stage's /100 FAMILY, as { stage, guid, key, entry } rows. Stage volumes
+    -- overlap and one floor/100 family shares a coordinate space, so anything
+    -- answering "what is open around the player" - world markers, the Actions
+    -- nearby list, the header progression notice - must look family-wide, not
+    -- at the exact sub-stage the player happens to be standing in. This is the
+    -- ONE place that iteration + membership live.
+    local function collect_open_family_locations(stage)
+        local results = {}
+        if type(stage) ~= "number" then
+            return results
+        end
+        for _, family_stage in ipairs(get_stage_family_stages(stage)) do
+            local stage_entry = get_stage_watch_entry(family_stage)
+            if stage_entry ~= nil and type(stage_entry.guids) == "table" then
+                for guid in pairs(stage_entry.guids) do
+                    local key = make_stage_guid_key(family_stage, guid)
+                    if is_location_key_open(key) then
+                        results[#results + 1] = {
+                            stage = family_stage,
+                            guid = guid,
+                            key = key,
+                            entry = get_location_display_entry(family_stage, guid),
+                        }
+                    end
+                end
+            end
+        end
+        return results
+    end
+
     local function get_stage_progress(stage)
         local stage_entry = get_stage_watch_entry(stage)
         if stage_entry == nil or type(stage_entry.guids) ~= "table" then
@@ -611,8 +680,10 @@ local function install(ctx)
         local remaining_count = 0
         for guid, _ in pairs(stage_entry.guids) do
             total_count = total_count + 1
-            local key = make_stage_guid_key(stage, guid)
-            if key ~= nil and not ctx.bridge.acknowledged_guid_keys[key] and not ctx.bridge.pending_check_keys[key] then
+            -- Deliberately EXACT-stage (this is the per-stage counter shown in
+            -- the Status window); family-wide views use
+            -- collect_open_family_locations instead.
+            if is_location_key_open(make_stage_guid_key(stage, guid)) then
                 remaining_count = remaining_count + 1
             end
         end
@@ -746,21 +817,16 @@ local function install(ctx)
             return false
         end
 
-        local stage_entry = get_stage_watch_entry(stage)
-        if stage_entry == nil or type(stage_entry.guids) ~= "table" then
-            return false
-        end
-
-        for guid, _ in pairs(stage_entry.guids) do
-            local key = make_stage_guid_key(stage, guid)
-            if key ~= nil and not ctx.bridge.acknowledged_guid_keys[key] and not ctx.bridge.pending_check_keys[key] then
-                local display_entry = get_location_display_entry(stage, guid)
-                local location_id = display_entry and tonumber(display_entry.location_id) or nil
-                if location_id ~= nil then
-                    local classification = ctx.bridge.location_classifications[tostring(math.floor(location_id))]
-                    if classification == "PROGRESSION" then
-                        return true
-                    end
+        -- Family-wide, matching the world markers: the overlay header must not
+        -- deny progression that a marker two metres away is visibly showing
+        -- (exact-stage keying was the same bug class as the nearby-list miss).
+        for _, open_location in ipairs(collect_open_family_locations(stage)) do
+            local display_entry = open_location.entry
+            local location_id = display_entry and tonumber(display_entry.location_id) or nil
+            if location_id ~= nil then
+                local classification = ctx.bridge.location_classifications[tostring(math.floor(location_id))]
+                if classification == "PROGRESSION" then
+                    return true
                 end
             end
         end
@@ -789,8 +855,7 @@ local function install(ctx)
             if stage_id ~= nil and type(stage_entries) == "table" then
                 for guid, display_entry in pairs(stage_entries) do
                     if tonumber(display_entry and display_entry.chapter) == normalized_chapter then
-                        local key = make_stage_guid_key(stage_id, guid)
-                        if key ~= nil and not ctx.bridge.acknowledged_guid_keys[key] and not ctx.bridge.pending_check_keys[key] then
+                        if is_location_key_open(make_stage_guid_key(stage_id, guid)) then
                             local location_id = tonumber(display_entry.location_id)
                             local classification = location_id ~= nil
                                     and ctx.bridge.location_classifications[tostring(math.floor(location_id))]
@@ -854,6 +919,9 @@ local function install(ctx)
         normalize_stage_id = normalize_stage_id,
         make_stage_guid_key = make_stage_guid_key,
         is_guid_acknowledged = is_guid_acknowledged,
+        is_location_key_open = is_location_key_open,
+        collect_open_family_locations = collect_open_family_locations,
+        push_info_toast = push_info_toast,
         load_stage_chapter_map = load_stage_chapter_map,
         load_location_guid_map = load_location_guid_map,
         load_location_display_map = load_location_display_map,

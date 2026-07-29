@@ -49,6 +49,20 @@ local function install(ctx)
                 table.insert(bridge.typewriter_warp_points, warp_point)
 
                 local display_name = warp_point.name
+                -- Lead with the pause-map section (the player vocabulary the
+                -- rest of the UI speaks) when it resolves and the CSV name
+                -- doesn't already carry it. Resolves via the same Voronoi
+                -- lookup the display map uses; nil-safe on early boot (maps
+                -- not loaded yet) - later rebuilds self-heal the labels.
+                local section_fn = ctx.get_section_for_position or _G.get_section_for_position
+                if type(section_fn) == "function" then
+                    local ok_section, section = pcall(
+                        section_fn, warp_point.stage_id, nil, warp_point.x, warp_point.z)
+                    if ok_section and type(section) == "string" and section ~= ""
+                        and not string.find(display_name, section, 1, true) then
+                        display_name = section .. " | " .. display_name
+                    end
+                end
                 if not is_warp_stage_unlocked(warp_point.stage_id) then
                     display_name = display_name .. " [Locked]"
                 end
@@ -420,6 +434,13 @@ local function install(ctx)
         local ok = executeWarpNow(pending.stage_id, pending.x, pending.y, pending.z)
         if not ok then
             bridge.last_warp_status = "Warp failed"
+            -- The click already succeeded seconds ago from the player's view;
+            -- a deferred failure MUST surface as a toast or it looks like the
+            -- warp just never happened (executeWarpNow logged the reason).
+            local push = ctx.push_info_toast or _G.push_info_toast
+            if type(push) == "function" then
+                push("Warp failed", "see re2_framework_log.txt for the reason")
+            end
         end
         bridge.pending_warp = nil
     end

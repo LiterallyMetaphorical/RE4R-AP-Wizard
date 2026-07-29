@@ -91,56 +91,50 @@ local function install(ctx)
         entries = {},
     }
 
-    local function collect_stage_marker_entries(stage, entries)
-        local stage_entry = get_stage_watch_entry(stage)
-        if stage_entry == nil or type(stage_entry.guids) ~= "table" then
-            return
+    -- Presentation-only projection: membership + family iteration live in
+    -- data.lua's collect_open_family_locations (shared with the Actions-tab
+    -- nearby list and the header progression notice), so an eligibility rule
+    -- edit there lands here automatically. This function only turns each open
+    -- location into a drawable marker entry.
+    local function build_marker_entry(open_location)
+        local display_entry = open_location.entry
+        local x = display_entry and tonumber(display_entry.x)
+        local y = display_entry and tonumber(display_entry.y)
+        local z = display_entry and tonumber(display_entry.z)
+        -- 0,0,0 means "no extracted position" (should not happen for
+        -- current data); skip rather than draw a marker at the origin.
+        if x == nil or y == nil or z == nil
+            or (x == 0.0 and y == 0.0 and z == 0.0) then
+            return nil
         end
-
-        for guid, _ in pairs(stage_entry.guids) do
-            local key = make_stage_guid_key(stage, guid)
-            if key ~= nil
-                and not bridge.acknowledged_guid_keys[key]
-                and not bridge.pending_check_keys[key] then
-                local display_entry = get_location_display_entry(stage, guid)
-                local x = display_entry and tonumber(display_entry.x)
-                local y = display_entry and tonumber(display_entry.y)
-                local z = display_entry and tonumber(display_entry.z)
-                -- 0,0,0 means "no extracted position" (should not happen for
-                -- current data); skip rather than draw a marker at the origin.
-                if x ~= nil and y ~= nil and z ~= nil
-                    and not (x == 0.0 and y == 0.0 and z == 0.0) then
-                    local location_id = display_entry and tonumber(display_entry.location_id)
-                    -- [Hints] An unfound hint on this location upgrades the
-                    -- marker: [HINT] label, hint colour, whole-stage range.
-                    local hinted = false
-                    if location_id ~= nil and type(bridge.hints_on_my_world) == "table" then
-                        hinted = bridge.hints_on_my_world[tostring(math.floor(location_id))] ~= nil
-                    end
-                    -- [Debug identity] what the spot IS: vanilla item name +
-                    -- container gloss ("crate", "barrel"...) so the label can
-                    -- say what to look for, and the log dump can name checks.
-                    local gloss_fn = ctx.get_container_gloss or _G.get_container_gloss
-                    local gloss = ""
-                    if type(gloss_fn) == "function" and display_entry ~= nil then
-                        gloss = tostring(gloss_fn(display_entry.container) or "")
-                    end
-                    table.insert(entries, {
-                        x = x,
-                        y = y,
-                        z = z,
-                        location_id = location_id,
-                        hinted = hinted,
-                        stage = stage,
-                        guid = guid,
-                        item_name = (display_entry and display_entry.item_name) or "",
-                        section_name = (display_entry and display_entry.section_name) or "",
-                        gloss = gloss,
-                        chapter = display_entry and tonumber(display_entry.chapter),
-                    })
-                end
-            end
+        local location_id = display_entry and tonumber(display_entry.location_id)
+        -- [Hints] An unfound hint on this location upgrades the
+        -- marker: [HINT] label, hint colour, whole-stage range.
+        local hinted = false
+        if location_id ~= nil and type(bridge.hints_on_my_world) == "table" then
+            hinted = bridge.hints_on_my_world[tostring(math.floor(location_id))] ~= nil
         end
+        -- [Debug identity] what the spot IS: vanilla item name +
+        -- container gloss ("crate", "barrel"...) so the label can
+        -- say what to look for, and the log dump can name checks.
+        local gloss_fn = ctx.get_container_gloss or _G.get_container_gloss
+        local gloss = ""
+        if type(gloss_fn) == "function" and display_entry ~= nil then
+            gloss = tostring(gloss_fn(display_entry.container) or "")
+        end
+        return {
+            x = x,
+            y = y,
+            z = z,
+            location_id = location_id,
+            hinted = hinted,
+            stage = open_location.stage,
+            guid = open_location.guid,
+            item_name = (display_entry and display_entry.item_name) or "",
+            section_name = (display_entry and display_entry.section_name) or "",
+            gloss = gloss,
+            chapter = display_entry and tonumber(display_entry.chapter),
+        }
     end
 
     -- Markers draw for the whole stage FAMILY (floor/100 = one map chunk, one
@@ -151,8 +145,15 @@ local function install(ctx)
     -- footage, 2026-07-23). The 40m distance cap still bounds what shows.
     local function rebuild_marker_entries(stage)
         local entries = {}
-        for _, family_stage in ipairs(get_stage_family_stages(stage)) do
-            collect_stage_marker_entries(family_stage, entries)
+        local collect = ctx.collect_open_family_locations or _G.collect_open_family_locations
+        if type(collect) ~= "function" then
+            return entries
+        end
+        for _, open_location in ipairs(collect(stage)) do
+            local entry = build_marker_entry(open_location)
+            if entry ~= nil then
+                entries[#entries + 1] = entry
+            end
         end
         return entries
     end

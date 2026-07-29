@@ -71,15 +71,19 @@ local function install(ctx)
     end
 
     -- Unchecked locations in the current stage, nearest first.
+    -- Stage-FAMILY aware, via the same shared collector the world markers
+    -- draw from (data.lua collect_open_family_locations). The old exact-stage
+    -- lookup meant a marker could be visibly showing a check that this list -
+    -- and therefore hint-nearby and Force Check - refused to offer, whenever
+    -- the check was filed under a neighbouring sub-stage (Cam 2026-07-29).
     local function build_nearby_location_rows()
         local rows = {}
         local state = bridge.last_state or {}
         if type(state.current_stage) ~= "number" then
             return rows
         end
-        local stage_entry = (type(_G.get_stage_watch_entry) == "function")
-            and get_stage_watch_entry(state.current_stage) or nil
-        if stage_entry == nil or type(stage_entry.guids) ~= "table" then
+        local collect = ctx.collect_open_family_locations or _G.collect_open_family_locations
+        if type(collect) ~= "function" then
             return rows
         end
         local pos = nil
@@ -88,21 +92,16 @@ local function install(ctx)
             local ok_pos, value = pcall(pos_fn)
             if ok_pos then pos = value end
         end
-        for guid in pairs(stage_entry.guids) do
-            local key = make_stage_guid_key(state.current_stage, guid)
-            if key ~= nil
-                and not bridge.acknowledged_guid_keys[key]
-                and not bridge.pending_check_keys[key] then
-                local entry = get_location_display_entry(state.current_stage, guid)
-                if entry ~= nil and tonumber(entry.location_id) ~= nil then
-                    local distance = nil
-                    local ex, ey, ez = tonumber(entry.x), tonumber(entry.y), tonumber(entry.z)
-                    if pos ~= nil and ex ~= nil and ey ~= nil and ez ~= nil then
-                        local dx, dy, dz = ex - pos.x, ey - pos.y, ez - pos.z
-                        distance = math.sqrt((dx * dx) + (dy * dy) + (dz * dz))
-                    end
-                    rows[#rows + 1] = { entry = entry, distance = distance }
+        for _, open_location in ipairs(collect(state.current_stage)) do
+            local entry = open_location.entry
+            if entry ~= nil and tonumber(entry.location_id) ~= nil then
+                local distance = nil
+                local ex, ey, ez = tonumber(entry.x), tonumber(entry.y), tonumber(entry.z)
+                if pos ~= nil and ex ~= nil and ey ~= nil and ez ~= nil then
+                    local dx, dy, dz = ex - pos.x, ey - pos.y, ez - pos.z
+                    distance = math.sqrt((dx * dx) + (dy * dy) + (dz * dz))
                 end
+                rows[#rows + 1] = { entry = entry, distance = distance }
             end
         end
         table.sort(rows, function(left, right)
