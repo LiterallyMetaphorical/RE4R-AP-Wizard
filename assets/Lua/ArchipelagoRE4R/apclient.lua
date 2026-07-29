@@ -208,15 +208,6 @@ return function(ctx)
         return "FILLER"
     end
 
-    local function truncate_overlay_text(value, maximum_length)
-        local text = tostring(value or "")
-        maximum_length = math.max(8, math.floor(tonumber(maximum_length) or 60))
-        if #text <= maximum_length then
-            return text
-        end
-        return text:sub(1, maximum_length - 3) .. "..."
-    end
-
     -- [Overlay] Push a toast into the shared check_notifications queue ui_overlay renders
     -- (same schema as detector.lua's toasts; id from next_check_notification_id).
     local function enqueue_toast(title, detail, classification, kind, title_segments)

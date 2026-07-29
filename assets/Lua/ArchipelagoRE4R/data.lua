@@ -669,6 +669,19 @@ local function install(ctx)
         return CONTAINER_GLOSS[normalized] or ""
     end
 
+    -- Clamp a string to a maximum on-screen length, appending "..." when cut.
+    -- Shared by the detector.lua and apclient.lua toast builders (promoted to a
+    -- global via the exports table below, like the other overlay helpers) so the
+    -- identical helper is not defined twice.
+    local function truncate_overlay_text(value, maximum_length)
+        local text = tostring(value or "")
+        maximum_length = math.max(8, math.floor(tonumber(maximum_length) or 60))
+        if #text <= maximum_length then
+            return text
+        end
+        return text:sub(1, maximum_length - 3) .. "..."
+    end
+
     local function get_check_overlay_classification_color(classification)
         local normalized_classification = string.upper(trim_string(classification))
         if normalized_classification == "PROGRESSION" then
@@ -860,6 +873,7 @@ local function install(ctx)
         get_location_display_entry = get_location_display_entry,
         get_stage_progress = get_stage_progress,
         build_nearby_remaining_label = build_nearby_remaining_label,
+        truncate_overlay_text = truncate_overlay_text,
         get_check_overlay_classification_color = get_check_overlay_classification_color,
         get_check_overlay_classification_prefix = get_check_overlay_classification_prefix,
         get_check_overlay_kind_prefix = get_check_overlay_kind_prefix,

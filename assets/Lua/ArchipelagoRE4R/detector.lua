@@ -42,15 +42,6 @@ local function install(ctx)
         }
     end
 
-    local function truncate_overlay_text(value, maximum_length)
-        local text = tostring(value or "")
-        maximum_length = math.max(8, math.floor(tonumber(maximum_length) or 60))
-        if #text <= maximum_length then
-            return text
-        end
-        return text:sub(1, maximum_length - 3) .. "..."
-    end
-
     -- Unified pickup toast (Cam 2026-07-13). This is the SINGLE source of truth for a check you
     -- personally collect. It headlines the item that ACTUALLY sits here - never the vanilla name
     -- the location is titled after - so picking up shotgun shells at the green-herb spot says
