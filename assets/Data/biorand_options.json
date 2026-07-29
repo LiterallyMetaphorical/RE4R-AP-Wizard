@@ -147,6 +147,21 @@
         true,
         true
        ]
+      },
+      {
+       "key": "del-orca",
+       "label": "Del Orca",
+       "description": "Replaces Del Lago with an orca for the lake fight. Purely cosmetic. Previously this community patch was always on without asking; now it is your call.",
+       "type": "switch",
+       "min": null,
+       "max": null,
+       "step": null,
+       "advanced": false,
+       "defaults": [
+        false,
+        false,
+        false
+       ]
       }
      ]
     },
