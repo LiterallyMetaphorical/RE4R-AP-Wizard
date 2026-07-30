@@ -80,11 +80,14 @@ return function(ctx)
     -- location-id set (the room's list varies with YAML options since apworld
     -- 0.4.0, so no shipped map can be trusted for scouting).
     local ROOM_LOCATIONS_FILE = "ArchipelagoRE4R\\ap_room_locations.json"
-    -- [Port recovery] Connect attempts with NOTHING answering before the
-    -- recovery dialog appears. The retry loop dials every 3s, so 4 attempts is
-    -- roughly 12s of silence - long enough to ride out a sleeping room waking
-    -- up, short enough that a player is not left staring at "Connecting...".
-    local PORT_UNREACHABLE_ATTEMPTS = 4
+    -- [Port recovery] Seconds of NO contact with the server before the recovery
+    -- dialog appears. Measured from client creation or the last time anything
+    -- answered, NOT from connect() calls: connect() runs once and lua-apclientpp
+    -- retries the socket internally, so counting calls never advances (that bug
+    -- is why the dialog never showed on its first live test, 2026-07-29). Long
+    -- enough to ride out a sleeping room waking up, short enough that a player
+    -- is not left staring at a silent "Connecting...".
+    local PORT_UNREACHABLE_SECONDS = 20
 
     -- Per-tick drain bounds: cap heavy native injects, and cap total items
     -- processed (cheap skips included) so a huge Sync backlog can't stall a frame.
@@ -1069,7 +1072,7 @@ return function(ctx)
 
     local function on_socket_connected()
         info("socket connected to " .. st.server)
-        st.connect_attempts_since_contact = 0
+        st.last_contact_clock = os.clock()
         set_conn_status("pending", "Authenticating...")
     end
 
@@ -1084,13 +1087,14 @@ return function(ctx)
 
     local function on_socket_disconnected()
         info("socket disconnected")
+        st.slot_connected = false
         set_conn_status("pending", "Reconnecting...")
     end
 
     local function on_room_info()
-        -- Reaching a server proves the address resolves; reset the unreachable
-        -- counter so a later real outage starts counting fresh.
-        st.connect_attempts_since_contact = 0
+        -- Reaching a server proves the address resolves; restamp so a later real
+        -- outage starts its countdown fresh.
+        st.last_contact_clock = os.clock()
         -- [Port recovery] RoomInfo already carries the seed, so a recycled port
         -- can be caught BEFORE ConnectSlot - joining a stranger's room would
         -- either fail as InvalidSlot or, worse, half-succeed against a room
@@ -1113,7 +1117,8 @@ return function(ctx)
         info("SLOT CONNECTED as '" .. st.slot .. "' -- bare-connect SUCCESS")
         set_conn_status("connected", "Connected (" .. st.slot .. ")")
         -- Whatever the recovery dialog was worried about, it is resolved.
-        st.connect_attempts_since_contact = 0
+        st.last_contact_clock = os.clock()
+        st.slot_connected = true
         close_port_recovery()
         -- [DeathLink] Read the slot's death_link setting (added to fill_slot_data in the
         -- apworld). Accept boolean true or numeric/string 1. Reset the per-connection
@@ -1662,17 +1667,11 @@ return function(ctx)
             return false
         end
         st.expected_seed = read_expected_seed()
-        -- [Port recovery] Count attempts that never reach a server. The handlers
-        -- zero this the moment anything answers, so a sustained count means the
-        -- address itself is dead (room asleep, or the port moved on).
-        st.connect_attempts_since_contact = (tonumber(st.connect_attempts_since_contact) or 0) + 1
-        if st.connect_attempts_since_contact >= PORT_UNREACHABLE_ATTEMPTS
-            and (ctx.bridge == nil or ctx.bridge.port_recovery_dialog == nil) then
-            warn(string.format(
-                "%s has not answered in %d attempts - offering the port recovery dialog.",
-                tostring(st.server), st.connect_attempts_since_contact))
-            open_port_recovery("unreachable", "", st.connect_attempts_since_contact)
-        end
+        -- [Port recovery] Start the no-contact clock. Handlers restamp it the
+        -- moment anything answers; the poll loop opens the recovery dialog if it
+        -- stays stale (see poll_port_recovery).
+        st.last_contact_clock = os.clock()
+        st.slot_connected = false
         info("connecting to " .. st.server .. " as '" .. st.slot .. "'")
         set_conn_status("pending", "Connecting...")
         ap = AP("", GAME_NAME, st.server)   -- uuid unused per lua-apclientpp README
@@ -1744,6 +1743,28 @@ return function(ctx)
     end
     ctx.ap_apply_port = ap_apply_port
 
+    -- [Port recovery] The watchdog. Runs every poll tick: if we are not slot
+    -- connected and nothing has answered for PORT_UNREACHABLE_SECONDS, offer the
+    -- dialog. This is the check that actually fires for a dead port, because
+    -- lua-apclientpp retries the socket itself and never re-enters connect().
+    local function poll_port_recovery()
+        if ap == nil or st.slot_connected then return end
+        if ctx.bridge ~= nil and ctx.bridge.port_recovery_dialog ~= nil then return end
+        local ok_state, state = pcall(function() return ap:get_state() end)
+        if ok_state and state == AP.State.SLOT_CONNECTED then
+            st.slot_connected = true
+            st.last_contact_clock = os.clock()
+            return
+        end
+        local since = os.clock() - (tonumber(st.last_contact_clock) or os.clock())
+        if since >= PORT_UNREACHABLE_SECONDS then
+            warn(string.format(
+                "%s has not answered for %ds - offering the port recovery dialog.",
+                tostring(st.server), math.floor(since)))
+            open_port_recovery("unreachable", "", math.floor(since))
+        end
+    end
+
     local function ap_dismiss_port_recovery()
         close_port_recovery()
         info("port recovery: dialog dismissed by the player")
@@ -1763,6 +1784,7 @@ return function(ctx)
                 drain_location_checks()
                 maybe_send_victory()
                 poll_deathlink()
+                poll_port_recovery()
                 return
             end
             local now = os.clock()

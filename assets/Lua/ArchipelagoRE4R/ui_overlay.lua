@@ -653,6 +653,42 @@ local function install(ctx)
         pop_overlay_window_transparent_style(overlay_style_count)
     end
 
+    -- [Menu status] The full header needs a loaded stage (chapter, area, check
+    -- counts), so outside gameplay it draws nothing - which left the menus with
+    -- no sign of whether Archipelago was even connected. This is the same
+    -- AP status line on its own, shown exactly when the header is not: at the
+    -- title screen, in menus, during loads (Cam's ask 2026-07-29, alongside the
+    -- port recovery dialog - a player staring at a menu is precisely who needs
+    -- to know the server is unreachable).
+    local function draw_ap_status_menu_overlay()
+        local state = bridge.last_state or {}
+        if state.is_playable and type(state.current_stage) == "number" then
+            return -- the in-game header already carries this line
+        end
+
+        local ap_client_text, ap_client_color = build_ap_client_overlay_text()
+        if ap_client_text == nil then
+            return
+        end
+
+        local window_width = math.max(
+            CHECK_OVERLAY_HEADER_MIN_WIDTH,
+            get_imgui_text_width(ap_client_text) + (CHECK_OVERLAY_HEADER_PADDING_X * 2))
+        local window_height = CHECK_OVERLAY_HEADER_HEIGHT
+
+        imgui.set_next_window_pos(
+            Vector2f.new(get_overlay_anchor_x(window_width), CHECK_OVERLAY_MARGIN_Y), 1)
+        imgui.set_next_window_size(Vector2f.new(window_width, window_height), 1)
+        set_next_overlay_window_bg_alpha(0.0)
+        local overlay_style_count = push_overlay_window_transparent_style()
+        imgui.begin_window("##re4r_ap_status_menu_overlay", true, CHECK_OVERLAY_WINDOW_FLAGS)
+        draw_centered_overlay_segments(
+            { { text = ap_client_text, color = ap_client_color } },
+            window_width)
+        imgui.end_window()
+        pop_overlay_window_transparent_style(overlay_style_count)
+    end
+
     local function draw_check_notification_overlays_polished()
         local state = bridge.last_state or {}
         if not state.is_playable or type(state.current_stage) ~= "number" then
@@ -890,6 +926,7 @@ local function install(ctx)
     export("get_active_check_notifications", get_active_check_notifications)
     export("get_check_overlay_header_display_height", get_check_overlay_header_display_height)
     export("draw_check_progress_overlay", draw_check_progress_overlay)
+    export("draw_ap_status_menu_overlay", draw_ap_status_menu_overlay)
     export("draw_check_notification_overlays_polished", draw_check_notification_overlays_polished)
     export("trigger_celebration", trigger_celebration)
     export("draw_celebration_overlay", draw_celebration_overlay)

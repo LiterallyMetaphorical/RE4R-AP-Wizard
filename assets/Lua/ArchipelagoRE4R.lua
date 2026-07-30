@@ -76,6 +76,7 @@ local dispatch_native_toasts = ctx.dispatch_native_toasts
 local draw_celebration_overlay = ctx.draw_celebration_overlay
 local draw_check_notification_overlays_polished = ctx.draw_check_notification_overlays_polished
 local draw_check_progress_overlay = ctx.draw_check_progress_overlay
+local draw_ap_status_menu_overlay = ctx.draw_ap_status_menu_overlay
 local draw_world_check_markers = ctx.draw_world_check_markers
 local draw_main_window = ctx.draw_main_window
 local draw_progression_warning_dialog = ctx.draw_progression_warning_dialog
@@ -397,6 +398,9 @@ re.on_frame(function()
     -- World-space check markers first; the HUD windows layer over them.
     draw_world_check_markers()
     draw_check_progress_overlay()
+    -- Outside gameplay the header draws nothing, so the AP connection
+    -- status gets its own line at the menus and during loads.
+    draw_ap_status_menu_overlay()
     draw_check_notification_overlays_polished()
     -- After the toast rail so the goal banner layers over it.
     draw_celebration_overlay()
