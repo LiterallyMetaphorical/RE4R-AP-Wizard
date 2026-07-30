@@ -1265,6 +1265,90 @@ local function install(ctx)
     --      dispatched, context unreachable) fails CLOSED: never mutate world
     --      state on an unknown. Throttled to one scan per 5s; fired keys
     --      dedupe so steady state does zero native calls.
+    -- [Drop audit] passive never-tracked telemetry. Every ~10s in-game, walk
+    -- the DropItemManager's live set and record each AP-pool guid ever seen
+    -- (union across sessions AND seeds - aliveness is a property of the game,
+    -- not the seed). Offline diff vs the dataset then convicts dead content
+    -- by the sibling rule (stage produced seen guids, this guid never, in any
+    -- run). Born from the loc56 cut-content hunt: 2 confirmed dead herbs took
+    -- a manual probe + screenshots; this collects the same evidence for free
+    -- during every playtest.
+    local drop_audit = { seen = nil, dirty = false }
+    local drop_audit_last_scan = 0.0
+    local drop_audit_last_write = 0.0
+
+    local function ensure_drop_audit_loaded()
+        if drop_audit.seen ~= nil then
+            return
+        end
+        drop_audit.seen = {}
+        local payload = json.load_file(DROP_AUDIT_FILE)
+        if type(payload) == "table" and type(payload.seen) == "table" then
+            for guid, stamp in pairs(payload.seen) do
+                drop_audit.seen[guid] = stamp
+            end
+        end
+    end
+
+    local function drop_audit_scan()
+        ensure_drop_audit_loaded()
+        local manager = sdk.get_managed_singleton("chainsaw.DropItemManager")
+        if manager == nil then
+            return
+        end
+        local drop_list = safe_call(manager, "collectAllItem")
+        if drop_list == nil then
+            drop_list = safe_call(manager, "collectAllItem()")
+        end
+        if drop_list == nil then
+            return
+        end
+        local count = safe_call(drop_list, "get_Count")
+        if type(count) ~= "number" then
+            count = safe_call(drop_list, "get_size")
+        end
+        if type(count) ~= "number" then
+            return
+        end
+        for index = 0, count - 1 do
+            local drop_item = safe_call(drop_list, "get_Item", index)
+            if drop_item == nil then
+                drop_item = safe_call(drop_list, "get_element", index)
+            end
+            if drop_item ~= nil then
+                local ok_go, game_object = pcall(function()
+                    return drop_item:get_GameObject()
+                end)
+                if ok_go and game_object ~= nil then
+                    local guid = normalize_guid(tostring(get_game_object_guid(game_object)))
+                    if guid ~= nil
+                        and resolve_tracked_stage(guid) ~= nil
+                        and drop_audit.seen[guid] == nil then
+                        drop_audit.seen[guid] = os.time()
+                        drop_audit.dirty = true
+                    end
+                end
+            end
+        end
+    end
+
+    re.on_frame(function()
+        local now = os.clock()
+        if now - drop_audit_last_scan >= 10.0 then
+            drop_audit_last_scan = now
+            if tonumber(get_active_runtime_stage()) ~= nil then
+                pcall(drop_audit_scan)
+            end
+        end
+        if drop_audit.dirty and now - drop_audit_last_write >= 30.0 then
+            drop_audit_last_write = now
+            drop_audit.dirty = false
+            pcall(function()
+                json.dump_file(DROP_AUDIT_FILE, { version = 1, seen = drop_audit.seen })
+            end)
+        end
+    end)
+
     local retro_heal_last_clock = 0.0
 
     re.on_frame(function()

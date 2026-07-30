@@ -3,7 +3,7 @@ local function install(ctx)
         -- Logged at boot next to the launcher's install stamp so a player's
         -- re2_framework_log.txt identifies the exact deployed build. Bump on
         -- every Lua change that ships (date.rev).
-        MOD_VERSION = "2026.07.30-9",
+        MOD_VERSION = "2026.07.30-10",
         DATA_DIR = "ArchipelagoRE4R",
         WRITE_INTERVAL_SECONDS = 0.25,
         SCAN_INTERVAL_SECONDS = 1 / 30,
@@ -235,6 +235,10 @@ local function install(ctx)
     config.LOCATION_DISPLAY_MAP_FILE = config.DATA_DIR .. "\\location_display_map.json"
     config.MAP_LABELS_FILE = config.DATA_DIR .. "\\map_labels.json"
     config.PICKUP_EVENT_FLAGS_FILE = config.DATA_DIR .. "\\pickup_event_flags.json"
+    -- [Drop audit] passive never-tracked telemetry: every pool guid the live
+    -- DropItemManager has ever tracked, unioned across sessions and seeds.
+    -- Offline diff vs the dataset convicts dead content by the sibling rule.
+    config.DROP_AUDIT_FILE = config.DATA_DIR .. "\\drop_audit.json"
     config.INJECTABLE_ITEMS_FILE = config.DATA_DIR .. "\\injectable_items.json"
     config.WARP_POINTS_FILE = config.DATA_DIR .. "\\warp.csv"
     config.WARP_UNLOCKS_DIR = config.DATA_DIR .. "\\warp_unlocks"
