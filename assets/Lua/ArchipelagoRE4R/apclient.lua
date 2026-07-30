@@ -184,6 +184,7 @@ return function(ctx)
             actual_seed = actual_seed or "",
             server = st.server,
             host = host,
+            room_url = st.room_url or "",
             attempts = attempts or 0,
         }
     end
@@ -205,6 +206,11 @@ return function(ctx)
         st.server = server
         st.slot = slot
         st.password = trim(payload.password)
+        -- The room's web page, written by the launcher at patch time. The mod
+        -- cannot fetch it (no HTTP in REFramework's Lua), but the port-recovery
+        -- dialog shows it so the player knows exactly where to read the new
+        -- port. Absent on installs patched before this field existed.
+        st.room_url = trim(payload.room_url)
         return true
     end
 
@@ -1717,6 +1723,9 @@ return function(ctx)
             server_address = new_server,
             slot_name = st.slot,
             password = st.password or "",
+            -- Preserve the launcher's room pointer; rewriting the port must not
+            -- strip it or the dialog loses the link on a second failure.
+            room_url = st.room_url or "",
         }
         local ok_write = false
         local ok_call, result = pcall(function()

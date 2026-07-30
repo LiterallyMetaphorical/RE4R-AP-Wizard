@@ -270,10 +270,14 @@ local function install(ctx)
         end
 
         draw_centered_dialog_text("Please enter the new port number found on your room page", dialog_width)
-        draw_centered_dialog_text(
-            string.format("Example: %s:[current port #]", tostring(dialog.host or "archipelago.gg")),
-            dialog_width)
-        draw_centered_dialog_text("------------------------------------------------------------", dialog_width)
+        -- The room page itself, when the launcher recorded one: it is the exact
+        -- place the current port is written, so it replaces the old made-up
+        -- "Example: host:[port]" line (Cam 2026-07-29). Older installs patched
+        -- before the launcher carried this field simply show nothing here.
+        local room_url = trim_string(dialog.room_url)
+        if room_url ~= "" then
+            draw_centered_dialog_text(room_url, dialog_width)
+        end
         draw_centered_dialog_text(string.format("Recorded address: %s", tostring(dialog.server or "?")), dialog_width)
 
         -- Everything else in this dialog is centered text, so centre the widgets
@@ -298,7 +302,9 @@ local function install(ctx)
         draw_centered_dialog_text("New port:", dialog_width)
 
         local field_width = 160
-        local test_label = "Test Port"
+        -- The outcome rides on the button instead of a trailing line (Cam's
+        -- layout): the promise belongs where the action is.
+        local test_label = "Test Port (window will close if the new port succeeds)"
         local test_width = get_imgui_text_width(test_label) + 28
         begin_centered_row(field_width + 10 + test_width)
         pcall(function() imgui.push_item_width(field_width) end)
@@ -350,7 +356,6 @@ local function install(ctx)
             return
         end
 
-        draw_centered_dialog_text("This closes itself as soon as the connection succeeds.", dialog_width)
         imgui.end_window()
     end
 

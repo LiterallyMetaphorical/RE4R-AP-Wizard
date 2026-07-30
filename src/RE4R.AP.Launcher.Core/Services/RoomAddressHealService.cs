@@ -338,6 +338,9 @@ public sealed class RoomAddressHealService
             ServerAddress = healedServer,
             SlotName = record.SlotName,
             Password = string.Empty,
+            // Keep the room page pointer through a heal - the in-game recovery
+            // dialog shows it, and healing must not strip it.
+            RoomUrl = record.RoomUrl ?? string.Empty,
         };
 
         var appDataConnectionPath = Path.Combine(_settingsStore.AppDataRootPath, "ap_connection.json");

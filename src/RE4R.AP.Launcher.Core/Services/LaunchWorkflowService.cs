@@ -1139,6 +1139,9 @@ public sealed class LaunchWorkflowService
                 ServerAddress = normalizedServer,
                 SlotName = request.SlotName,
                 Password = request.Password ?? string.Empty,
+                // Carried into the game folder so the in-game port-recovery
+                // dialog can point the player at their room page.
+                RoomUrl = request.RoomUrl?.Trim() ?? string.Empty,
             };
 
             var connectionInfoPath = Path.Combine(_settingsStore.AppDataRootPath, "ap_connection.json");

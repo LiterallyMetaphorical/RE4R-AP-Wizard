@@ -32,4 +32,14 @@ public sealed class ApConnectionInfo
     /// </summary>
     [JsonPropertyName("password")]
     public string Password { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The room's page on the Archipelago host, when the player supplied one.
+    /// The in-game port-recovery dialog shows it so a player whose room port
+    /// moved can find the new port without alt-tabbing to the launcher; the
+    /// mod cannot fetch web pages itself, so this is the pointer, not a fix.
+    /// Empty string means the session was set up without a room URL.
+    /// </summary>
+    [JsonPropertyName("room_url")]
+    public string RoomUrl { get; set; } = string.Empty;
 }
