@@ -1215,6 +1215,134 @@ local function install(ctx)
     end
     export("inject_is_default_character_active", inject_is_default_character_active)
 
+    -- ===== Key-item mirror for character-swap sections =====
+    -- Key items do NOT cross between characters in either direction (Cam,
+    -- live 2026-07-30): the lead's insignia never reaches Ashley, and anything
+    -- delivered to her is discarded with her section. Vanilla never notices
+    -- because she FINDS her own insignia inside the section; AP shuffles that
+    -- item away, so her door can become unopenable.
+    --
+    -- Fix: while the lead plays we keep a snapshot of his key-item ids, and the
+    -- moment another character takes over we replay that snapshot into THEIR key
+    -- inventory. Her inventory is thrown away at section end, so duplicates are
+    -- inert and nothing needs cleaning up afterwards.
+    local key_item_snapshot = {}
+    local key_item_snapshot_logged = false
+    local key_item_read_dump_logged = false
+
+    -- Candidate accessors for "what key items are held". The class is not
+    -- documented anywhere in this repo, so probe the plausible names and dump the
+    -- real member list once if every guess misses.
+    local KEY_ITEM_LIST_ACCESSORS = {
+        "get_ItemList", "getItemList", "get_Items", "get_KeyItemList", "get_ItemDataList",
+    }
+    local KEY_ITEM_LIST_FIELDS = {
+        "_ItemList", "_Items", "_KeyItemList", "_ItemDataList", "<ItemList>k__BackingField",
+    }
+
+    local function inject_dump_key_controller_members(controller)
+        if key_item_read_dump_logged then
+            return
+        end
+        key_item_read_dump_logged = true
+        local controller_type = inject_get_value_type(controller)
+        if controller_type == nil then
+            log.error("[RE4R AP] key-item mirror: controller type unavailable")
+            return
+        end
+        local names = {}
+        local ok_methods = pcall(function()
+            for _, method in ipairs(controller_type:get_methods()) do
+                local name = method:get_name()
+                if string.find(name, "tem", 1, true) or string.find(name, "ist", 1, true) then
+                    names[#names + 1] = "m:" .. name
+                end
+            end
+        end)
+        local ok_fields = pcall(function()
+            for _, field in ipairs(controller_type:get_fields()) do
+                names[#names + 1] = "f:" .. field:get_name()
+            end
+        end)
+        log.error(string.format(
+            "[RE4R AP] key-item mirror: no known accessor on %s (methods_ok=%s fields_ok=%s) members: %s",
+            tostring(inject_get_value_type_name(controller)),
+            tostring(ok_methods), tostring(ok_fields),
+            table.concat(names, ", ")))
+    end
+
+    -- Read the live key-item ids out of whichever key controller is registered.
+    local function inject_read_key_item_ids()
+        local inventory_manager = sdk.get_managed_singleton("chainsaw.InventoryManager")
+        if inventory_manager == nil then
+            return nil
+        end
+        inventory_manager = inject_try_add_ref(inventory_manager)
+        local manager_managed = inject_get_managed(inventory_manager)
+        if manager_managed == nil then
+            return nil
+        end
+        local controller_table = inject_safe_call(function()
+            return manager_managed:get_field("_ControllerTable")
+        end)
+        if controller_table == nil then
+            return nil
+        end
+        local controller = inject_lookup_controller(controller_table, 4, 2, 1, 4000)
+        if controller == nil then
+            return nil -- lead's controller absent: not the lead, nothing to snapshot
+        end
+
+        local controller_managed = inject_get_managed(controller)
+        if controller_managed == nil then
+            return nil
+        end
+
+        local list = nil
+        for _, accessor in ipairs(KEY_ITEM_LIST_ACCESSORS) do
+            list = inject_safe_call(function() return controller_managed:call(accessor) end)
+            if list ~= nil then break end
+        end
+        if list == nil then
+            for _, field_name in ipairs(KEY_ITEM_LIST_FIELDS) do
+                list = inject_safe_call(function() return controller_managed:get_field(field_name) end)
+                if list ~= nil then break end
+            end
+        end
+        if list == nil then
+            inject_dump_key_controller_members(controller)
+            return nil
+        end
+
+        local count = inject_get_collection_count(list)
+        if type(count) ~= "number" then
+            return nil
+        end
+
+        local ids = {}
+        for index = 0, math.min(math.floor(count), 128) - 1 do
+            local entry = inject_get_collection_item(list, index)
+            if entry ~= nil then
+                -- The entry may be the item itself or a holder with _ItemId.
+                local item_id = nil
+                for _, getter in ipairs({ "get_ItemId", "get_ItemID", "get_Id" }) do
+                    item_id = tonumber(inject_safe_call(function() return entry:call(getter) end))
+                    if item_id ~= nil then break end
+                end
+                if item_id == nil then
+                    for _, field_name in ipairs({ "_ItemId", "_ItemID", "ItemId", "ItemID" }) do
+                        item_id = tonumber(inject_safe_call(function() return entry:get_field(field_name) end))
+                        if item_id ~= nil then break end
+                    end
+                end
+                if item_id ~= nil and item_id > 0 then
+                    ids[#ids + 1] = math.floor(item_id)
+                end
+            end
+        end
+        return ids
+    end
+
     local function inject_write_storage(item, normalized_item_id, normalized_count, route_label, fallback_reason)
         local armoury_manager = sdk.get_managed_singleton("chainsaw.ArmouryManager")
         if armoury_manager ~= nil then
@@ -1728,6 +1856,70 @@ local function install(ctx)
     export("inject_get_route_destination", inject_get_route_destination)
     export("inject_get_expected_commit_count", inject_get_expected_commit_count)
     export("inject_get_route_hint", inject_get_route_hint)
+    export("inject_read_key_item_ids", inject_read_key_item_ids)
+
+    -- Snapshot while the lead plays; replay into the next character's key
+    -- inventory the moment they take over. Throttled - this reads reflection
+    -- and must not run every frame. Deliberately NOT persisted: the snapshot is
+    -- per-SAVE truth, and writing it to the per-seed session file would repeat
+    -- the retro-heal mistake (a wrong save's key items granting access it never
+    -- earned). Cost of not persisting: saving and reloading INSIDE the section
+    -- loses the snapshot, so re-entering from a lead save is the recovery.
+    local key_mirror_last_clock = 0.0
+    local key_mirror_was_default = true
+
+    re.on_frame(function()
+        local now = os.clock()
+        if now - key_mirror_last_clock < 2.0 then
+            return
+        end
+        key_mirror_last_clock = now
+
+        local ok, err = pcall(function()
+            local default_active = inject_is_default_character_active()
+
+            if default_active then
+                local ids = inject_read_key_item_ids()
+                if type(ids) == "table" then
+                    key_item_snapshot = ids
+                    if not key_item_snapshot_logged then
+                        key_item_snapshot_logged = true
+                        log.info(string.format(
+                            "[RE4R AP] key-item mirror: snapshot holds %d key item(s)", #ids))
+                    end
+                end
+                key_mirror_was_default = true
+                return
+            end
+
+            -- Non-lead character. Fire once per takeover.
+            if key_mirror_was_default then
+                key_mirror_was_default = false
+                if #key_item_snapshot == 0 then
+                    log.info("[RE4R AP] key-item mirror: another character took over but the snapshot is empty (no lead session this boot) - nothing to mirror")
+                    return
+                end
+                local mirrored, failed = 0, 0
+                for _, item_id in ipairs(key_item_snapshot) do
+                    local status = inject_item_to_inventory(item_id, 1)
+                    if inject_status_succeeded(status) then
+                        mirrored = mirrored + 1
+                    else
+                        failed = failed + 1
+                        log.info(string.format(
+                            "[RE4R AP] key-item mirror: %d did not transfer (%s)",
+                            item_id, tostring(status)))
+                    end
+                end
+                log.info(string.format(
+                    "[RE4R AP] key-item mirror: gave the active character %d of %d key item(s), %d failed",
+                    mirrored, #key_item_snapshot, failed))
+            end
+        end)
+        if not ok then
+            log.info(string.format("[RE4R AP] key-item mirror error: %s", tostring(err)))
+        end
+    end)
 end
 
 return install
