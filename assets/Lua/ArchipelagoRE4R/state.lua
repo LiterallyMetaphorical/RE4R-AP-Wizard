@@ -130,6 +130,11 @@ local function install(ctx)
         port_recovery_dialog = nil,
         port_recovery_input = "",
         port_recovery_status = "",
+        -- [Server tab] Edit buffer for the address field and the last result
+        -- line. The buffer seeds itself from the live address the first time
+        -- the tab draws, so it never starts blank.
+        server_tab_address_input = "",
+        server_tab_status = "",
         inject_selected_category = "All",
         inject_selected_item_index = 1,
         inject_filter_text = "",

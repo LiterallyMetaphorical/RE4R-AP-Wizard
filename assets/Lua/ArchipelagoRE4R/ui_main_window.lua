@@ -263,11 +263,11 @@ local function install(ctx)
 
         local tabs_open = (not has_tab_api) or imgui.begin_tab_bar("##ap_main_tabs")
         if tabs_open then
-            draw_tab("Overview", function()
-                resolve("draw_connection_content")()
-                imgui.text("")
-                resolve("draw_status_content")()
-            end)
+            -- Overview is what you glance at mid-run (chapter, area, checks);
+            -- everything about the connection lives in Server, which is also
+            -- where the address can be changed (Cam 2026-07-30).
+            draw_tab("Overview", resolve("draw_status_content"))
+            draw_tab("Server", resolve("draw_server_content"))
             draw_tab("Actions", draw_actions_content)
             draw_tab("Warp", resolve("draw_warp_content"))
             draw_tab("Message Log", resolve("draw_message_log_content"))

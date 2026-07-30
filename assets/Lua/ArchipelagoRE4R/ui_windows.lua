@@ -188,11 +188,87 @@ local function install(ctx)
     end
 
     -- Connection summary (Overview tab).
-    local function draw_connection_content()
-        imgui.text("Server: " .. format_optional(bridge.launcher_server_address ~= "" and bridge.launcher_server_address or nil))
-        imgui.text("Slot: " .. format_optional(bridge.launcher_slot_name ~= "" and bridge.launcher_slot_name or nil))
-        imgui.text("AP Connection: " .. tostring(bridge.ap_status_label or bridge.ap_connection_status or "Disconnected"))
-        imgui.text("AP Client: in-game Lua (lua-apclientpp)")
+    -- [Server tab] The deliberate counterpart to the port-recovery dialog: that
+    -- one appears only on failure and edits only the port, while this is where a
+    -- player goes to look at the connection or change the address on purpose.
+    -- Address only by design - slot and password stay launcher-side, because
+    -- changing the slot in here would silently switch which per-seed session
+    -- file (session_<seed>__<slot>.json) holds the checked-set watermark.
+    local function draw_server_content()
+        local info_fn = ctx.ap_get_connection_info or _G.ap_get_connection_info
+        local details = (type(info_fn) == "function") and info_fn() or {}
+
+        -- Seed the edit buffer from the live address so it never starts blank.
+        if tostring(bridge.server_tab_address_input or "") == "" then
+            bridge.server_tab_address_input = tostring(details.server or bridge.launcher_server_address or "")
+        end
+
+        imgui.text("Status: " .. tostring(bridge.ap_status_label or bridge.ap_connection_status or "Disconnected"))
+        imgui.text("Address: " .. format_optional(details.server ~= "" and details.server or nil))
+        imgui.text("Slot: " .. format_optional(details.slot ~= "" and details.slot or nil))
+
+        local seconds = tonumber(details.seconds_since_contact)
+        if seconds ~= nil and not details.slot_connected then
+            imgui.text(string.format("Last answer from the server: %ds ago", math.floor(seconds)))
+        end
+
+        -- Seed check: the room answering on this address is only OURS if the
+        -- seed matches what the launcher recorded for this session.
+        local expected_seed = tostring(details.expected_seed or "")
+        local room_seed = tostring(details.seed or "")
+        if expected_seed ~= "" and room_seed ~= "" then
+            if expected_seed == room_seed then
+                imgui.text("Seed: matches this session")
+            else
+                imgui.text("Seed: MISMATCH - this is a different multiworld")
+            end
+        elseif expected_seed ~= "" then
+            imgui.text("Seed on record: " .. expected_seed)
+        end
+
+        local room_url = tostring(details.room_url or "")
+        if room_url ~= "" then
+            imgui.text("Room page: " .. room_url)
+        end
+
+        imgui.text("")
+        imgui.text("-- Change the address --")
+        local changed, value = imgui.input_text("##ap_server_address", bridge.server_tab_address_input or "")
+        if changed then
+            bridge.server_tab_address_input = value
+        end
+
+        if imgui.button("Apply and Reconnect") then
+            local apply = ctx.ap_apply_server_address or _G.ap_apply_server_address
+            if type(apply) == "function" then
+                apply(bridge.server_tab_address_input)
+            else
+                bridge.server_tab_status = "Address changes unavailable - use the launcher."
+            end
+        end
+        imgui.same_line()
+        if imgui.button("Reconnect") then
+            local reconnect = ctx.ap_reconnect or _G.ap_reconnect
+            if type(reconnect) == "function" then
+                reconnect()
+            end
+        end
+        imgui.same_line()
+        if imgui.button("Revert") then
+            bridge.server_tab_address_input = tostring(details.server or "")
+            bridge.server_tab_status = ""
+        end
+
+        local status = tostring(bridge.server_tab_status or "")
+        if status ~= "" then
+            imgui.text(status)
+        end
+
+        imgui.text("")
+        imgui.text("Host and port, for example archipelago.gg:38281. A ws:// or")
+        imgui.text("wss:// prefix is optional. Only this game is updated - the")
+        imgui.text("launcher keeps its own copy and will still show the old")
+        imgui.text("address until you re-patch or use Fix Automatically there.")
     end
 
     -- Manual engine-item injection (Debug tab; developer tool).
@@ -666,7 +742,7 @@ local function install(ctx)
     end
 
     export("arm_chapter_switch", arm_chapter_switch)
-    export("draw_connection_content", draw_connection_content)
+    export("draw_server_content", draw_server_content)
     export("draw_status_content", draw_status_content)
     export("draw_probe_content", draw_probe_content)
     export("draw_injection_content", draw_injection_content)

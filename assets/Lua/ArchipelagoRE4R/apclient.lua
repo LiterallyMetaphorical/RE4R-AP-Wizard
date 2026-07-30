@@ -1724,6 +1724,45 @@ return function(ctx)
     -- the mod actually reads), then drop the client so the retry loop dials the
     -- new address within ~3s. Password and slot are preserved untouched; the
     -- seed check on the next RoomInfo is what proves the new port is right.
+    -- Write a new server address into the game-relative connection file and drop
+    -- the client so the poll loop dials it (~3s). Slot, password and the room
+    -- pointer are preserved: the Server tab edits the address only, and the
+    -- recovery dialog edits only the port inside it. Returns ok, message.
+    --
+    -- NOTE the launcher keeps its own copy of this file under %APPDATA% that Lua
+    -- cannot reach, so after an in-game change the launcher still shows the old
+    -- address until a re-patch or its own Fix Automatically. The Server tab says
+    -- so on screen rather than letting players find out later.
+    local function apply_server_address(new_server)
+        local payload = {
+            server_address = new_server,
+            slot_name = st.slot,
+            password = st.password or "",
+            room_url = st.room_url or "",
+        }
+        local ok_call, result = pcall(function()
+            return json.dump_file(CONNECTION_INFO_FILE, payload, 4)
+        end)
+        if not (ok_call and result ~= false) then
+            err("failed to write " .. CONNECTION_INFO_FILE)
+            return false, "Could not save the address. Use the launcher instead."
+        end
+        info(string.format("connection address set to %s - reconnecting", new_server))
+        -- Drop the client; the poll loop re-reads the file and reconnects.
+        ap = nil
+        st.server = new_server
+        -- Restart the no-contact budget, or the watchdog would judge the NEW
+        -- address by how long the OLD one had been silent and re-open the
+        -- recovery dialog straight away.
+        st.last_contact_clock = os.clock()
+        st.slot_connected = false
+        if ctx.bridge ~= nil then
+            ctx.bridge.launcher_server_address = new_server
+        end
+        set_conn_status("pending", "Reconnecting...")
+        return true, string.format("Trying %s...", new_server)
+    end
+
     local function ap_apply_port(port_text)
         local bridge = ctx.bridge
         local port = tonumber(trim(port_text))
@@ -1740,39 +1779,85 @@ return function(ctx)
             end
             return false
         end
-        local new_server = string.format("%s:%d", host, port)
-        local payload = {
-            server_address = new_server,
-            slot_name = st.slot,
-            password = st.password or "",
-            -- Preserve the launcher's room pointer; rewriting the port must not
-            -- strip it or the dialog loses the link on a second failure.
-            room_url = st.room_url or "",
-        }
-        local ok_write = false
-        local ok_call, result = pcall(function()
-            return json.dump_file(CONNECTION_INFO_FILE, payload, 4)
-        end)
-        ok_write = ok_call and (result ~= false)
-        if not ok_write then
-            err("port recovery: failed to write " .. CONNECTION_INFO_FILE)
+        local ok_apply, message = apply_server_address(string.format("%s:%d", host, port))
+        if bridge ~= nil then
+            bridge.port_recovery_status = message
+        end
+        return ok_apply
+    end
+    ctx.ap_apply_port = ap_apply_port
+
+    -- [Server tab] Edit the whole address. Takes host:port with or without a
+    -- ws:// or wss:// scheme, matching what the launcher's field accepts; a bare
+    -- host keeps the port already on record so a slip cannot silently drop it.
+    local function ap_apply_server_address(address_text)
+        local bridge = ctx.bridge
+        local text = trim(address_text)
+        if text == "" then
+            if bridge ~= nil then bridge.server_tab_status = "Enter an address first." end
+            return false
+        end
+        local host, port = split_server_address(text)
+        if host == "" then
+            if bridge ~= nil then bridge.server_tab_status = "That address has no host." end
+            return false
+        end
+        if port == nil then
+            local _, current_port = split_server_address(st.server)
+            port = current_port
+            if port == nil then
+                if bridge ~= nil then
+                    bridge.server_tab_status = "Add a port, for example archipelago.gg:38281."
+                end
+                return false
+            end
+        end
+        if port ~= math.floor(port) or port < 1 or port > 65535 then
             if bridge ~= nil then
-                bridge.port_recovery_status = "Could not save the new port. Use the launcher instead."
+                bridge.server_tab_status = "Port must be between 1 and 65535."
             end
             return false
         end
-        info(string.format("port recovery: address rewritten to %s - reconnecting", new_server))
-        if bridge ~= nil then
-            bridge.port_recovery_status = string.format("Trying %s...", new_server)
-        end
-        -- Drop the client; the poll loop re-reads the file and reconnects.
+        local ok_apply, message = apply_server_address(string.format("%s:%d", host, port))
+        if bridge ~= nil then bridge.server_tab_status = message end
+        return ok_apply
+    end
+    ctx.ap_apply_server_address = ap_apply_server_address
+
+    -- Reconnect with no edits: the fix for a dropped socket that has not retried
+    -- yet, and the way to re-read the file after the launcher rewrites it.
+    local function ap_reconnect()
         ap = nil
-        st.server = new_server
-        st.connect_attempts_since_contact = 0
-        set_conn_status("pending", "Trying the new port...")
+        st.last_contact_clock = os.clock()
+        st.slot_connected = false
+        set_conn_status("pending", "Reconnecting...")
+        info("reconnect requested from the Server tab")
+        if ctx.bridge ~= nil then
+            ctx.bridge.server_tab_status = "Reconnecting..."
+        end
         return true
     end
-    ctx.ap_apply_port = ap_apply_port
+    ctx.ap_reconnect = ap_reconnect
+
+    -- Everything the Server tab shows, read on demand so none of it has to be
+    -- mirrored onto the bridge every frame.
+    local function ap_get_connection_info()
+        local seconds_since_contact = nil
+        local last_contact = tonumber(st.last_contact_clock)
+        if last_contact ~= nil then
+            seconds_since_contact = os.clock() - last_contact
+        end
+        return {
+            server = st.server or "",
+            slot = st.slot or "",
+            seed = st.seed or "",
+            expected_seed = st.expected_seed or "",
+            room_url = st.room_url or "",
+            slot_connected = st.slot_connected == true,
+            seconds_since_contact = seconds_since_contact,
+        }
+    end
+    ctx.ap_get_connection_info = ap_get_connection_info
 
     -- [Port recovery] The watchdog. Runs every poll tick: if we are not slot
     -- connected and nothing has answered for PORT_UNREACHABLE_SECONDS, offer the
