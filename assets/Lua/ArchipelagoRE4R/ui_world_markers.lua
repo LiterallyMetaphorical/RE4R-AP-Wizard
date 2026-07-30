@@ -31,12 +31,14 @@ local function install(ctx)
     -- they read as "not this chapter" without hiding the data.
     local MARKER_COLOR_OFFCHAPTER = 0x99AAAAAA
 
-    -- Enrichment ladder (marker_detail): basic < locate < identify, each tier a
+    -- Enrichment ladder (marker_detail): basic < locate < identify < developer
+    -- (developer = identify + the [guid8] location code, the one token that
+    -- correlates a marker with its spoiler-log line - Cam 2026-07-29), each tier a
     -- superset of the prior. The player's client pick is capped by the YAML host
     -- ceiling (bridge.marker_detail_ceiling, absent = permissive "identify"), and
     -- identify additionally needs Developer Tools (a self-spoiler gate). A HINTED
     -- check always renders identify regardless (you paid to know).
-    local DETAIL_TIER = { basic = 1, locate = 2, identify = 3 }
+    local DETAIL_TIER = { basic = 1, locate = 2, identify = 3, developer = 4 }
 
     local function detail_tier_of(name)
         return DETAIL_TIER[name] or 1
@@ -47,7 +49,9 @@ local function install(ctx)
         if type(pick) ~= "string" then
             pick = (type(_G.WORLD_MARKER_DETAIL) == "string" and _G.WORLD_MARKER_DETAIL) or "basic"
         end
-        local tier = math.min(detail_tier_of(pick), detail_tier_of(bridge.marker_detail_ceiling or "identify"))
+        -- Absent ceiling = permissive top tier. identify AND developer both
+        -- sit behind the Developer Tools gate (the >= check covers them).
+        local tier = math.min(detail_tier_of(pick), detail_tier_of(bridge.marker_detail_ceiling or "developer"))
         if tier >= DETAIL_TIER.identify and bridge.developer_tools_enabled ~= true then
             tier = DETAIL_TIER.locate
         end
@@ -328,6 +332,14 @@ local function install(ctx)
                     if id ~= nil then
                         label = label .. "  " .. id
                     end
+                end
+
+                -- Developer: the [guid8] location code - matches the token in
+                -- the AP location name and the spoiler log, so a marker can be
+                -- correlated line-for-line with generation output.
+                if eff_tier >= DETAIL_TIER.developer
+                    and type(entry.guid) == "string" and #entry.guid >= 8 then
+                    label = label .. "  [" .. entry.guid:sub(1, 8) .. "]"
                 end
 
                 local ok_draw = pcall(

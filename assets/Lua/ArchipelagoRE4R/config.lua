@@ -3,7 +3,7 @@ local function install(ctx)
         -- Logged at boot next to the launcher's install stamp so a player's
         -- re2_framework_log.txt identifies the exact deployed build. Bump on
         -- every Lua change that ships (date.rev).
-        MOD_VERSION = "2026.07.29-5",
+        MOD_VERSION = "2026.07.29-6",
         DATA_DIR = "ArchipelagoRE4R",
         WRITE_INTERVAL_SECONDS = 0.25,
         SCAN_INTERVAL_SECONDS = 1 / 30,
@@ -98,8 +98,10 @@ local function install(ctx)
         NATIVE_TOAST_PANEL_STATE = "DEFAULT",
         -- [World markers] Default detail tier for marker labels (marker_detail
         -- ladder): "basic" (distance / direction / height / area), "locate"
-        -- (+ what to look for: vanilla item + container), or "identify" (+ the
-        -- actual AP item and recipient -- a spoiler gated behind Developer Tools).
+        -- (+ what to look for: vanilla item + container), "identify" (+ the
+        -- actual AP item and recipient -- a spoiler gated behind Developer
+        -- Tools), or "developer" (+ the [guid8] location code that matches the
+        -- spoiler log line -- same Developer Tools gate).
         -- The Status-window picker overrides at runtime, capped by the YAML host
         -- ceiling (marker_detail_ceiling). Guidance default says WHERE, not WHAT.
         WORLD_MARKER_DETAIL = "basic",

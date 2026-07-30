@@ -441,15 +441,16 @@ re.on_draw_ui(function()
             -- higher tiers add what-to-look-for and, gated behind Developer Tools,
             -- the actual AP placement. The pick is capped by the YAML host ceiling
             -- (marker_detail_ceiling, absent = permissive).
-            local detail_tier_index = { basic = 1, locate = 2, identify = 3 }
-            local detail_names = { "basic", "locate", "identify" }
+            local detail_tier_index = { basic = 1, locate = 2, identify = 3, developer = 4 }
+            local detail_names = { "basic", "locate", "identify", "developer" }
             local detail_labels = {
                 "Basic (distance, direction, height, area)",
                 "Locate (+ what to look for)",
                 "Identify (+ actual AP item -- spoiler)",
+                "Developer (+ [code] matching the spoiler log)",
             }
-            local ceiling_tier = detail_tier_index[bridge.marker_detail_ceiling or "identify"] or 3
-            local max_tier = math.min(ceiling_tier, bridge.developer_tools_enabled and 3 or 2)
+            local ceiling_tier = detail_tier_index[bridge.marker_detail_ceiling or "developer"] or 4
+            local max_tier = math.min(ceiling_tier, bridge.developer_tools_enabled and 4 or 2)
             local detail_options = {}
             for i = 1, max_tier do detail_options[i] = detail_labels[i] end
             local cur_name = bridge.world_markers_detail

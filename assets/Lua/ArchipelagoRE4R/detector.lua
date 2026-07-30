@@ -344,29 +344,36 @@ local function install(ctx)
         end
     end
 
-    local function prune_pending_pickup_accepts(current_stage)
+    -- AGE-ONLY pruning. These prunes used to ALSO drop any entry whose stage
+    -- differed from the caller's current runtime stage - but accepts are filed
+    -- under the guid's DATASET stage (canonicalization), and runtime volumes
+    -- overlap and flap. Standing in a neighbouring sub-stage volume silently
+    -- destroyed the pending accept within one scan tick, so the commit never
+    -- matched and the check was LOST (Cam's Ch8 Mines Ruby, 2026-07-29
+    -- 19:46: accept logged, then nothing - the marker staying up was the
+    -- visible symptom). Reload safety is unaffected: clear_pending("load")
+    -- still wipes on loading screens, and age windows bound everything else.
+    local function prune_pending_pickup_accepts(_)
         local now_ms = current_unix_ms()
         local kept = {}
         for _, entry in ipairs(bridge.pending_pickup_accepts) do
             local age_ms = now_ms - (tonumber(entry.queued_at_unix_ms) or 0)
-            local stage_matches = type(current_stage) ~= "number" or entry.stage == current_stage
             -- This list only ever holds TRACKED accepts (enqueue requires the
             -- GUID to be an AP check), so they get the long window that
             -- survives the weapon-acquisition screen.
-            if age_ms <= PENDING_TRACKED_ACCEPT_WINDOW_MS and stage_matches then
+            if age_ms <= PENDING_TRACKED_ACCEPT_WINDOW_MS then
                 table.insert(kept, entry)
             end
         end
         bridge.pending_pickup_accepts = kept
     end
 
-    local function prune_recent_pickup_accept_probes(current_stage)
+    local function prune_recent_pickup_accept_probes(_)
         local now_ms = current_unix_ms()
         local kept = {}
         for _, entry in ipairs(recent_pickup_accept_probes) do
             local age_ms = now_ms - (tonumber(entry.queued_at_unix_ms) or 0)
-            local stage_matches = type(current_stage) ~= "number" or entry.stage == current_stage
-            if age_ms <= PENDING_PICKUP_ACCEPT_WINDOW_MS and stage_matches then
+            if age_ms <= PENDING_PICKUP_ACCEPT_WINDOW_MS then
                 table.insert(kept, entry)
             end
         end
@@ -406,12 +413,23 @@ local function install(ctx)
         return true
     end
 
-    local function pop_recent_pickup_accept_probe(stage)
+    -- Context-key match first (the drop's exact identity, stage-independent),
+    -- newest same-stage entry as the fallback for contextless callers.
+    local function pop_recent_pickup_accept_probe(stage, context_key)
+        prune_recent_pickup_accept_probes()
+        local normalized_context = trim_string(context_key)
+        if normalized_context ~= "" then
+            for index, entry in ipairs(recent_pickup_accept_probes) do
+                if entry.context_key == normalized_context then
+                    table.remove(recent_pickup_accept_probes, index)
+                    return entry
+                end
+            end
+        end
         if type(stage) ~= "number" then
             return nil
         end
 
-        prune_recent_pickup_accept_probes(stage)
         local newest_index = nil
         local newest_timestamp = nil
         for index, entry in ipairs(recent_pickup_accept_probes) do
@@ -474,12 +492,24 @@ local function install(ctx)
         return true
     end
 
-    local function pop_matching_pending_pickup_accept(stage)
+    -- Context-key match FIRST: both hooks see the same drop context (proven
+    -- live - accept and confirm logged identical keys), so this pairing is
+    -- exact and immune to runtime-vs-dataset stage divergence. Stage match
+    -- stays only as the fallback for a contextless commit.
+    local function pop_matching_pending_pickup_accept(stage, context_key)
+        prune_pending_pickup_accepts()
+        local normalized_context = trim_string(context_key)
+        if normalized_context ~= "" then
+            for index, entry in ipairs(bridge.pending_pickup_accepts) do
+                if entry.context_key == normalized_context then
+                    table.remove(bridge.pending_pickup_accepts, index)
+                    return entry
+                end
+            end
+        end
         if type(stage) ~= "number" then
             return nil
         end
-
-        prune_pending_pickup_accepts(stage)
         for index, entry in ipairs(bridge.pending_pickup_accepts) do
             if entry.stage == stage then
                 table.remove(bridge.pending_pickup_accepts, index)
@@ -790,6 +820,16 @@ local function install(ctx)
                 local runtime_state = get_runtime_state()
                 local stage = get_active_runtime_stage(runtime_state)
                 if not runtime_state.is_playable or type(stage) ~= "number" then
+                    -- LOUD skip: this used to return silently, which made a
+                    -- commit that fired mid-transition (stage nil / not
+                    -- playable) indistinguishable from one that never fired -
+                    -- exactly the ambiguity that hid the Mines lost-check.
+                    log.info(string.format(
+                        "[RE4R AP] pickup_commit skipped (playable=%s stage=%s) item_id=%s",
+                        tostring(runtime_state.is_playable),
+                        tostring(stage),
+                        tostring(decode_low32_from_hook_arg(args[4]))
+                    ))
                     return sdk.PreHookResult.CALL_ORIGINAL
                 end
 
@@ -813,9 +853,9 @@ local function install(ctx)
                     return sdk.PreHookResult.CALL_ORIGINAL
                 end
 
-                local matched_accept = pop_matching_pending_pickup_accept(stage)
+                local matched_accept = pop_matching_pending_pickup_accept(stage, context_key)
                 if matched_accept == nil then
-                    local recent_accept = pop_recent_pickup_accept_probe(stage)
+                    local recent_accept = pop_recent_pickup_accept_probe(stage, context_key)
                     if recent_accept ~= nil then
                         record_pickup_probe(
                             "confirmed",
@@ -910,7 +950,7 @@ local function install(ctx)
                     return sdk.PreHookResult.CALL_ORIGINAL
                 end
 
-                pop_recent_pickup_accept_probe(matched_accept.stage)
+                pop_recent_pickup_accept_probe(matched_accept.stage, matched_accept.context_key)
                 record_pickup_probe(
                     "confirmed",
                     matched_accept.stage,
