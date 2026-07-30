@@ -1044,6 +1044,136 @@ local function install(ctx)
         return controller, nil
     end
 
+    -- [Ashley section] Walk _ControllerTable's backing entries so a controller can
+    -- be found by TYPE instead of by a guessed ContextID. Leon's inventory keys are
+    -- known constants, but the Ashley section runs a different character with its
+    -- own contexts, so every hardcoded lookup missed and NOTHING from the
+    -- multiworld could be delivered while playing as her - including the Salazar
+    -- Family Insignia her own section needs, which is a hard softlock (Cam, live
+    -- 2026-07-29). Field name varies with the runtime's Dictionary layout, so try
+    -- the known spellings and give up quietly.
+    local function inject_enumerate_controllers(controller_table)
+        local managed = inject_get_managed(controller_table)
+        if managed == nil then
+            return {}
+        end
+
+        local function value_of(entry)
+            if entry == nil then
+                return nil
+            end
+            for _, value_field in ipairs({ "value", "_value" }) do
+                local value = inject_safe_call(function() return entry:get_field(value_field) end)
+                if value ~= nil then
+                    return value
+                end
+            end
+            -- Some layouts hand back the controller directly rather than a
+            -- key/value entry struct.
+            if inject_get_value_type_name(entry) ~= nil then
+                return entry
+            end
+            return nil
+        end
+
+        local results = {}
+        for _, field_name in ipairs({ "_entries", "entries", "_values", "values" }) do
+            local entries = inject_safe_call(function()
+                return managed:get_field(field_name)
+            end)
+            if entries ~= nil then
+                -- get_elements() is the array walk this file already relies on
+                -- (inject_get_collection_count); indexed access is the fallback.
+                local elements = inject_safe_call(function() return entries:get_elements() end)
+                if type(elements) == "table" then
+                    for _, entry in ipairs(elements) do
+                        local value = value_of(entry)
+                        if value ~= nil then
+                            results[#results + 1] = value
+                        end
+                    end
+                end
+                if #results == 0 then
+                    local count = tonumber(inject_safe_call(function() return entries:get_size() end))
+                        or tonumber(inject_safe_call(function() return entries:call("get_Length()") end))
+                    if count ~= nil and count > 0 then
+                        -- Cap the walk: the table is small, and a bogus size must
+                        -- not spin the frame.
+                        for i = 0, math.min(math.floor(count), 64) - 1 do
+                            local value = value_of(
+                                inject_safe_call(function() return entries:get_element(i) end))
+                            if value ~= nil then
+                                results[#results + 1] = value
+                            end
+                        end
+                    end
+                end
+                if #results > 0 then
+                    return results
+                end
+            end
+        end
+        return results
+    end
+
+    -- Find a controller in the table whose type name contains type_hint (for
+    -- example "KeyItemInventory"). Character-agnostic: whoever the player
+    -- currently is, their controllers are the ones registered in the table.
+    local function inject_find_controller_by_type(controller_table, type_hint)
+        for _, candidate in ipairs(inject_enumerate_controllers(controller_table)) do
+            local type_name = inject_get_value_type_name(candidate)
+            if type(type_name) == "string" and string.find(type_name, type_hint, 1, true) ~= nil then
+                local resolved = inject_try_add_ref(candidate)
+                if resolved ~= nil then
+                    return resolved, type_name
+                end
+            end
+        end
+        return nil, nil
+    end
+
+    -- Failure diagnostic: name every controller actually registered right now.
+    -- Fires only when resolution failed completely, so a stuck player's log
+    -- carries what we need without asking them to run a probe.
+    local function inject_log_controller_table(controller_table, route_label)
+        local names = {}
+        for _, candidate in ipairs(inject_enumerate_controllers(controller_table)) do
+            names[#names + 1] = tostring(inject_get_value_type_name(candidate))
+        end
+        if #names == 0 then
+            log.error(string.format(
+                "[RE4R AP] %s: _ControllerTable could not be enumerated (Dictionary layout unknown) - report this log",
+                tostring(route_label)))
+            return
+        end
+        log.error(string.format(
+            "[RE4R AP] %s: _ControllerTable holds %d controller(s): %s",
+            tostring(route_label), #names, table.concat(names, ", ")))
+    end
+
+    -- The resolution ladder for an inventory controller: the known-good key
+    -- (Leon, unchanged fast path), then a type match over the live table (any
+    -- character, including Ashley). Logs which route won so the Ashley-section
+    -- contexts become documented fact rather than a guess.
+    local function inject_resolve_controller(controller_table, category, kind, group, index, type_hint, route_label)
+        local controller, lookup_error = inject_lookup_controller(controller_table, category, kind, group, index)
+        if controller ~= nil then
+            return controller, nil
+        end
+
+        local found, type_name = inject_find_controller_by_type(controller_table, type_hint)
+        if found ~= nil then
+            log.info(string.format(
+                "[RE4R AP] %s: ContextID (%d,%d,%d,%d) missed, using %s found in _ControllerTable by type",
+                tostring(route_label), category, kind, group, index, tostring(type_name)))
+            return found, nil
+        end
+
+        inject_log_controller_table(controller_table, route_label)
+        return nil, string.format(
+            "%s (and no %s in _ControllerTable)", tostring(lookup_error), tostring(type_hint))
+    end
+
     local function inject_write_storage(item, normalized_item_id, normalized_count, route_label, fallback_reason)
         local armoury_manager = sdk.get_managed_singleton("chainsaw.ArmouryManager")
         if armoury_manager ~= nil then
@@ -1306,7 +1436,10 @@ local function install(ctx)
     end
 
     local function inject_write_main_inventory(controller_table, item, normalized_item_id, normalized_count, route_label)
-        local controller, controller_error = inject_lookup_controller(controller_table, 4, 2, 0, 4000)
+        -- "Inventory" without the Key/Treasure/Unique prefix would also match the
+        -- specialised controllers, so the type hint is the exact class name.
+        local controller, controller_error = inject_resolve_controller(
+            controller_table, 4, 2, 0, 4000, "chainsaw.InventoryController", route_label)
         if controller == nil then
             return string.format("%s inject failed: %s", route_label, tostring(controller_error))
         end
@@ -1400,7 +1533,8 @@ local function install(ctx)
     end
 
     local function inject_write_key_inventory(controller_table, item, normalized_item_id, normalized_count, route_label)
-        local controller, controller_error = inject_lookup_controller(controller_table, 4, 2, 1, 4000)
+        local controller, controller_error = inject_resolve_controller(
+            controller_table, 4, 2, 1, 4000, "KeyItemInventory", route_label)
         if controller == nil then
             return string.format("%s inject failed: %s", route_label, tostring(controller_error))
         end
