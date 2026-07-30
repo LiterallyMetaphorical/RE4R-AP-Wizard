@@ -9,7 +9,10 @@ The payload itself is a build artifact (git-ignored); rebuild it with:
 
 Source repo:    biorand-re4r-ap (fork; never upstream biorand/re4r)
 Source branch:  ap-manifest-input
-Source commit:  061693c (2026-07-29: EVERY BUILT-IN PATCH IS NOW A PLAYER
+Source commit:  91e30bb (2026-07-30: Bindery difficulty-variant canonicalize
+                + revisit-drop relocation, both AP-mode scene fixes. Payload
+                SHA256 ABC592E7..., ProductVersion 1.0.0+91e30bb.)
+                Prior payload: 061693c (2026-07-29: EVERY BUILT-IN PATCH IS NOW A PLAYER
                 OPTION. BioRand applies every IPatch in the assembly
                 unconditionally, and most of them never checked a config
                 option - so things nobody asked for shipped in every world.
