@@ -240,7 +240,7 @@ local function install(ctx)
         end
 
         local dialog_width = 760
-        local dialog_height = 320
+        local dialog_height = 400
         local pos_x, pos_y = 80, 80
         local ok_display, display_size = pcall(function()
             return imgui.get_display_size()
@@ -276,12 +276,41 @@ local function install(ctx)
         draw_centered_dialog_text("------------------------------------------------------------", dialog_width)
         draw_centered_dialog_text(string.format("Recorded address: %s", tostring(dialog.server or "?")), dialog_width)
 
-        local changed_port, port_value = imgui.input_text("New Port", bridge.port_recovery_input or "")
+        -- Everything else in this dialog is centered text, so centre the widgets
+        -- too - imgui places controls (and their labels) hard left by default,
+        -- which read as a broken layout next to the centered copy (Cam
+        -- 2026-07-29). Move the cursor to the row's centre before drawing.
+        local function begin_centered_row(row_width)
+            local window_width = dialog_width
+            local ok_size, size = pcall(function() return imgui.get_window_size() end)
+            if ok_size and size ~= nil then
+                window_width = math.max(200, tonumber(size.x or 0) or dialog_width)
+            end
+            local ok_cursor, cursor = pcall(function() return imgui.get_cursor_pos() end)
+            if ok_cursor and cursor ~= nil then
+                pcall(function()
+                    imgui.set_cursor_pos(Vector2f.new(
+                        math.max(18, math.floor((window_width - row_width) * 0.5)), cursor.y))
+                end)
+            end
+        end
+
+        draw_centered_dialog_text("New port:", dialog_width)
+
+        local field_width = 160
+        local test_label = "Test Port"
+        local test_width = get_imgui_text_width(test_label) + 28
+        begin_centered_row(field_width + 10 + test_width)
+        pcall(function() imgui.push_item_width(field_width) end)
+        -- "##" id = no imgui label (the centered caption above replaces it).
+        local changed_port, port_value = imgui.input_text("##ap_new_port", bridge.port_recovery_input or "")
+        pcall(function() imgui.pop_item_width() end)
         if changed_port then
             bridge.port_recovery_input = port_value
         end
 
-        if imgui.button("Test Port") then
+        imgui.same_line()
+        if imgui.button(test_label) then
             local apply = ctx.ap_apply_port or _G.ap_apply_port
             if type(apply) == "function" then
                 apply(bridge.port_recovery_input)
@@ -295,11 +324,22 @@ local function install(ctx)
             draw_centered_dialog_text(status, dialog_width)
         end
 
+        -- The game keeps the mouse while its own menus are up, so imgui gets no
+        -- clicks until REFramework's overlay is open. Say so, and only while it
+        -- is true - the line disappears the moment Insert is pressed.
+        local ok_ui, drawing_ui = pcall(function() return reframework:is_drawing_ui() end)
+        if ok_ui and not drawing_ui then
+            draw_centered_dialog_text(
+                "Press Insert to free your mouse, then type the port above.", dialog_width)
+        end
+
         draw_centered_dialog_text("------------------------------------------------------------", dialog_width)
         draw_centered_dialog_text(
             'Alternatively, boot the RE4R AP Launcher and select "Fix Automatically".', dialog_width)
 
-        if imgui.button("Dismiss this message") then
+        local dismiss_label = "Dismiss this message"
+        begin_centered_row(get_imgui_text_width(dismiss_label) + 28)
+        if imgui.button(dismiss_label) then
             local dismiss = ctx.ap_dismiss_port_recovery or _G.ap_dismiss_port_recovery
             if type(dismiss) == "function" then
                 dismiss()
