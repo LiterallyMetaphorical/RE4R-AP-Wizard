@@ -1185,6 +1185,36 @@ local function install(ctx)
             "%s (no %s registered)", tostring(lookup_error), table.concat(type_names, "/"))
     end
 
+    -- True while the campaign lead (Leon) owns the live inventories. The Ashley
+    -- section registers HER controllers under different ContextIDs, so Leon's
+    -- known key-item ID being absent is a reliable, cheap "someone else is
+    -- playing" test - no character-type reflection needed.
+    --
+    -- This matters because that section's inventories are DISCARDED when it
+    -- ends: proven live 2026-07-30, items injected into Ashley's main grid AND
+    -- into Storage were both gone once Leon returned. Delivering to her would
+    -- tell the multiworld an item was received that the player never keeps.
+    local function inject_is_default_character_active()
+        local inventory_manager = sdk.get_managed_singleton("chainsaw.InventoryManager")
+        if inventory_manager == nil then
+            return true -- no manager yet (menus/loading): do not claim a swap
+        end
+        inventory_manager = inject_try_add_ref(inventory_manager)
+        if inventory_manager == nil then
+            return true
+        end
+        local manager_managed = inject_get_managed(inventory_manager)
+        local controller_table = inject_safe_call(function()
+            return manager_managed:get_field("_ControllerTable")
+        end)
+        if controller_table == nil then
+            return true
+        end
+        local controller = inject_lookup_controller(controller_table, 4, 2, 1, 4000)
+        return controller ~= nil
+    end
+    export("inject_is_default_character_active", inject_is_default_character_active)
+
     local function inject_write_storage(item, normalized_item_id, normalized_count, route_label, fallback_reason)
         local armoury_manager = sdk.get_managed_singleton("chainsaw.ArmouryManager")
         if armoury_manager ~= nil then

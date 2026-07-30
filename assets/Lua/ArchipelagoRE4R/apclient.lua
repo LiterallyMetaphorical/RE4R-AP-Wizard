@@ -644,6 +644,28 @@ return function(ctx)
             st.item_delivery_stability_logged = false
             return -- busy state: defer the whole drain, do not advance
         end
+        -- [Character gate] The Ashley section runs its own inventories and
+        -- DISCARDS them when it ends - live 2026-07-30, items put in her main
+        -- grid and even in Storage were gone once Leon returned. Delivering
+        -- there would report an item received that the player never keeps, so
+        -- hold the whole queue until the campaign lead is back. Lossless: the
+        -- watermark does not advance, exactly like the busy-state defer above.
+        local is_default_character = ctx.inject_is_default_character_active
+            or _G.inject_is_default_character_active
+        if type(is_default_character) == "function" then
+            local ok_character, default_active = pcall(is_default_character)
+            if ok_character and not default_active then
+                if not st.item_delivery_character_logged then
+                    st.item_delivery_character_logged = true
+                    info("another character is playing (their inventory is discarded at section end) - holding received items until the campaign lead returns")
+                end
+                return -- do not advance
+            end
+            if ok_character and default_active and st.item_delivery_character_logged then
+                st.item_delivery_character_logged = false
+                info("campaign lead is back - resuming received-item delivery")
+            end
+        end
         local resume_not_before = tonumber(st.item_delivery_resume_not_before)
         if resume_not_before ~= nil and runtime_clock < resume_not_before then
             if not st.item_delivery_stability_logged then
