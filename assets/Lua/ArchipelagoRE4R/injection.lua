@@ -1068,11 +1068,13 @@ local function install(ctx)
                     return value
                 end
             end
-            -- Some layouts hand back the controller directly rather than a
-            -- key/value entry struct.
-            if inject_get_value_type_name(entry) ~= nil then
-                return entry
-            end
+            -- Deliberately NO "return entry" fallback: an unextracted
+            -- Dictionary Entry struct is not a controller, and returning it
+            -- fed the type match a name like
+            -- "Dictionary`2.Entry<ContextID,InventoryControllerBase>" that
+            -- matched the hint by substring and produced a controller with no
+            -- CsInventory (live 2026-07-30, "Main Inventory inject failed:
+            -- CsInventory missing").
             return nil
         end
 
@@ -1119,10 +1121,19 @@ local function install(ctx)
     -- Find a controller in the table whose type name contains type_hint (for
     -- example "KeyItemInventory"). Character-agnostic: whoever the player
     -- currently is, their controllers are the ones registered in the table.
-    local function inject_find_controller_by_type(controller_table, type_hint)
+    -- EXACT class match only. A substring test is unsafe here: the table's own
+    -- Dictionary Entry type spells its value class inside the generic
+    -- parameters, so "chainsaw.InventoryController" matched
+    -- "...Entry<ContextID,chainsaw.InventoryControllerBase>" and handed back a
+    -- struct with no inventory behind it. Callers pass every acceptable class.
+    local function inject_find_controller_by_type(controller_table, type_names)
+        local wanted = {}
+        for _, name in ipairs(type_names) do
+            wanted[name] = true
+        end
         for _, candidate in ipairs(inject_enumerate_controllers(controller_table)) do
             local type_name = inject_get_value_type_name(candidate)
-            if type(type_name) == "string" and string.find(type_name, type_hint, 1, true) ~= nil then
+            if type(type_name) == "string" and wanted[type_name] then
                 local resolved = inject_try_add_ref(candidate)
                 if resolved ~= nil then
                     return resolved, type_name
@@ -1155,23 +1166,23 @@ local function install(ctx)
     -- (Leon, unchanged fast path), then a type match over the live table (any
     -- character, including Ashley). Logs which route won so the Ashley-section
     -- contexts become documented fact rather than a guess.
-    local function inject_resolve_controller(controller_table, category, kind, group, index, type_hint, route_label)
+    local function inject_resolve_controller(controller_table, category, kind, group, index, type_names, route_label)
         local controller, lookup_error = inject_lookup_controller(controller_table, category, kind, group, index)
         if controller ~= nil then
             return controller, nil
         end
 
-        local found, type_name = inject_find_controller_by_type(controller_table, type_hint)
+        local found, type_name = inject_find_controller_by_type(controller_table, type_names)
         if found ~= nil then
             log.info(string.format(
-                "[RE4R AP] %s: ContextID (%d,%d,%d,%d) missed, using %s found in _ControllerTable by type",
+                "[RE4R AP] %s: ContextID (%d,%d,%d,%d) missed, using %s found in _ControllerTable by class",
                 tostring(route_label), category, kind, group, index, tostring(type_name)))
             return found, nil
         end
 
         inject_log_controller_table(controller_table, route_label)
         return nil, string.format(
-            "%s (and no %s in _ControllerTable)", tostring(lookup_error), tostring(type_hint))
+            "%s (no %s registered)", tostring(lookup_error), table.concat(type_names, "/"))
     end
 
     local function inject_write_storage(item, normalized_item_id, normalized_count, route_label, fallback_reason)
@@ -1439,7 +1450,12 @@ local function install(ctx)
         -- "Inventory" without the Key/Treasure/Unique prefix would also match the
         -- specialised controllers, so the type hint is the exact class name.
         local controller, controller_error = inject_resolve_controller(
-            controller_table, 4, 2, 0, 4000, "chainsaw.InventoryController", route_label)
+            -- chainsaw.CsInventoryController is the main-grid controller: it is
+            -- what holds the _CsInventory this route writes into. Confirmed from
+            -- a live _ControllerTable dump during the Ashley section (2026-07-30),
+            -- which registers exactly KeyItem / Cs / Unique / Treasure - there is
+            -- no type called "InventoryController".
+            controller_table, 4, 2, 0, 4000, { "chainsaw.CsInventoryController" }, route_label)
         if controller == nil then
             return string.format("%s inject failed: %s", route_label, tostring(controller_error))
         end
@@ -1534,7 +1550,7 @@ local function install(ctx)
 
     local function inject_write_key_inventory(controller_table, item, normalized_item_id, normalized_count, route_label)
         local controller, controller_error = inject_resolve_controller(
-            controller_table, 4, 2, 1, 4000, "KeyItemInventory", route_label)
+            controller_table, 4, 2, 1, 4000, { "chainsaw.KeyItemInventoryController" }, route_label)
         if controller == nil then
             return string.format("%s inject failed: %s", route_label, tostring(controller_error))
         end
