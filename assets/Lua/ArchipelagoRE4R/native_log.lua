@@ -149,6 +149,89 @@ local function install(ctx)
         return false
     end
 
+    -- ------------------------------------------- organic item-toast suppression
+    -- When the player collects one of their OWN checks we want OUR line on the
+    -- rail ("Collected X from Y in Z" - it names the vanilla item and the area,
+    -- which the game's toast cannot), not the game's generic item toast. Both
+    -- go through ActivityLogManager:requestLog, so a PRE hook can drop the
+    -- game's ItemGetLogRequest for exactly that pickup.
+    --
+    -- The latch is armed by detector.lua at the ACCEPT hook (before the item
+    -- lands, since the organic toast can beat our commit hook) and consumed
+    -- once here. Only AP-tracked own pickups arm it; foreign placements never
+    -- reach the organic toast at all because their pickup is intercepted. Our
+    -- own pushes are NoticeLogRequest, a different type, so they pass through.
+    local ITEM_TOAST_REQUEST_TYPES = {
+        ["chainsaw.gui.ItemGetLogRequest"] = true,
+        ["chainsaw.gui.ItemRecieveLogRequest"] = true,
+    }
+
+    local function organic_suppression_armed()
+        local until_ms = tonumber(bridge.suppress_organic_item_toast_until_ms)
+        if until_ms == nil then
+            return false
+        end
+        local now_fn = ctx.now_unix_ms or _G.now_unix_ms
+        local now = (type(now_fn) == "function") and now_fn() or 0
+        if now > until_ms then
+            bridge.suppress_organic_item_toast_until_ms = nil
+            return false
+        end
+        return true
+    end
+
+    local function install_organic_item_toast_hook()
+        if not config.SUPPRESS_ORGANIC_AP_ITEM_TOAST then
+            return
+        end
+        local ok, err = pcall(function()
+            local td = sdk.find_type_definition("chainsaw.ActivityLogManager")
+            if td == nil then
+                error("ActivityLogManager type not found")
+            end
+            local method = td:get_method("requestLog(chainsaw.gui.LogRequestBase, System.Boolean)")
+                or td:get_method("requestLog")
+            if method == nil then
+                error("requestLog method not found")
+            end
+            sdk.hook(method, function(args)
+                local suppressed = false
+                pcall(function()
+                    if not organic_suppression_armed() then
+                        return
+                    end
+                    -- args[2] is the manager, args[3] the request (REFramework
+                    -- passes a hidden slot first, then this, then parameters).
+                    local req = sdk.to_managed_object(args[3])
+                    if req == nil then
+                        return
+                    end
+                    local type_name = req:get_type_definition():get_full_name()
+                    if ITEM_TOAST_REQUEST_TYPES[type_name] then
+                        bridge.suppress_organic_item_toast_until_ms = nil
+                        suppressed = true
+                        log.info(string.format(
+                            "[RE4R AP] suppressed the game's %s for an AP pickup - our own line covers it",
+                            tostring(type_name)))
+                    end
+                end)
+                if suppressed then
+                    return sdk.PreHookResult.SKIP_ORIGINAL
+                end
+                return sdk.PreHookResult.CALL_ORIGINAL
+            end, function(retval)
+                return retval
+            end)
+        end)
+        if ok then
+            log.info("[RE4R AP] organic item-toast suppression hook installed")
+        else
+            log.error(string.format(
+                "[RE4R AP] organic item-toast suppression unavailable: %s - the game's toast will show instead",
+                tostring(err)))
+        end
+    end
+
     -- ------------------------------------------------- panel-state discovery
     -- Organic item toasts draw a backing banner; our free-text notices come
     -- out plainer. Which visual variant a rail entry uses is decided by the
@@ -744,6 +827,8 @@ local function install(ctx)
     export("push_native_item_recieve", push_item_recieve)
     export("dispatch_native_toasts", dispatch_native_toasts)
     export("draw_native_log_content", draw_native_log_content)
+
+    install_organic_item_toast_hook()
 end
 
 return install

@@ -136,7 +136,12 @@ local function install(ctx)
                 local actual_base = actual_name:gsub("%s+[xX]%d+$", "")
                 local section_name = trim_string(display_entry.section_name)
                 toast_kind = "received"
-                toast_native_route = "suppress" -- organic native pickup toast covers it
+                -- With SUPPRESS_ORGANIC_AP_ITEM_TOAST the game's own item toast
+                -- is skipped for this pickup, so OUR line is the one the player
+                -- sees ("text"). Without it we stay out of the way and let the
+                -- organic toast speak ("suppress"), which leaves our enriched
+                -- line to the Message Log only.
+                toast_native_route = SUPPRESS_ORGANIC_AP_ITEM_TOAST and "text" or "suppress"
                 own_pickup_single_line = true
                 title_max_chars = 78
                 toast_title = "Collected " .. actual_display
@@ -953,6 +958,16 @@ local function install(ctx)
                 end
 
                 if guid ~= nil and enqueue_pending_pickup_accept(context_arg, guid, stage) then
+                    -- [Own-pickup toast] Arm HERE, not at commit: the game pushes
+                    -- its own item toast around the moment the item lands, which
+                    -- can beat the commit hook, and accept always precedes both.
+                    -- The `tracked` test is what limits this to AP locations;
+                    -- foreign placements never reach it (they returned
+                    -- SKIP_ORIGINAL above and show no organic toast anyway).
+                    if SUPPRESS_ORGANIC_AP_ITEM_TOAST and tracked then
+                        bridge.suppress_organic_item_toast_until_ms =
+                            current_unix_ms() + (tonumber(ORGANIC_TOAST_SUPPRESS_WINDOW_MS) or 15000)
+                    end
                     log.info(
                         string.format(
                             "[RE4R AP] pickup_accept stage=%s guid=%s context=%s",

@@ -3,7 +3,7 @@ local function install(ctx)
         -- Logged at boot next to the launcher's install stamp so a player's
         -- re2_framework_log.txt identifies the exact deployed build. Bump on
         -- every Lua change that ships (date.rev).
-        MOD_VERSION = "2026.07.30-6",
+        MOD_VERSION = "2026.07.30-7",
         DATA_DIR = "ArchipelagoRE4R",
         WRITE_INTERVAL_SECONDS = 0.25,
         SCAN_INTERVAL_SECONDS = 1 / 30,
@@ -67,6 +67,20 @@ local function install(ctx)
         -- Live-tunable in the Debug tab; this is only the boot default. The
         -- imgui rail code is fully intact regardless of mode.
         NATIVE_TOAST_MODE = "native",
+        -- [Own-pickup toast] Which toast a player sees when collecting one of
+        -- their OWN checks. false = the old behaviour: the game's organic item
+        -- toast shows and our enriched line only reaches the Message Log, so the
+        -- location identity was invisible in play. true (Cam 2026-07-30) =
+        -- suppress the game's ItemGetLogRequest for that one pickup and push OUR
+        -- line instead ("Collected X from Y in Z"), which also names the vanilla
+        -- item and the area. Only AP-tracked own pickups are touched; foreign
+        -- placements never reached the organic toast anyway (intercepted).
+        SUPPRESS_ORGANIC_AP_ITEM_TOAST = true,
+        -- How long an armed suppression stays valid. Armed at the ACCEPT hook,
+        -- which fires before the item lands, so this only spans accept -> the
+        -- game's toast. Weapon pickups park in the acquisition screen first,
+        -- hence seconds rather than milliseconds.
+        ORGANIC_TOAST_SUPPRESS_WINDOW_MS = 15000,
         -- [Two-line] Break a native notice onto two lines (title \n detail) once the
         -- one-line form would exceed this many on-screen chars -- the wide panel crams
         -- past roughly this. Short notices stay one compact line.
