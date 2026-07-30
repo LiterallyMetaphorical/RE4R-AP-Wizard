@@ -168,6 +168,50 @@ local function install(ctx)
         stage_chapter_map.family_candidates = payload.family_candidates or {}
     end
 
+    -- [Pickup event flags] 22 vanilla drops carry SetFlagSettings whose
+    -- scenario flags drive scripted events (Salazar knights ambush, ch2
+    -- chapter advance, island keycard doors). The AP item swap changes the
+    -- looted item's kind so the native pickup trigger never fires them; the
+    -- detector re-fires them at pickup commit. Lazy-loaded so no boot-order
+    -- change in the entry script is needed.
+    local pickup_event_flags_map = nil
+
+    local function ensure_pickup_event_flags_loaded()
+        if pickup_event_flags_map ~= nil then
+            return
+        end
+        pickup_event_flags_map = {}
+        local payload = json.load_file(PICKUP_EVENT_FLAGS_FILE)
+        if type(payload) ~= "table" or type(payload.locations) ~= "table" then
+            return
+        end
+        for guid, entry in pairs(payload.locations) do
+            local normalized = normalize_guid(guid)
+            if normalized ~= nil and type(entry) == "table" and type(entry.flags) == "table" then
+                pickup_event_flags_map[normalized] = {
+                    name = entry.name,
+                    stage = normalize_stage_id(entry.stage),
+                    flags = entry.flags,
+                    retro_heal = entry.retro_heal == true,
+                }
+            end
+        end
+    end
+
+    local function get_pickup_event_flags(guid)
+        ensure_pickup_event_flags_loaded()
+        local normalized = normalize_guid(guid)
+        if normalized == nil then
+            return nil
+        end
+        return pickup_event_flags_map[normalized]
+    end
+
+    local function get_pickup_event_flag_entries()
+        ensure_pickup_event_flags_loaded()
+        return pickup_event_flags_map
+    end
+
     -- [Stage canonicalization] guid -> dataset stage, built alongside the
     -- per-stage watch map. GUIDs are globally unique in the dataset, so this
     -- lets pickup hooks resolve a drop's TRUE stage instead of trusting the
@@ -316,11 +360,10 @@ local function install(ctx)
     -- section-scoped overlay header. Stages stay internal; sections are the
     -- player-facing place vocabulary (see PLAYER_GUIDANCE_DESIGN.md).
     local map_labels = {
-        scenes = {},         -- scene id (number) -> zone display name ("Village")
-        chapter_scene = {},  -- chapter (number) -> scene id
-        stage_scene = {},    -- stage id (number) -> scene id
-        stage_sections = {}, -- stage id (number) -> curated section-name override
-        labels = {},         -- array of { scene, stage, x, z, name }
+        scenes = {},        -- scene id (number) -> zone display name ("Village")
+        chapter_scene = {}, -- chapter (number) -> scene id
+        stage_scene = {},   -- stage id (number) -> scene id
+        labels = {},        -- array of { scene, stage, x, z, name }
     }
     ctx.data.map_labels = map_labels
 
@@ -328,7 +371,6 @@ local function install(ctx)
         map_labels.scenes = {}
         map_labels.chapter_scene = {}
         map_labels.stage_scene = {}
-        map_labels.stage_sections = {}
         map_labels.labels = {}
 
         local payload = json.load_file(MAP_LABELS_FILE)
@@ -354,13 +396,6 @@ local function install(ctx)
             local scene = tonumber(scene_id)
             if stage ~= nil and scene ~= nil then
                 map_labels.stage_scene[stage] = scene
-            end
-        end
-        for stage_key, section_name in pairs(payload.stage_sections or {}) do
-            local stage = tonumber(stage_key)
-            local name = trim_string(section_name)
-            if stage ~= nil and name ~= "" then
-                map_labels.stage_sections[stage] = name
             end
         end
         for _, raw_label in ipairs(payload.labels or {}) do
@@ -411,25 +446,13 @@ local function install(ctx)
     end
 
     -- Nearest pause-map area label: same-stage labels win, else scene-wide
-    -- Voronoi by XZ distance. Curated stage_sections overrides win outright
-    -- (one stable name per overridden stage - the header pins to it, matching
-    -- the checks' dataset names). Mirror of data_parser.py's
-    -- _resolve_section_name - both sides must assign identical names or
-    -- section counts drift.
+    -- Voronoi by XZ distance. Mirror of data_parser.py's _resolve_section_name -
+    -- both sides must assign identical names or section counts drift.
     local function get_section_for_position(stage, chapter, x, z)
         local numeric_stage = tonumber(stage)
         local numeric_x = tonumber(x)
         local numeric_z = tonumber(z)
-        if numeric_stage == nil then
-            return nil
-        end
-
-        local override = map_labels.stage_sections[math.floor(numeric_stage)]
-        if override ~= nil then
-            return override
-        end
-
-        if numeric_x == nil or numeric_z == nil then
+        if numeric_stage == nil or numeric_x == nil or numeric_z == nil then
             return nil
         end
 
@@ -970,6 +993,8 @@ local function install(ctx)
         get_stage_has_unchecked_progression = get_stage_has_unchecked_progression,
         get_unchecked_progression_locations_for_chapter = get_unchecked_progression_locations_for_chapter,
         resolve_tracked_stage = resolve_tracked_stage,
+        get_pickup_event_flags = get_pickup_event_flags,
+        get_pickup_event_flag_entries = get_pickup_event_flag_entries,
     }
 
     for key, value in pairs(exports) do

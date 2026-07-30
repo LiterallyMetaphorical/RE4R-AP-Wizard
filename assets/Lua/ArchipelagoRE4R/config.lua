@@ -204,6 +204,7 @@ local function install(ctx)
     config.LOCATION_GUID_MAP_FILE = config.DATA_DIR .. "\\location_guid_map.json"
     config.LOCATION_DISPLAY_MAP_FILE = config.DATA_DIR .. "\\location_display_map.json"
     config.MAP_LABELS_FILE = config.DATA_DIR .. "\\map_labels.json"
+    config.PICKUP_EVENT_FLAGS_FILE = config.DATA_DIR .. "\\pickup_event_flags.json"
     config.INJECTABLE_ITEMS_FILE = config.DATA_DIR .. "\\injectable_items.json"
     config.WARP_POINTS_FILE = config.DATA_DIR .. "\\warp.csv"
     config.WARP_UNLOCKS_DIR = config.DATA_DIR .. "\\warp_unlocks"

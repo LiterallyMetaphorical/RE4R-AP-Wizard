@@ -435,11 +435,79 @@ local function install(ctx)
         return CHAPTER_ID_TO_NUMBER[chapter_id]
     end
 
+    -- [Scenario flags] chainsaw.ScenarioFlagManager wrappers, mined via probe
+    -- 2026-07-30: requestSetFlag(System.Guid, System.Boolean) queues a set the
+    -- manager applies on its next tick; checkFlag(System.Guid) reads. Used to
+    -- re-fire the vanilla SetFlagSettings flags of AP-shuffled drops (Salazar
+    -- knights validated live). NOTE this REFramework build returns nil, not an
+    -- error, when an explicit :call signature does not match - so a nil from
+    -- checkFlag means "unavailable", never false, and call success alone never
+    -- proves a method exists.
+    local boxed_guid_cache = {}
+
+    local function box_system_guid(guid_str)
+        if type(guid_str) ~= "string" or guid_str == "" then
+            return nil
+        end
+        local cached = boxed_guid_cache[guid_str]
+        if cached ~= nil then
+            return cached
+        end
+        local ok, boxed = pcall(function()
+            local guid_type = sdk.find_type_definition("System.Guid")
+            local parse = guid_type:get_method("Parse(System.String)") or guid_type:get_method("Parse")
+            return parse:call(nil, guid_str)
+        end)
+        if not ok or boxed == nil then
+            log.info(string.format("[RE4R AP] System.Guid parse failed for %s", tostring(guid_str)))
+            return nil
+        end
+        boxed_guid_cache[guid_str] = boxed
+        return boxed
+    end
+
+    local function check_scenario_flag(guid_str)
+        local manager = sdk.get_managed_singleton("chainsaw.ScenarioFlagManager")
+        local boxed = box_system_guid(guid_str)
+        if manager == nil or boxed == nil then
+            return nil
+        end
+        local ok, value = pcall(function()
+            return manager:call("checkFlag(System.Guid)", boxed)
+        end)
+        if not ok or type(value) ~= "boolean" then
+            return nil
+        end
+        return value
+    end
+
+    local function set_scenario_flag(guid_str)
+        local manager = sdk.get_managed_singleton("chainsaw.ScenarioFlagManager")
+        local boxed = box_system_guid(guid_str)
+        if manager == nil or boxed == nil then
+            return false
+        end
+        local ok, err = pcall(function()
+            manager:call("requestSetFlag(System.Guid, System.Boolean)", boxed, true)
+        end)
+        if not ok then
+            log.info(string.format(
+                "[RE4R AP] requestSetFlag threw for %s: %s",
+                tostring(guid_str),
+                tostring(err)
+            ))
+            return false
+        end
+        return true
+    end
+
     local exports = {
         safe_call = safe_call,
         safe_call_bool = safe_call_bool,
         get_player_is_dead = get_player_is_dead,
         trigger_game_over = trigger_game_over,
+        check_scenario_flag = check_scenario_flag,
+        set_scenario_flag = set_scenario_flag,
         get_scene_object = get_scene_object,
         get_components = get_components,
         get_game_object_guid = get_game_object_guid,

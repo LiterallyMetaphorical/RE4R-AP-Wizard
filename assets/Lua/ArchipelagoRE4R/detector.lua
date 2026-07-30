@@ -492,6 +492,47 @@ local function install(ctx)
         return true
     end
 
+    -- [Pickup event flags] re-fire the vanilla SetFlagSettings scenario flags
+    -- for this drop (table: data.get_pickup_event_flags). The AP item swap
+    -- changes the looted item's kind, so the game's own pickup trigger never
+    -- runs the GO's SetFlagSettings; without these flags the scripted events
+    -- they drive (Salazar knights ambush, ch2 chapter advance, island keycard
+    -- doors) stay dead. Fired on every confirm path incl. already_checked so a
+    -- reload-and-regrab heals itself. Validated live 2026-07-30: setting
+    -- 319b884a armed the Mausoleum knights + crawl-under escape.
+    local fired_event_flag_keys = {}
+
+    local function fire_pickup_event_flags(guid, reason)
+        local entry = get_pickup_event_flags(guid)
+        if entry == nil then
+            return
+        end
+        for _, flag_guid in ipairs(entry.flags) do
+            local fire_key = string.format("%s|%s", tostring(guid), tostring(flag_guid))
+            if not fired_event_flag_keys[fire_key] then
+                local current = check_scenario_flag(flag_guid)
+                if current == true then
+                    fired_event_flag_keys[fire_key] = true
+                elseif set_scenario_flag(flag_guid) then
+                    fired_event_flag_keys[fire_key] = true
+                    log.info(string.format(
+                        "[RE4R AP] pickup event flag set flag=%s guid=%s reason=%s",
+                        tostring(flag_guid),
+                        tostring(guid),
+                        tostring(reason)
+                    ))
+                else
+                    log.error(string.format(
+                        "[RE4R AP] pickup event flag FAILED flag=%s guid=%s reason=%s",
+                        tostring(flag_guid),
+                        tostring(guid),
+                        tostring(reason)
+                    ))
+                end
+            end
+        end
+    end
+
     -- Context-key match FIRST: both hooks see the same drop context (proven
     -- live - accept and confirm logged identical keys), so this pairing is
     -- exact and immune to runtime-vs-dataset stage divergence. Stage match
@@ -871,6 +912,7 @@ local function install(ctx)
 
                         if recent_accept.tracked == true and recent_accept.pending ~= true and recent_accept.acknowledged ~= true then
                             queue_pending_check(recent_accept.guid, recent_accept.stage)
+                            fire_pickup_event_flags(recent_accept.guid, "fresh")
                             log.info(string.format(
                                 "[RE4R AP] pickup_confirmed fresh stage=%s guid=%s item_id=%s count=%s context=%s",
                                 tostring(recent_accept.stage),
@@ -883,6 +925,7 @@ local function install(ctx)
                         end
 
                         if recent_accept.tracked == true and recent_accept.pending == true and recent_accept.acknowledged ~= true then
+                            fire_pickup_event_flags(recent_accept.guid, "already_queued")
                             log.info(string.format(
                                 "[RE4R AP] pickup_confirmed already_queued stage=%s guid=%s item_id=%s count=%s context=%s",
                                 tostring(recent_accept.stage),
@@ -896,6 +939,7 @@ local function install(ctx)
 
                         if recent_accept.tracked == true and recent_accept.acknowledged == true then
                             enqueue_already_checked_notification(recent_accept.guid, recent_accept.stage)
+                            fire_pickup_event_flags(recent_accept.guid, "already_checked")
                             log.info(string.format(
                                 "[RE4R AP] pickup_confirmed already_checked stage=%s guid=%s item_id=%s count=%s context=%s",
                                 tostring(recent_accept.stage),
@@ -963,6 +1007,7 @@ local function install(ctx)
                     false
                 )
                 queue_pending_check(matched_accept.guid, matched_accept.stage)
+                fire_pickup_event_flags(matched_accept.guid, "commit")
                 log.info(
                     string.format(
                         "[RE4R AP] pickup_confirmed stage=%s guid=%s item_id=%s count=%s context=%s",
@@ -1059,6 +1104,53 @@ local function install(ctx)
         bridge.tracked_guid_snapshots = {}
         bridge.holder_guid_by_key = {}
     end
+
+    -- [Pickup event flags retro-heal] curated: only entries whose retro_heal
+    -- is true in pickup_event_flags.json (Salazar 319b884a for now - proven
+    -- safe live). Covers saves where the location was collected BEFORE this
+    -- fix existed, so no pickup commit will ever re-fire it. Guarded to the
+    -- drop's stage family so a stale flag can only apply where it matters,
+    -- never remotely (a blanket retro-set could edge-trigger dormant events
+    -- like the ch2 chapter advance out of order). Throttled to one scan per
+    -- 5s; fired keys dedupe so steady state does zero native calls.
+    local retro_heal_last_clock = 0.0
+
+    re.on_frame(function()
+        local now = os.clock()
+        if now - retro_heal_last_clock < 5.0 then
+            return
+        end
+        retro_heal_last_clock = now
+
+        local ok, err = pcall(function()
+            local current_stage = tonumber(get_active_runtime_stage())
+            if current_stage == nil then
+                return
+            end
+            local family = get_stage_family_stages(current_stage)
+            if type(family) ~= "table" then
+                return
+            end
+            local family_set = {}
+            for _, family_stage in ipairs(family) do
+                family_set[tonumber(family_stage) or -1] = true
+            end
+            for guid, entry in pairs(get_pickup_event_flag_entries()) do
+                if entry.retro_heal
+                    and entry.stage ~= nil
+                    and family_set[entry.stage]
+                    and is_guid_acknowledged(entry.stage, guid) then
+                    fire_pickup_event_flags(guid, "retro_heal")
+                end
+            end
+        end)
+        if not ok then
+            log.info(string.format(
+                "[RE4R AP] pickup event flag retro-heal error: %s",
+                tostring(err)
+            ))
+        end
+    end)
 
     export("clear_pending_pickup_accepts", clear_pending_pickup_accepts)
     export("prune_pending_pickup_accepts", prune_pending_pickup_accepts)

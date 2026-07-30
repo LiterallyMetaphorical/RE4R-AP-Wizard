@@ -1,0 +1,182 @@
+{
+  "_provenance": "Generated from pak-harness setflagscan (vanilla scene SetFlagSettings on AP-pool DropItems), game build 22377325, 2026-07-30. 22 locations whose vanilla pickup sets scenario flags; the AP item swap suppresses the native trigger, so the mod re-fires these at pickup commit. retro_heal marks flags safe to set retroactively for already-collected locations (curated per case).",
+  "locations": {
+    "22f519ca-c70b-4dca-9516-a10d7789a2cd": {
+      "name": "Chapter 3 - Village Square - Green Herb x1 [22f519ca]",
+      "stage": 40200,
+      "flags": [
+        "72c22f4a-da41-4127-9216-7aa8aec83a3b"
+      ],
+      "retro_heal": false
+    },
+    "0f392d46-1b87-4bbe-aa1e-e855df4eeb7f": {
+      "name": "Chapter 3 - Village Square - W-870 x5 (wall display) [0f392d46]",
+      "stage": 40210,
+      "flags": [
+        "93f5131b-8cfa-4397-8df1-4a9a408d8f98"
+      ],
+      "retro_heal": false
+    },
+    "1b0416d4-4f5e-4399-8fdf-6239f28571b3": {
+      "name": "Chapter 2 - Village Chief's Manor - Insignia Key x1 [1b0416d4]",
+      "stage": 44110,
+      "flags": [
+        "72faef56-9595-4d91-9432-1197a40de089"
+      ],
+      "retro_heal": false
+    },
+    "f1354d9f-36a8-45f5-96e3-8af77f21f637": {
+      "name": "Chapter 3 - Fish Farm - Boat Fuel x1 [f1354d9f]",
+      "stage": 45410,
+      "flags": [
+        "e8a1d757-7061-4f47-983f-71ecbb4fa6e8"
+      ],
+      "retro_heal": false
+    },
+    "fc8efafc-3f18-42dd-8b1c-0ac77fd95036": {
+      "name": "Chapter 6 - Checkpoint - Checkpoint Crank x1 [fc8efafc]",
+      "stage": 47200,
+      "flags": [
+        "9b70afa4-bd9c-457f-a40d-301e935df5f6"
+      ],
+      "retro_heal": false
+    },
+    "3da1e70f-7163-4c42-9b57-662a91aa5943": {
+      "name": "Chapter 7 - Dungeons - Dungeon Key x1 [3da1e70f]",
+      "stage": 50502,
+      "flags": [
+        "c3e6f853-cc4d-4301-bdac-ac9bca8d6ac4"
+      ],
+      "retro_heal": false
+    },
+    "e32dc31d-4067-414e-9249-ee7e42dd2512": {
+      "name": "Chapter 7 - Water Hall - Halo Wheel x1 [e32dc31d]",
+      "stage": 50601,
+      "flags": [
+        "f35f2cb8-68be-4b5d-b34f-d9634e7890aa"
+      ],
+      "retro_heal": false
+    },
+    "3a33dce0-9986-43de-ad40-a5a27691d55e": {
+      "name": "Chapter 7 - Treasury - Bloodied Sword x1 [3a33dce0]",
+      "stage": 50504,
+      "flags": [
+        "66c3edb3-2ce1-4fa9-a23e-6f62ff200bc1"
+      ],
+      "retro_heal": false
+    },
+    "b8db5d3f-c67b-48bf-9857-891db4b65769": {
+      "name": "Chapter 8 - Wine Cellar - Depraved Idol x1 [b8db5d3f]",
+      "stage": 51401,
+      "flags": [
+        "fa5c0b61-fc19-4b9b-a8b2-5b6c92567db4"
+      ],
+      "retro_heal": false
+    },
+    "fc8f3040-6c22-425c-b22c-493f55b1af61": {
+      "name": "Chapter 9 - Armory - Cubic Device x1 [fc8f3040]",
+      "stage": 52200,
+      "flags": [
+        "3656b59c-d5a3-48b6-bee1-9d02d6eb58b0"
+      ],
+      "retro_heal": false
+    },
+    "2d68ab1c-5b3d-43c6-8cd0-143f859a0f61": {
+      "name": "Chapter 9 - Dining Hall - Serpent Head x1 [2d68ab1c]",
+      "stage": 52401,
+      "flags": [
+        "ce4dddef-562a-4afd-ab76-8f046bdedd79"
+      ],
+      "retro_heal": false
+    },
+    "391733da-96e4-4c3c-b80a-9512ab9b10f9": {
+      "name": "Chapter 9 - Armory - Lion Head x1 [391733da]",
+      "stage": 52202,
+      "flags": [
+        "71469674-9532-40f7-8464-37eca3eeaa64"
+      ],
+      "retro_heal": false
+    },
+    "40e15649-2d93-4ccc-8e3f-c52963e73450": {
+      "name": "Chapter 9 - Gallery - Goat Head x1 [40e15649]",
+      "stage": 52303,
+      "flags": [
+        "23d2d9df-d1db-4a62-9d03-814d11bac062"
+      ],
+      "retro_heal": false
+    },
+    "097ef30f-4bfd-46f4-9c3a-907240e3600e": {
+      "name": "Chapter 10 - Mausoleum - Salazar Family Insignia x1 [097ef30f]",
+      "stage": 53304,
+      "flags": [
+        "319b884a-a483-4640-8284-e7cc87edb40f"
+      ],
+      "retro_heal": true
+    },
+    "c1d0972b-2174-4db8-834c-40db87df9883": {
+      "name": "Chapter 10 - Library - Bunch of Keys x1 [c1d0972b]",
+      "stage": 53200,
+      "flags": [
+        "2b795cab-fe8d-43fe-b213-cb8e902f46d8"
+      ],
+      "retro_heal": false
+    },
+    "f03e2b8c-075b-4bef-9d51-ae3560b142c0": {
+      "name": "Chapter 10 - Throne Room - Boot Knife x1 [f03e2b8c]",
+      "stage": 54301,
+      "flags": [
+        "aec9eb2f-6724-4fdd-a989-0ee0dac6782b"
+      ],
+      "retro_heal": false
+    },
+    "71b17dd9-f299-4cf6-8720-f8aff6bacdca": {
+      "name": "Chapter 11 - Mines - Dynamite x1 [71b17dd9]",
+      "stage": 55103,
+      "flags": [
+        "49529928-554c-4fb8-a886-988c7d6d0ccf"
+      ],
+      "retro_heal": false
+    },
+    "83eb78ab-9543-4835-806a-eb77c5a9dd73": {
+      "name": "Chapter 13 - Wharf - Golden Lynx x1 (chest) [83eb78ab]",
+      "stage": 60104,
+      "flags": [
+        "c219c32c-432a-418e-bb60-3f8b69e44fd2"
+      ],
+      "retro_heal": false
+    },
+    "9ab6593f-e806-46ed-aac2-11ebe22895bc": {
+      "name": "Chapter 13 - Incubation Lab - Elegant Crown x1 (chest) [9ab6593f]",
+      "stage": 60200,
+      "flags": [
+        "c219c32c-432a-418e-bb60-3f8b69e44fd2"
+      ],
+      "retro_heal": false
+    },
+    "8e386c4f-55db-4f26-928b-4e58d173dc23": {
+      "name": "Chapter 13 - Dissection - Level 1 Keycard x1 [8e386c4f]",
+      "stage": 61401,
+      "flags": [
+        "df4d57ed-9d5b-4366-b5bc-a05c083c4284",
+        "2e99d4b1-9726-4bf3-9fb8-41ac5f879853"
+      ],
+      "retro_heal": false
+    },
+    "91316634-4883-4b62-a491-27b5c6b1ba71": {
+      "name": "Chapter 13 - Freezer - Level 2 Keycard x1 [91316634]",
+      "stage": 61305,
+      "flags": [
+        "910cd23a-9f67-4a0e-954c-42683e92f74e"
+      ],
+      "retro_heal": false
+    },
+    "6f8cb73f-8838-4281-bc70-15ca11156d40": {
+      "name": "Chapter 13 - Utilities - Level 3 Keycard x1 [6f8cb73f]",
+      "stage": 61202,
+      "flags": [
+        "cec7657e-0104-452a-bc1b-3eb734349bc9"
+      ],
+      "retro_heal": false
+    }
+  }
+}
