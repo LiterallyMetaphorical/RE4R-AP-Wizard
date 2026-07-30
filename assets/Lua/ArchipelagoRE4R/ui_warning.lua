@@ -239,8 +239,18 @@ local function install(ctx)
             return
         end
 
-        local dialog_width = 760
-        local dialog_height = 400
+        local dialog_width = 720
+        -- Sized to the content (the first cut left half the window empty, which
+        -- is most of why it read as unfinished - Cam 2026-07-29). Grows only for
+        -- the lines that are conditional.
+        local dialog_height = 250
+        local room_url = trim_string(dialog.room_url)
+        if room_url ~= "" then dialog_height = dialog_height + 22 end
+        local ok_ui, drawing_ui = pcall(function() return reframework:is_drawing_ui() end)
+        local mouse_captured = ok_ui and not drawing_ui
+        if mouse_captured then dialog_height = dialog_height + 22 end
+        if trim_string(bridge.port_recovery_status) ~= "" then dialog_height = dialog_height + 22 end
+
         local pos_x, pos_y = 80, 80
         local ok_display, display_size = pcall(function()
             return imgui.get_display_size()
@@ -258,27 +268,56 @@ local function install(ctx)
             return
         end
 
-        local kind = tostring(dialog.kind or "")
-        if kind == "seed_mismatch" then
-            draw_centered_dialog_text("This port is serving a DIFFERENT multiworld.", dialog_width)
-        elseif kind == "invalid_slot" then
-            draw_centered_dialog_text("The server refused your slot name.", dialog_width)
-            draw_centered_dialog_text("Usually the room's port changed and another room answered.", dialog_width)
-        else
-            draw_centered_dialog_text("The Archipelago server is not answering.", dialog_width)
-            draw_centered_dialog_text("Rooms sleep when idle, and their port often changes on waking.", dialog_width)
+        -- One centered, coloured line. draw_centered_overlay_segments carries the
+        -- drop shadow the plain helper lacks, so text stays legible over the
+        -- game's own art, and colour gives the dialog a hierarchy instead of a
+        -- wall of identical white text.
+        local function line(text, color)
+            draw_centered_overlay_segments(
+                { { text = tostring(text), color = color or CHECK_OVERLAY_TEXT_COLOR_FILLER } },
+                dialog_width)
+        end
+        local function gap()
+            if not pcall(function() imgui.spacing() end) then
+                line(" ")
+            end
+        end
+        local function rule()
+            if not pcall(function() imgui.separator() end) then
+                line("------------------------------------------------------------",
+                    CHECK_OVERLAY_TEXT_COLOR_PROBE_DETAIL)
+            end
         end
 
-        draw_centered_dialog_text("Please enter the new port number found on your room page", dialog_width)
+        gap()
+        local kind = tostring(dialog.kind or "")
+        if kind == "seed_mismatch" then
+            line("This port is serving a DIFFERENT multiworld.", CHECK_OVERLAY_TEXT_COLOR_ERROR)
+            line("Your checks would go to the wrong room, so nothing was sent.",
+                CHECK_OVERLAY_TEXT_COLOR_PROBE_DETAIL)
+        elseif kind == "invalid_slot" then
+            line("The server refused your slot name.", CHECK_OVERLAY_TEXT_COLOR_ERROR)
+            line("Usually the room's port changed and another room answered.",
+                CHECK_OVERLAY_TEXT_COLOR_PROBE_DETAIL)
+        else
+            line("The Archipelago server is not answering.", CHECK_OVERLAY_TEXT_COLOR_PROGRESS)
+            line("Rooms sleep when idle, and their port often changes on waking.",
+                CHECK_OVERLAY_TEXT_COLOR_PROBE_DETAIL)
+        end
+
+        gap()
+        line("Please enter the new port number found on your room page")
         -- The room page itself, when the launcher recorded one: it is the exact
         -- place the current port is written, so it replaces the old made-up
         -- "Example: host:[port]" line (Cam 2026-07-29). Older installs patched
         -- before the launcher carried this field simply show nothing here.
-        local room_url = trim_string(dialog.room_url)
+        -- Coloured like a link, though imgui cannot make it clickable.
         if room_url ~= "" then
-            draw_centered_dialog_text(room_url, dialog_width)
+            line(room_url, CHECK_OVERLAY_TEXT_COLOR_PLAYER)
         end
-        draw_centered_dialog_text(string.format("Recorded address: %s", tostring(dialog.server or "?")), dialog_width)
+        line(string.format("Recorded address: %s", tostring(dialog.server or "?")),
+            CHECK_OVERLAY_TEXT_COLOR_PROBE_DETAIL)
+        gap()
 
         -- Everything else in this dialog is centered text, so centre the widgets
         -- too - imgui places controls (and their labels) hard left by default,
@@ -299,7 +338,7 @@ local function install(ctx)
             end
         end
 
-        draw_centered_dialog_text("New port:", dialog_width)
+        line("New port:")
 
         local field_width = 160
         -- The outcome rides on the button instead of a trailing line (Cam's
@@ -325,23 +364,32 @@ local function install(ctx)
             end
         end
 
-        local status = tostring(bridge.port_recovery_status or "")
+        local status = trim_string(bridge.port_recovery_status)
         if status ~= "" then
-            draw_centered_dialog_text(status, dialog_width)
+            -- Amber while a port is being tried, red when the input was rejected.
+            local status_color = CHECK_OVERLAY_TEXT_COLOR_PROGRESS
+            if string.find(status, "Enter a port", 1, true)
+                or string.find(status, "Could not", 1, true)
+                or string.find(status, "unavailable", 1, true)
+                or string.find(status, "No server", 1, true) then
+                status_color = CHECK_OVERLAY_TEXT_COLOR_ERROR
+            end
+            line(status, status_color)
         end
 
         -- The game keeps the mouse while its own menus are up, so imgui gets no
         -- clicks until REFramework's overlay is open. Say so, and only while it
         -- is true - the line disappears the moment Insert is pressed.
-        local ok_ui, drawing_ui = pcall(function() return reframework:is_drawing_ui() end)
-        if ok_ui and not drawing_ui then
-            draw_centered_dialog_text(
-                "Press Insert to free your mouse, then type the port above.", dialog_width)
+        if mouse_captured then
+            line("Press Insert to free your mouse, then type the port above.",
+                CHECK_OVERLAY_TEXT_COLOR_PROGRESS)
         end
 
-        draw_centered_dialog_text("------------------------------------------------------------", dialog_width)
-        draw_centered_dialog_text(
-            'Alternatively, boot the RE4R AP Launcher and select "Fix Automatically".', dialog_width)
+        gap()
+        rule()
+        gap()
+        line('Alternatively, boot the RE4R AP Launcher and select "Fix Automatically".',
+            CHECK_OVERLAY_TEXT_COLOR_PROBE_DETAIL)
 
         local dismiss_label = "Dismiss this message"
         begin_centered_row(get_imgui_text_width(dismiss_label) + 28)
