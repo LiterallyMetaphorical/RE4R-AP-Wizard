@@ -50,6 +50,10 @@
   <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
     <PublishSingleFile>true</PublishSingleFile>
     <DebugType>none</DebugType>
+    <!-- Mirrors the Windows project: without this the referenced Core project's
+         .pdb is still copy-localed into the publish output, so the Linux
+         distributable shipped a stray debug file beside the executable. -->
+    <AllowedReferenceRelatedFileExtensions>.xml</AllowedReferenceRelatedFileExtensions>
   </PropertyGroup>
 
 </Project>
