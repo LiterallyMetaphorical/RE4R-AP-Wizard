@@ -613,9 +613,12 @@ local function install(ctx)
     -- changes the looted item's kind, so the game's own pickup trigger never
     -- runs the GO's SetFlagSettings; without these flags the scripted events
     -- they drive (Salazar knights ambush, ch2 chapter advance, island keycard
-    -- doors) stay dead. Fired on every confirm path incl. already_checked so a
-    -- reload-and-regrab heals itself. Validated live 2026-07-30: setting
-    -- 319b884a armed the Mausoleum knights + crawl-under escape.
+    -- doors) stay dead. Fired on every commit confirm path incl.
+    -- already_checked (reload-and-regrab heals itself) AND in the placeholder
+    -- intercept - foreign-item locations SKIP_ORIGINAL at accept and never
+    -- commit, so the intercept is their only pickup moment. Validated live
+    -- 2026-07-30: setting 319b884a armed the Mausoleum knights + crawl-under
+    -- escape.
     -- (fired_event_flag_keys is declared above the load-clear, which resets it
     -- per save.)
     local function fire_pickup_event_flags(guid, reason)
@@ -888,6 +891,15 @@ local function install(ctx)
                         elseif not pending then
                             queue_pending_check(guid, stage)
                         end
+                        -- Foreign-item locations NEVER reach the commit hook:
+                        -- this intercept returns SKIP_ORIGINAL and despawns the
+                        -- drop, so the commit-path event-flag firing cannot run
+                        -- for them. This IS the pickup moment for a placeholder
+                        -- drop, so the vanilla pickup event flags fire here.
+                        -- Live gap 2026-07-30 01:15: the Salazar regrab logged
+                        -- only setCountZero - no commit, no flags, knights
+                        -- stayed dormant.
+                        fire_pickup_event_flags(guid, "placeholder_intercept")
                         -- Run the engine's own collected bookkeeping before the
                         -- despawn. SKIP_ORIGINAL means the vanilla accept path
                         -- never records the pickup, so the drop respawned on
