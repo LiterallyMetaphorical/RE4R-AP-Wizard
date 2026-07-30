@@ -1146,10 +1146,16 @@
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
 
-                                <TextBlock VerticalAlignment="Center"
+                                <TextBlock VerticalAlignment="Top"
+                                           Margin="0,4,0,0"
                                            Text="Room Address" />
-                                <TextBox Grid.Column="1"
-                                         Text="{Binding Session.ServerAddress, UpdateSourceTrigger=PropertyChanged}" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBox Text="{Binding Session.ServerAddress, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBlock Margin="0,4,0,0"
+                                               Foreground="DimGray"
+                                               TextWrapping="Wrap"
+                                               Text="Rooms hosted somewhere other than archipelago.gg, including one you run yourself, should work here too. That path is largely untested, so treat it as use at your own risk." />
+                                </StackPanel>
 
                                 <TextBlock Grid.Row="2"
                                            VerticalAlignment="Top"
