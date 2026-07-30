@@ -80,6 +80,11 @@ return function(ctx)
     -- location-id set (the room's list varies with YAML options since apworld
     -- 0.4.0, so no shipped map can be trusted for scouting).
     local ROOM_LOCATIONS_FILE = "ArchipelagoRE4R\\ap_room_locations.json"
+    -- [Port recovery] Connect attempts with NOTHING answering before the
+    -- recovery dialog appears. The retry loop dials every 3s, so 4 attempts is
+    -- roughly 12s of silence - long enough to ride out a sleeping room waking
+    -- up, short enough that a player is not left staring at "Connecting...".
+    local PORT_UNREACHABLE_ATTEMPTS = 4
 
     -- Per-tick drain bounds: cap heavy native injects, and cap total items
     -- processed (cheap skips included) so a huge Sync backlog can't stall a frame.
@@ -140,6 +145,52 @@ return function(ctx)
     local function trim(s)
         if type(s) ~= "string" then return "" end
         return (s:gsub("^%s+", ""):gsub("%s+$", ""))
+    end
+
+    -- [Port recovery] The room's expected seed, from the file the launcher wrote
+    -- at patch time. Held so a RoomInfo answering with a DIFFERENT seed can be
+    -- recognised as "some other multiworld took this port" instead of surfacing
+    -- as a bare "Refused: InvalidSlot" (live 2026-07-22, port 65188 -> 46497).
+    local function read_expected_seed()
+        local ok, payload = pcall(function() return json.load_file(ROOM_LOCATIONS_FILE) end)
+        if ok and type(payload) == "table" then
+            local seed = trim(payload.seed_name)
+            if seed ~= "" then return seed end
+        end
+        return ""
+    end
+
+    -- host:port -> host, port (port nil when the address carries none).
+    local function split_server_address(address)
+        local text = trim(address)
+        local host, port = text:match("^(.*):(%d+)$")
+        if host ~= nil then return host, tonumber(port) end
+        return text, nil
+    end
+
+    local function open_port_recovery(kind, actual_seed, attempts)
+        local bridge = ctx.bridge
+        if bridge == nil then return end
+        local host, port = split_server_address(st.server)
+        if type(bridge.port_recovery_input) ~= "string" or bridge.port_recovery_input == "" then
+            bridge.port_recovery_input = (port ~= nil) and tostring(port) or ""
+        end
+        bridge.port_recovery_dialog = {
+            kind = kind,
+            expected_seed = st.expected_seed or "",
+            actual_seed = actual_seed or "",
+            server = st.server,
+            host = host,
+            attempts = attempts or 0,
+        }
+    end
+
+    local function close_port_recovery()
+        local bridge = ctx.bridge
+        if bridge ~= nil then
+            bridge.port_recovery_dialog = nil
+            bridge.port_recovery_status = ""
+        end
     end
 
     local function read_connection_info()
@@ -1018,6 +1069,7 @@ return function(ctx)
 
     local function on_socket_connected()
         info("socket connected to " .. st.server)
+        st.connect_attempts_since_contact = 0
         set_conn_status("pending", "Authenticating...")
     end
 
@@ -1036,6 +1088,23 @@ return function(ctx)
     end
 
     local function on_room_info()
+        -- Reaching a server proves the address resolves; reset the unreachable
+        -- counter so a later real outage starts counting fresh.
+        st.connect_attempts_since_contact = 0
+        -- [Port recovery] RoomInfo already carries the seed, so a recycled port
+        -- can be caught BEFORE ConnectSlot - joining a stranger's room would
+        -- either fail as InvalidSlot or, worse, half-succeed against a room
+        -- that happens to share our slot name.
+        local ok_seed, room_seed = pcall(function() return ap:get_seed() end)
+        room_seed = (ok_seed and type(room_seed) == "string") and room_seed or ""
+        if st.expected_seed ~= "" and room_seed ~= "" and room_seed ~= st.expected_seed then
+            err(string.format(
+                "PORT MISMATCH: %s is serving seed '%s' but this session belongs to seed '%s' - not joining.",
+                tostring(st.server), room_seed, tostring(st.expected_seed)))
+            set_conn_status("error", "Different multiworld on this port")
+            open_port_recovery("seed_mismatch", room_seed, 0)
+            return
+        end
         info("RoomInfo received -> sending ConnectSlot as '" .. st.slot .. "'")
         ap:ConnectSlot(st.slot, st.password, ITEMS_HANDLING, CLIENT_TAGS, CLIENT_VERSION)
     end
@@ -1043,6 +1112,9 @@ return function(ctx)
     local function on_slot_connected(slot_data)
         info("SLOT CONNECTED as '" .. st.slot .. "' -- bare-connect SUCCESS")
         set_conn_status("connected", "Connected (" .. st.slot .. ")")
+        -- Whatever the recovery dialog was worried about, it is resolved.
+        st.connect_attempts_since_contact = 0
+        close_port_recovery()
         -- [DeathLink] Read the slot's death_link setting (added to fill_slot_data in the
         -- apworld). Accept boolean true or numeric/string 1. Reset the per-connection
         -- death state so a reconnect can't strand a queued death or a stale edge.
@@ -1207,6 +1279,12 @@ return function(ctx)
         if type(reasons) == "table" then r = table.concat(reasons, ", ") end
         err("slot refused: " .. r)
         set_conn_status("error", "Refused: " .. r)
+        -- [Port recovery] InvalidSlot means the room we reached has no such slot:
+        -- either a recycled port (someone else's room) or a genuine slot typo.
+        -- The recovery dialog names both possibilities.
+        if string.find(tostring(r), "InvalidSlot", 1, true) ~= nil then
+            open_port_recovery("invalid_slot", "", 0)
+        end
     end
 
     local function on_items_received(items)
@@ -1583,6 +1661,18 @@ return function(ctx)
             set_conn_status("idle", "No session configured")
             return false
         end
+        st.expected_seed = read_expected_seed()
+        -- [Port recovery] Count attempts that never reach a server. The handlers
+        -- zero this the moment anything answers, so a sustained count means the
+        -- address itself is dead (room asleep, or the port moved on).
+        st.connect_attempts_since_contact = (tonumber(st.connect_attempts_since_contact) or 0) + 1
+        if st.connect_attempts_since_contact >= PORT_UNREACHABLE_ATTEMPTS
+            and (ctx.bridge == nil or ctx.bridge.port_recovery_dialog == nil) then
+            warn(string.format(
+                "%s has not answered in %d attempts - offering the port recovery dialog.",
+                tostring(st.server), st.connect_attempts_since_contact))
+            open_port_recovery("unreachable", "", st.connect_attempts_since_contact)
+        end
         info("connecting to " .. st.server .. " as '" .. st.slot .. "'")
         set_conn_status("pending", "Connecting...")
         ap = AP("", GAME_NAME, st.server)   -- uuid unused per lua-apclientpp README
@@ -1601,6 +1691,65 @@ return function(ctx)
         ap:set_set_reply_handler(guard("set_reply", on_set_reply))
         return true
     end
+
+    -- [Port recovery] Player-facing actions, called by the recovery dialog.
+    -- Test = rewrite the port in the game-relative ap_connection.json (the file
+    -- the mod actually reads), then drop the client so the retry loop dials the
+    -- new address within ~3s. Password and slot are preserved untouched; the
+    -- seed check on the next RoomInfo is what proves the new port is right.
+    local function ap_apply_port(port_text)
+        local bridge = ctx.bridge
+        local port = tonumber(trim(port_text))
+        if port == nil or port ~= math.floor(port) or port < 1 or port > 65535 then
+            if bridge ~= nil then
+                bridge.port_recovery_status = "Enter a port number between 1 and 65535."
+            end
+            return false
+        end
+        local host = select(1, split_server_address(st.server))
+        if host == "" then
+            if bridge ~= nil then
+                bridge.port_recovery_status = "No server address on record - use the launcher."
+            end
+            return false
+        end
+        local new_server = string.format("%s:%d", host, port)
+        local payload = {
+            server_address = new_server,
+            slot_name = st.slot,
+            password = st.password or "",
+        }
+        local ok_write = false
+        local ok_call, result = pcall(function()
+            return json.dump_file(CONNECTION_INFO_FILE, payload, 4)
+        end)
+        ok_write = ok_call and (result ~= false)
+        if not ok_write then
+            err("port recovery: failed to write " .. CONNECTION_INFO_FILE)
+            if bridge ~= nil then
+                bridge.port_recovery_status = "Could not save the new port. Use the launcher instead."
+            end
+            return false
+        end
+        info(string.format("port recovery: address rewritten to %s - reconnecting", new_server))
+        if bridge ~= nil then
+            bridge.port_recovery_status = string.format("Trying %s...", new_server)
+        end
+        -- Drop the client; the poll loop re-reads the file and reconnects.
+        ap = nil
+        st.server = new_server
+        st.connect_attempts_since_contact = 0
+        set_conn_status("pending", "Trying the new port...")
+        return true
+    end
+    ctx.ap_apply_port = ap_apply_port
+
+    local function ap_dismiss_port_recovery()
+        close_port_recovery()
+        info("port recovery: dialog dismissed by the player")
+        return true
+    end
+    ctx.ap_dismiss_port_recovery = ap_dismiss_port_recovery
 
     load_ap_item_map()
     connect()

@@ -79,6 +79,7 @@ local draw_check_progress_overlay = ctx.draw_check_progress_overlay
 local draw_world_check_markers = ctx.draw_world_check_markers
 local draw_main_window = ctx.draw_main_window
 local draw_progression_warning_dialog = ctx.draw_progression_warning_dialog
+local draw_port_recovery_dialog = ctx.draw_port_recovery_dialog
 local capture_message_log_entries = ctx.capture_message_log_entries
 local maybe_show_progression_warning = ctx.maybe_show_progression_warning
 local sync_warp_inputs_to_current_state = ctx.sync_warp_inputs_to_current_state
@@ -400,6 +401,9 @@ re.on_frame(function()
     -- After the toast rail so the goal banner layers over it.
     draw_celebration_overlay()
     draw_progression_warning_dialog()
+    -- Connection recovery sits above everything else: it is only ever
+    -- visible when the session cannot reach its own multiworld.
+    draw_port_recovery_dialog()
     draw_main_window()
 end)
 

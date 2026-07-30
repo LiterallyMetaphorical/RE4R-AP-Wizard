@@ -223,6 +223,97 @@ local function install(ctx)
         imgui.end_window()
     end
 
+    -- [Port recovery] archipelago.gg gives a sleeping room's port away, so a
+    -- player's recorded address can end up answering a stranger's room or
+    -- nothing at all. apclient.lua detects that (RoomInfo seed mismatch,
+    -- InvalidSlot, or sustained silence) and parks the details in
+    -- bridge.port_recovery_dialog; this dialog is the in-game fix so the player
+    -- does not have to alt-tab to the launcher to keep playing.
+    --
+    -- Deliberately NOT gated on being in-game: the connection matters at the
+    -- main menu too, which is exactly where a player sits while wondering why
+    -- nothing is connecting.
+    local function draw_port_recovery_dialog()
+        local dialog = bridge.port_recovery_dialog
+        if type(dialog) ~= "table" then
+            return
+        end
+
+        local dialog_width = 760
+        local dialog_height = 320
+        local pos_x, pos_y = 80, 80
+        local ok_display, display_size = pcall(function()
+            return imgui.get_display_size()
+        end)
+        if ok_display and display_size ~= nil then
+            pos_x = math.max(40, ((tonumber(display_size.x or 0) - dialog_width) * 0.5))
+            pos_y = math.max(40, ((tonumber(display_size.y or 0) - dialog_height) * 0.30))
+        end
+        imgui.set_next_window_pos(Vector2f.new(pos_x, pos_y), 1)
+        imgui.set_next_window_size(Vector2f.new(dialog_width, dialog_height), 1)
+
+        local visible = imgui.begin_window("Archipelago Server Port Mismatch Detected", true, nil)
+        if not visible then
+            imgui.end_window()
+            return
+        end
+
+        local kind = tostring(dialog.kind or "")
+        if kind == "seed_mismatch" then
+            draw_centered_dialog_text("This port is serving a DIFFERENT multiworld.", dialog_width)
+        elseif kind == "invalid_slot" then
+            draw_centered_dialog_text("The server refused your slot name.", dialog_width)
+            draw_centered_dialog_text("Usually the room's port changed and another room answered.", dialog_width)
+        else
+            draw_centered_dialog_text("The Archipelago server is not answering.", dialog_width)
+            draw_centered_dialog_text("Rooms sleep when idle, and their port often changes on waking.", dialog_width)
+        end
+
+        draw_centered_dialog_text("Please enter the new port number found on your room page", dialog_width)
+        draw_centered_dialog_text(
+            string.format("Example: %s:[current port #]", tostring(dialog.host or "archipelago.gg")),
+            dialog_width)
+        draw_centered_dialog_text("------------------------------------------------------------", dialog_width)
+        draw_centered_dialog_text(string.format("Recorded address: %s", tostring(dialog.server or "?")), dialog_width)
+
+        local changed_port, port_value = imgui.input_text("New Port", bridge.port_recovery_input or "")
+        if changed_port then
+            bridge.port_recovery_input = port_value
+        end
+
+        if imgui.button("Test Port") then
+            local apply = ctx.ap_apply_port or _G.ap_apply_port
+            if type(apply) == "function" then
+                apply(bridge.port_recovery_input)
+            else
+                bridge.port_recovery_status = "Port change unavailable - use the launcher."
+            end
+        end
+
+        local status = tostring(bridge.port_recovery_status or "")
+        if status ~= "" then
+            draw_centered_dialog_text(status, dialog_width)
+        end
+
+        draw_centered_dialog_text("------------------------------------------------------------", dialog_width)
+        draw_centered_dialog_text(
+            'Alternatively, boot the RE4R AP Launcher and select "Fix Automatically".', dialog_width)
+
+        if imgui.button("Dismiss this message") then
+            local dismiss = ctx.ap_dismiss_port_recovery or _G.ap_dismiss_port_recovery
+            if type(dismiss) == "function" then
+                dismiss()
+            else
+                bridge.port_recovery_dialog = nil
+            end
+            imgui.end_window()
+            return
+        end
+
+        draw_centered_dialog_text("This closes itself as soon as the connection succeeds.", dialog_width)
+        imgui.end_window()
+    end
+
     -- Debug-tab preview: run the REAL query and open the dialog for the first
     -- chapter (ascending) that still has unchecked progression locations, so
     -- the UI can be eyeballed with genuine data. Replaces the fake-entry debug
@@ -253,6 +344,7 @@ local function install(ctx)
     export("get_progression_warning_triggered_chapter", get_progression_warning_triggered_chapter)
     export("maybe_show_progression_warning", maybe_show_progression_warning)
     export("draw_progression_warning_dialog", draw_progression_warning_dialog)
+    export("draw_port_recovery_dialog", draw_port_recovery_dialog)
     export("preview_progression_warning", preview_progression_warning)
 end
 

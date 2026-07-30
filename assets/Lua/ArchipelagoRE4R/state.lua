@@ -120,6 +120,16 @@ local function install(ctx)
         -- "off" | "markers" | "markers_rarity". Pre-connect default allows
         -- neutral markers so offline/manual testing behaves like older seeds.
         check_guidance_ceiling = "markers",
+        -- [Port recovery] archipelago.gg recycles room ports when a room sleeps,
+        -- so a recorded address can start answering a STRANGER's room (live
+        -- 2026-07-22: 65188 -> 46497, surfaced only as "Refused: InvalidSlot")
+        -- or nothing at all. apclient.lua detects both and parks the details
+        -- here; ui_warning.lua draws the recovery dialog. nil = all good.
+        -- Shape: { kind = "seed_mismatch" | "unreachable", expected_seed,
+        --          actual_seed, server, attempts }
+        port_recovery_dialog = nil,
+        port_recovery_input = "",
+        port_recovery_status = "",
         inject_selected_category = "All",
         inject_selected_item_index = 1,
         inject_filter_text = "",
