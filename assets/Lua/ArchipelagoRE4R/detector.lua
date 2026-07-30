@@ -1116,6 +1116,12 @@ local function install(ctx)
     local retro_heal_last_clock = 0.0
 
     re.on_frame(function()
+        -- Off by default: the gate below is per-SEED, so on a save older than
+        -- the pickup this heals a world state the save never reached. See
+        -- config.PICKUP_EVENT_FLAG_RETRO_HEAL.
+        if not PICKUP_EVENT_FLAG_RETRO_HEAL then
+            return
+        end
         local now = os.clock()
         if now - retro_heal_last_clock < 5.0 then
             return
