@@ -3,7 +3,7 @@ local function install(ctx)
         -- Logged at boot next to the launcher's install stamp so a player's
         -- re2_framework_log.txt identifies the exact deployed build. Bump on
         -- every Lua change that ships (date.rev).
-        MOD_VERSION = "2026.07.30-2",
+        MOD_VERSION = "2026.07.30-3",
         DATA_DIR = "ArchipelagoRE4R",
         WRITE_INTERVAL_SECONDS = 0.25,
         SCAN_INTERVAL_SECONDS = 1 / 30,
@@ -31,15 +31,19 @@ local function install(ctx)
         PLACEHOLDER_INTERCEPT = true,
         -- [Pickup event flags] The retro-heal scan re-fires a collected
         -- location's scenario flags for saves that predate the pickup-event-flag
-        -- fix. DEFAULT OFF: its gate is `is_guid_acknowledged`, which is the
-        -- PER-SEED checked set, not per-save - so loading an OLDER save in the
-        -- same stage family fires flags that save never earned. Live 2026-07-30:
-        -- Cam loaded an earlier Ashley save, retro-heal set 319b884a (Mausoleum
-        -- knights + crawl-under escape), and the post-pickup world state put an
-        -- invisible wall across the route to the Insignia. Firing at a real
-        -- pickup commit is unaffected and stays on; only the retroactive scan is
-        -- gated. Re-enabling needs a PER-SAVE discriminator (the drop's own
-        -- consumption state) instead of the per-seed set.
+        -- fix. Its original gate was `is_guid_acknowledged` alone - the PER-SEED
+        -- checked set, not per-save - so loading an OLDER save in the same stage
+        -- family fired flags that save never earned. Live 2026-07-30: Cam loaded
+        -- an earlier Ashley save, retro-heal set 319b884a (Mausoleum knights +
+        -- crawl-under escape), and the post-pickup world state put an invisible
+        -- wall across the route to the un-collected Insignia. The scan now ALSO
+        -- requires the drop's own per-save consumption state
+        -- (DropItemContext._SaveCur.Count == 0, fail-closed when unreadable) -
+        -- see resolve_drop_save_count_by_guid in detector.lua. STAYS DEFAULT OFF
+        -- until the per-save gate is re-verified live on a rewound save: expect
+        -- "retro-heal refused ... save_count=1" (drop present, uncollected) or
+        -- "reason=not_found" (drop not dispatched) in the log, and NO flag set.
+        -- Firing at a real pickup commit is per-save correct and stays on.
         PICKUP_EVENT_FLAG_RETRO_HEAL = false,
         LOCAL_INJECTION_SUPPRESSION_WINDOW_MS = 5000,
         LOCAL_INJECTION_ACCEPT_SUPPRESSION_WINDOW_MS = 250,

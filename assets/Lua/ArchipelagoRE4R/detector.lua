@@ -334,11 +334,127 @@ local function install(ctx)
         return get_game_object_guid(game_object)
     end
 
+    local function get_drop_item_context(drop_item)
+        local context_object = safe_call(drop_item, "get_DropItemContext")
+        if context_object == nil then
+            local ok_field, field_value = pcall(function()
+                return drop_item:get_field("<DropItemContext>k__BackingField")
+            end)
+            if ok_field then
+                context_object = field_value
+            end
+        end
+        return context_object
+    end
+
+    -- [Per-save consumption gate] reads DropItemContext._SaveCur.Count for the
+    -- drop whose GameObject carries target_guid. That count lives in the SAVE
+    -- (setCountZero probe v5: consumption writes _SaveCur.Count = 0 and nothing
+    -- else), so it discriminates "THIS save consumed this drop" from the
+    -- per-seed acknowledged set, which is durable across saves and says only
+    -- that the seed checked the location at some point. Returns count, or nil
+    -- plus a reason when the answer is unknowable right now (manager missing,
+    -- drop not dispatched, context unreachable). Callers must fail CLOSED on
+    -- nil - never mutate world state on an unknown.
+    local function resolve_drop_save_count_by_guid(target_guid)
+        local normalized_target = normalize_guid(tostring(target_guid))
+        if normalized_target == nil then
+            return nil, "bad_guid"
+        end
+
+        local drop_item_manager = sdk.get_managed_singleton("chainsaw.DropItemManager")
+        if drop_item_manager == nil then
+            return nil, "no_manager"
+        end
+
+        local drop_list = safe_call(drop_item_manager, "collectAllItem")
+        if drop_list == nil then
+            drop_list = safe_call(drop_item_manager, "collectAllItem()")
+        end
+        if drop_list == nil then
+            return nil, "no_enumerator"
+        end
+
+        local list_count = safe_call(drop_list, "get_Count")
+        if type(list_count) ~= "number" then
+            list_count = safe_call(drop_list, "get_size")
+        end
+        if type(list_count) ~= "number" then
+            return nil, "list_unreadable"
+        end
+
+        for index = 0, list_count - 1 do
+            local drop_item = safe_call(drop_list, "get_Item", index)
+            if drop_item == nil then
+                drop_item = safe_call(drop_list, "get_element", index)
+            end
+            if drop_item ~= nil then
+                local ok_game_object, game_object = pcall(function()
+                    return drop_item:get_GameObject()
+                end)
+                if ok_game_object and game_object ~= nil then
+                    local guid = normalize_guid(tostring(get_game_object_guid(game_object)))
+                    if guid == normalized_target then
+                        local context_object = get_drop_item_context(drop_item)
+                        if context_object == nil then
+                            return nil, "no_context"
+                        end
+
+                        local save_cur = safe_call(context_object, "get_SaveCur")
+                        if save_cur == nil then
+                            local ok_field, field_value = pcall(function()
+                                return context_object:get_field("_SaveCur")
+                            end)
+                            if ok_field then
+                                save_cur = field_value
+                            end
+                        end
+                        if save_cur == nil then
+                            return nil, "no_savecur"
+                        end
+
+                        local item_count = safe_call(save_cur, "get_Count")
+                        if type(item_count) ~= "number" then
+                            local ok_field, field_value = pcall(function()
+                                return save_cur:get_field("Count")
+                            end)
+                            if ok_field and type(field_value) == "number" then
+                                item_count = field_value
+                            end
+                        end
+                        if type(item_count) ~= "number" then
+                            return nil, "no_count"
+                        end
+
+                        return item_count, nil
+                    end
+                end
+            end
+        end
+
+        return nil, "not_found"
+    end
+
+    -- Per-save memo state for the pickup-event-flag machinery (declared here
+    -- so the load-clear below can reset them; populated further down).
+    local fired_event_flag_keys = {}
+    local retro_heal_skip_logged = {}
+
+    local function clear_event_flag_memos()
+        fired_event_flag_keys = {}
+        retro_heal_skip_logged = {}
+    end
+
     local function clear_pending_pickup_accepts(reason)
         local removed_count = #bridge.pending_pickup_accepts
         bridge.pending_pickup_accepts = {}
         bridge.next_pending_pickup_accept_id = 1
         recent_pickup_accept_probes = {}
+        -- Event-flag dedupe is per-SAVE state: a load can swap to a save whose
+        -- flags and drop-consumption differ, so both memo tables reset here
+        -- (fire_pickup_event_flags re-checks the live flag before setting, so
+        -- a reset is idempotent, never a double-set).
+        clear_event_flag_memos()
         if removed_count > 0 and type(reason) == "string" and reason ~= "" then
             log.info(string.format("[RE4R AP] Cleared %d pending pickup accept(s): %s", removed_count, reason))
         end
@@ -500,8 +616,8 @@ local function install(ctx)
     -- doors) stay dead. Fired on every confirm path incl. already_checked so a
     -- reload-and-regrab heals itself. Validated live 2026-07-30: setting
     -- 319b884a armed the Mausoleum knights + crawl-under escape.
-    local fired_event_flag_keys = {}
-
+    -- (fired_event_flag_keys is declared above the load-clear, which resets it
+    -- per save.)
     local function fire_pickup_event_flags(guid, reason)
         local entry = get_pickup_event_flags(guid)
         if entry == nil then
@@ -1106,19 +1222,27 @@ local function install(ctx)
     end
 
     -- [Pickup event flags retro-heal] curated: only entries whose retro_heal
-    -- is true in pickup_event_flags.json (Salazar 319b884a for now - proven
-    -- safe live). Covers saves where the location was collected BEFORE this
-    -- fix existed, so no pickup commit will ever re-fire it. Guarded to the
-    -- drop's stage family so a stale flag can only apply where it matters,
-    -- never remotely (a blanket retro-set could edge-trigger dormant events
-    -- like the ch2 chapter advance out of order). Throttled to one scan per
-    -- 5s; fired keys dedupe so steady state does zero native calls.
+    -- is true in pickup_event_flags.json (Salazar 319b884a for now). Covers
+    -- saves where the location was collected BEFORE this fix existed, so no
+    -- pickup commit will ever re-fire it. THREE gates, all required:
+    --   1. stage family - a stale flag can only apply where it matters, never
+    --      remotely (a blanket retro-set could edge-trigger dormant events
+    --      like the ch2 chapter advance out of order);
+    --   2. per-seed acknowledged set - the seed checked the location at all;
+    --   3. per-SAVE consumption - DropItemContext._SaveCur.Count == 0 for the
+    --      drop in THIS save. Gate 2 alone corrupted a rewound save live
+    --      (2026-07-30 00:48: an older Ashley-section save in the same family
+    --      got 319b884a set, post-pickup world state walled off the route to
+    --      the un-collected Insignia). The count lives in the save, so it is
+    --      the discriminator gate 2 cannot be. Unknown count (drop not
+    --      dispatched, context unreachable) fails CLOSED: never mutate world
+    --      state on an unknown. Throttled to one scan per 5s; fired keys
+    --      dedupe so steady state does zero native calls.
     local retro_heal_last_clock = 0.0
 
     re.on_frame(function()
-        -- Off by default: the gate below is per-SEED, so on a save older than
-        -- the pickup this heals a world state the save never reached. See
-        -- config.PICKUP_EVENT_FLAG_RETRO_HEAL.
+        -- Default off until the per-save gate is re-verified live on a
+        -- rewound save. See config.PICKUP_EVENT_FLAG_RETRO_HEAL.
         if not PICKUP_EVENT_FLAG_RETRO_HEAL then
             return
         end
@@ -1146,7 +1270,23 @@ local function install(ctx)
                     and entry.stage ~= nil
                     and family_set[entry.stage]
                     and is_guid_acknowledged(entry.stage, guid) then
-                    fire_pickup_event_flags(guid, "retro_heal")
+                    local save_count, unknown_reason = resolve_drop_save_count_by_guid(guid)
+                    if save_count == 0 then
+                        fire_pickup_event_flags(guid, "retro_heal")
+                    else
+                        -- Fail closed. Log the refusal once per guid per
+                        -- session so the verification run shows exactly what
+                        -- the per-save gate saw.
+                        if not retro_heal_skip_logged[guid] then
+                            retro_heal_skip_logged[guid] = true
+                            log.info(string.format(
+                                "[RE4R AP] retro-heal refused guid=%s save_count=%s reason=%s",
+                                tostring(guid),
+                                tostring(save_count),
+                                tostring(unknown_reason)
+                            ))
+                        end
+                    end
                 end
             end
         end)
