@@ -162,24 +162,81 @@ local function install(ctx)
         return nil
     end
 
+    -- findGameObjectsWithTag hands back a sol container that pairs() sometimes
+    -- refuses ("cannot call '__pairs/pairs' on type sol::as_container_t
+    -- <REManagedObject>: it is not recognized as a container"). It threw ~100
+    -- times in one session on 2026-07-30, and because get_runtime_state sits
+    -- under it, every one of those took the whole bridge update with it - so
+    -- markers, the header and the delivery gate were all reading stale state.
+    -- Same class as the get_methods/get_fields gotcha: never assume these
+    -- engine arrays behave like Lua tables. get_elements() first (the walk the
+    -- rest of this mod uses), then indexed access, then pairs as a last resort.
+    local function each_engine_array_entry(array, visit)
+        if array == nil then
+            return
+        end
+
+        local ok_elements, elements = pcall(function() return array:get_elements() end)
+        if ok_elements and type(elements) == "table" then
+            for _, entry in ipairs(elements) do
+                if visit(entry) then return true end
+            end
+            return false
+        end
+
+        local ok_count, count = pcall(function() return array:get_Count() end)
+        if not ok_count or tonumber(count) == nil then
+            ok_count, count = pcall(function() return array:get_size() end)
+        end
+        count = tonumber(count)
+        if count ~= nil then
+            for index = 0, math.floor(count) - 1 do
+                local ok_entry, entry = pcall(function() return array:get_Item(index) end)
+                if not ok_entry or entry == nil then
+                    ok_entry, entry = pcall(function() return array:get_element(index) end)
+                end
+                if ok_entry and entry ~= nil and visit(entry) then
+                    return true
+                end
+            end
+            return false
+        end
+
+        local ok_pairs = pcall(function()
+            for _, entry in pairs(array) do
+                if visit(entry) then return end
+            end
+        end)
+        return ok_pairs
+    end
+
     local function get_master_object(object_name)
         local scene_object = get_scene_object()
         if scene_object == nil then
             return nil
         end
 
-        local masters = scene_object:findGameObjectsWithTag("Masters")
-        if masters == nil then
+        local ok_masters, masters = pcall(function()
+            return scene_object:findGameObjectsWithTag("Masters")
+        end)
+        if not ok_masters or masters == nil then
             return nil
         end
 
-        for _, master in pairs(masters) do
-            if master ~= nil and master:get_Name() == object_name then
-                return master
+        local found = nil
+        each_engine_array_entry(masters, function(master)
+            if master == nil then
+                return false
             end
-        end
+            local ok_name, name = pcall(function() return master:get_Name() end)
+            if ok_name and name == object_name then
+                found = master
+                return true
+            end
+            return false
+        end)
 
-        return nil
+        return found
     end
 
     local function get_main_flow_manager()
