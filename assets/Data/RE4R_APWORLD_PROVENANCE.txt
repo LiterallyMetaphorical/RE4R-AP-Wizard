@@ -37,11 +37,26 @@ Rebuilt:     2026-07-28 (rev 2), forbid progression inside small-key drawers. Th
              keys are not guaranteed reachable in the drawer's chapter window. rules.py now
              adds an item rule keeping advancement off every small-key drawer (0/20 after);
              the count rule stays for tracker gating of the useful/filler still allowed there.
-Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_version 0.4.0
+Rebuilt:     2026-07-31, world_version 0.6.0 - the regions and logic release. The
+             areas follow an authored playthrough order (data/section_order.json,
+             97 rows) with corrected chapters; the 8 coarse chapter gates became
+             15 entrance gates from the logic sheet; 7 preserve keys joined the
+             shuffle (Hexagonal Emblem, Crystal Marble, Blue Dial, Wooden Planks,
+             Old Wayshrine Key, Apostate's + Blasphemer's Heads); 9 dead locations
+             left the pool (litho hard set, 2 cut herbs, 2 furnace tray twins,
+             checkpoint gate trigger); small-key drawers may hold progression
+             again; keycards sit at native spots unless shuffle_keycards is on;
+             minimize_backtracking keeps checks on the main path;
+             randomize_gated_keys is a deprecated no-op. Location pool: 474, all
+             unconditional (always == total, optional 0). Verified: 36-generation
+             sweep across default / shuffle_keycards / minimize_backtracking plus
+             a 3-seed release smoke. Rooms from older apworlds fail the
+             count check by design - start fresh.
+Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_version 0.6.0
              per that repo's archipelago.json.
 AP target:   Archipelago 0.6.7 (the version the apworld was developed and
              generation-validated against; pinned via the manifest as of 2026-07-12).
-SHA-256:     e5edf6aad9f44cfe59a9867f62b7205550b3a372ecfe5a76f1e012a78658bd7b
+SHA-256:     7abeb51658a1a046ae580ac6c561bba104664b986d2d6e467a0d671c00b960a2
 Consumed by: the Generation Guidance screen ("Copy RE4R.apworld to your Archipelago
              custom_worlds folder") - ArchipelagoInstallationService reads the
              world_version out of this zip's manifest for display and copies the

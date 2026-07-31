@@ -19,7 +19,13 @@ public sealed class Re4rYamlRequest
 
     public bool AllowMissableLocations { get; set; }
 
-    public bool RandomizeGatedKeys { get; set; }
+    // Shuffle the Level 1/2/3 Keycards into the multiworld instead of
+    // leaving them at their native island spots (apworld 0.6.0).
+    public bool ShuffleKeycards { get; set; }
+
+    // Keep important checks along the main path: hard hexagon deadline plus
+    // filler-only side excursions (apworld 0.6.0).
+    public bool MinimizeBacktracking { get; set; }
 
     public IReadOnlyCollection<string> UnlockedTypewriterStageIds { get; set; } = Array.Empty<string>();
 }

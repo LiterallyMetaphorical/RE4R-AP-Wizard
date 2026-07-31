@@ -1,19 +1,20 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-07-29T21:40:46Z",
+  "generated_at_utc": "2026-07-31T08:01:48Z",
   "game": "Resident Evil 4 Remake",
-  "world_version": "0.4.0",
+  "world_version": "0.6.0",
   "placeholder_item_id": 120486400,
   "counts": {
-    "locations_total": 476,
-    "guid_locations": 476,
+    "locations_total": 474,
+    "guid_locations": 474,
     "noguid_locations": 0,
-    "items_total": 123,
-    "always_locations": 471,
-    "optional_key_locations": 5
+    "items_total": 129,
+    "always_locations": 474,
+    "optional_key_locations": 0
   },
   "location_codes": [
     3286922255,
+    3431684013,
     1406857531,
     2233296271,
     4112083645,
@@ -29,6 +30,7 @@
     3559598231,
     3709915432,
     950811540,
+    984078850,
     187622435,
     395845661,
     4081994245,
@@ -80,6 +82,7 @@
     2068880331,
     3630876178,
     637606804,
+    2864558160,
     2919633733,
     577935934,
     3195876408,
@@ -124,6 +127,7 @@
     1289575852,
     2127679082,
     3184495528,
+    4153818031,
     685836783,
     1347906916,
     1053860888,
@@ -146,13 +150,16 @@
     2071582005,
     1302979268,
     127038901,
+    2864497220,
     194798003,
     1314803934,
     2409660383,
     1836166293,
     1157572538,
     307378197,
+    3457246612,
     2713762160,
+    33263936,
     4266056736,
     2188521977,
     660388321,
@@ -177,7 +184,6 @@
     3850153263,
     3458256202,
     1177588693,
-    1166283582,
     124215720,
     3308484776,
     3760759544,
@@ -242,10 +248,6 @@
     2329323456,
     2819423772,
     2189581482,
-    251516785,
-    1146734173,
-    200878794,
-    905179247,
     59624342,
     1923109010,
     1561908916,
@@ -332,8 +334,6 @@
     132464167,
     1836078090,
     2958099783,
-    2538340135,
-    3604641605,
     1464755578,
     2651145396,
     2485454820,
@@ -354,8 +354,6 @@
     3184783528,
     1247234535,
     2520057731,
-    3253917259,
-    931755313,
     1869521830,
     578756204,
     2805492097,
@@ -504,6 +502,22 @@
       "x": 22.38,
       "y": 5.49,
       "z": -8.03,
+      "container": "",
+      "note": ""
+    },
+    "3431684013": {
+      "name": "Chapter 2 - Village Chief's Manor - Crystal Marble x1 [a9dfcf94]",
+      "guid": "a9dfcf94-947d-47c1-8d1c-7c11846fac86",
+      "identity_kind": "guid",
+      "chapter": 2,
+      "stage": 44110,
+      "region": "Village",
+      "source_item_name": "Crystal Marble x1",
+      "ap_eligibility": "always",
+      "section_name": "Village Chief's Manor",
+      "x": 10.73,
+      "y": 10.28,
+      "z": 110.06,
       "container": "",
       "note": ""
     },
@@ -744,6 +758,22 @@
       "x": 50.49,
       "y": 5.5,
       "z": -166.67,
+      "container": "",
+      "note": ""
+    },
+    "984078850": {
+      "name": "Chapter 5 - Villa - Wooden Planks x1 [6f3a41b4]",
+      "guid": "6f3a41b4-e854-4b31-b36f-5e432a0b8235",
+      "identity_kind": "guid",
+      "chapter": 5,
+      "stage": 43311,
+      "region": "Church",
+      "source_item_name": "Wooden Planks x1",
+      "ap_eligibility": "always",
+      "section_name": "Villa",
+      "x": 56.32,
+      "y": 6.42,
+      "z": -159.48,
       "container": "",
       "note": ""
     },
@@ -1068,12 +1098,12 @@
       "note": ""
     },
     "1597669214": {
-      "name": "Chapter 3 - Village Square - Elegant Bangle x1 (Ashley section) [a944127e]",
+      "name": "Chapter 5 - Village Square - Elegant Bangle x1 (Ashley section) [a944127e]",
       "guid": "a944127e-273f-4538-819a-9ec5253a9c7f",
       "identity_kind": "guid",
-      "chapter": 3,
+      "chapter": 5,
       "stage": 40200,
-      "region": "Village",
+      "region": "Church",
       "source_item_name": "Elegant Bangle x1",
       "ap_eligibility": "always",
       "section_name": "Village Square",
@@ -1563,6 +1593,22 @@
       "container": "",
       "note": ""
     },
+    "2864558160": {
+      "name": "Chapter 2 - Valley - Hexagonal Emblem x1 [8195486a]",
+      "guid": "8195486a-1cbb-4799-9a24-33c6397b90dc",
+      "identity_kind": "guid",
+      "chapter": 2,
+      "stage": 44400,
+      "region": "Village",
+      "source_item_name": "Hexagonal Emblem x1",
+      "ap_eligibility": "always",
+      "section_name": "Valley",
+      "x": 76.49,
+      "y": -1.81,
+      "z": 223.53,
+      "container": "",
+      "note": ""
+    },
     "2919633733": {
       "name": "Chapter 2 - Abandoned Factory - Handgun Ammo x10 [d31cc7cc]",
       "guid": "d31cc7cc-20da-4186-8773-52a78d1cafb3",
@@ -1884,12 +1930,12 @@
       "note": ""
     },
     "1023343638": {
-      "name": "Chapter 2 - Village Chief's Manor - Antique Camera x1 (Ashley section) [a528b618]",
+      "name": "Chapter 5 - Village Chief's Manor - Antique Camera x1 (Ashley section) [a528b618]",
       "guid": "a528b618-89e2-4880-a4f8-43ed01caffa0",
       "identity_kind": "guid",
-      "chapter": 2,
+      "chapter": 5,
       "stage": 44110,
-      "region": "Village",
+      "region": "Church",
       "source_item_name": "Antique Camera x1",
       "ap_eligibility": "always",
       "section_name": "Village Chief's Manor",
@@ -2267,6 +2313,22 @@
       "container": "",
       "note": ""
     },
+    "4153818031": {
+      "name": "Chapter 5 - Church - Blue Dial x1 [2755ebe4]",
+      "guid": "2755ebe4-80cb-4a1c-b222-dfab116d73bd",
+      "identity_kind": "guid",
+      "chapter": 5,
+      "stage": 45401,
+      "region": "Church",
+      "source_item_name": "Blue Dial x1",
+      "ap_eligibility": "always",
+      "section_name": "Church",
+      "x": 105.36,
+      "y": 12.29,
+      "z": 106.58,
+      "container": "",
+      "note": ""
+    },
     "685836783": {
       "name": "Chapter 4 - Lakeside Shrine - Hand Grenade x1 [77df8e41]",
       "guid": "77df8e41-2a23-4e64-876f-a981a0765357",
@@ -2619,6 +2681,22 @@
       "container": "",
       "note": ""
     },
+    "2864497220": {
+      "name": "Chapter 4 - Mural Cave - Old Wayshrine Key x1 [f1d60034]",
+      "guid": "f1d60034-62bc-4e7f-876b-0b1e96ddf814",
+      "identity_kind": "guid",
+      "chapter": 4,
+      "stage": 46201,
+      "region": "Lake",
+      "source_item_name": "Old Wayshrine Key x1",
+      "ap_eligibility": "always",
+      "section_name": "Mural Cave",
+      "x": 291.72,
+      "y": -6.35,
+      "z": 140.03,
+      "container": "",
+      "note": ""
+    },
     "194798003": {
       "name": "Chapter 4 - Large Cave Shrine - Yellow Herb x1 [a951718b]",
       "guid": "a951718b-d0fa-4679-961b-efb806c234a5",
@@ -2715,6 +2793,22 @@
       "container": "",
       "note": ""
     },
+    "3457246612": {
+      "name": "Chapter 4 - Lake - Blasphemer's Head x1 [bbceba06]",
+      "guid": "bbceba06-29d7-4d6c-b086-fc3258759052",
+      "identity_kind": "guid",
+      "chapter": 4,
+      "stage": 46100,
+      "region": "Lake",
+      "source_item_name": "Blasphemer's Head x1",
+      "ap_eligibility": "always",
+      "section_name": "Lake",
+      "x": 400.5,
+      "y": -4.21,
+      "z": -153.87,
+      "container": "",
+      "note": ""
+    },
     "2713762160": {
       "name": "Chapter 4 - Small Cave Shrine - Rifle Ammo x2 [82f8a752]",
       "guid": "82f8a752-986f-43f5-9baf-32ce0f895f74",
@@ -2728,6 +2822,22 @@
       "x": 397.68,
       "y": -5.71,
       "z": -153.61,
+      "container": "",
+      "note": ""
+    },
+    "33263936": {
+      "name": "Chapter 4 - Large Cave Shrine - Apostate's Head x1 [687dbcd5]",
+      "guid": "687dbcd5-8676-497d-b275-7d2a3393cf5d",
+      "identity_kind": "guid",
+      "chapter": 4,
+      "stage": 46200,
+      "region": "Lake",
+      "source_item_name": "Apostate's Head x1",
+      "ap_eligibility": "always",
+      "section_name": "Large Cave Shrine",
+      "x": 270.61,
+      "y": -1.57,
+      "z": 150.72,
       "container": "",
       "note": ""
     },
@@ -3115,22 +3225,6 @@
       "container": "",
       "note": ""
     },
-    "1166283582": {
-      "name": "Chapter 6 - Checkpoint - Checkpoint Crank x1 [fc8efafc]",
-      "guid": "fc8efafc-3f18-42dd-8b1c-0ac77fd95036",
-      "identity_kind": "guid",
-      "chapter": 6,
-      "stage": 47200,
-      "region": "Church",
-      "source_item_name": "Checkpoint Crank x1",
-      "ap_eligibility": "always",
-      "section_name": "Checkpoint",
-      "x": 149.15,
-      "y": 4.09,
-      "z": -208.72,
-      "container": "",
-      "note": ""
-    },
     "124215720": {
       "name": "Chapter 6 - Checkpoint - First Aid Spray x1 [b85fb10f]",
       "guid": "b85fb10f-1e44-406a-9cbd-1e3ce95a6be4",
@@ -3404,7 +3498,7 @@
       "note": ""
     },
     "3515357816": {
-      "name": "Chapter 7 - Chapel - Vintage Compass x1 (chest) [fcb1f650]",
+      "name": "Chapter 7 - Castle Entrance - Vintage Compass x1 (chest) [fcb1f650]",
       "guid": "fcb1f650-ebc0-4bcc-9144-e9ea4832a263",
       "identity_kind": "guid",
       "chapter": 7,
@@ -3412,7 +3506,7 @@
       "region": "Castle Entry",
       "source_item_name": "Vintage Compass x1",
       "ap_eligibility": "always",
-      "section_name": "Chapel",
+      "section_name": "Castle Entrance",
       "x": -308.57,
       "y": -5.81,
       "z": 69.08,
@@ -3484,7 +3578,7 @@
       "note": ""
     },
     "771527548": {
-      "name": "Chapter 7 - Audience Chamber - Gold Bangle x1 (chest) [1441b2df]",
+      "name": "Chapter 7 - Treasury - Gold Bangle x1 (chest) [1441b2df]",
       "guid": "1441b2df-fbba-4847-baf5-28bb6b8892e7",
       "identity_kind": "guid",
       "chapter": 7,
@@ -3492,7 +3586,7 @@
       "region": "Castle Entry",
       "source_item_name": "Gold Bangle x1",
       "ap_eligibility": "always",
-      "section_name": "Audience Chamber",
+      "section_name": "Treasury",
       "x": -134.44,
       "y": 19.49,
       "z": 36.63,
@@ -3699,7 +3793,7 @@
       "stage": 50601,
       "region": "Castle Entry",
       "source_item_name": "Halo Wheel x1",
-      "ap_eligibility": "optional_key",
+      "ap_eligibility": "always",
       "section_name": "Water Hall",
       "x": -53.01,
       "y": 9.15,
@@ -3811,7 +3905,7 @@
       "stage": 50504,
       "region": "Castle Entry",
       "source_item_name": "Bloodied Sword x1",
-      "ap_eligibility": "optional_key",
+      "ap_eligibility": "always",
       "section_name": "Treasury",
       "x": -107.29,
       "y": 19.39,
@@ -3884,7 +3978,7 @@
       "note": ""
     },
     "326080123": {
-      "name": "Chapter 8 - Wine Cellar - Rhinoceros Beetle x1 [d47a64c7]",
+      "name": "Chapter 8 - Wine Cellar Exterior - Rhinoceros Beetle x1 [d47a64c7]",
       "guid": "d47a64c7-bc44-4e15-b233-ec282bfc1698",
       "identity_kind": "guid",
       "chapter": 8,
@@ -3892,7 +3986,7 @@
       "region": "Castle Entry",
       "source_item_name": "Rhinoceros Beetle x1",
       "ap_eligibility": "always",
-      "section_name": "Wine Cellar",
+      "section_name": "Wine Cellar Exterior",
       "x": 17.16,
       "y": 21.05,
       "z": 34.42,
@@ -3916,12 +4010,12 @@
       "note": ""
     },
     "490397881": {
-      "name": "Chapter 9 - Courtyard - Scratched Emerald x1 [656cb3c4]",
+      "name": "Chapter 8 - Courtyard - Scratched Emerald x1 [656cb3c4]",
       "guid": "656cb3c4-c980-4b16-acf6-f8d47fda998c",
       "identity_kind": "guid",
-      "chapter": 9,
+      "chapter": 8,
       "stage": 51200,
-      "region": "Castle Deep",
+      "region": "Castle Entry",
       "source_item_name": "Scratched Emerald x1",
       "ap_eligibility": "always",
       "section_name": "Courtyard",
@@ -4012,7 +4106,7 @@
       "note": ""
     },
     "1061925518": {
-      "name": "Chapter 8 - Mines - Ruby x1 (hanging) [142073d1]",
+      "name": "Chapter 8 - Castle Battlements - Ruby x1 (hanging) [142073d1]",
       "guid": "142073d1-731a-427f-8159-1568f3c32449",
       "identity_kind": "guid",
       "chapter": 8,
@@ -4020,7 +4114,7 @@
       "region": "Castle Entry",
       "source_item_name": "Ruby x1",
       "ap_eligibility": "always",
-      "section_name": "Mines",
+      "section_name": "Castle Battlements",
       "x": 85.12,
       "y": 19.18,
       "z": -76.39,
@@ -4060,12 +4154,12 @@
       "note": ""
     },
     "477270599": {
-      "name": "Chapter 9 - Courtyard - Elegant Chessboard x1 [57ad46f8]",
+      "name": "Chapter 8 - Courtyard - Elegant Chessboard x1 [57ad46f8]",
       "guid": "57ad46f8-12d3-47bf-b894-1fafe91357a6",
       "identity_kind": "guid",
-      "chapter": 9,
+      "chapter": 8,
       "stage": 51200,
-      "region": "Castle Deep",
+      "region": "Castle Entry",
       "source_item_name": "Elegant Chessboard x1",
       "ap_eligibility": "always",
       "section_name": "Courtyard",
@@ -4092,7 +4186,7 @@
       "note": ""
     },
     "4199103498": {
-      "name": "Chapter 8 - Mines - Ornate Beetle x1 (small-key drawer) [377cda0f]",
+      "name": "Chapter 8 - Castle Battlements - Ornate Beetle x1 (small-key drawer) [377cda0f]",
       "guid": "377cda0f-d9de-4ecc-84da-9e12d125ce2e",
       "identity_kind": "guid",
       "chapter": 8,
@@ -4100,7 +4194,7 @@
       "region": "Castle Entry",
       "source_item_name": "Ornate Beetle x1",
       "ap_eligibility": "always",
-      "section_name": "Mines",
+      "section_name": "Castle Battlements",
       "x": 87.21,
       "y": 23.96,
       "z": -41.78,
@@ -4155,70 +4249,6 @@
       "container": "",
       "note": ""
     },
-    "251516785": {
-      "name": "Chapter 8 - Bindery - Velvet Blue x1 [7a1598f0]",
-      "guid": "7a1598f0-749c-4e55-a23d-424a6b8e9911",
-      "identity_kind": "guid",
-      "chapter": 8,
-      "stage": 51502,
-      "region": "Castle Entry",
-      "source_item_name": "Velvet Blue x1",
-      "ap_eligibility": "always",
-      "section_name": "Bindery",
-      "x": -8.86,
-      "y": 28.36,
-      "z": -31.0,
-      "container": "",
-      "note": ""
-    },
-    "1146734173": {
-      "name": "Chapter 8 - Bindery - Lithographic Stone B x1 [32ead8bf]",
-      "guid": "32ead8bf-4613-47fc-a5b3-8458668d74d7",
-      "identity_kind": "guid",
-      "chapter": 8,
-      "stage": 51502,
-      "region": "Castle Entry",
-      "source_item_name": "Lithographic Stone B x1",
-      "ap_eligibility": "always",
-      "section_name": "Bindery",
-      "x": 0.37,
-      "y": 26.85,
-      "z": -38.76,
-      "container": "",
-      "note": ""
-    },
-    "200878794": {
-      "name": "Chapter 8 - Bindery - Lithographic Stone C x1 [e6d63768]",
-      "guid": "e6d63768-091b-4706-bce4-837b940915a1",
-      "identity_kind": "guid",
-      "chapter": 8,
-      "stage": 51502,
-      "region": "Castle Entry",
-      "source_item_name": "Lithographic Stone C x1",
-      "ap_eligibility": "always",
-      "section_name": "Bindery",
-      "x": -5.84,
-      "y": 27.79,
-      "z": -30.75,
-      "container": "",
-      "note": ""
-    },
-    "905179247": {
-      "name": "Chapter 8 - Bindery - Lithographic Stone D x1 [51990017]",
-      "guid": "51990017-8109-465d-a21e-4a55ff35ac21",
-      "identity_kind": "guid",
-      "chapter": 8,
-      "stage": 51502,
-      "region": "Castle Entry",
-      "source_item_name": "Lithographic Stone D x1",
-      "ap_eligibility": "always",
-      "section_name": "Bindery",
-      "x": 1.0,
-      "y": 27.32,
-      "z": -30.51,
-      "container": "",
-      "note": ""
-    },
     "59624342": {
       "name": "Chapter 8 - Castle Battlements - Green Herb x1 [2ed3a85b]",
       "guid": "2ed3a85b-a4f1-4ab7-a7d7-fd64fd3bbd56",
@@ -4268,12 +4298,12 @@
       "note": ""
     },
     "3701967932": {
-      "name": "Chapter 9 - Courtyard - Flash Grenade x1 [7239dae7]",
+      "name": "Chapter 8 - Courtyard - Flash Grenade x1 [7239dae7]",
       "guid": "7239dae7-46fc-48f0-930d-d51ab896b935",
       "identity_kind": "guid",
-      "chapter": 9,
+      "chapter": 8,
       "stage": 51200,
-      "region": "Castle Deep",
+      "region": "Castle Entry",
       "source_item_name": "Flash Grenade x1",
       "ap_eligibility": "always",
       "section_name": "Courtyard",
@@ -4284,12 +4314,12 @@
       "note": ""
     },
     "1852153846": {
-      "name": "Chapter 9 - Courtyard - First Aid Spray x1 [1fff5623]",
+      "name": "Chapter 8 - Courtyard - First Aid Spray x1 [1fff5623]",
       "guid": "1fff5623-b5e4-4339-adb0-d3fe42ea8301",
       "identity_kind": "guid",
-      "chapter": 9,
+      "chapter": 8,
       "stage": 51200,
-      "region": "Castle Deep",
+      "region": "Castle Entry",
       "source_item_name": "First Aid Spray x1",
       "ap_eligibility": "always",
       "section_name": "Courtyard",
@@ -4300,12 +4330,12 @@
       "note": ""
     },
     "803745417": {
-      "name": "Chapter 9 - Courtyard - Yellow Herb x1 [bc7cf6f2]",
+      "name": "Chapter 8 - Courtyard - Yellow Herb x1 [bc7cf6f2]",
       "guid": "bc7cf6f2-a87c-4884-9ff3-1da753a3093d",
       "identity_kind": "guid",
-      "chapter": 9,
+      "chapter": 8,
       "stage": 51201,
-      "region": "Castle Deep",
+      "region": "Castle Entry",
       "source_item_name": "Yellow Herb x1",
       "ap_eligibility": "always",
       "section_name": "Courtyard",
@@ -4348,12 +4378,12 @@
       "note": ""
     },
     "2881858764": {
-      "name": "Chapter 9 - Courtyard - Accessory: Stylish Mask x1 [c5639616]",
+      "name": "Chapter 8 - Courtyard - Accessory: Stylish Mask x1 [c5639616]",
       "guid": "c5639616-2aa4-4c57-b662-7b013f5aa2d0",
       "identity_kind": "guid",
-      "chapter": 9,
+      "chapter": 8,
       "stage": 51200,
-      "region": "Castle Deep",
+      "region": "Castle Entry",
       "source_item_name": "Accessory: Stylish Mask x1",
       "ap_eligibility": "always",
       "section_name": "Courtyard",
@@ -4364,12 +4394,12 @@
       "note": ""
     },
     "1339134035": {
-      "name": "Chapter 9 - Courtyard - Gold Token x1 [b1e533fa]",
+      "name": "Chapter 8 - Courtyard - Gold Token x1 [b1e533fa]",
       "guid": "b1e533fa-b79d-4944-8dcc-9a2c22430803",
       "identity_kind": "guid",
-      "chapter": 9,
+      "chapter": 8,
       "stage": 51200,
-      "region": "Castle Deep",
+      "region": "Castle Entry",
       "source_item_name": "Gold Token x1",
       "ap_eligibility": "always",
       "section_name": "Courtyard",
@@ -4387,7 +4417,7 @@
       "stage": 52200,
       "region": "Castle Deep",
       "source_item_name": "Cubic Device x1",
-      "ap_eligibility": "optional_key",
+      "ap_eligibility": "always",
       "section_name": "Armory",
       "x": 107.7,
       "y": 25.44,
@@ -4716,10 +4746,10 @@
       "note": ""
     },
     "3535467731": {
-      "name": "Chapter 10 - Mausoleum - Salazar Family Insignia x1 [097ef30f]",
+      "name": "Chapter 9 - Mausoleum - Salazar Family Insignia x1 [097ef30f]",
       "guid": "097ef30f-4bfd-46f4-9c3a-907240e3600e",
       "identity_kind": "guid",
-      "chapter": 10,
+      "chapter": 9,
       "stage": 53304,
       "region": "Castle Deep",
       "source_item_name": "Salazar Family Insignia x1",
@@ -4732,10 +4762,10 @@
       "note": ""
     },
     "2584610508": {
-      "name": "Chapter 10 - Library - CQBR Assault Rifle x20 (locked cache) [15b380f4]",
+      "name": "Chapter 9 - Library - CQBR Assault Rifle x20 (locked cache) [15b380f4]",
       "guid": "15b380f4-5e15-4e54-a809-ecdb0c3ef591",
       "identity_kind": "guid",
-      "chapter": 10,
+      "chapter": 9,
       "stage": 53200,
       "region": "Castle Deep",
       "source_item_name": "CQBR Assault Rifle x20",
@@ -4748,10 +4778,10 @@
       "note": ""
     },
     "2052532493": {
-      "name": "Chapter 10 - Library - Gold Bar (L) x1 [cff97c32]",
+      "name": "Chapter 9 - Library - Gold Bar (L) x1 [cff97c32]",
       "guid": "cff97c32-8579-4b80-90f0-cebdb638e6c3",
       "identity_kind": "guid",
-      "chapter": 10,
+      "chapter": 9,
       "stage": 53200,
       "region": "Castle Deep",
       "source_item_name": "Gold Bar (L) x1",
@@ -4764,14 +4794,14 @@
       "note": ""
     },
     "3021010994": {
-      "name": "Chapter 10 - Library - Bunch of Keys x1 [c1d0972b]",
+      "name": "Chapter 9 - Library - Bunch of Keys x1 [c1d0972b]",
       "guid": "c1d0972b-2174-4db8-834c-40db87df9883",
       "identity_kind": "guid",
-      "chapter": 10,
+      "chapter": 9,
       "stage": 53200,
       "region": "Castle Deep",
       "source_item_name": "Bunch of Keys x1",
-      "ap_eligibility": "optional_key",
+      "ap_eligibility": "always",
       "section_name": "Library",
       "x": 127.01,
       "y": 32.29,
@@ -4780,10 +4810,10 @@
       "note": ""
     },
     "4214161125": {
-      "name": "Chapter 10 - Library - Yellow Diamond x1 (hanging) [8f5be12f]",
+      "name": "Chapter 9 - Library - Yellow Diamond x1 (hanging) [8f5be12f]",
       "guid": "8f5be12f-9ca6-455e-bf40-9533705adb52",
       "identity_kind": "guid",
-      "chapter": 10,
+      "chapter": 9,
       "stage": 53201,
       "region": "Castle Deep",
       "source_item_name": "Yellow Diamond x1",
@@ -4796,10 +4826,10 @@
       "note": ""
     },
     "979265628": {
-      "name": "Chapter 10 - Library - Elegant Perfume Bottle x1 (chest) [dc62ddd9]",
+      "name": "Chapter 9 - Library - Elegant Perfume Bottle x1 (chest) [dc62ddd9]",
       "guid": "dc62ddd9-232d-4c31-85dd-cbe56a8dfea7",
       "identity_kind": "guid",
-      "chapter": 10,
+      "chapter": 9,
       "stage": 53200,
       "region": "Castle Deep",
       "source_item_name": "Elegant Perfume Bottle x1",
@@ -4828,10 +4858,10 @@
       "note": ""
     },
     "3998846505": {
-      "name": "Chapter 10 - Mausoleum - Emerald x1 (chest) [c724b33b]",
+      "name": "Chapter 9 - Mausoleum - Emerald x1 (chest) [c724b33b]",
       "guid": "c724b33b-c105-4d68-8865-948a527f30e1",
       "identity_kind": "guid",
-      "chapter": 10,
+      "chapter": 9,
       "stage": 53303,
       "region": "Castle Deep",
       "source_item_name": "Emerald x1",
@@ -4892,7 +4922,7 @@
       "note": ""
     },
     "3840671653": {
-      "name": "Chapter 10 - Hive - Brown Chicken Egg x1 [5f1af48d]",
+      "name": "Chapter 10 - Ballroom Entrance - Brown Chicken Egg x1 [5f1af48d]",
       "guid": "5f1af48d-6ac9-45fb-be01-47e7bf22da51",
       "identity_kind": "guid",
       "chapter": 10,
@@ -4900,7 +4930,7 @@
       "region": "Castle Deep",
       "source_item_name": "Brown Chicken Egg x1",
       "ap_eligibility": "always",
-      "section_name": "Hive",
+      "section_name": "Ballroom Entrance",
       "x": 188.56,
       "y": 33.52,
       "z": 29.09,
@@ -4924,7 +4954,7 @@
       "note": ""
     },
     "2552033291": {
-      "name": "Chapter 10 - Antechamber - Red Beryl x1 [5296f431]",
+      "name": "Chapter 10 - Depths Tunnels - Red Beryl x1 [5296f431]",
       "guid": "5296f431-ddde-4a03-9f1d-f8c63e03cfef",
       "identity_kind": "guid",
       "chapter": 10,
@@ -4932,7 +4962,7 @@
       "region": "Castle Deep",
       "source_item_name": "Red Beryl x1",
       "ap_eligibility": "always",
-      "section_name": "Antechamber",
+      "section_name": "Depths Tunnels",
       "x": 235.06,
       "y": -29.73,
       "z": 64.6,
@@ -4972,10 +5002,10 @@
       "note": ""
     },
     "668269030": {
-      "name": "Chapter 10 - Library - Handgun Ammo x10 [0b90c8dd]",
+      "name": "Chapter 9 - Library - Handgun Ammo x10 [0b90c8dd]",
       "guid": "0b90c8dd-bb1c-49b1-bd88-5385a3ae5086",
       "identity_kind": "guid",
-      "chapter": 10,
+      "chapter": 9,
       "stage": 54100,
       "region": "Castle Deep",
       "source_item_name": "Handgun Ammo x10",
@@ -5052,7 +5082,7 @@
       "note": ""
     },
     "3248757525": {
-      "name": "Chapter 10 - Hive - First Aid Spray x1 [f428b54f]",
+      "name": "Chapter 10 - Ballroom Entrance - First Aid Spray x1 [f428b54f]",
       "guid": "f428b54f-288c-4427-a4c1-035b6baebc04",
       "identity_kind": "guid",
       "chapter": 10,
@@ -5060,7 +5090,7 @@
       "region": "Castle Deep",
       "source_item_name": "First Aid Spray x1",
       "ap_eligibility": "always",
-      "section_name": "Hive",
+      "section_name": "Ballroom Entrance",
       "x": 167.8,
       "y": 33.81,
       "z": 27.7,
@@ -5180,12 +5210,12 @@
       "note": ""
     },
     "437207146": {
-      "name": "Chapter 10 - Throne Room - Boot Knife x1 [f03e2b8c]",
+      "name": "Chapter 12 - Throne Room - Boot Knife x1 [f03e2b8c]",
       "guid": "f03e2b8c-075b-4bef-9d51-ae3560b142c0",
       "identity_kind": "guid",
-      "chapter": 10,
+      "chapter": 12,
       "stage": 54301,
-      "region": "Castle Deep",
+      "region": "Island Entry",
       "source_item_name": "Boot Knife x1",
       "ap_eligibility": "always",
       "section_name": "Throne Room",
@@ -5196,7 +5226,7 @@
       "note": ""
     },
     "934515142": {
-      "name": "Chapter 10 - Antechamber - Red Herb x1 [6968fed7]",
+      "name": "Chapter 10 - Depths Tunnels - Red Herb x1 [6968fed7]",
       "guid": "6968fed7-6529-4e15-bb07-06415fd29c9b",
       "identity_kind": "guid",
       "chapter": 10,
@@ -5204,7 +5234,7 @@
       "region": "Castle Deep",
       "source_item_name": "Red Herb x1",
       "ap_eligibility": "always",
-      "section_name": "Antechamber",
+      "section_name": "Depths Tunnels",
       "x": 245.01,
       "y": -29.3,
       "z": 52.69,
@@ -5228,12 +5258,12 @@
       "note": ""
     },
     "1407423758": {
-      "name": "Chapter 10 - Mines - Green Herb x1 [a7068942]",
+      "name": "Chapter 11 - Mines - Green Herb x1 [a7068942]",
       "guid": "a7068942-aa46-4efa-967f-bf1a33a61c4c",
       "identity_kind": "guid",
-      "chapter": 10,
+      "chapter": 11,
       "stage": 54407,
-      "region": "Castle Deep",
+      "region": "Island Entry",
       "source_item_name": "Green Herb x1",
       "ap_eligibility": "always",
       "section_name": "Mines",
@@ -5244,12 +5274,12 @@
       "note": ""
     },
     "994461688": {
-      "name": "Chapter 10 - Mines - Shotgun Shells x3 [df312d32]",
+      "name": "Chapter 11 - Mines - Shotgun Shells x3 [df312d32]",
       "guid": "df312d32-af74-457c-84ee-32cfd3913f50",
       "identity_kind": "guid",
-      "chapter": 10,
+      "chapter": 11,
       "stage": 54407,
-      "region": "Castle Deep",
+      "region": "Island Entry",
       "source_item_name": "Shotgun Shells x3",
       "ap_eligibility": "always",
       "section_name": "Mines",
@@ -5356,7 +5386,7 @@
       "note": ""
     },
     "2269722414": {
-      "name": "Chapter 10 - Hive - Silver Token x1 (hanging) [b1137a19]",
+      "name": "Chapter 10 - Ballroom Entrance - Silver Token x1 (hanging) [b1137a19]",
       "guid": "b1137a19-e4e6-4ead-8b6c-6879a62b3f76",
       "identity_kind": "guid",
       "chapter": 10,
@@ -5364,7 +5394,7 @@
       "region": "Castle Deep",
       "source_item_name": "Silver Token x1",
       "ap_eligibility": "always",
-      "section_name": "Hive",
+      "section_name": "Ballroom Entrance",
       "x": 165.64,
       "y": 33.65,
       "z": 35.13,
@@ -5388,12 +5418,12 @@
       "note": ""
     },
     "262918373": {
-      "name": "Chapter 10 - Throne Room - Ornate Necklace x1 [44427870]",
+      "name": "Chapter 12 - Throne Room - Ornate Necklace x1 [44427870]",
       "guid": "44427870-17f1-450a-b8d7-7e03bcda6e1d",
       "identity_kind": "guid",
-      "chapter": 10,
+      "chapter": 12,
       "stage": 54301,
-      "region": "Castle Deep",
+      "region": "Island Entry",
       "source_item_name": "Ornate Necklace x1",
       "ap_eligibility": "always",
       "section_name": "Throne Room",
@@ -5427,7 +5457,7 @@
       "stage": 55103,
       "region": "Island Entry",
       "source_item_name": "Dynamite x1",
-      "ap_eligibility": "optional_key",
+      "ap_eligibility": "always",
       "section_name": "Mines",
       "x": 110.21,
       "y": -3.71,
@@ -5595,38 +5625,6 @@
       "container": "",
       "note": ""
     },
-    "2538340135": {
-      "name": "Chapter 11 - Blast Furnace - Yellow Diamond x1 [cd201e68]",
-      "guid": "cd201e68-5248-4c66-99ef-a5e5dfc85224",
-      "identity_kind": "guid",
-      "chapter": 11,
-      "stage": 55200,
-      "region": "Island Entry",
-      "source_item_name": "Yellow Diamond x1",
-      "ap_eligibility": "always",
-      "section_name": "Blast Furnace",
-      "x": 146.0,
-      "y": -11.69,
-      "z": 43.8,
-      "container": "",
-      "note": ""
-    },
-    "3604641605": {
-      "name": "Chapter 11 - Blast Furnace - Red Beryl x1 [93e46be6]",
-      "guid": "93e46be6-665a-45f4-95af-683a546ebb4f",
-      "identity_kind": "guid",
-      "chapter": 11,
-      "stage": 55200,
-      "region": "Island Entry",
-      "source_item_name": "Red Beryl x1",
-      "ap_eligibility": "always",
-      "section_name": "Blast Furnace",
-      "x": 136.5,
-      "y": -11.64,
-      "z": 43.0,
-      "container": "",
-      "note": ""
-    },
     "1464755578": {
       "name": "Chapter 11 - Blast Furnace - Red Beryl x1 [ca23db85]",
       "guid": "ca23db85-473f-41ec-a1ef-70374415b7ee",
@@ -5692,7 +5690,7 @@
       "note": ""
     },
     "2603290953": {
-      "name": "Chapter 11 - Ballroom - Green Herb x1 [2d823431]",
+      "name": "Chapter 11 - Krauser - Green Herb x1 [2d823431]",
       "guid": "2d823431-251d-4a5e-8f58-438e69e1c0e6",
       "identity_kind": "guid",
       "chapter": 11,
@@ -5700,7 +5698,7 @@
       "region": "Island Entry",
       "source_item_name": "Green Herb x1",
       "ap_eligibility": "always",
-      "section_name": "Ballroom",
+      "section_name": "Krauser",
       "x": 183.21,
       "y": 0.45,
       "z": 60.27,
@@ -5708,7 +5706,7 @@
       "note": ""
     },
     "1181478752": {
-      "name": "Chapter 11 - Ballroom - Green Herb x1 [04954623]",
+      "name": "Chapter 11 - Krauser - Green Herb x1 [04954623]",
       "guid": "04954623-1477-4c34-9dcf-3801d0f29ffe",
       "identity_kind": "guid",
       "chapter": 11,
@@ -5716,7 +5714,7 @@
       "region": "Island Entry",
       "source_item_name": "Green Herb x1",
       "ap_eligibility": "always",
-      "section_name": "Ballroom",
+      "section_name": "Krauser",
       "x": 178.53,
       "y": 0.45,
       "z": 54.41,
@@ -5724,7 +5722,7 @@
       "note": ""
     },
     "345113636": {
-      "name": "Chapter 11 - Ballroom - Red Herb x1 [2385adc9]",
+      "name": "Chapter 11 - Krauser - Red Herb x1 [2385adc9]",
       "guid": "2385adc9-7d2e-41f8-b7a9-b2df6d58185d",
       "identity_kind": "guid",
       "chapter": 11,
@@ -5732,7 +5730,7 @@
       "region": "Island Entry",
       "source_item_name": "Red Herb x1",
       "ap_eligibility": "always",
-      "section_name": "Ballroom",
+      "section_name": "Krauser",
       "x": 185.16,
       "y": 0.45,
       "z": 53.68,
@@ -5772,7 +5770,7 @@
       "note": ""
     },
     "2968071828": {
-      "name": "Chapter 12 - Hive - Small Key x1 [c81920a2]",
+      "name": "Chapter 12 - Gondola (Ballroom) - Small Key x1 [c81920a2]",
       "guid": "c81920a2-7fad-4fa9-8621-2016183892f7",
       "identity_kind": "guid",
       "chapter": 12,
@@ -5780,7 +5778,7 @@
       "region": "Island Entry",
       "source_item_name": "Small Key x1",
       "ap_eligibility": "always",
-      "section_name": "Hive",
+      "section_name": "Gondola (Ballroom)",
       "x": 186.55,
       "y": 27.45,
       "z": 31.41,
@@ -5788,7 +5786,7 @@
       "note": ""
     },
     "3613474941": {
-      "name": "Chapter 12 - Clock Tower - Mirror with Pearls & Rubies x1 (chest) [7e23d008]",
+      "name": "Chapter 12 - Upper Clock Tower - Mirror with Pearls & Rubies x1 (chest) [7e23d008]",
       "guid": "7e23d008-3811-4b8c-80f6-bf8a973536e9",
       "identity_kind": "guid",
       "chapter": 12,
@@ -5796,7 +5794,7 @@
       "region": "Island Entry",
       "source_item_name": "Mirror with Pearls & Rubies x1",
       "ap_eligibility": "always",
-      "section_name": "Clock Tower",
+      "section_name": "Upper Clock Tower",
       "x": 190.1,
       "y": 48.87,
       "z": -112.05,
@@ -5804,7 +5802,7 @@
       "note": ""
     },
     "1544470848": {
-      "name": "Chapter 12 - Clock Tower - Extravagant Clock x1 (chest) [7dcba43a]",
+      "name": "Chapter 12 - Upper Clock Tower - Extravagant Clock x1 (chest) [7dcba43a]",
       "guid": "7dcba43a-d376-4f68-b8ab-58c49cfe9e95",
       "identity_kind": "guid",
       "chapter": 12,
@@ -5812,7 +5810,7 @@
       "region": "Island Entry",
       "source_item_name": "Extravagant Clock x1",
       "ap_eligibility": "always",
-      "section_name": "Clock Tower",
+      "section_name": "Upper Clock Tower",
       "x": 176.56,
       "y": 43.37,
       "z": -113.39,
@@ -5820,7 +5818,7 @@
       "note": ""
     },
     "3857977178": {
-      "name": "Chapter 12 - Clock Tower - Yellow Diamond x1 [8a4d3026]",
+      "name": "Chapter 12 - Upper Clock Tower - Yellow Diamond x1 [8a4d3026]",
       "guid": "8a4d3026-9349-4c77-828f-eec060568fef",
       "identity_kind": "guid",
       "chapter": 12,
@@ -5828,7 +5826,7 @@
       "region": "Island Entry",
       "source_item_name": "Yellow Diamond x1",
       "ap_eligibility": "always",
-      "section_name": "Clock Tower",
+      "section_name": "Upper Clock Tower",
       "x": 200.62,
       "y": 63.63,
       "z": -105.98,
@@ -5852,7 +5850,7 @@
       "note": ""
     },
     "4020474884": {
-      "name": "Chapter 12 - Clock Tower - Alexandrite x1 [9b72f6d9]",
+      "name": "Chapter 12 - Upper Clock Tower - Alexandrite x1 [9b72f6d9]",
       "guid": "9b72f6d9-bdbf-4046-b73e-76bec9c3e00a",
       "identity_kind": "guid",
       "chapter": 12,
@@ -5860,7 +5858,7 @@
       "region": "Island Entry",
       "source_item_name": "Alexandrite x1",
       "ap_eligibility": "always",
-      "section_name": "Clock Tower",
+      "section_name": "Upper Clock Tower",
       "x": 176.95,
       "y": 36.14,
       "z": -101.26,
@@ -5868,7 +5866,7 @@
       "note": ""
     },
     "4074290744": {
-      "name": "Chapter 12 - Clock Tower - Silver Token x1 [01efc98e]",
+      "name": "Chapter 12 - Upper Clock Tower - Silver Token x1 [01efc98e]",
       "guid": "01efc98e-2850-4fe4-a830-6d9b5ab36574",
       "identity_kind": "guid",
       "chapter": 12,
@@ -5876,7 +5874,7 @@
       "region": "Island Entry",
       "source_item_name": "Silver Token x1",
       "ap_eligibility": "always",
-      "section_name": "Clock Tower",
+      "section_name": "Upper Clock Tower",
       "x": 178.85,
       "y": 66.07,
       "z": -104.48,
@@ -5947,40 +5945,8 @@
       "container": "",
       "note": ""
     },
-    "3253917259": {
-      "name": "Chapter 12 - Hive - Green Herb x1 [cb018dd4]",
-      "guid": "cb018dd4-edfa-45e6-85a1-1147bf476f35",
-      "identity_kind": "guid",
-      "chapter": 12,
-      "stage": 55302,
-      "region": "Island Entry",
-      "source_item_name": "Green Herb x1",
-      "ap_eligibility": "always",
-      "section_name": "Hive",
-      "x": 182.58,
-      "y": 1.52,
-      "z": 35.88,
-      "container": "",
-      "note": ""
-    },
-    "931755313": {
-      "name": "Chapter 12 - Clock Tower - Red Herb x1 [6cb0b5bc]",
-      "guid": "6cb0b5bc-29f8-403c-99d2-bb8842a06b5d",
-      "identity_kind": "guid",
-      "chapter": 12,
-      "stage": 56103,
-      "region": "Island Entry",
-      "source_item_name": "Red Herb x1",
-      "ap_eligibility": "always",
-      "section_name": "Clock Tower",
-      "x": 181.26,
-      "y": 42.98,
-      "z": -104.96,
-      "container": "",
-      "note": ""
-    },
     "1869521830": {
-      "name": "Chapter 12 - Clock Tower - Green Herb x1 [59f2f272]",
+      "name": "Chapter 12 - Upper Clock Tower - Green Herb x1 [59f2f272]",
       "guid": "59f2f272-0039-415e-85ee-66d930c3d60d",
       "identity_kind": "guid",
       "chapter": 12,
@@ -5988,7 +5954,7 @@
       "region": "Island Entry",
       "source_item_name": "Green Herb x1",
       "ap_eligibility": "always",
-      "section_name": "Clock Tower",
+      "section_name": "Upper Clock Tower",
       "x": 190.51,
       "y": 48.9,
       "z": -109.2,
@@ -5996,7 +5962,7 @@
       "note": ""
     },
     "578756204": {
-      "name": "Chapter 12 - Clock Tower - Yellow Herb x1 [13311640]",
+      "name": "Chapter 12 - Upper Clock Tower - Yellow Herb x1 [13311640]",
       "guid": "13311640-e799-4d12-98cf-87ecfd50a131",
       "identity_kind": "guid",
       "chapter": 12,
@@ -6004,7 +5970,7 @@
       "region": "Island Entry",
       "source_item_name": "Yellow Herb x1",
       "ap_eligibility": "always",
-      "section_name": "Clock Tower",
+      "section_name": "Upper Clock Tower",
       "x": 196.22,
       "y": 59.07,
       "z": -112.38,
@@ -6012,7 +5978,7 @@
       "note": ""
     },
     "2805492097": {
-      "name": "Chapter 12 - Clock Tower - First Aid Spray x1 [7fc72377]",
+      "name": "Chapter 12 - Upper Clock Tower - First Aid Spray x1 [7fc72377]",
       "guid": "7fc72377-2858-47b3-9638-f9a1a84346d4",
       "identity_kind": "guid",
       "chapter": 12,
@@ -6020,7 +5986,7 @@
       "region": "Island Entry",
       "source_item_name": "First Aid Spray x1",
       "ap_eligibility": "always",
-      "section_name": "Clock Tower",
+      "section_name": "Upper Clock Tower",
       "x": 199.91,
       "y": 64.63,
       "z": -108.12,
@@ -6156,7 +6122,7 @@
       "note": ""
     },
     "1374070885": {
-      "name": "Chapter 13 - Incubation Lab - Elegant Crown x1 (chest) [9ab6593f]",
+      "name": "Chapter 13 - Surveillance - Elegant Crown x1 (chest) [9ab6593f]",
       "guid": "9ab6593f-e806-46ed-aac2-11ebe22895bc",
       "identity_kind": "guid",
       "chapter": 13,
@@ -6164,7 +6130,7 @@
       "region": "Island Entry",
       "source_item_name": "Elegant Crown x1",
       "ap_eligibility": "always",
-      "section_name": "Incubation Lab",
+      "section_name": "Surveillance",
       "x": 50.3,
       "y": 7.67,
       "z": -20.94,
@@ -6252,12 +6218,12 @@
       "note": ""
     },
     "2804848610": {
-      "name": "Chapter 13 - Holding Cell - Crystal Ore x1 [d600647d]",
+      "name": "Chapter 14 - Holding Cell - Crystal Ore x1 [d600647d]",
       "guid": "d600647d-af7e-4896-a2d0-57bdd0acd459",
       "identity_kind": "guid",
-      "chapter": 13,
+      "chapter": 14,
       "stage": 61105,
-      "region": "Island Entry",
+      "region": "Island Deep",
       "source_item_name": "Crystal Ore x1",
       "ap_eligibility": "always",
       "section_name": "Holding Cell",
@@ -6284,15 +6250,15 @@
       "note": ""
     },
     "4100356785": {
-      "name": "Chapter 13 - Cargo Depot - Blue x1 [e4191c54]",
+      "name": "Chapter 14 - Facility 1 Exit - Blue x1 [e4191c54]",
       "guid": "e4191c54-aecc-4fca-8c97-b3f241d1f9c9",
       "identity_kind": "guid",
-      "chapter": 13,
+      "chapter": 14,
       "stage": 61106,
-      "region": "Island Entry",
+      "region": "Island Deep",
       "source_item_name": "Blue x1",
       "ap_eligibility": "always",
-      "section_name": "Cargo Depot",
+      "section_name": "Facility 1 Exit",
       "x": 49.61,
       "y": 13.28,
       "z": -89.21,
@@ -6300,15 +6266,15 @@
       "note": ""
     },
     "1884872331": {
-      "name": "Chapter 13 - Cargo Depot - Gold Token x1 [45c64385]",
+      "name": "Chapter 14 - Facility 1 Exit - Gold Token x1 [45c64385]",
       "guid": "45c64385-d06c-4bde-a830-b9975580f73a",
       "identity_kind": "guid",
-      "chapter": 13,
+      "chapter": 14,
       "stage": 61106,
-      "region": "Island Entry",
+      "region": "Island Deep",
       "source_item_name": "Gold Token x1",
       "ap_eligibility": "always",
-      "section_name": "Cargo Depot",
+      "section_name": "Facility 1 Exit",
       "x": 49.6,
       "y": 13.29,
       "z": -89.45,
@@ -6316,12 +6282,12 @@
       "note": ""
     },
     "2952833738": {
-      "name": "Chapter 13 - Holding Cell - Black Bass x1 [28f438c5]",
+      "name": "Chapter 14 - Holding Cell - Black Bass x1 [28f438c5]",
       "guid": "28f438c5-ec95-464b-83e6-ab2f16d79aec",
       "identity_kind": "guid",
-      "chapter": 13,
+      "chapter": 14,
       "stage": 61105,
-      "region": "Island Entry",
+      "region": "Island Deep",
       "source_item_name": "Black Bass x1",
       "ap_eligibility": "always",
       "section_name": "Holding Cell",
@@ -6380,7 +6346,7 @@
       "note": ""
     },
     "2356000318": {
-      "name": "Chapter 13 - Incubation Lab - Velvet Blue x1 (chest) [ce47074f]",
+      "name": "Chapter 13 - Utilities - Velvet Blue x1 (chest) [ce47074f]",
       "guid": "ce47074f-fe64-46a2-9c54-ad20c35674fb",
       "identity_kind": "guid",
       "chapter": 13,
@@ -6388,7 +6354,7 @@
       "region": "Island Entry",
       "source_item_name": "Velvet Blue x1",
       "ap_eligibility": "always",
-      "section_name": "Incubation Lab",
+      "section_name": "Utilities",
       "x": 83.95,
       "y": 17.68,
       "z": -65.59,
@@ -6396,7 +6362,7 @@
       "note": ""
     },
     "2585001463": {
-      "name": "Chapter 13 - Incubation Lab - Black Bass x1 [39249937]",
+      "name": "Chapter 13 - Utilities - Black Bass x1 [39249937]",
       "guid": "39249937-fcc4-4385-b312-3fa7220fe76a",
       "identity_kind": "guid",
       "chapter": 13,
@@ -6404,7 +6370,7 @@
       "region": "Island Entry",
       "source_item_name": "Black Bass x1",
       "ap_eligibility": "always",
-      "section_name": "Incubation Lab",
+      "section_name": "Utilities",
       "x": 82.14,
       "y": 17.68,
       "z": -57.12,
@@ -6524,7 +6490,7 @@
       "note": ""
     },
     "2466761935": {
-      "name": "Chapter 13 - Incubation Lab - Yellow Herb x1 [61a74f29]",
+      "name": "Chapter 13 - Systems - Yellow Herb x1 [61a74f29]",
       "guid": "61a74f29-5a52-4967-afd7-9118347e6c41",
       "identity_kind": "guid",
       "chapter": 13,
@@ -6532,7 +6498,7 @@
       "region": "Island Entry",
       "source_item_name": "Yellow Herb x1",
       "ap_eligibility": "always",
-      "section_name": "Incubation Lab",
+      "section_name": "Systems",
       "x": 101.3,
       "y": 10.86,
       "z": -39.45,
@@ -6540,7 +6506,7 @@
       "note": ""
     },
     "2602424321": {
-      "name": "Chapter 13 - Incubation Lab - Gunpowder x5 [e6b181ad]",
+      "name": "Chapter 13 - Systems - Gunpowder x5 [e6b181ad]",
       "guid": "e6b181ad-1223-4e4d-a3bc-4677b0f71ff5",
       "identity_kind": "guid",
       "chapter": 13,
@@ -6548,7 +6514,7 @@
       "region": "Island Entry",
       "source_item_name": "Gunpowder x5",
       "ap_eligibility": "always",
-      "section_name": "Incubation Lab",
+      "section_name": "Systems",
       "x": 97.07,
       "y": 11.68,
       "z": -44.82,
@@ -6556,7 +6522,7 @@
       "note": ""
     },
     "173433241": {
-      "name": "Chapter 13 - Incubation Lab - Submachine Gun Ammo x30 [1a50729e]",
+      "name": "Chapter 13 - Systems - Submachine Gun Ammo x30 [1a50729e]",
       "guid": "1a50729e-0e7f-4259-a1da-1c52909592e2",
       "identity_kind": "guid",
       "chapter": 13,
@@ -6564,7 +6530,7 @@
       "region": "Island Entry",
       "source_item_name": "Submachine Gun Ammo x30",
       "ap_eligibility": "always",
-      "section_name": "Incubation Lab",
+      "section_name": "Systems",
       "x": 101.92,
       "y": 11.46,
       "z": -41.88,
@@ -6572,7 +6538,7 @@
       "note": ""
     },
     "2152026873": {
-      "name": "Chapter 13 - Incubation Lab - Silver Token x1 [dd9b9e71]",
+      "name": "Chapter 13 - Systems - Silver Token x1 [dd9b9e71]",
       "guid": "dd9b9e71-ca14-4cb3-aa20-2d6026edca6e",
       "identity_kind": "guid",
       "chapter": 13,
@@ -6580,7 +6546,7 @@
       "region": "Island Entry",
       "source_item_name": "Silver Token x1",
       "ap_eligibility": "always",
-      "section_name": "Incubation Lab",
+      "section_name": "Systems",
       "x": 92.84,
       "y": 13.84,
       "z": -42.5,
@@ -6604,7 +6570,7 @@
       "note": ""
     },
     "3863606038": {
-      "name": "Chapter 13 - Incubation Lab - Gunpowder x3 [0935e381]",
+      "name": "Chapter 13 - Systems - Gunpowder x3 [0935e381]",
       "guid": "0935e381-39a7-4d4f-ad49-d6c07bf24187",
       "identity_kind": "guid",
       "chapter": 13,
@@ -6612,7 +6578,7 @@
       "region": "Island Entry",
       "source_item_name": "Gunpowder x3",
       "ap_eligibility": "always",
-      "section_name": "Incubation Lab",
+      "section_name": "Systems",
       "x": 104.03,
       "y": 15.73,
       "z": -45.16,
@@ -6764,15 +6730,15 @@
       "note": ""
     },
     "3969814053": {
-      "name": "Chapter 13 - Cargo Depot - Gold Bangle x1 [63a94935]",
+      "name": "Chapter 14 - Lower Cargo Depot - Gold Bangle x1 [63a94935]",
       "guid": "63a94935-6c1a-4c47-b0b6-cd1680cde062",
       "identity_kind": "guid",
-      "chapter": 13,
+      "chapter": 14,
       "stage": 62100,
-      "region": "Island Entry",
+      "region": "Island Deep",
       "source_item_name": "Gold Bangle x1",
       "ap_eligibility": "always",
-      "section_name": "Cargo Depot",
+      "section_name": "Lower Cargo Depot",
       "x": 51.16,
       "y": 13.32,
       "z": -112.89,
@@ -6780,15 +6746,15 @@
       "note": ""
     },
     "2285020721": {
-      "name": "Chapter 13 - Cargo Depot - Alexandrite x1 [483e54e8]",
+      "name": "Chapter 14 - Upper Cargo Depot - Alexandrite x1 [483e54e8]",
       "guid": "483e54e8-9946-487c-9c41-cb55f0c4cc68",
       "identity_kind": "guid",
-      "chapter": 13,
+      "chapter": 14,
       "stage": 62200,
-      "region": "Island Entry",
+      "region": "Island Deep",
       "source_item_name": "Alexandrite x1",
       "ap_eligibility": "always",
-      "section_name": "Cargo Depot",
+      "section_name": "Upper Cargo Depot",
       "x": 60.72,
       "y": 34.35,
       "z": -105.6,
@@ -6796,15 +6762,15 @@
       "note": ""
     },
     "3511403168": {
-      "name": "Chapter 13 - Cargo Depot - Green Herb x1 [d5be387e]",
+      "name": "Chapter 14 - Lower Cargo Depot - Green Herb x1 [d5be387e]",
       "guid": "d5be387e-2447-4fdd-943c-6b34add1e647",
       "identity_kind": "guid",
-      "chapter": 13,
+      "chapter": 14,
       "stage": 62100,
-      "region": "Island Entry",
+      "region": "Island Deep",
       "source_item_name": "Green Herb x1",
       "ap_eligibility": "always",
-      "section_name": "Cargo Depot",
+      "section_name": "Lower Cargo Depot",
       "x": 21.41,
       "y": 16.67,
       "z": -112.08,
@@ -6812,15 +6778,15 @@
       "note": ""
     },
     "2658386445": {
-      "name": "Chapter 13 - Cargo Depot - Handgun Ammo x10 [d800dcf8]",
+      "name": "Chapter 14 - Lower Cargo Depot - Handgun Ammo x10 [d800dcf8]",
       "guid": "d800dcf8-c126-423b-87b9-177f7b335a25",
       "identity_kind": "guid",
-      "chapter": 13,
+      "chapter": 14,
       "stage": 62100,
-      "region": "Island Entry",
+      "region": "Island Deep",
       "source_item_name": "Handgun Ammo x10",
       "ap_eligibility": "always",
-      "section_name": "Cargo Depot",
+      "section_name": "Lower Cargo Depot",
       "x": 60.64,
       "y": 12.98,
       "z": -117.07,
@@ -6828,15 +6794,15 @@
       "note": ""
     },
     "4295816": {
-      "name": "Chapter 13 - Cargo Depot - Flash Grenade x1 [6de77ddd]",
+      "name": "Chapter 14 - Upper Cargo Depot - Flash Grenade x1 [6de77ddd]",
       "guid": "6de77ddd-bf71-443d-8356-7dbfba6d0209",
       "identity_kind": "guid",
-      "chapter": 13,
+      "chapter": 14,
       "stage": 62200,
-      "region": "Island Entry",
+      "region": "Island Deep",
       "source_item_name": "Flash Grenade x1",
       "ap_eligibility": "always",
-      "section_name": "Cargo Depot",
+      "section_name": "Upper Cargo Depot",
       "x": 48.91,
       "y": 17.02,
       "z": -105.7,
@@ -7404,7 +7370,7 @@
       "note": ""
     },
     "225792743": {
-      "name": "Chapter 15 - Bulwark Gate - Rifle Ammo x5 [e370f363]",
+      "name": "Chapter 15 - Stronghold - Rifle Ammo x5 [e370f363]",
       "guid": "e370f363-2813-49be-a93b-48f22b48c2ee",
       "identity_kind": "guid",
       "chapter": 15,
@@ -7412,7 +7378,7 @@
       "region": "Island Deep",
       "source_item_name": "Rifle Ammo x5",
       "ap_eligibility": "always",
-      "section_name": "Bulwark Gate",
+      "section_name": "Stronghold",
       "x": 97.5,
       "y": 49.78,
       "z": -258.97,
@@ -7452,7 +7418,7 @@
       "note": ""
     },
     "298873008": {
-      "name": "Chapter 15 - Bulwark Gate - Gunpowder x5 [9ff34cd8]",
+      "name": "Chapter 15 - Stronghold - Gunpowder x5 [9ff34cd8]",
       "guid": "9ff34cd8-d58d-457c-b506-8e5808ae93eb",
       "identity_kind": "guid",
       "chapter": 15,
@@ -7460,7 +7426,7 @@
       "region": "Island Deep",
       "source_item_name": "Gunpowder x5",
       "ap_eligibility": "always",
-      "section_name": "Bulwark Gate",
+      "section_name": "Stronghold",
       "x": 104.55,
       "y": 34.14,
       "z": -267.27,
@@ -7564,12 +7530,12 @@
       "note": ""
     },
     "3400577875": {
-      "name": "Chapter 16 - Specimen Storage - Resource (Large) x1 [8e862ef0]",
+      "name": "Chapter 15 - Specimen Storage - Resource (Large) x1 [8e862ef0]",
       "guid": "8e862ef0-43b9-4a72-917c-e9aa7268dc51",
       "identity_kind": "guid",
-      "chapter": 16,
+      "chapter": 15,
       "stage": 67101,
-      "region": "Final",
+      "region": "Island Deep",
       "source_item_name": "Resource (Large) x1",
       "ap_eligibility": "always",
       "section_name": "Specimen Storage",
@@ -7580,12 +7546,12 @@
       "note": ""
     },
     "3093634101": {
-      "name": "Chapter 16 - Specimen Storage - Hand Grenade x1 [df02f0a7]",
+      "name": "Chapter 15 - Specimen Storage - Hand Grenade x1 [df02f0a7]",
       "guid": "df02f0a7-ca67-4456-aa97-5627a1738da9",
       "identity_kind": "guid",
-      "chapter": 16,
+      "chapter": 15,
       "stage": 67102,
-      "region": "Final",
+      "region": "Island Deep",
       "source_item_name": "Hand Grenade x1",
       "ap_eligibility": "always",
       "section_name": "Specimen Storage",
@@ -7596,12 +7562,12 @@
       "note": ""
     },
     "1182815058": {
-      "name": "Chapter 16 - Specimen Storage - Silver Token x1 [fddb0b32]",
+      "name": "Chapter 15 - Specimen Storage - Silver Token x1 [fddb0b32]",
       "guid": "fddb0b32-bbd3-46cc-a135-1da61a93bd00",
       "identity_kind": "guid",
-      "chapter": 16,
+      "chapter": 15,
       "stage": 67103,
-      "region": "Final",
+      "region": "Island Deep",
       "source_item_name": "Silver Token x1",
       "ap_eligibility": "always",
       "section_name": "Specimen Storage",
@@ -7612,12 +7578,12 @@
       "note": ""
     },
     "2161167502": {
-      "name": "Chapter 16 - Specimen Storage - Splendid Bangle x1 (chest) [9a2c0852]",
+      "name": "Chapter 15 - Specimen Storage - Splendid Bangle x1 (chest) [9a2c0852]",
       "guid": "9a2c0852-89ab-43cd-927b-fdcdddf21605",
       "identity_kind": "guid",
-      "chapter": 16,
+      "chapter": 15,
       "stage": 67102,
-      "region": "Final",
+      "region": "Island Deep",
       "source_item_name": "Splendid Bangle x1",
       "ap_eligibility": "always",
       "section_name": "Specimen Storage",
@@ -7628,12 +7594,12 @@
       "note": ""
     },
     "3270633428": {
-      "name": "Chapter 16 - Sanctuary Approach - Shotgun Shells x3 [6bf21f7a]",
+      "name": "Chapter 15 - Sanctuary Approach - Shotgun Shells x3 [6bf21f7a]",
       "guid": "6bf21f7a-18ce-402c-aa39-78ce08b1b1d4",
       "identity_kind": "guid",
-      "chapter": 16,
+      "chapter": 15,
       "stage": 67104,
-      "region": "Final",
+      "region": "Island Deep",
       "source_item_name": "Shotgun Shells x3",
       "ap_eligibility": "always",
       "section_name": "Sanctuary Approach",
@@ -7644,12 +7610,12 @@
       "note": ""
     },
     "3121431570": {
-      "name": "Chapter 16 - Sanctuary Approach - Rifle Ammo x10 [ed03ef0a]",
+      "name": "Chapter 15 - Sanctuary Approach - Rifle Ammo x10 [ed03ef0a]",
       "guid": "ed03ef0a-22ec-48df-9f7a-1128e5f63141",
       "identity_kind": "guid",
-      "chapter": 16,
+      "chapter": 15,
       "stage": 67501,
-      "region": "Final",
+      "region": "Island Deep",
       "source_item_name": "Rifle Ammo x10",
       "ap_eligibility": "always",
       "section_name": "Sanctuary Approach",
@@ -7660,12 +7626,12 @@
       "note": ""
     },
     "226386808": {
-      "name": "Chapter 16 - Sanctuary Approach - Handgun Ammo x15 [832d0bc7]",
+      "name": "Chapter 15 - Sanctuary Approach - Handgun Ammo x15 [832d0bc7]",
       "guid": "832d0bc7-c340-4913-8088-eebd57137d2b",
       "identity_kind": "guid",
-      "chapter": 16,
+      "chapter": 15,
       "stage": 67200,
-      "region": "Final",
+      "region": "Island Deep",
       "source_item_name": "Handgun Ammo x15",
       "ap_eligibility": "always",
       "section_name": "Sanctuary Approach",
@@ -7676,12 +7642,12 @@
       "note": ""
     },
     "2301688175": {
-      "name": "Chapter 16 - Sanctuary Approach - Gunpowder x4 [d5bf8824]",
+      "name": "Chapter 15 - Sanctuary Approach - Gunpowder x4 [d5bf8824]",
       "guid": "d5bf8824-d3be-4cfd-9f44-aff5f0c9e9f3",
       "identity_kind": "guid",
-      "chapter": 16,
+      "chapter": 15,
       "stage": 67400,
-      "region": "Final",
+      "region": "Island Deep",
       "source_item_name": "Gunpowder x4",
       "ap_eligibility": "always",
       "section_name": "Sanctuary Approach",
@@ -7692,12 +7658,12 @@
       "note": ""
     },
     "3655273919": {
-      "name": "Chapter 16 - Sanctuary Approach - Red Herb x1 [a1f8e206]",
+      "name": "Chapter 15 - Sanctuary Approach - Red Herb x1 [a1f8e206]",
       "guid": "a1f8e206-75dd-4ca0-ae84-76f79158fb0e",
       "identity_kind": "guid",
-      "chapter": 16,
+      "chapter": 15,
       "stage": 67501,
-      "region": "Final",
+      "region": "Island Deep",
       "source_item_name": "Red Herb x1",
       "ap_eligibility": "always",
       "section_name": "Sanctuary Approach",
@@ -7708,12 +7674,12 @@
       "note": ""
     },
     "2231822302": {
-      "name": "Chapter 16 - Sanctuary Approach - Yellow Herb x1 [e6f0f637]",
+      "name": "Chapter 15 - Sanctuary Approach - Yellow Herb x1 [e6f0f637]",
       "guid": "e6f0f637-719f-4ac1-9de7-90d4c613cde7",
       "identity_kind": "guid",
-      "chapter": 16,
+      "chapter": 15,
       "stage": 67200,
-      "region": "Final",
+      "region": "Island Deep",
       "source_item_name": "Yellow Herb x1",
       "ap_eligibility": "always",
       "section_name": "Sanctuary Approach",
@@ -7724,12 +7690,12 @@
       "note": ""
     },
     "411621677": {
-      "name": "Chapter 16 - Sanctuary Approach - Rifle Ammo x4 [633af36b]",
+      "name": "Chapter 15 - Sanctuary Approach - Rifle Ammo x4 [633af36b]",
       "guid": "633af36b-d0e9-4584-9e99-5f0f5255adcb",
       "identity_kind": "guid",
-      "chapter": 16,
+      "chapter": 15,
       "stage": 67200,
-      "region": "Final",
+      "region": "Island Deep",
       "source_item_name": "Rifle Ammo x4",
       "ap_eligibility": "always",
       "section_name": "Sanctuary Approach",
@@ -7740,12 +7706,12 @@
       "note": ""
     },
     "3350002914": {
-      "name": "Chapter 16 - Sanctuary Approach - Gunpowder x2 [b161d18b]",
+      "name": "Chapter 15 - Sanctuary Approach - Gunpowder x2 [b161d18b]",
       "guid": "b161d18b-5bcc-4c2e-ba58-91b71bda1159",
       "identity_kind": "guid",
-      "chapter": 16,
+      "chapter": 15,
       "stage": 67500,
-      "region": "Final",
+      "region": "Island Deep",
       "source_item_name": "Gunpowder x2",
       "ap_eligibility": "always",
       "section_name": "Sanctuary Approach",
@@ -7772,12 +7738,12 @@
       "note": ""
     },
     "3838153959": {
-      "name": "Chapter 16 - Sanctuary Approach - Black Bass x1 [c4f23ca5]",
+      "name": "Chapter 15 - Sanctuary Approach - Black Bass x1 [c4f23ca5]",
       "guid": "c4f23ca5-dbda-4771-a959-945c3d5e5557",
       "identity_kind": "guid",
-      "chapter": 16,
+      "chapter": 15,
       "stage": 67200,
-      "region": "Final",
+      "region": "Island Deep",
       "source_item_name": "Black Bass x1",
       "ap_eligibility": "always",
       "section_name": "Sanctuary Approach",
@@ -8115,6 +8081,12 @@
       "biorand_name": "Insignia Key",
       "classification": "PROGRESSION"
     },
+    "52754570": {
+      "name": "Blue Dial x1",
+      "biorand_item_id": 119284800,
+      "biorand_name": "Blue Dial",
+      "classification": "PROGRESSION"
+    },
     "104347270": {
       "name": "CQBR Assault Rifle x20",
       "biorand_item_id": 275478656,
@@ -8313,6 +8285,18 @@
       "biorand_name": "Shotgun Shells",
       "classification": "FILLER"
     },
+    "1175538565": {
+      "name": "Wooden Planks x1",
+      "biorand_item_id": 119289600,
+      "biorand_name": "Wooden Planks",
+      "classification": "USEFUL"
+    },
+    "1209299439": {
+      "name": "Hexagonal Emblem x1",
+      "biorand_item_id": 119203200,
+      "biorand_name": "Hexagonal Emblem",
+      "classification": "PROGRESSION"
+    },
     "1210331884": {
       "name": "Handgun Ammo x5",
       "biorand_item_id": 112800000,
@@ -8373,11 +8357,23 @@
       "biorand_name": "Handgun Ammo",
       "classification": "FILLER"
     },
+    "1544487469": {
+      "name": "Apostate's Head x1",
+      "biorand_item_id": 119232000,
+      "biorand_name": "Apostate's Head",
+      "classification": "PROGRESSION"
+    },
     "1581525943": {
       "name": "Lion Head x1",
       "biorand_item_id": 119222400,
       "biorand_name": "Lion Head",
       "classification": "PROGRESSION"
+    },
+    "1651349733": {
+      "name": "Crystal Marble x1",
+      "biorand_item_id": 119217600,
+      "biorand_name": "Crystal Marble",
+      "classification": "USEFUL"
     },
     "1669567494": {
       "name": "Bolts x5",
@@ -8389,6 +8385,12 @@
       "name": "Boat Fuel x1",
       "biorand_item_id": 119273600,
       "biorand_name": "Boat Fuel",
+      "classification": "PROGRESSION"
+    },
+    "1718910190": {
+      "name": "Blasphemer's Head x1",
+      "biorand_item_id": 119230400,
+      "biorand_name": "Blasphemer's Head",
       "classification": "PROGRESSION"
     },
     "1766814127": {
@@ -8449,12 +8451,6 @@
       "name": "Serpent Head x1",
       "biorand_item_id": 119225600,
       "biorand_name": "Serpent Head",
-      "classification": "PROGRESSION"
-    },
-    "2100959641": {
-      "name": "Checkpoint Crank x1",
-      "biorand_item_id": 119246400,
-      "biorand_name": "Checkpoint Crank",
       "classification": "PROGRESSION"
     },
     "2134491726": {
@@ -8744,6 +8740,12 @@
       "biorand_item_id": 120857600,
       "biorand_name": "Red Beryl",
       "classification": "FILLER"
+    },
+    "3680769264": {
+      "name": "Old Wayshrine Key x1",
+      "biorand_item_id": 119256000,
+      "biorand_name": "Old Wayshrine Key",
+      "classification": "USEFUL"
     },
     "3688870194": {
       "name": "Gold Chicken Egg x1",

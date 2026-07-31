@@ -1,10 +1,15 @@
 {
   "version": 1,
-  "item_count": 123,
+  "item_count": 129,
   "items": {
     "42736575": {
       "name": "Insignia Key x1",
       "re4r_item_id": 119204800,
+      "count": 1
+    },
+    "52754570": {
+      "name": "Blue Dial x1",
+      "re4r_item_id": 119284800,
       "count": 1
     },
     "104347270": {
@@ -172,6 +177,16 @@
       "re4r_item_id": 112803200,
       "count": 3
     },
+    "1175538565": {
+      "name": "Wooden Planks x1",
+      "re4r_item_id": 119289600,
+      "count": 1
+    },
+    "1209299439": {
+      "name": "Hexagonal Emblem x1",
+      "re4r_item_id": 119203200,
+      "count": 1
+    },
     "1210331884": {
       "name": "Handgun Ammo x5",
       "re4r_item_id": 112800000,
@@ -222,9 +237,19 @@
       "re4r_item_id": 112800000,
       "count": 7
     },
+    "1544487469": {
+      "name": "Apostate's Head x1",
+      "re4r_item_id": 119232000,
+      "count": 1
+    },
     "1581525943": {
       "name": "Lion Head x1",
       "re4r_item_id": 119222400,
+      "count": 1
+    },
+    "1651349733": {
+      "name": "Crystal Marble x1",
+      "re4r_item_id": 119217600,
       "count": 1
     },
     "1669567494": {
@@ -235,6 +260,11 @@
     "1671399243": {
       "name": "Boat Fuel x1",
       "re4r_item_id": 119273600,
+      "count": 1
+    },
+    "1718910190": {
+      "name": "Blasphemer's Head x1",
+      "re4r_item_id": 119230400,
       "count": 1
     },
     "1766814127": {
@@ -285,11 +315,6 @@
     "2015447627": {
       "name": "Serpent Head x1",
       "re4r_item_id": 119225600,
-      "count": 1
-    },
-    "2100959641": {
-      "name": "Checkpoint Crank x1",
-      "re4r_item_id": 119246400,
       "count": 1
     },
     "2134491726": {
@@ -530,6 +555,11 @@
     "3630250794": {
       "name": "Red Beryl x1",
       "re4r_item_id": 120857600,
+      "count": 1
+    },
+    "3680769264": {
+      "name": "Old Wayshrine Key x1",
+      "re4r_item_id": 119256000,
       "count": 1
     },
     "3688870194": {

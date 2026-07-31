@@ -33,7 +33,8 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     private CheckGuidanceOption _selectedCheckGuidance = CheckGuidanceOptionList[0];
     private bool _deathLink;
     private bool _allowMissableLocations;
-    private bool _randomizeGatedKeys;
+    private bool _shuffleKeycards;
+    private bool _minimizeBacktracking;
     private string _yamlPreview = "Enter your slot name to generate the YAML preview.";
     private string _statusText = "Choose your RE4R settings - they save automatically as you edit.";
     private ICommand? _backToLandingCommand;
@@ -251,12 +252,25 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         }
     }
 
-    public bool RandomizeGatedKeys
+    public bool ShuffleKeycards
     {
-        get => _randomizeGatedKeys;
+        get => _shuffleKeycards;
         set
         {
-            if (SetProperty(ref _randomizeGatedKeys, value))
+            if (SetProperty(ref _shuffleKeycards, value))
+            {
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
+
+    public bool MinimizeBacktracking
+    {
+        get => _minimizeBacktracking;
+        set
+        {
+            if (SetProperty(ref _minimizeBacktracking, value))
             {
                 RebuildYamlPreview();
                 QueueDraftSave();
@@ -440,7 +454,8 @@ public sealed class ConfigureYamlViewModel : ObservableObject
 
         DeathLink = draft.DeathLink;
         AllowMissableLocations = draft.AllowMissableLocations;
-        RandomizeGatedKeys = draft.RandomizeGatedKeys;
+        ShuffleKeycards = draft.ShuffleKeycards;
+        MinimizeBacktracking = draft.MinimizeBacktracking;
         var selected = new HashSet<string>(draft.UnlockedTypewriterStageIds, StringComparer.Ordinal);
         foreach (var option in TypewriterOptions)
         {
@@ -465,7 +480,8 @@ public sealed class ConfigureYamlViewModel : ObservableObject
                 draft.CheckGuidance = SelectedCheckGuidance.Value;
                 draft.DeathLink = DeathLink;
                 draft.AllowMissableLocations = AllowMissableLocations;
-                draft.RandomizeGatedKeys = RandomizeGatedKeys;
+                draft.ShuffleKeycards = ShuffleKeycards;
+                draft.MinimizeBacktracking = MinimizeBacktracking;
                 draft.UnlockedTypewriterStageIds = TypewriterOptions
                     .Where(option => option.IsSelected)
                     .Select(option => option.StageId)
@@ -495,7 +511,8 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             CheckGuidance = SelectedCheckGuidance.Value,
             DeathLink = DeathLink,
             AllowMissableLocations = AllowMissableLocations,
-            RandomizeGatedKeys = RandomizeGatedKeys,
+            ShuffleKeycards = ShuffleKeycards,
+            MinimizeBacktracking = MinimizeBacktracking,
             UnlockedTypewriterStageIds = TypewriterOptions
                 .Where(option => option.IsSelected)
                 .Select(option => option.StageId)

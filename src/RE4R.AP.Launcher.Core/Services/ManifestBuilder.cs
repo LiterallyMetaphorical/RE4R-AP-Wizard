@@ -32,24 +32,19 @@ public sealed class ManifestBuilder
         var staticData = await _staticGameDataProvider.LoadAsync(cancellationToken);
         var normalizedOptions = BioRandOptions.Sanitize(options);
 
-        // Rooms carry either the always-set (RandomizeGatedKeys off) or the
-        // full set (on). Anything else means the room's RE4R.apworld does not
-        // match this launcher's bundled world data.
+        // Since apworld 0.6.0 every location is unconditional, so a healthy
+        // room scouts exactly the bundled count. The always/total split is
+        // kept for older static data where an optional tier existed.
         var scoutedCount = scoutSession.Locations.Count;
-        if (staticData.Counts.AlwaysLocations > 0 && scoutedCount == staticData.Counts.AlwaysLocations)
+        if (scoutedCount == staticData.Counts.LocationsTotal
+            || (staticData.Counts.AlwaysLocations > 0 && scoutedCount == staticData.Counts.AlwaysLocations))
         {
-            Log($"Room has {scoutedCount} RE4R locations - gated keys stay vanilla in this multiworld (RandomizeGatedKeys off).");
-        }
-        else if (scoutedCount == staticData.Counts.LocationsTotal)
-        {
-            Log(staticData.Counts.OptionalKeyLocations > 0
-                ? $"Room has {scoutedCount} RE4R locations - gated keys are shuffled in this multiworld (RandomizeGatedKeys on)."
-                : $"Room has {scoutedCount} RE4R locations.");
+            Log($"Room has {scoutedCount} RE4R locations.");
         }
         else
         {
             throw new ManifestBuildException(
-                $"The AP server returned {scoutedCount} locations, but the bundled RE4R world data expects {staticData.Counts.AlwaysLocations} (gated keys vanilla) or {staticData.Counts.LocationsTotal} (gated keys shuffled). The room was probably generated with a different RE4R.apworld version than this launcher bundles.");
+                $"The AP server returned {scoutedCount} locations, but the bundled RE4R world data expects {staticData.Counts.LocationsTotal}. The room was probably generated with a different RE4R.apworld version than this launcher bundles.");
         }
 
         Log($"Building manifest for {scoutSession.Locations.Count} locations using BioRand game-version {gameVersion}.");

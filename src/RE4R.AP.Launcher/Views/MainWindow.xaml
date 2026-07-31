@@ -469,13 +469,15 @@
                         <RowDefinition Height="12" />
                         <RowDefinition Height="Auto" />   <!-- 10 Allow Missable Locations -->
                         <RowDefinition Height="12" />
-                        <RowDefinition Height="Auto" />   <!-- 12 Randomize Gated Keys -->
+                        <RowDefinition Height="Auto" />   <!-- 12 Shuffle Keycards -->
                         <RowDefinition Height="12" />
-                        <RowDefinition Height="Auto" />   <!-- 14 Unlocked Typewriters -->
+                        <RowDefinition Height="Auto" />   <!-- 14 Minimize Backtracking -->
                         <RowDefinition Height="12" />
-                        <RowDefinition Height="Auto" />   <!-- 16 auto-updates note -->
+                        <RowDefinition Height="Auto" />   <!-- 16 Unlocked Typewriters -->
+                        <RowDefinition Height="12" />
+                        <RowDefinition Height="Auto" />   <!-- 18 auto-updates note -->
                         <RowDefinition Height="18" />
-                        <RowDefinition Height="Auto" />   <!-- 18 YAML Preview + buttons -->
+                        <RowDefinition Height="Auto" />   <!-- 20 YAML Preview + buttons -->
                     </Grid.RowDefinitions>
 
                     <TextBlock VerticalAlignment="Top"
@@ -568,21 +570,34 @@
 
                     <TextBlock Grid.Row="12"
                                VerticalAlignment="Top"
-                               Text="Randomize Gated Keys" />
+                               Text="Shuffle Keycards" />
                     <StackPanel Grid.Row="12"
                                 Grid.Column="1">
-                        <CheckBox IsChecked="{Binding RandomizeGatedKeys}"
-                                  Content="Shuffle extra gate keys (no logic - playtesting)" />
+                        <CheckBox IsChecked="{Binding ShuffleKeycards}"
+                                  Content="Shuffle the Level 1/2/3 Keycards" />
                         <TextBlock Margin="0,6,0,0"
                                    Foreground="DimGray"
                                    TextWrapping="Wrap"
-                                   Text="Off by default: the multiworld shuffles only the 16 milestone gate items (Boat Fuel, the Hexagon Pieces, Insignia Key, Checkpoint Crank, Dungeon Key, the Lithographic Stones, the Lion/Goat/Serpent Heads, Salazar Family Insignia, and the three Keycards) - protected by logic so every seed can be finished. Other locked-door keys (like the Cubic Device or the Bunch of Keys) stay at their normal spots and are not checks. Turning this on shuffles those extra keys too WITHOUT any logic: a key can land beyond the very door it opens, so seeds may be impossible to finish. Playtesting only." />
+                                   Text="Off by default: each keycard sits at its native facility spot (still a check), so the island door sequence plays like vanilla. On: the keycards join the shuffle like any other key item - logic guarantees each card is obtainable before the first door that needs it, but it may come from anywhere in the multiworld." />
                     </StackPanel>
 
                     <TextBlock Grid.Row="14"
                                VerticalAlignment="Top"
+                               Text="Minimize Backtracking" />
+                    <StackPanel Grid.Row="14"
+                                Grid.Column="1">
+                        <CheckBox IsChecked="{Binding MinimizeBacktracking}"
+                                  Content="Minimize backtracking + side areas" />
+                        <TextBlock Margin="0,6,0,0"
+                                   Foreground="DimGray"
+                                   TextWrapping="Wrap"
+                                   Text="Off by default. On: keeps the important checks along the main path - all three Hexagon pieces are guaranteed before leaving the Fish Farm so the lake altar solves in one boat pass, and the optional excursions (Forest Altar, the chapter 12 Throne Room revisit, the lake's egg-nest islet) only ever hold plain filler." />
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="16"
+                               VerticalAlignment="Top"
                                Text="Unlocked Typewriters" />
-                    <Border Grid.Row="14"
+                    <Border Grid.Row="16"
                             Grid.Column="1"
                             Padding="8"
                             BorderBrush="#FFE0E0E0"
@@ -602,13 +617,13 @@
                         </ScrollViewer>
                     </Border>
 
-                    <TextBlock Grid.Row="16"
+                    <TextBlock Grid.Row="18"
                                Grid.ColumnSpan="2"
                                Foreground="DimGray"
                                TextWrapping="Wrap"
                                Text="Your RE4R YAML updates automatically from these settings." />
 
-                    <StackPanel Grid.Row="18"
+                    <StackPanel Grid.Row="20"
                                 Grid.ColumnSpan="2">
                         <TextBlock FontWeight="SemiBold"
                                    Text="YAML Preview" />

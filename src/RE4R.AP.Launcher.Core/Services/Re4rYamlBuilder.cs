@@ -41,7 +41,8 @@ public sealed class Re4rYamlBuilder
             { "check_guidance", checkGuidance },
             { "death_link", request.DeathLink ? "true" : "false" },
             { "allow_missable_locations", request.AllowMissableLocations ? "true" : "false" },
-            { "randomize_gated_keys", request.RandomizeGatedKeys ? "true" : "false" },
+            { "shuffle_keycards", request.ShuffleKeycards ? "true" : "false" },
+            { "minimize_backtracking", request.MinimizeBacktracking ? "true" : "false" },
         };
 
         var unlockedTypewriters = new YamlSequenceNode(

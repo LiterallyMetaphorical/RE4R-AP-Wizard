@@ -43,8 +43,13 @@ public sealed class PendingSessionDraft
     [JsonPropertyName("allow_missable_locations")]
     public bool AllowMissableLocations { get; set; }
 
-    [JsonPropertyName("randomize_gated_keys")]
-    public bool RandomizeGatedKeys { get; set; }
+    // Replaces the retired randomize_gated_keys flag; unknown fields in older
+    // drafts are ignored on load and these default to off.
+    [JsonPropertyName("shuffle_keycards")]
+    public bool ShuffleKeycards { get; set; }
+
+    [JsonPropertyName("minimize_backtracking")]
+    public bool MinimizeBacktracking { get; set; }
 
     [JsonPropertyName("unlocked_typewriter_stage_ids")]
     public List<string> UnlockedTypewriterStageIds { get; set; } = new();

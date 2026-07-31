@@ -45,6 +45,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>re4r-ap-launcher</AssemblyName>
+    <!-- Keep in sync with the Windows launcher's release version. -->
+    <Version>0.2.0-alpha</Version>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">

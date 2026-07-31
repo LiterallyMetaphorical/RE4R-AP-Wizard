@@ -16,9 +16,9 @@ public sealed class StaticGameDataCounts
     [JsonPropertyName("items_total")]
     public int ItemsTotal { get; set; }
 
-    // Room location counts vary with the world's RandomizeGatedKeys option:
-    // OFF rooms create always_locations, ON rooms create locations_total
-    // (always + optional_key).
+    // Since apworld 0.6.0 every location is unconditional, so
+    // always_locations == locations_total and optional_key_locations is 0.
+    // Both keys stay in the schema so older static data still parses.
     [JsonPropertyName("always_locations")]
     public int AlwaysLocations { get; set; }
 
