@@ -52,11 +52,17 @@ Rebuilt:     2026-07-31, world_version 0.6.0 - the regions and logic release. Th
              sweep across default / shuffle_keycards / minimize_backtracking plus
              a 3-seed release smoke. Rooms from older apworlds fail the
              count check by design - start fresh.
+Rebuilt:     2026-07-31 (rev 2, after the v0.2.0-alpha release), option-text fix
+             only: the Allow Missable Locations YAML description falsely said
+             its generation logic was "not yet implemented" (the rules have
+             existed since 2026-07-28). No logic, pool, or data change; the
+             published v0.2.0-alpha zip carries the previous build (7abeb516)
+             and behaves identically.
 Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_version 0.6.0
              per that repo's archipelago.json.
 AP target:   Archipelago 0.6.7 (the version the apworld was developed and
              generation-validated against; pinned via the manifest as of 2026-07-12).
-SHA-256:     7abeb51658a1a046ae580ac6c561bba104664b986d2d6e467a0d671c00b960a2
+SHA-256:     6ad537c76972012db981ef795ffb6a8b5d72cba31ead10bd219772e1bcfaee8e
 Consumed by: the Generation Guidance screen ("Copy RE4R.apworld to your Archipelago
              custom_worlds folder") - ArchipelagoInstallationService reads the
              world_version out of this zip's manifest for display and copies the
