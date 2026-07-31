@@ -244,6 +244,20 @@ public sealed class ArchipelagoScoutClient
     public static IReadOnlyList<string> BuildCandidateServerAddresses(string serverAddress, int defaultPort = 38281)
     {
         var trimmed = (serverAddress ?? string.Empty).Trim();
+
+        // A bare number is the port off an archipelago.gg room page (the page
+        // shouts the port far louder than the host, and players paste exactly
+        // that). Digits alone can never name a real host - Uri would treat
+        // "62495" as a HOSTNAME and fail DNS - so default the host instead of
+        // failing. Self-hosters write host:port and are unaffected.
+        if (trimmed.Length > 0
+            && trimmed.All(char.IsAsciiDigit)
+            && int.TryParse(trimmed, out var barePort)
+            && barePort is > 0 and <= 65535)
+        {
+            trimmed = "archipelago.gg:" + trimmed;
+        }
+
         var hasExplicitScheme = trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
             || trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
             || trimmed.StartsWith("ws://", StringComparison.OrdinalIgnoreCase)
