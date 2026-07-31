@@ -9,9 +9,25 @@ The payload itself is a build artifact (git-ignored); rebuild it with:
 
 Source repo:    biorand-re4r-ap (fork; never upstream biorand/re4r)
 Source branch:  ap-manifest-input
-Source commit:  91e30bb (2026-07-30: Bindery difficulty-variant canonicalize
+Source commit:  a52cdc5 (2026-07-31: CRASH FIX - the Bindery canonicalize
+                deserialized CheckFlagSettings into typed objects, and its
+                OptionSettings<Param> field is the engine's one GENERIC type,
+                whose CLR name can never match the RSZ name. The serializer
+                threw, killing EVERY AP-mode generation at DropItemPlace: the
+                v0.2.0-alpha release could not patch a world for anyone (the
+                91e30bb payload below shipped this path untested at patch
+                level - the litho work was verified via harness scene math
+                and apworld generation sweeps, but no end-to-end BioRand
+                patch ran after it). Now raw node surgery; only the
+                non-generic FlagCondition is serialized. Verified by
+                re-running the exact failing generation from the launcher
+                log - same cache, seed 1625393193, same manifest config - to
+                exit 0 and the canonical patch pak, on both the dev build
+                and this published single-file payload.)
+                Prior: 91e30bb (2026-07-30: Bindery difficulty-variant canonicalize
                 + revisit-drop relocation, both AP-mode scene fixes. Payload
-                SHA256 ABC592E7..., ProductVersion 1.0.0+91e30bb.)
+                SHA256 ABC592E7..., ProductVersion 1.0.0+91e30bb. NEVER
+                SUCCESSFULLY PATCHED - see the crash above.)
                 Prior payload: 061693c (2026-07-29: EVERY BUILT-IN PATCH IS NOW A PLAYER
                 OPTION. BioRand applies every IPatch in the assembly
                 unconditionally, and most of them never checked a config
@@ -91,9 +107,9 @@ Source commit:  91e30bb (2026-07-30: Bindery difficulty-variant canonicalize
                 All referenced prefabs ship in the shared pak chain (no SW
                 DLC entitlement needed). Includes b27f7ac (drop-catalog fix)
                 and 90140f0 (purity gates).)
-Publish:        -c Release -r win-x64 --self-contained true (net10.0)
-biorand-re4r.exe SHA-256: 1939fe1a4b59737133940e774833c0b1541e786931a9cee737202e6b2ed0462e
-ProductVersion: 1.0.0+061693c69727c2408cd6d25a8adb652b8fb7f515 (the launcher
+Publish:        -c Release -r win-x64 --self-contained -p:PublishSingleFile=true (net10.0)
+biorand-re4r.exe SHA-256: 7d04b9f3b36fd8f56393dce6862897ff8b171b22edf76d0793cf1d09fb0845ab
+ProductVersion: 1.0.0+a52cdc5f64a6f11025ef6110cce7a471f408c7b4 (the launcher
                 writes this into version_stamp.json, and a change here is what
                 triggers the one-time setup cache re-harvest)
 Built with:     .NET SDK 10.0.301
