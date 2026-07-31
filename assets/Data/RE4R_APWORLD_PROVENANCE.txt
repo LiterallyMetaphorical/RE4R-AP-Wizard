@@ -58,11 +58,19 @@ Rebuilt:     2026-07-31 (rev 2, after the v0.2.0-alpha release), option-text fix
              existed since 2026-07-28). No logic, pool, or data change; the
              published v0.2.0-alpha zip carries the previous build (7abeb516)
              and behaves identically.
-Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_version 0.6.0
+Rebuilt:     2026-07-31 (rev 3), world_version 0.6.1 - Biosensor Scope logic. The
+             scope was already in the shuffle but classified merely useful with
+             no rule, so a seed could strand it after the Dissection or deep in
+             another world. It is now progression and a sixteenth region gate
+             guarantees it before entering the Dissection (its vanilla chest in
+             the Utilities stays a legal spot). Pool count unchanged (474), so
+             published 0.6.0 rooms still pass the launcher count check; the
+             version bump marks the logic difference. 3-seed smoke passed.
+Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_version 0.6.1
              per that repo's archipelago.json.
 AP target:   Archipelago 0.6.7 (the version the apworld was developed and
              generation-validated against; pinned via the manifest as of 2026-07-12).
-SHA-256:     6ad537c76972012db981ef795ffb6a8b5d72cba31ead10bd219772e1bcfaee8e
+SHA-256:     54aab099bba254f35964aaa54fc7e3cd6146ede8a711ce4edda5d52cdaa704ac
 Consumed by: the Generation Guidance screen ("Copy RE4R.apworld to your Archipelago
              custom_worlds folder") - ArchipelagoInstallationService reads the
              world_version out of this zip's manifest for display and copies the

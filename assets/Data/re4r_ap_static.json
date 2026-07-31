@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-07-31T08:01:48Z",
+  "generated_at_utc": "2026-07-31T08:47:37Z",
   "game": "Resident Evil 4 Remake",
-  "world_version": "0.6.0",
+  "world_version": "0.6.1",
   "placeholder_item_id": 120486400,
   "counts": {
     "locations_total": 474,
@@ -8187,7 +8187,7 @@
       "name": "Biosensor Scope x1",
       "biorand_item_id": 116004800,
       "biorand_name": "Biosensor Scope",
-      "classification": "USEFUL"
+      "classification": "PROGRESSION"
     },
     "612460856": {
       "name": "Extravagant Clock x1",
