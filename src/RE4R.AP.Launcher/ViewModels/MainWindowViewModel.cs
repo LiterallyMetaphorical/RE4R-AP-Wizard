@@ -939,6 +939,18 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             blockers.Add("REFramework");
         }
 
+        // The in-game mod. Missing it is exactly as blocking as a missing
+        // REFramework - the session connects to nothing and no check is ever
+        // sent - but it was absent from this list, so a launcher that had
+        // detected it missing still opened on the landing screen (Cam, live on
+        // v0.1.2-alpha, after a REFramework reinstall wiped the mod). The
+        // omission predates the boot-screen change; it only became visible
+        // once this list decided the opening screen.
+        if (!_inspection.ArchipelagoLuaModDetected)
+        {
+            blockers.Add("Archipelago Lua mod");
+        }
+
         // The banner carries its own Open Setup button - no auto-navigation,
         // so a blocker appearing mid-flow never yanks the player off their
         // current screen.
