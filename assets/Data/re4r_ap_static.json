@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-07-31T08:47:37Z",
+  "generated_at_utc": "2026-07-31T09:28:41Z",
   "game": "Resident Evil 4 Remake",
-  "world_version": "0.6.1",
+  "world_version": "0.6.2",
   "placeholder_item_id": 120486400,
   "counts": {
     "locations_total": 474,
@@ -8289,7 +8289,7 @@
       "name": "Wooden Planks x1",
       "biorand_item_id": 119289600,
       "biorand_name": "Wooden Planks",
-      "classification": "USEFUL"
+      "classification": "PROGRESSION"
     },
     "1209299439": {
       "name": "Hexagonal Emblem x1",
@@ -8373,7 +8373,7 @@
       "name": "Crystal Marble x1",
       "biorand_item_id": 119217600,
       "biorand_name": "Crystal Marble",
-      "classification": "USEFUL"
+      "classification": "PROGRESSION"
     },
     "1669567494": {
       "name": "Bolts x5",
@@ -8745,7 +8745,7 @@
       "name": "Old Wayshrine Key x1",
       "biorand_item_id": 119256000,
       "biorand_name": "Old Wayshrine Key",
-      "classification": "USEFUL"
+      "classification": "PROGRESSION"
     },
     "3688870194": {
       "name": "Gold Chicken Egg x1",

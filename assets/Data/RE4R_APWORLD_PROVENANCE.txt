@@ -66,11 +66,25 @@ Rebuilt:     2026-07-31 (rev 3), world_version 0.6.1 - Biosensor Scope logic. Th
              the Utilities stays a legal spot). Pool count unchanged (474), so
              published 0.6.0 rooms still pass the launcher count check; the
              version bump marks the logic difference. 3-seed smoke passed.
-Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_version 0.6.1
+Rebuilt:     2026-07-31 (rev 4), world_version 0.6.2 - the key-item policy.
+             A live seed placed the Crystal Marble (useful-class, no rule)
+             deep in another player's world while its door blocked chapter 3.
+             Policy since: EVERY key item is progression and EVERY key item
+             carries a region gate - no useful-class key items, because a
+             "probably optional" door that turns out required strands a
+             player behind an unguaranteed item. Crystal Marble, Old
+             Wayshrine Key and Wooden Planks reclassified progression with
+             gates from the logic sheet (Marble joins the Insignia Key gate;
+             Wayshrine Key by the Mural Cave; Planks by the Villa). Pool
+             count unchanged (474) so 0.6.0/0.6.1 rooms still pass the
+             launcher count check; only NEW generations gain the guarantees.
+             Verified: 28-generation sweep across default / shuffle_keycards
+             / minimize_backtracking, zero failures.
+Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_version 0.6.2
              per that repo's archipelago.json.
 AP target:   Archipelago 0.6.7 (the version the apworld was developed and
              generation-validated against; pinned via the manifest as of 2026-07-12).
-SHA-256:     54aab099bba254f35964aaa54fc7e3cd6146ede8a711ce4edda5d52cdaa704ac
+SHA-256:     df17917cb2a6eb38c67822140186ba63042c0476943a246dc099a87af8cf1127
 Consumed by: the Generation Guidance screen ("Copy RE4R.apworld to your Archipelago
              custom_worlds folder") - ArchipelagoInstallationService reads the
              world_version out of this zip's manifest for display and copies the
