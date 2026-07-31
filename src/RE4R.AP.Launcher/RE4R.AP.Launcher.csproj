@@ -54,7 +54,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <!-- Release identity; shown in the version stamp the patcher writes. -->
-    <Version>0.2.0-alpha</Version>
+    <Version>0.2.1-alpha</Version>
   </PropertyGroup>
 
   <!-- Publish as a single self-contained exe so the distributable folder is just
