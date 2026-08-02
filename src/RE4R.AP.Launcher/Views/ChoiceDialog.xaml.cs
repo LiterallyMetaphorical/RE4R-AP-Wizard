@@ -33,6 +33,22 @@ public partial class ChoiceDialog : Window
         InitializeComponent();
     }
 
+    /// <summary>
+    /// Escape dismisses without choosing, which every caller reads as the
+    /// cancel/decline side - the safe outcome in all of them. Without this the
+    /// only way out of a prompt you did not mean to open is the title-bar X.
+    /// </summary>
+    protected override void OnPreviewKeyDown(System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == System.Windows.Input.Key.Escape)
+        {
+            e.Handled = true;
+            Close();
+        }
+
+        base.OnPreviewKeyDown(e);
+    }
+
     private void OnChoiceClick(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { DataContext: Choice choice })

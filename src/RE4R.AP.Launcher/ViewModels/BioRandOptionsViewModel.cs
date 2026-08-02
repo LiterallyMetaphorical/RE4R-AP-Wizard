@@ -307,6 +307,35 @@ public sealed class BioRandOptionsViewModel : ObservableObject
         RefreshDependencies();
     }
 
+    /// <summary>
+    /// Raised when the player switches Random Events ON. The shell warns that
+    /// the multiworld's logic does not model what events move around, and
+    /// turns it back off if they decline.
+    /// </summary>
+    public event Action? RandomEventsTurnedOn;
+
+    private bool _randomEventsWarned;
+
+    /// <summary>Switches Random Events off without re-raising the warning.</summary>
+    public void TurnRandomEventsOff()
+    {
+        if (!_itemsByKey.TryGetValue(BioRandOptionCatalog.RandomEventsKey, out var events))
+        {
+            return;
+        }
+
+        var previous = events.SuppressChangeNotifications;
+        events.SuppressChangeNotifications = true;
+        events.BoolValue = false;
+        events.SuppressChangeNotifications = previous;
+
+        // Rearm by hand. Suppressing the notification above is what stops this
+        // from bouncing the dialog straight back, but it also means
+        // RefreshDependencies never sees the OFF state that normally rearms -
+        // so without this, declining once silences the warning for good.
+        _randomEventsWarned = false;
+    }
+
     /// <summary>Any player tweak means the config is no longer the preset - so say so.</summary>
     private void OnOptionChangedByUser(BioRandOptionItemViewModel item)
     {
@@ -362,6 +391,20 @@ public sealed class BioRandOptionsViewModel : ObservableObject
                 "Random Events was switched off: it needs both Random Items and Random Enemies, " +
                 "and BioRand cannot generate without them.";
             return;
+        }
+
+        // Warn once whenever Random Events ends up ON - whether the player
+        // ticked it or a preset did (the full-randomization mode turns it on
+        // for them, which is how most people will meet it). Rearms when it
+        // goes back off, so the warning cannot nag on every keystroke.
+        if (events.BoolValue && !_randomEventsWarned)
+        {
+            _randomEventsWarned = true;
+            RandomEventsTurnedOn?.Invoke();
+        }
+        else if (!events.BoolValue)
+        {
+            _randomEventsWarned = false;
         }
 
         if (satisfied)

@@ -221,6 +221,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         _retireSessionCommand = new AsyncRelayCommand(RetireBannerSessionAsync, () => !Action.IsBusy);
         _unlockBioRandOptionsCommand = new AsyncRelayCommand(UnlockBioRandOptionsAsync, () => !Action.IsBusy);
         BioRandOptions.UnlockCommand = _unlockBioRandOptionsCommand;
+        BioRandOptions.RandomEventsTurnedOn += OnRandomEventsTurnedOn;
 
         // Pin the options to the previous patch of this room whenever the player reaches the
         // options step, so a re-patch can't silently discard what they pick.
@@ -583,6 +584,59 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     };
 
     /// <summary>
+    /// Random Events relocates a handful of scripted world items, and the
+    /// multiworld's logic does not model any of it. Verified against BioRand's
+    /// events.csv: 52 lockdoor, 16 remove and 53 move operations, plus one that
+    /// relocates a chapter's start. Ten of those land directly on AP check
+    /// GUIDs - the Crystal Marble, Hexagonal Emblem and Boat Fuel are moved,
+    /// and the Hexagonal Emblem also carries a removekey that deletes the
+    /// placement outright. Warn plainly and turn it back off unless the player
+    /// insists.
+    /// </summary>
+    private async void OnRandomEventsTurnedOn()
+    {
+        try
+        {
+            // Yield first: this arrives from a checkbox's property-change
+            // notification, and opening a modal dialog inside that never
+            // shows. Let the input event finish, then prompt.
+            await Task.Yield();
+
+            var proceed = await _dialogService.ConfirmProceedWithWarningAsync(
+                "Random Events Is Not Covered By Logic",
+                "Random Events reshapes the world itself. It locks doors, takes away ladders "
+                + "and walls, changes what an area looks like ahead of the story, and can even "
+                + "change where a chapter starts you."
+                + Environment.NewLine + Environment.NewLine
+                + "The multiworld's logic assumes the normal route and models none of that. "
+                + "It also moves scripted key items: as it stands, the Crystal Marble, the "
+                + "Hexagonal Emblem and the Boat Fuel can each be relocated to another part of "
+                + "the map, and the Hexagonal Emblem can be taken out of the world entirely."
+                + Environment.NewLine + Environment.NewLine
+                + "So a key item you need can end up somewhere you cannot reach, or nowhere at "
+                + "all, and the seed stops being finishable."
+                + Environment.NewLine + Environment.NewLine
+                + "Recommended: leave it off.",
+                proceedLabel: "Enable It Anyway",
+                cancelLabel: "Leave It Off");
+
+            if (!proceed)
+            {
+                BioRandOptions.TurnRandomEventsOff();
+                Action.AppendLog("Random Events left off: the multiworld's logic does not model it.");
+            }
+            else
+            {
+                Action.AppendLog("Random Events enabled despite the logic warning.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Action.AppendLog($"Could not show the Random Events warning: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// The player wants to change a pinned config. Warn first - the non-check world re-rolls - then
     /// unlock. Their multiworld checks are pinned by GUID and cannot desync either way.
     /// </summary>
@@ -837,6 +891,32 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             if (!proceedWithoutDlc)
             {
                 Action.AppendLog("Workflow stopped because Separate Ways DLC was not confirmed.");
+                Action.StatusText = "Waiting for DLC confirmation.";
+                return null;
+            }
+        }
+
+        // The Treasure Map expansion ADDS treasure spawns rather than just
+        // marking them, and 36 check locations sit on those spawns. Without it
+        // they never appear, so they can never be collected - and if the
+        // multiworld put a key item on one, the seed cannot be finished.
+        if (!_inspection.TreasureMapDetected)
+        {
+            var proceedWithoutTreasureMap = await _dialogService.ConfirmProceedWithWarningAsync(
+                "Treasure Map Expansion Not Detected",
+                "The Treasure Map: Expansion DLC is required. It does not just mark treasures on "
+                + "your map, it adds treasures that are not in the game without it, and 36 of your "
+                + "multiworld checks sit on those exact spots."
+                + Environment.NewLine + Environment.NewLine
+                + "Without the DLC those 36 checks never appear, so you cannot collect them. If the "
+                + "multiworld put a key item on one, nobody can finish the seed."
+                + Environment.NewLine + Environment.NewLine
+                + "If your DLC is installed in a non-standard location, patching anyway is safe.",
+                proceedLabel: "Patch Anyway",
+                cancelLabel: "Cancel");
+            if (!proceedWithoutTreasureMap)
+            {
+                Action.AppendLog("Workflow stopped because the Treasure Map expansion was not confirmed.");
                 Action.StatusText = "Waiting for DLC confirmation.";
                 return null;
             }
@@ -1706,30 +1786,53 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         Action.AppendLog(message);
     }
 
+    /// <summary>
+    /// One status row covers BOTH required DLC. Separate Ways supplies the model
+    /// other players' items wear; Treasure Map: Expansion adds the treasure
+    /// spawns that 36 check locations sit on, so missing it makes those 36
+    /// uncollectable rather than merely unmarked.
+    /// </summary>
     private void UpdateSeparateWaysStatus(GameInstallationInspectionResult inspection)
     {
         if (string.IsNullOrWhiteSpace(inspection.InstallPath))
         {
-            Setup.SetSeparateWaysStatus("Waiting", "Select your RE4R install path to check for Separate Ways DLC.", "neutral");
+            Setup.SetSeparateWaysStatus("Waiting", "Select your RE4R install path to check for the required DLC.", "neutral");
             return;
         }
 
         if (!inspection.InstallPathExists)
         {
-            Setup.SetSeparateWaysStatus("Warning", "Separate Ways DLC detection is unavailable because the install path does not exist.", "warning");
+            Setup.SetSeparateWaysStatus("Warning", "DLC detection is unavailable because the install path does not exist.", "warning");
             return;
         }
 
-        if (inspection.SeparateWaysDetected)
+        if (inspection.SeparateWaysDetected && inspection.TreasureMapDetected)
         {
-            Setup.SetSeparateWaysStatus("Present", "Separate Ways DLC was detected next to this RE4R install.", "success");
-            Action.AppendLog("Separate Ways DLC detected.");
+            Setup.SetSeparateWaysStatus("Present", "Separate Ways and Treasure Map: Expansion were both detected next to this RE4R install.", "success");
+            Action.AppendLog("Both required DLC detected.");
             return;
         }
 
-        var message =
-            "Separate Ways DLC is required for AP placeholder items. Please install it from Steam." +
-            " The launcher could not find the Separate Ways Steam DLC manifest next to this RE4R install.";
+        var missing = new List<string>();
+        if (!inspection.SeparateWaysDetected)
+        {
+            missing.Add("Separate Ways");
+        }
+
+        if (!inspection.TreasureMapDetected)
+        {
+            missing.Add("Treasure Map: Expansion");
+        }
+
+        var message = missing.Count == 1
+            ? $"{missing[0]} was not found next to this RE4R install. Install it from Steam."
+            : $"{string.Join(" and ", missing)} were not found next to this RE4R install. Install them from Steam.";
+
+        if (!inspection.TreasureMapDetected)
+        {
+            message += " Without Treasure Map: Expansion, 36 of your checks never spawn and cannot be collected.";
+        }
+
         Setup.SetSeparateWaysStatus("Warning", message, "warning");
         Action.AppendLog(message);
     }

@@ -34,6 +34,10 @@ public sealed class GameInstallationInspectionResult
 
     public string SeparateWaysManifestPath { get; init; } = string.Empty;
 
+    public bool TreasureMapDetected { get; init; }
+
+    public string TreasureMapManifestPath { get; init; } = string.Empty;
+
     public GameFingerprint Fingerprint { get; init; } = GameFingerprint.CreateDefault();
 
     public string DetectedBioRandGameVersion { get; init; } = string.Empty;

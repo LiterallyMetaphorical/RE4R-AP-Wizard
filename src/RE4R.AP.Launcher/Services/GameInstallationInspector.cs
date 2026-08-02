@@ -14,6 +14,14 @@ public sealed class GameInstallationInspector
     private const string SteamAppManifestName = "appmanifest_2050650.acf";
     private const string SeparateWaysAppManifestName = "appmanifest_2109300.acf";
     private const string SeparateWaysDlcAppId = "2109300";
+
+    // Treasure Map: Expansion. It does not just reveal treasures on the map, it
+    // ADDS spawns that do not otherwise exist, and 36 of our check locations sit
+    // on them (every "dlc"-tagged placement in the fork's items.csv is one of
+    // these treasures). Without the DLC those 36 checks cannot be collected at
+    // all, so a seed that puts progression behind one is unfinishable.
+    private const string TreasureMapAppManifestName = "appmanifest_2109301.acf";
+    private const string TreasureMapDlcAppId = "2109301";
     private const string ReFrameworkDirectoryName = "reframework";
     private const string ReFrameworkDllName = "dinput8.dll";
 
@@ -64,7 +72,11 @@ public sealed class GameInstallationInspector
         var separateWaysManifestPath = string.IsNullOrWhiteSpace(steamAppsDirectory)
             ? string.Empty
             : Path.Combine(steamAppsDirectory, SeparateWaysAppManifestName);
-        var separateWaysDetected = IsSeparateWaysDetected(gameManifestPath, separateWaysManifestPath);
+        var separateWaysDetected = IsDlcDetected(gameManifestPath, separateWaysManifestPath, SeparateWaysDlcAppId);
+        var treasureMapManifestPath = string.IsNullOrWhiteSpace(steamAppsDirectory)
+            ? string.Empty
+            : Path.Combine(steamAppsDirectory, TreasureMapAppManifestName);
+        var treasureMapDetected = IsDlcDetected(gameManifestPath, treasureMapManifestPath, TreasureMapDlcAppId);
         var fileVersionInfo = executableFound ? FileVersionInfo.GetVersionInfo(executablePath) : null;
         var productVersion = fileVersionInfo?.ProductVersion ?? string.Empty;
         var fileVersion = fileVersionInfo?.FileVersion ?? string.Empty;
@@ -101,6 +113,8 @@ public sealed class GameInstallationInspector
             ArchipelagoLuaDirectoryPath = archipelagoLuaDirectoryPath,
             SeparateWaysDetected = separateWaysDetected,
             SeparateWaysManifestPath = separateWaysManifestPath,
+            TreasureMapDetected = treasureMapDetected,
+            TreasureMapManifestPath = treasureMapManifestPath,
             Fingerprint = fingerprint,
             DetectedBioRandGameVersion = detectedVersion,
             DetectionSummary = detectionSummary,
@@ -137,9 +151,14 @@ public sealed class GameInstallationInspector
         }
     }
 
-    private static bool IsSeparateWaysDetected(string gameManifestPath, string separateWaysManifestPath)
+    /// <summary>
+    /// A DLC counts as present if Steam wrote its own appmanifest, or if the
+    /// base game's manifest lists it under "dlcappid" (how Steam records DLC
+    /// that ships inside the base depots).
+    /// </summary>
+    private static bool IsDlcDetected(string gameManifestPath, string dlcManifestPath, string dlcAppId)
     {
-        if (!string.IsNullOrWhiteSpace(separateWaysManifestPath) && File.Exists(separateWaysManifestPath))
+        if (!string.IsNullOrWhiteSpace(dlcManifestPath) && File.Exists(dlcManifestPath))
         {
             return true;
         }

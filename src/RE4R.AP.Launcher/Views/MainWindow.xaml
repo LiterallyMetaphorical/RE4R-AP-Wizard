@@ -248,7 +248,7 @@
 
                     <TextBlock Grid.Row="12"
                                VerticalAlignment="Top"
-                               Text="Separate Ways DLC" />
+                               Text="Required DLC" />
                     <StackPanel Grid.Row="12"
                                 Grid.Column="1"
                                 Grid.ColumnSpan="2">
@@ -266,7 +266,7 @@
                         <TextBlock Margin="0,4,0,0"
                                    Foreground="DimGray"
                                    TextWrapping="Wrap"
-                                   Text="Needed because other players' items appear in your world using a model from this free DLC." />
+                                   Text="Separate Ways supplies the model other players' items appear as. Treasure Map: Expansion adds treasures that 36 of your checks sit on." />
                     </StackPanel>
 
                     <TextBlock Grid.Row="14"
