@@ -45,6 +45,24 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </Content>
+    <!-- The loose text files at the assets root: the BioRand and apworld
+         provenance records, and the third-party notices. This include is not
+         optional housekeeping - every release redistributes a compiled BioRand
+         build, and MIT requires BioRand's notice to travel with it. The Linux
+         project globs assets\**\* so it always carried these; the Windows one
+         enumerates subfolders, so without this line they shipped on Linux and
+         silently did not ship here. -->
+    <Content Include="..\..\assets\*.txt">
+      <Link>assets\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </Content>
+    <!-- Same gap for the apworld's provenance record, which sits in Data. -->
+    <Content Include="..\..\assets\Data\*.txt">
+      <Link>assets\Data\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </Content>
   </ItemGroup>
 
   <PropertyGroup>
