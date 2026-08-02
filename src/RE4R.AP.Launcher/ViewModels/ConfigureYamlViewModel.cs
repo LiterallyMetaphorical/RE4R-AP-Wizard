@@ -35,6 +35,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     private bool _allowMissableLocations;
     private bool _shuffleKeycards;
     private bool _minimizeBacktracking;
+    private bool _randomEvents;
     private bool _tutorial = true;
     private string _yamlPreview = "Enter your slot name to generate the YAML preview.";
     private string _statusText = "Choose your RE4R settings - they save automatically as you edit.";
@@ -283,6 +284,77 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         }
     }
 
+    public bool RandomEvents
+    {
+        get => _randomEvents;
+        set
+        {
+            if (!SetProperty(ref _randomEvents, value))
+            {
+                return;
+            }
+
+            RebuildYamlPreview();
+            QueueDraftSave();
+
+            // Warn on the way ON, where the choice is actually made (this is
+            // the YAML option now: the multiworld rolls the event set at
+            // generation, so the moment to think twice is here, not at patch
+            // time). Restores of a saved draft do not re-warn.
+            if (value && !_isRestoring)
+            {
+                WarnRandomEventsExperimental();
+            }
+        }
+    }
+
+    /// <summary>
+    /// The old BioRand-page warning said the logic knows nothing about Random
+    /// Events, and turned the option back off by default. That is no longer
+    /// true: the multiworld authors the event set and the logic reacts. This
+    /// is its replacement - an experimental-feature note, not a logic alarm.
+    /// </summary>
+    private async void WarnRandomEventsExperimental()
+    {
+        try
+        {
+            // Yield first: this arrives from a checkbox's property-change
+            // notification, and opening a modal dialog inside that never
+            // shows. Let the input event finish, then prompt.
+            await Task.Yield();
+
+            var proceed = await _dialogService.ConfirmProceedWithWarningAsync(
+                "Random Events Is Experimental",
+                "The multiworld will pick BioRand's Random Events itself when this room "
+                + "generates. Only events the logic understands can fire, and the seed's "
+                + "logic reacts to them: a couple of checks can trade places, and one event "
+                + "can remove the Hexagonal Emblem pickup and hand the emblem to a guardian "
+                + "enemy instead."
+                + Environment.NewLine + Environment.NewLine
+                + "This is new and lightly tested. The in-game markers follow moved checks, "
+                + "but expect rough edges, and report anything odd."
+                + Environment.NewLine + Environment.NewLine
+                + "Patching happens through this launcher's bundled BioRand, which turns the "
+                + "events machinery on automatically for rooms that use this.",
+                proceedLabel: "Keep It On",
+                cancelLabel: "Turn It Back Off");
+
+            if (!proceed)
+            {
+                RandomEvents = false;
+                _action.AppendLog("Random Events turned back off.");
+            }
+            else
+            {
+                _action.AppendLog("Random Events enabled (experimental): the multiworld will author the event set.");
+            }
+        }
+        catch (Exception ex)
+        {
+            _action.AppendLog($"Could not show the Random Events note: {ex.Message}");
+        }
+    }
+
     public bool Tutorial
     {
         get => _tutorial;
@@ -524,6 +596,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         AllowMissableLocations = draft.AllowMissableLocations;
         ShuffleKeycards = draft.ShuffleKeycards;
         MinimizeBacktracking = draft.MinimizeBacktracking;
+        RandomEvents = draft.RandomEvents;
         Tutorial = draft.Tutorial;
         var selected = new HashSet<string>(draft.UnlockedTypewriterStageIds, StringComparer.Ordinal);
         foreach (var option in TypewriterOptions)
@@ -563,6 +636,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
                 draft.AllowMissableLocations = AllowMissableLocations;
                 draft.ShuffleKeycards = ShuffleKeycards;
                 draft.MinimizeBacktracking = MinimizeBacktracking;
+                draft.RandomEvents = RandomEvents;
                 draft.Tutorial = Tutorial;
                 draft.UnlockedTypewriterStageIds = TypewriterOptions
                     .Where(option => option.IsSelected)
@@ -595,6 +669,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             AllowMissableLocations = AllowMissableLocations,
             ShuffleKeycards = ShuffleKeycards,
             MinimizeBacktracking = MinimizeBacktracking,
+            RandomEvents = RandomEvents,
             Tutorial = Tutorial,
             UnlockedTypewriterStageIds = TypewriterOptions
                 .Where(option => option.IsSelected)

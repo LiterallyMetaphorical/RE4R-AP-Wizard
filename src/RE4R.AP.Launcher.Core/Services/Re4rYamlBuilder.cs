@@ -43,6 +43,7 @@ public sealed class Re4rYamlBuilder
             { "allow_missable_locations", request.AllowMissableLocations ? "true" : "false" },
             { "shuffle_keycards", request.ShuffleKeycards ? "true" : "false" },
             { "minimize_backtracking", request.MinimizeBacktracking ? "true" : "false" },
+            { "random_events", request.RandomEvents ? "true" : "false" },
             { "tutorial", request.Tutorial ? "true" : "false" },
         };
 

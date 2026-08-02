@@ -51,6 +51,10 @@ public sealed class PendingSessionDraft
     [JsonPropertyName("minimize_backtracking")]
     public bool MinimizeBacktracking { get; set; }
 
+    // EXPERIMENTAL apworld option; off by default, and absent in older drafts.
+    [JsonPropertyName("random_events")]
+    public bool RandomEvents { get; set; }
+
     // Default TRUE so drafts saved before this option existed keep the guide
     // on, matching the apworld default.
     [JsonPropertyName("tutorial")]

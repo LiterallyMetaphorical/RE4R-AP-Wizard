@@ -324,6 +324,7 @@ internal sealed class MainWindow : Window
         right.Children.Add(Check("Allow missable locations", "AllowMissableLocations"));
         right.Children.Add(Check("Shuffle keycards", "ShuffleKeycards"));
         right.Children.Add(Check("Minimize backtracking + side areas", "MinimizeBacktracking"));
+        right.Children.Add(Check("Random Events (experimental, multiworld-authored)", "RandomEvents"));
         right.Children.Add(Check("Show the in-game getting-started guide", "Tutorial"));
         right.Children.Add(Label("Typewriter locations"));
         foreach (var option in vm.TypewriterOptions)

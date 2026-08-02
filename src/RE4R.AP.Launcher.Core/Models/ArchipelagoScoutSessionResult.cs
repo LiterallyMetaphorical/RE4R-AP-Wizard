@@ -18,4 +18,10 @@ public sealed class ArchipelagoScoutSessionResult
     /// so the in-game client never scouts ids the room does not have.
     /// </summary>
     public IReadOnlyList<long> RoomLocationIds { get; init; } = Array.Empty<long>();
+
+    /// <summary>
+    /// The AP-authored Random Events choice from slot_data. Disabled for
+    /// rooms whose apworld predates the option.
+    /// </summary>
+    public RandomEventsSlotData RandomEvents { get; init; } = RandomEventsSlotData.Disabled;
 }
