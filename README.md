@@ -1,232 +1,162 @@
 # Resident Evil 4 Remake - Archipelago
 
-Launcher for Resident Evil 4 Remake Archipelago multiworld sessions.
+## Credits
 
-## Linux
+- The Archipelago project and its contributors for the multiworld framework, protocol, and server.
+- praydog for REFramework, the in-game scripting foundation this builds on.
+- IntelOrca and the BioRand project for the Resident Evil randomizer this project's world patcher is built from.
+- black-sliver for the Archipelago client binding (lua-apclientpp).
+- @CriminalENT for the in-game repack and model swap that placed the Archipelago logo in the game.
+- @snowzzrra for the Linux Release
+- chenstack for [Item Adder](https://www.nexusmods.com/residentevil42023/mods/896), the foundation for injecting multiworld items, and [Item indicator](https://www.nexusmods.com/residentevil42023/mods/1063), the foundation for the in-world Markers.
+- JumperDenfer for the [RE4 Warp Mod](https://www.nexusmods.com/residentevil42023/mods/5923), the foundation for the typewriter warp system.
+- Additional Resident Evil 4 mod authors whose work informed these systems; specific techniques are credited in the source where they are used.
+- The Resident Evil modding community for the tools and knowledge that made the world patches possible.
 
-The Linux build provides the RE4R Archipelago launcher as a native desktop application.
-It accepts Windows, extensionless Linux, and source-tree generators instead of
-requiring `ArchipelagoGenerate.exe`.
+> [!CAUTION]
+> Early alpha for playtesting. Bugs are likely. Save often, and see
+> [When something goes wrong](#when-something-goes-wrong) - the mod ships
+> recovery tools for exactly that. Windows and the Steam release of Resident
+> Evil 4 Remake (2023) are the only supported targets.
+
+## What gets randomized
+
+- **474 item locations** across the full Leon campaign, chapters 1 to 16. Includes Key Items with logic to ensure they spawn before you need them.
+- Other players' items appear as Archipelago-logo pickups. Collecting one sends its check and puts nothing in your inventory. Your own items are collected normally.
+- Locations that cannot be collected in game are excluded from the pool, so nothing gets stranded on them.
+
+Three randomization presets, chosen when you patch. Archipelago's locations stay pinned in all of them, so world options can never move or corrupt acheck:
+
+- **AP Item Randomization Only** - the multiworld shuffles the fixed campaign
+  pickups; everything else is vanilla.
+- **Full BioRand Item Randomization** - BioRand also re-rolls the world's
+  other pickups.
+- **Full BioRand Item and Enemy Randomization** - adds enemy randomization.
+
+Changing any single option flips you to a Custom configuration. Options that
+would change the set of checks, or create a softlock, are locked out.
+
+## What You Need
+
+- Resident Evil 4 Remake (2023) on Steam, including the **Separate Ways** and **Treasure Map: Expansion**
+  DLCs.
+- Everything else - REFramework, the world patcher, the in-game client - comes with the Wizard and installs itself.
+- Hosting a multiworld additionally needs Archipelago 0.6.7.
+
+## Install
+
+1. Download the latest release ZIP from the Releases tab and extract it into a **new empty folder**. Never extract on top of an older version.
+2. Run `RE4R.AP.Launcher.exe`. It opens on Setup Status - let it install
+   anything missing.
+3. You can then move down either path: Host a Multiworld or Join a Multiworld from someone else who is hosting for you
+4. The Wizard will then walk you through the required steps
+
+You only run the Wizard to set up or when the seed changes. Day to day, just launch the game!
+
+### Your settings file
+
+- **Difficulty** - the game's own difficulty.
+- **Death Link** - share deaths with the room.
+- **Progression Balancing** - how hard the multiworld works to keep your important items early. 50-70 suits RE4R's gated chapters; lower values mean longer waits on other players.
+- **Check Guidance** - the ceiling for in-game Markers.
+- **Allow Missable Locations** - off by default, keeping progression items off spots you can permanently lose.
+- **Shuffle Keycards** - off by default; the island keycards stay at their native spots.
+- **Minimize Backtracking + Side Areas** - off by default; when on, keeps important checks on the main path.
+- **Unlocked Typewriters** - save points you can warp to from the start.
+
+## How it works
+
+- **World patch.** A Resident Evil 4 fork of BioRand rewrites the campaign's item placements for your seed into one `.pak`. Archipelago's locations are written on top by explicit location, so randomization can never move a check.
+- **In-game client.** REFramework Lua scripts talk to the Archipelago server, detect pickups, deliver received items, and draw the overlay.
+- **Archipelago world.** `RE4R.apworld` holds the item and location IDs, the areas and their logic, and the options. It ships with the Wizard.
+
+A check is only forgotten locally once the server acknowledges it, so a dropped connection never loses one.
+
+## Known issues
+
+- An inbound DeathLink shows the game-over screen with no death animation.
+- Some overlay counters can briefly disagree with the server
+- RE4R AP has recently still struggled with missing item placements if you find one, please send a screenshot of the item (With Developer type Markers enabled, ideally) and describe where you are.
+- If a Marker points at nothing, please also report that in the same way.
+
+## In-Game
+
+Press **Insert** to open the Archipelago window while in-game. On your first chapter a short getting-started guide appears by itself; you can reopen it any time from the Guidance tab.
+
+### The Checklist
+
+The home tab, and the answer to "where do I go next". Every typewriter save point is listed with how many checks are found near it, out of how many. Expand one to see the areas it covers with their own counts, and warp straight there. Typewriter warps unlock once you have found that typewriter in game.
+
+### Guidance
+
+Unchecked spots show a floating **[AP]** Marker reading, in order: the tag, the chapter it belongs to, the distance, the height difference, then the area and item detail. This tab turns Markers on and off, sets how far away they appear, and controls how much they say:
+
+- **Basic** - distance, height, area.
+- **Locate** - adds what the item looked like in the vanilla game, and whether
+  it is in a container or hanging (shoot it down).
+- **Identify** - adds the real item and who it belongs to. Full spoilers, so
+  it requires Developer Tools.
+
+Markers from another chapter are dimmed and tagged, because RE4R reuses areas between chapters; there is a toggle to hide them. Locations you have bought a hint for show a magenta **[HINT]** Marker anywhere in the area.
+
+### Hints
+
+Spends Archipelago hint points two ways: buy a hint for one of your own items, or for an unchecked location near you. Hints you already own are listed with where they point.
+
+### Something's Wrong
+
+The recovery tab.
+
+- **Force Check** marks a location complete and releases the item it held. Use it when a check refuses to send - and please report it!
+- **Release / Collect** unlocks after you reach your goal: send your remaining items to their owners, or pull your own items home.
+
+### Server
+
+Connection state, address, slot, and whether the room's seed matches this session. Rooms on archipelago.gg sleep after a couple of hours of inactivity and can wake on a different address - this is where you update it.
+
+### Message Log
+
+A scrollable history of everything that happened, plus a box for chat and any Archipelago server command.
+
+### Debug (Developer Tools only)
+
+Enable **Developer Tools** in REFramework's script menu. **Diagnostics** at the top gathers your build, seed, slot, connection and counts into one block you can copy straight into a bug report. Below that: the pickup probe, manual item injection, harmless simulations, and authoring tools.
+
+## When something goes wrong
+
+**A check did not send.** Something's Wrong -> pick the location -> Force Check. Report it with the location name.
+
+**An item never arrived.** Reconnect first (Server tab) - the mod re-delivers anything missed. If it still does not appear, Debug has a manual injector.
+
+**Disconnected, or the room fell asleep.** Open your room page in a browser to wake it, then check the address in the Server tab. The Wizard also has **Fix Address Automatically**.
+
+**Checks you already found look unfound.** The mod re-sends its saved checks on reconnect; give it a few seconds. The server's list is authoritative.
+
+**Items lost after dying or reloading.** They are re-delivered when you load a save. If not, reconnect.
+
+**The game crashes at startup.** Usually REFramework rather than this mod. Rename `dinput8.dll` to launch without it and confirm, then send the log.
+
+**Nothing above helps.** A standard Archipelago text client can share your slot and use normal server commands. Your host can also hand you a specific item from the room page console: `/send YourSlotName "Item Name x1"`.
+
+### Reporting a bug
+
+Copy the Diagnostics block from the Debug tab, say what you were doing, and
+attach:
+
+- `re2_framework_log.txt` from your RE4R folder. Mod lines are tagged
+  `[RE4R AP]`. **The game truncates this on restart** - grab it first.
+- `%APPDATA%\RE4R-AP\logs\` for Wizard problems.
+- If asked, `reframework\data\ArchipelagoRE4R\drop_audit.json`, which records which item spots the game actually spawned during your run.
+
+Reports go to the Archipelago After Dark Discord, in the Resident Evil 4 discussion: https://discord.gg/fqvNCCRsu4
+
+## Linux (experimental)
+
+A Linux build is included: it cross-compiles
+from Windows and runs the Windows patcher through Proton. Windows is the primary supported platform for this playtest.
 
 ```bash
 dotnet publish src/RE4R.AP.Launcher.Linux/RE4R.AP.Launcher.Linux.csproj \
   -c Release -r linux-x64 --self-contained
-
 ./re4r-ap-launcher
 ```
-
-Command-line operations are also available through
-`./re4r-ap-launcher --help`.
-
-This repository holds the Windows launcher that sets up, generates, patches,
-and joins a Resident Evil 4 Remake (2023) Archipelago multiworld. It bundles
-the world-patching pipeline, the in-game client scripts, and the compiled
-Archipelago world, and runs the whole player workflow from one app.
-
-> [!CAUTION]
-> This is an early alpha for closed playtesting, not a finished release. It has
-> had very little testing, the progression logic is only a coarse first pass,
-> and bugs are close to guaranteed. Save often and expect to use the recovery
-> tools below. Windows and the Steam release of Resident Evil 4 Remake are the
-> only supported targets.
-
-## Read first
-
-- Save often, and save after boss fights and chapter transitions.
-- Resident Evil 4 is mostly linear. Some areas may be cut off during parts of the story, so try to save often and collect most item checks as you go.
-- REFramework loads the in-game scripts when the game starts. After the
-  launcher patches, fully quit and relaunch the game once so the scripts load.
-- If you finish one seed and want to start another, restart the game between
-  them.
-- If something looks wrong, the "Getting unstuck" section below lists the tools
-  built in for exactly that.
-
-## Project status
-
-Current closed-playtest scope:
-
-- Content: the full Leon main campaign, Chapters 1 to 16. Around 471 item
-  locations, though the exact count depends on your options.
-- Goal: complete the campaign. The launcher reports the goal to the
-  Archipelago server on completion.
-- Progression logic: a coarse first pass. Eight chapter-group milestones are
-  each gated on their real key items (Boat Fuel and the Hexagon Pieces for the
-  Lake, the Insignia Key for the Church, the Dungeon Key and Lithographic
-  Stones for the castle, the animal heads and keycards for the island, and so
-  on). Finer location-by-location logic inside each group is not written yet.
-  Seeds are built to be completable, but placement inside a chapter group is
-  not finely checked.
-- Randomization modes: three presets, from a pure multiworld item shuffle up to
-  full BioRand item and enemy randomization.
-- Multiworld items: other players' items appear in the world as the Archipelago
-  logo. Collecting one sends its location check and never enters your inventory.
-- DeathLink: supported both ways, gated on the room's setting.
-- In-game overlay: location markers, a scrollable message log, received and
-  sent notifications on the game's native activity rail, and a goal banner.
-
-## What the launcher does
-
-The launcher covers both roles in a multiworld:
-
-- Organizer: installs the prerequisites, exposes the BioRand options, runs a
-  step-by-step generation guide, generates the seed against the bundled
-  Archipelago world, and helps you upload it and create a room.
-- Joiner: connects to a room, patches your game install for that seed, and
-  launches Resident Evil 4 Remake ready to play.
-
-It is one self-contained app. There are no separate Python, randomizer, or
-client downloads.
-
-## How it works
-
-Three pieces do the work:
-
-- BioRand world patch. A bundled Resident Evil 4 fork of BioRand rewrites the
-  campaign's item placements for your seed and produces one game patch (`.pak`).
-  The multiworld's item locations are written on top of that world by explicit
-  location, so item-generation options cannot move or corrupt an Archipelago
-  check.
-- In-game client (REFramework Lua). An autorun script package talks to the
-  Archipelago server over the standard network protocol, detects pickups,
-  delivers received items, and draws the overlay.
-- Archipelago world. The compiled world definition (`RE4R.apworld`) holds the
-  item and location IDs, regions, options, and generation logic. It ships
-  bundled with the launcher.
-
-Check flow:
-
-```text
-in-world pickup (native or Archipelago-logo placeholder)
-  -> pickup detected by the in-game client
-  -> location check queued
-  -> LocationChecks sent to the server
-  -> server acknowledges
-  -> check kept locally until acknowledged
-```
-
-Sent checks are saved and re-sent on reconnect, so a dropped connection does
-not lose a check.
-
-## Requirements
-
-- Resident Evil 4 Remake (2023), Steam release, on Windows.
-- Archipelago 0.6.7. The launcher can install it for you during setup.
-- REFramework for Resident Evil 4 Remake, installed by the launcher.
-
-## Getting started
-
-> [!WARNING]
-> Extract each new release into a fresh, empty folder. Do not copy a new
-> version on top of an older extracted build.
-
-1. Download the latest release ZIP from the Releases page and extract it into a
-   new empty folder.
-2. Run `RE4R.AP.Launcher.exe`.
-3. On the Setup screen, let the launcher install any missing prerequisites
-   (Archipelago and REFramework).
-4. To join a game: enter the room address and your slot name, review the
-   options the organizer chose, and let the launcher patch and launch. Then
-   fully quit and relaunch the game once so the in-game scripts load.
-5. To organize a game: follow the generation guide, which walks you through the
-   options, generating the seed, uploading it, and creating a room.
-
-The launcher remembers your session, so re-patching or reconnecting later does
-not start over.
-
-## Modes
-
-Three presets set how much of the world is randomized. Archipelago's item
-locations stay pinned in every mode.
-
-- AP Item Randomization Only: the multiworld shuffles the fixed campaign
-  pickups. Everything else is vanilla.
-- Full BioRand Item Randomization: BioRand also re-rolls the world's non-check
-  pickups. The Archipelago locations stay pinned.
-- Full BioRand Item and Enemy Randomization: adds enemy randomization on top.
-
-Changing any single option flips the preset to a Custom configuration. Options
-that would change the set of check locations, or that could create a
-progression softlock, are locked in Archipelago mode.
-
-## Multiworld items
-
-At every location that holds another player's item, the world spawns an
-Archipelago-logo pickup. Collecting it sends that location's check and puts
-nothing in your inventory. Your own items appear and are collected normally.
-
-## Getting unstuck
-
-Because this build is experimental, it ships with tools to recover from a bad
-spot:
-
-- Item markers. Unchecked locations show a floating marker. A Status-window
-  toggle turns on the item identity on each marker (the vanilla item name, a
-  container note, and a short id), which helps you find what a floating tag is
-  pointing at and name it in a bug report.
-- Debug tools. With developer tools enabled, a Debug tab exposes a manual item
-  injection window (deliver a received item by hand if one failed to arrive), a
-  progression-warning preview, a DeathLink simulate button, and log views.
-- Archipelago commands. Connect a standard Archipelago text client to the same
-  slot to use the normal server commands, for example `!hint` to locate a
-  needed item, `!release` to send out your remaining items, and `!collect` to
-  pull in your items after you finish. Two clients can share one slot.
-- Typewriter warp. An in-game warp menu teleports you between typewriters and
-  save points you have unlocked, which is useful for backtracking.
-- Re-patch and reconnect. The launcher can re-patch the current session, and
-  the in-game client re-sends any saved checks when it reconnects.
-
-## Known issues
-
-- On an inbound DeathLink the game shows its game-over screen and reloads the
-  last checkpoint. The character does not play a death animation.
-- Location markers for some hanging or elevated pickups can appear below the
-  item's real position.
-- Native-rail notifications show the item name, but the full sender and
-  source-location history still needs the Archipelago client.
-- Some pause-map or overlay counters can briefly disagree with the server. The
-  server's `checked_locations` is authoritative.
-- The progression logic is coarse (see Project status), so unusual option
-  combinations can produce awkward placements. If you get stuck, see "Getting
-  unstuck" above.
-
-## Feedback
-
-Bug reports and feedback are welcome. This project lives in the Archipelago
-After Dark Discord; look for the Resident Evil 4 discussion there. https://discord.gg/fqvNCCRsu4
-
-## Roadmap
-
-- Closed alpha, in progress. Prove the full Leon campaign end to end: patching,
-  item delivery, location checks, DeathLink, and reconnect behavior, with real
-  multiworld traffic.
-- Location-level logic. Replace the coarse milestone gates with finer per-area
-  access rules.
-- Open playtest. Broaden testing, polish the overlay and guidance, and
-  stabilize the generated world and options.
-- Release. Public documentation, packaging, and an Archipelago community
-  release.
-
-## Credits
-
-- The Archipelago project and its contributors for the multiworld framework,
-  protocol, and server.
-- praydog for REFramework, the in-game scripting foundation this project builds
-  on.
-- IntelOrca and the BioRand project for the Resident Evil randomizer this
-  project's world patcher is built from.
-- black-sliver for the Archipelago client binding (lua-apclientpp) used by the
-  in-game scripts.
-- CriminalENT for the in-game repack and model swap that placed the Archipelago
-  logo in the game.
-- chenstack for
-  [Item Adder](https://www.nexusmods.com/residentevil42023/mods/896), the
-  foundation for injecting multiworld items, and
-  [Item indicator](https://www.nexusmods.com/residentevil42023/mods/1063), the
-  foundation for the in-world Archipelago item markers.
-- JumperDenfer for the
-  [RE4 Warp Mod](https://www.nexusmods.com/residentevil42023/mods/5923), the
-  foundation for the typewriter warp system.
-- Additional Resident Evil 4 mod authors whose work informed these systems.
-  Specific techniques are credited in the source where they are used.
-- The Resident Evil modding community for the tools and knowledge that made the
-  world patches possible.
