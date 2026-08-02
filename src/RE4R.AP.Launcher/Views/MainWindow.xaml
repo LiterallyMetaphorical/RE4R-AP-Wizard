@@ -6,7 +6,7 @@
         xmlns:converters="clr-namespace:RE4R.AP.Launcher.Infrastructure"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="RE4R AP Launcher"
+        Title="RE4R AP Wizard"
         Width="1360"
         Height="860"
         MinWidth="1100"
@@ -28,6 +28,33 @@
             <Setter Property="Margin" Value="0,0,14,0" />
             <Setter Property="MinWidth" Value="240" />
             <Setter Property="MinHeight" Value="64" />
+        </Style>
+
+        <!-- Settings option card: one setting per card, two per row. -->
+        <Style x:Key="OptionCardStyle" TargetType="StackPanel">
+            <Setter Property="Width" Value="530" />
+            <Setter Property="Margin" Value="0,0,20,18" />
+        </Style>
+
+        <Style x:Key="OptionCardTitleStyle" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+
+        <Style x:Key="OptionCardHintStyle" TargetType="TextBlock">
+            <Setter Property="Margin" Value="0,6,0,0" />
+            <Setter Property="Foreground" Value="DimGray" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+
+        <!-- The two landing doors: equal size, equal weight, icon + one line. -->
+        <Style x:Key="LandingCardStyle" TargetType="Button">
+            <Setter Property="Padding" Value="18,16" />
+            <Setter Property="Margin" Value="0,0,14,0" />
+            <Setter Property="Width" Value="320" />
+            <Setter Property="MinHeight" Value="150" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="VerticalContentAlignment" Value="Top" />
         </Style>
 
         <Style x:Key="BannerButtonStyle" TargetType="Button">
@@ -78,9 +105,11 @@
                 <TextBlock Margin="0,8,0,0"
                            Foreground="DimGray"
                            TextWrapping="Wrap"
-                           Text="The launcher checks your RE4R install, REFramework, and the Archipelago mod here. Everything green means you're ready to patch and play." />
+                           Text="Your RE4R install, REFramework (the mod loader that runs the Archipelago scripts), and the Archipelago mod itself are checked here. Everything green means you're ready to patch and play." />
 
-                <Grid Margin="0,22,0,0">
+                <Grid Margin="0,22,0,0"
+                      MaxWidth="1180"
+                      HorizontalAlignment="Left">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="210" />
                         <ColumnDefinition Width="*" />
@@ -130,13 +159,20 @@
                     </StackPanel>
 
                     <TextBlock Grid.Row="4"
-                               VerticalAlignment="Center"
+                               VerticalAlignment="Top"
                                Text="BioRand Game Version" />
-                    <ComboBox Grid.Row="4"
-                              Grid.Column="1"
-                              Width="240"
-                              ItemsSource="{Binding SupportedGameVersions}"
-                              SelectedItem="{Binding SelectedGameVersion, UpdateSourceTrigger=PropertyChanged}" />
+                    <StackPanel Grid.Row="4"
+                                Grid.Column="1"
+                                Grid.ColumnSpan="2">
+                        <ComboBox Width="240"
+                                  HorizontalAlignment="Left"
+                                  ItemsSource="{Binding SupportedGameVersions}"
+                                  SelectedItem="{Binding SelectedGameVersion, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Margin="0,6,0,0"
+                                   Foreground="DimGray"
+                                   TextWrapping="Wrap"
+                                   Text="Which RE4R update the world patch is built for. This is detected for you - only change it if patching fails and you know your game is on a different update." />
+                    </StackPanel>
 
                     <TextBlock Grid.Row="6"
                                VerticalAlignment="Top"
@@ -227,6 +263,10 @@
                         <TextBlock Margin="0,6,0,0"
                                    TextWrapping="Wrap"
                                    Text="{Binding SeparateWaysStatusText}" />
+                        <TextBlock Margin="0,4,0,0"
+                                   Foreground="DimGray"
+                                   TextWrapping="Wrap"
+                                   Text="Needed because other players' items appear in your world using a model from this free DLC." />
                     </StackPanel>
 
                     <TextBlock Grid.Row="14"
@@ -252,15 +292,7 @@
                     </Grid>
                 </Grid>
 
-                <StackPanel Margin="0,26,0,0"
-                            Orientation="Horizontal">
-                    <Button Width="200"
-                            Padding="14,8"
-                            FontWeight="SemiBold"
-                            Command="{Binding ContinueCommand}"
-                            Content="Continue" />
-                </StackPanel>
-                <TextBlock Margin="0,10,0,0"
+                <TextBlock Margin="0,26,0,0"
                            Foreground="DimGray"
                            TextWrapping="Wrap"
                            Text="You can continue even while a check is failing - building your settings file and organizing a multiworld don't need the game install. Joining a session stays locked until the checks pass. Reopen this screen any time with the Setup Status button on the landing screen." />
@@ -338,62 +370,61 @@
                     </StackPanel>
                 </Border>
 
-                <!-- One question at a time (Cam 2026-07-12): role first, then
-                     the room-address artifact question for non-organizers. -->
-                <StackPanel Visibility="{Binding IsRoleStage, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <!-- Two doors, equal weight - a host must never have to hunt
+                     for their path (Cam 2026-07-31). Join leads straight to
+                     the settings file: it has no prerequisites and every
+                     joiner needs one, so asking "do you have an address yet?"
+                     was a decision that bought nothing. -->
+                <StackPanel>
                     <TextBlock FontSize="30"
                                FontWeight="SemiBold"
                                TextWrapping="Wrap"
-                               Text="Are you organizing this multiworld, or is someone else?" />
-                    <TextBlock Margin="0,8,0,0"
-                               Foreground="DimGray"
-                               TextWrapping="Wrap"
-                               Text="The organizer collects everyone's settings files, generates the multiworld, and shares the room address." />
+                               Text="What would you like to do?" />
                     <StackPanel Margin="0,18,0,0"
                                 Orientation="Horizontal">
-                        <Button Style="{StaticResource LandingButtonStyle}"
-                                Command="{Binding AnswerSomeoneElseCommand}"
-                                Content="Someone Else Is Organizing" />
-                        <Button Style="{StaticResource LandingButtonStyle}"
-                                Command="{Binding StartCreateCommand}"
-                                Content="I'm Organizing It" />
-                    </StackPanel>
-                </StackPanel>
-
-                <StackPanel Visibility="{Binding IsAddressStage, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <TextBlock FontSize="30"
-                               FontWeight="SemiBold"
-                               TextWrapping="Wrap"
-                               Text="Did your organizer give you a room address?" />
-                    <TextBlock Margin="0,8,0,0"
-                               Foreground="DimGray"
-                               TextWrapping="Wrap"
-                               Text="It looks like archipelago.gg:38281 - your organizer sends it once the multiworld is generated." />
-                    <StackPanel Margin="0,18,0,0"
-                                Orientation="Horizontal">
-                        <Button Style="{StaticResource LandingButtonStyle}"
-                                Command="{Binding StartJoinCommand}"
-                                Content="Yes - Join My Multiworld" />
-                        <Button Style="{StaticResource LandingButtonStyle}"
-                                Command="{Binding StartConfigureYamlCommand}"
-                                Content="Not Yet - Set Up My YAML" />
-                    </StackPanel>
-                    <TextBlock Margin="0,10,0,0"
-                               Foreground="DimGray"
-                               TextWrapping="Wrap"
-                               Text="No room address yet? Build your RE4R settings file (YAML) and send it to whoever is organizing - they'll send back your room address and slot name." />
-                    <StackPanel Margin="0,16,0,0"
-                                Orientation="Horizontal">
-                        <Button Padding="10,4"
-                                Command="{Binding BackToRoleQuestionCommand}"
-                                Content="Back" />
+                        <Button Style="{StaticResource LandingCardStyle}"
+                                Command="{Binding StartConfigureYamlCommand}">
+                            <StackPanel>
+                                <TextBlock FontSize="26"
+                                           FontFamily="Segoe MDL2 Assets"
+                                           Foreground="#FF2E7D46"
+                                           Text="&#xE704;" />
+                                <TextBlock Margin="0,8,0,0"
+                                           FontSize="19"
+                                           FontWeight="SemiBold"
+                                           Text="Join a Multiworld" />
+                                <TextBlock Margin="0,4,0,0"
+                                           FontSize="13"
+                                           Foreground="DimGray"
+                                           TextWrapping="Wrap"
+                                           Text="Someone else is hosting. Play your RE4R as part of their multiworld." />
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource LandingCardStyle}"
+                                Command="{Binding StartCreateCommand}">
+                            <StackPanel>
+                                <TextBlock FontSize="26"
+                                           FontFamily="Segoe MDL2 Assets"
+                                           Foreground="#FF31506F"
+                                           Text="&#xE902;" />
+                                <TextBlock Margin="0,8,0,0"
+                                           FontSize="19"
+                                           FontWeight="SemiBold"
+                                           Text="Host a Multiworld" />
+                                <TextBlock Margin="0,4,0,0"
+                                           FontSize="13"
+                                           Foreground="DimGray"
+                                           TextWrapping="Wrap"
+                                           Text="Collect everyone's settings, generate the multiworld, and share the room." />
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
                 </StackPanel>
 
                 <TextBlock Margin="0,20,0,0"
                            Foreground="DimGray"
                            TextWrapping="Wrap"
-                           Text="For a solo randomized run, use BioRand directly instead - this launcher is for multiplayer Archipelago sessions." />
+                           Text="For a solo randomized run, use BioRand directly instead - this is for multiplayer Archipelago sessions." />
 
                 <Border Margin="0,12,0,0"
                         Padding="12"
@@ -440,7 +471,7 @@
 
                 <TextBlock FontSize="34"
                            FontWeight="SemiBold"
-                           Text="Configure Your RE4R YAML" />
+                           Text="Configure Archipelago Settings" />
                 <StackPanel Grid.Row="2">
                     <TextBlock Foreground="DimGray"
                                TextWrapping="Wrap"
@@ -451,182 +482,153 @@
                                Text="{Binding HeaderDescription}" />
                 </StackPanel>
 
-                <Grid Grid.Row="4">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="230" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />   <!-- 0  Slot Name -->
-                        <RowDefinition Height="12" />
-                        <RowDefinition Height="Auto" />   <!-- 2  Difficulty -->
-                        <RowDefinition Height="12" />
-                        <RowDefinition Height="Auto" />   <!-- 4  Progression Balancing -->
-                        <RowDefinition Height="12" />
-                        <RowDefinition Height="Auto" />   <!-- 6  Check Guidance -->
-                        <RowDefinition Height="12" />
-                        <RowDefinition Height="Auto" />   <!-- 8  Death Link -->
-                        <RowDefinition Height="12" />
-                        <RowDefinition Height="Auto" />   <!-- 10 Allow Missable Locations -->
-                        <RowDefinition Height="12" />
-                        <RowDefinition Height="Auto" />   <!-- 12 Shuffle Keycards -->
-                        <RowDefinition Height="12" />
-                        <RowDefinition Height="Auto" />   <!-- 14 Minimize Backtracking -->
-                        <RowDefinition Height="12" />
-                        <RowDefinition Height="Auto" />   <!-- 16 Unlocked Typewriters -->
-                        <RowDefinition Height="12" />
-                        <RowDefinition Height="Auto" />   <!-- 18 auto-updates note -->
-                        <RowDefinition Height="18" />
-                        <RowDefinition Height="Auto" />   <!-- 20 YAML Preview + buttons -->
-                    </Grid.RowDefinitions>
+            <!-- Two columns: settings on the left, the file preview and its
+                 actions parked on the right. The page was a single narrow
+                 list with the preview stacked underneath, which wasted half
+                 the window and pushed the buttons off-screen (Cam
+                 2026-07-31). -->
+            <Grid Grid.Row="4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
 
-                    <TextBlock VerticalAlignment="Top"
-                               Margin="0,4,0,0"
-                               Text="Slot Name" />
-                    <StackPanel Grid.Column="1">
-                        <TextBox Text="{Binding SlotName, UpdateSourceTrigger=PropertyChanged}"
-                                 MaxLength="32" />
-                        <TextBlock Margin="0,4,0,0"
-                                   Foreground="#FFB71C1C"
-                                   TextWrapping="Wrap"
-                                   Visibility="{Binding HasSlotNameError, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                   Text="{Binding SlotNameError}" />
-                        <TextBlock Margin="0,4,0,0"
-                                   Foreground="DimGray"
-                                   TextWrapping="Wrap"
-                                   Text="Your in-game player name (16 characters max). You'll type this exact name when joining - capitalization matters." />
-                    </StackPanel>
+                <StackPanel>
+                    <!-- Option cards in a two-column wrap, like the BioRand
+                         options page. Each card owns its label, control and
+                         explanation, so the eye reads one setting at a time
+                         instead of scanning a tall label column. -->
+                    <WrapPanel MaxWidth="1120">
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Slot Name" />
+                            <TextBox Text="{Binding SlotName, UpdateSourceTrigger=PropertyChanged}"
+                                     MaxLength="32" />
+                            <TextBlock Margin="0,4,0,0"
+                                       Foreground="#FFB71C1C"
+                                       TextWrapping="Wrap"
+                                       Visibility="{Binding HasSlotNameError, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                       Text="{Binding SlotNameError}" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Your in-game player name (16 characters max). You'll type this exact name when joining - capitalization matters." />
+                        </StackPanel>
 
-                    <TextBlock Grid.Row="2"
-                               VerticalAlignment="Center"
-                               Text="Difficulty" />
-                    <ComboBox Grid.Row="2"
-                              Grid.Column="1"
-                              Width="220"
-                              HorizontalAlignment="Left"
-                              ItemsSource="{Binding DifficultyOptions}"
-                              SelectedItem="{Binding SelectedDifficulty, UpdateSourceTrigger=PropertyChanged}" />
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Difficulty" />
+                            <ComboBox Width="220"
+                                      HorizontalAlignment="Left"
+                                      ItemsSource="{Binding DifficultyOptions}"
+                                      SelectedItem="{Binding SelectedDifficulty, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="The game's own difficulty setting. It does not change where checks are." />
+                        </StackPanel>
 
-                    <TextBlock Grid.Row="4"
-                               VerticalAlignment="Top"
-                               Text="Progression Balancing" />
-                    <StackPanel Grid.Row="4"
-                                Grid.Column="1">
-                        <Slider Minimum="0"
-                                Maximum="99"
-                                TickFrequency="1"
-                                IsSnapToTickEnabled="True"
-                                Value="{Binding ProgressionBalancing, UpdateSourceTrigger=PropertyChanged}" />
-                        <TextBlock Margin="0,4,0,0"
-                                   FontWeight="SemiBold"
-                                   Text="{Binding ProgressionBalancingLabel}" />
-                        <TextBlock Margin="0,6,0,0"
-                                   Foreground="DimGray"
-                                   TextWrapping="Wrap"
-                                   Text="How aggressively Archipelago front-loads your own useful and progression items so you spend less time stuck waiting on other worlds. Disabled (0) turns it off, Normal (50) is the Archipelago default, Recommended (70) suits RE4R's long gated chapters, Aggressive (99) pushes the hardest." />
-                    </StackPanel>
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Progression Balancing" />
+                            <Slider Minimum="0"
+                                    Maximum="99"
+                                    TickFrequency="1"
+                                    IsSnapToTickEnabled="True"
+                                    Value="{Binding ProgressionBalancing, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock Margin="0,4,0,0"
+                                       FontWeight="SemiBold"
+                                       Text="{Binding ProgressionBalancingLabel}" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="How aggressively Archipelago front-loads your own useful and progression items so you spend less time stuck waiting on other worlds. Disabled (0) turns it off, Normal (50) is the Archipelago default, Recommended (70) suits RE4R's long gated chapters, Aggressive (99) pushes the hardest." />
+                        </StackPanel>
 
-                    <TextBlock Grid.Row="6"
-                               VerticalAlignment="Top"
-                               Text="Check Guidance" />
-                    <StackPanel Grid.Row="6"
-                                Grid.Column="1">
-                        <ComboBox Width="260"
-                                  HorizontalAlignment="Left"
-                                  ItemsSource="{Binding CheckGuidanceOptions}"
-                                  DisplayMemberPath="Label"
-                                  SelectedItem="{Binding SelectedCheckGuidance, UpdateSourceTrigger=PropertyChanged}" />
-                        <TextBlock Margin="0,6,0,0"
-                                   Foreground="DimGray"
-                                   TextWrapping="Wrap"
-                                   Text="Controls the in-game world markers that point to your unchecked locations. Markers shows neutral [AP] markers you can toggle and tune in-game. Markers + rarity colours also unlocks optional colours that reveal each check's item importance (hint-level information). Off disables the markers entirely. The on-screen area header and check counts are always shown." />
-                    </StackPanel>
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Check Guidance" />
+                            <ComboBox Width="260"
+                                      HorizontalAlignment="Left"
+                                      ItemsSource="{Binding CheckGuidanceOptions}"
+                                      DisplayMemberPath="Label"
+                                      SelectedItem="{Binding SelectedCheckGuidance, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Controls the in-game world markers that point to your unchecked locations. Markers shows neutral [AP] markers you can toggle and tune in-game. Markers + rarity colours also unlocks optional colours that reveal each check's item importance (hint-level information). Off disables the markers entirely. The on-screen area header and check counts are always shown." />
+                        </StackPanel>
 
-                    <TextBlock Grid.Row="8"
-                               VerticalAlignment="Top"
-                               Text="Death Link" />
-                    <StackPanel Grid.Row="8"
-                                Grid.Column="1">
-                        <CheckBox IsChecked="{Binding DeathLink}"
-                                  Content="Enable Death Link" />
-                        <TextBlock Margin="0,6,0,0"
-                                   Foreground="DimGray"
-                                   TextWrapping="Wrap"
-                                   Text="Dying sends a death to all Death Link players." />
-                    </StackPanel>
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Death Link" />
+                            <CheckBox IsChecked="{Binding DeathLink}"
+                                      Content="Enable Death Link" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Dying sends a death to all Death Link players, and theirs kill you." />
+                        </StackPanel>
 
-                    <TextBlock Grid.Row="10"
-                               VerticalAlignment="Top"
-                               Text="Allow Missable Locations" />
-                    <StackPanel Grid.Row="10"
-                                Grid.Column="1">
-                        <CheckBox IsChecked="{Binding AllowMissableLocations}"
-                                  Content="Allow missable locations" />
-                        <TextBlock Margin="0,6,0,0"
-                                   Foreground="DimGray"
-                                   TextWrapping="Wrap"
-                                   Text="Off by default - progression items may be placed at locations that cannot be reached." />
-                    </StackPanel>
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Allow Missable Locations" />
+                            <CheckBox IsChecked="{Binding AllowMissableLocations}"
+                                      Content="Allow missable locations" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Off by default, which keeps progression items away from spots you can permanently walk past. On allows them there - riskier seeds." />
+                        </StackPanel>
 
-                    <TextBlock Grid.Row="12"
-                               VerticalAlignment="Top"
-                               Text="Shuffle Keycards" />
-                    <StackPanel Grid.Row="12"
-                                Grid.Column="1">
-                        <CheckBox IsChecked="{Binding ShuffleKeycards}"
-                                  Content="Shuffle the Level 1/2/3 Keycards" />
-                        <TextBlock Margin="0,6,0,0"
-                                   Foreground="DimGray"
-                                   TextWrapping="Wrap"
-                                   Text="Off by default: each keycard sits at its native facility spot (still a check), so the island door sequence plays like vanilla. On: the keycards join the shuffle like any other key item - logic guarantees each card is obtainable before the first door that needs it, but it may come from anywhere in the multiworld." />
-                    </StackPanel>
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Shuffle Keycards" />
+                            <CheckBox IsChecked="{Binding ShuffleKeycards}"
+                                      Content="Shuffle the Level 1/2/3 Keycards" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Off by default: each keycard sits at its native facility spot (still a check), so the island door sequence plays like vanilla. On: the keycards join the shuffle like any other key item - logic guarantees each card is obtainable before the first door that needs it, but it may come from anywhere in the multiworld." />
+                        </StackPanel>
 
-                    <TextBlock Grid.Row="14"
-                               VerticalAlignment="Top"
-                               Text="Minimize Backtracking" />
-                    <StackPanel Grid.Row="14"
-                                Grid.Column="1">
-                        <CheckBox IsChecked="{Binding MinimizeBacktracking}"
-                                  Content="Minimize backtracking + side areas" />
-                        <TextBlock Margin="0,6,0,0"
-                                   Foreground="DimGray"
-                                   TextWrapping="Wrap"
-                                   Text="Off by default. On: keeps the important checks along the main path - all three Hexagon pieces are guaranteed before leaving the Fish Farm so the lake altar solves in one boat pass, and the optional excursions (Forest Altar, the chapter 12 Throne Room revisit, the lake's egg-nest islet) only ever hold plain filler." />
-                    </StackPanel>
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Minimize Backtracking" />
+                            <CheckBox IsChecked="{Binding MinimizeBacktracking}"
+                                      Content="Minimize backtracking + side areas" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Off by default. On: keeps the important checks along the main path - all three Hexagon pieces are guaranteed before leaving the Fish Farm so the lake altar solves in one boat pass, and the optional excursions (Forest Altar, the chapter 12 Throne Room revisit, the lake's egg-nest islet) only ever hold plain filler." />
+                        </StackPanel>
 
-                    <TextBlock Grid.Row="16"
-                               VerticalAlignment="Top"
-                               Text="Unlocked Typewriters" />
-                    <Border Grid.Row="16"
-                            Grid.Column="1"
-                            Padding="8"
-                            BorderBrush="#FFE0E0E0"
-                            BorderThickness="1"
-                            CornerRadius="8">
-                        <ScrollViewer MaxHeight="240"
-                                      VerticalScrollBarVisibility="Auto">
-                            <ItemsControl ItemsSource="{Binding TypewriterOptions}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <CheckBox Margin="0,0,0,6"
-                                                  IsChecked="{Binding IsSelected}"
-                                                  Content="{Binding DisplayName}" />
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </ScrollViewer>
-                    </Border>
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="In-Game Tutorial" />
+                            <CheckBox IsChecked="{Binding Tutorial}"
+                                      Content="Show the getting-started guide" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="On by default: a short guide appears in game on your first chapter, explaining checks, markers and how to get unstuck. You can reopen or skip it any time. Turn it off if you already know how this works." />
+                        </StackPanel>
 
-                    <TextBlock Grid.Row="18"
-                               Grid.ColumnSpan="2"
-                               Foreground="DimGray"
-                               TextWrapping="Wrap"
-                               Text="Your RE4R YAML updates automatically from these settings." />
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Unlocked Typewriters" />
+                            <Border Padding="8"
+                                    BorderBrush="#FFE0E0E0"
+                                    BorderThickness="1"
+                                    CornerRadius="8">
+                                <ScrollViewer MaxHeight="200"
+                                              VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding TypewriterOptions}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <CheckBox Margin="0,0,0,6"
+                                                          IsChecked="{Binding IsSelected}"
+                                                          Content="{Binding DisplayName}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Border>
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Save points you can warp to from the start of the run." />
+                        </StackPanel>
+                    </WrapPanel>
 
-                    <StackPanel Grid.Row="20"
-                                Grid.ColumnSpan="2">
+                    <StackPanel Margin="0,20,0,0"
+                                MaxWidth="1120"
+                                HorizontalAlignment="Left">
                         <TextBlock FontWeight="SemiBold"
                                    Text="YAML Preview" />
+                        <TextBlock Margin="0,4,0,0"
+                                   Foreground="DimGray"
+                                   TextWrapping="Wrap"
+                                   Text="This updates automatically from the settings above. Save or copy it to send the file to your host - your settings are remembered here either way." />
                         <Border Margin="0,8,0,0"
                                 Padding="12"
                                 Background="#FFF8F8F8"
@@ -641,52 +643,26 @@
                                      TextWrapping="Wrap"
                                      AcceptsReturn="True" />
                         </Border>
-
-                        <!-- Both buttons EXPORT the same file; the launcher already
-                             remembers these settings on its own (both commands persist
-                             the draft). The clarifier + action-named labels kill the
-                             "is Copy for the launcher and Save for the host?" confusion. -->
-                        <TextBlock Margin="0,14,0,0"
-                                   Foreground="DimGray"
-                                   TextWrapping="Wrap"
-                                   Text="The launcher remembers these settings automatically. Copy or save only when you need the file itself to hand off." />
-                        <StackPanel Margin="0,8,0,0"
-                                    Orientation="Horizontal">
-                            <Button Width="140"
-                                    Padding="14,8"
-                                    Command="{Binding BackToLandingCommand}"
-                                    Content="Back" />
-                            <Button Width="160"
-                                    Margin="12,0,0,0"
-                                    Padding="14,8"
-                                    Command="{Binding CopyYamlCommand}"
-                                    Content="Copy to Clipboard" />
-                            <Button Width="150"
-                                    Margin="12,0,0,0"
-                                    Padding="14,8"
-                                    Command="{Binding SaveYamlCommand}"
-                                    Content="Save to File..." />
-                        </StackPanel>
-
                         <TextBlock Margin="0,10,0,0"
                                    Foreground="DimGray"
                                    TextWrapping="Wrap"
                                    Text="{Binding StatusText}" />
                     </StackPanel>
+                </StackPanel>
                 </Grid>
             </Grid>
         </DataTemplate>
 
         <DataTemplate DataType="{x:Type viewModels:GenerationGuidanceViewModel}">
-            <StackPanel MaxWidth="900"
+            <StackPanel MaxWidth="1050"
                         HorizontalAlignment="Left">
                 <TextBlock FontSize="34"
                            FontWeight="SemiBold"
-                           Text="Organize a Multiworld" />
+                           Text="Host a Multiworld" />
                 <TextBlock Margin="0,8,0,6"
                            Foreground="DimGray"
                            TextWrapping="Wrap"
-                           Text="Generating a multiworld happens on your own Archipelago install - this guide walks you through it one step at a time. Your progress is saved, so you can close the launcher and come back anytime." />
+                           Text="Generating a multiworld happens on your own Archipelago install - this guide walks you through it one step at a time. Your progress is saved, so you can close this window and come back anytime." />
                 <TextBlock Margin="0,0,0,12"
                            FontWeight="SemiBold"
                            Text="{Binding StepProgressText}" />
@@ -779,7 +755,7 @@
                         <TextBlock Margin="38,6,0,0"
                                    Foreground="DimGray"
                                    TextWrapping="Wrap">
-                            <Run Text="Archipelago doesn't know Resident Evil 4 Remake out of the box. " /><Run Text="{Binding ApworldVersionText, Mode=OneWay}" />
+                            <Run Text="Archipelago doesn't know Resident Evil 4 Remake out of the box - an apworld is the file that teaches it a game. " /><Run Text="{Binding ApworldVersionText, Mode=OneWay}" />
                         </TextBlock>
                         <StackPanel Margin="38,10,0,0"
                                     Orientation="Horizontal">
@@ -958,12 +934,12 @@
                         <TextBlock Margin="38,6,0,0"
                                    Foreground="DimGray"
                                    TextWrapping="Wrap"
-                                   Text="In your Archipelago folder, run its generator (ArchipelagoGenerate.exe on Windows, or the provided generator on Linux). It reads every settings file in Players and writes an AP_*.zip into the output folder. If it fails, the error names the settings file or game that broke - fix that player's file or add the missing world; the launcher can't diagnose other games' errors." />
+                                   Text="Open your Archipelago folder and double-click ArchipelagoGenerate.exe (on Linux, the provided generator). It reads every settings file in Players and writes an AP_*.zip into the output folder. If it fails, the error names the settings file or game that broke - fix that player's file or add the missing world; this app can't diagnose other games' errors." />
                         <StackPanel Margin="38,10,0,0"
                                     Orientation="Horizontal">
                             <Button Style="{StaticResource GuidanceButtonStyle}"
                                     Command="{Binding OpenApRootFolderCommand}"
-                                    Content="Open Archipelago Folder" />
+                                    Content="Open Archipelago Folder (Find ArchipelagoGenerate)" />
                             <Button Style="{StaticResource GuidanceButtonStyle}"
                                     Command="{Binding RefreshCommand}"
                                     Content="Check Again" />
@@ -1093,29 +1069,12 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Wizard navigation: Back is always free; Next unlocks when
-                     the current step's Done state auto-detects. -->
-                <StackPanel Margin="0,4,0,0"
-                            Orientation="Horizontal">
-                    <Button Padding="14,8"
-                            Command="{Binding BackToLandingCommand}"
-                            Content="Exit Guide" />
-                    <Button Width="120"
-                            Margin="12,0,0,0"
-                            Padding="14,8"
-                            Command="{Binding BackStepCommand}"
-                            Content="Back" />
-                    <Button Width="120"
-                            Margin="12,0,0,0"
-                            Padding="14,8"
-                            FontWeight="SemiBold"
-                            Command="{Binding NextStepCommand}"
-                            Content="Next" />
-                    <TextBlock Margin="16,0,0,0"
-                               VerticalAlignment="Center"
-                               Foreground="DimGray"
-                               Text="{Binding StepProgressText}" />
-                </StackPanel>
+                <!-- Navigation lives in the shell's sticky footer; Back is
+                     always free and Next unlocks when the step auto-detects
+                     as done. -->
+                <TextBlock Margin="0,4,0,0"
+                           Foreground="DimGray"
+                           Text="{Binding StepProgressText}" />
             </StackPanel>
         </DataTemplate>
 
@@ -1169,7 +1128,11 @@
                                     <TextBlock Margin="0,4,0,0"
                                                Foreground="DimGray"
                                                TextWrapping="Wrap"
-                                               Text="Rooms hosted somewhere other than archipelago.gg, including one you run yourself, should work here too. That path is largely untested, so treat it as use at your own risk." />
+                                               Text="Looks like archipelago.gg:38281 - your host sends it to you. Just the port number on its own works too." />
+                                    <TextBlock Margin="0,3,0,0"
+                                               Foreground="DimGray"
+                                               TextWrapping="Wrap"
+                                               Text="Rooms hosted elsewhere, including one you run yourself, should also work - that path is largely untested, so treat it as use at your own risk." />
                                 </StackPanel>
 
                                 <TextBlock Grid.Row="2"
@@ -1182,7 +1145,7 @@
                                     <TextBlock Margin="0,4,0,0"
                                                Foreground="DimGray"
                                                TextWrapping="Wrap"
-                                               Text="Must match the settings file you sent - exactly, including capitalization." />
+                                               Text="Your name inside the multiworld. It must match the settings file you sent exactly, including capitalization." />
                                 </StackPanel>
 
                                 <TextBlock Grid.Row="4"
@@ -1205,22 +1168,11 @@
                                          Grid.Column="1"
                                          Text="{Binding Session.Password, UpdateSourceTrigger=PropertyChanged}" />
 
-                                <StackPanel Grid.Row="8"
-                                            Grid.ColumnSpan="2"
-                                            Orientation="Horizontal">
-                                    <Button Width="140"
-                                            Padding="14,8"
-                                            Command="{Binding BackToLandingCommand}"
-                                            Content="Back" />
-                                    <Button Width="140"
-                                            Margin="12,0,0,0"
-                                            Padding="14,8"
-                                            Command="{Binding GoToBioRandOptionsCommand}"
-                                            Content="Next" />
-                                    <TextBlock Margin="16,8,0,0"
-                                               Foreground="DimGray"
-                                               Text="Your organizer will give you these details." />
-                                </StackPanel>
+                                <TextBlock Grid.Row="8"
+                                           Grid.ColumnSpan="2"
+                                           Foreground="DimGray"
+                                           TextWrapping="Wrap"
+                                           Text="Your host will give you these details." />
                             </Grid>
                         </Grid>
                     </Border>
@@ -1237,9 +1189,15 @@
                                 <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
 
-                            <TextBlock FontSize="22"
-                                       FontWeight="SemiBold"
-                                       Text="BioRand Options" />
+                            <StackPanel>
+                                <TextBlock FontSize="22"
+                                           FontWeight="SemiBold"
+                                           Text="BioRand Options" />
+                                <TextBlock Margin="0,6,0,0"
+                                           Foreground="DimGray"
+                                           TextWrapping="Wrap"
+                                           Text="BioRand is the randomizer that rebuilds your copy of the game world. These settings change only YOUR game - they cannot move multiworld items or affect other players. The defaults are fine if you just want to play." />
+                            </StackPanel>
 
                             <Grid Grid.Row="2">
                                 <Grid.RowDefinitions>
@@ -1251,7 +1209,7 @@
                                 </Grid.RowDefinitions>
 
                                 <TextBlock FontWeight="SemiBold"
-                                           Text="Launch Mode" />
+                                           Text="World Randomization" />
 
                                 <!-- All modes visible at once as selectable cards;
                                      unavailable ones disabled with a badge (fix #3) -->
@@ -1491,18 +1449,10 @@
                                 </TabControl>
                             </Grid>
 
-                            <StackPanel Grid.Row="6"
-                                        Orientation="Horizontal">
-                                <Button Width="140"
-                                        Padding="14,8"
-                                        Command="{Binding BackToSessionInfoCommand}"
-                                        Content="Back" />
-                                <Button Width="160"
-                                        Margin="12,0,0,0"
-                                        Padding="14,8"
-                                        Command="{Binding PatchMyGameCommand}"
-                                        Content="Patch My Game" />
-                            </StackPanel>
+                            <TextBlock Grid.Row="6"
+                                       Foreground="DimGray"
+                                       TextWrapping="Wrap"
+                                       Text="Patching rebuilds your copy of the game world for this multiworld. It takes a few minutes." />
                         </Grid>
                     </Border>
 
@@ -1514,12 +1464,6 @@
                             <TextBlock Margin="0,12,0,0"
                                        TextWrapping="Wrap"
                                        Text="{Binding StatusText}" />
-                            <Button Margin="0,24,0,0"
-                                    Width="160"
-                                    Padding="14,8"
-                                    HorizontalAlignment="Left"
-                                    Command="{Binding BackToSessionInfoCommand}"
-                                    Content="Back" />
                         </StackPanel>
                     </Border>
                 </Grid>
@@ -1589,14 +1533,26 @@
                     </StackPanel>
                 </Border>
 
-                <StackPanel Margin="0,16,0,0"
-                            Visibility="{Binding HasCompletionText, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <TextBlock FontWeight="SemiBold"
-                               Text="Completion" />
-                    <TextBlock Margin="0,6,0,0"
-                               TextWrapping="Wrap"
-                               Text="{Binding CompletionText}" />
-                </StackPanel>
+                <!-- Success carries the one instruction that decides whether
+                     the mod appears to work at all (quit + relaunch once), so
+                     it gets its own panel rather than another gray paragraph. -->
+                <Border Margin="0,16,0,0"
+                        Padding="14"
+                        Background="#FFEFF8F1"
+                        BorderBrush="#FF9CCBAA"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Visibility="{Binding HasCompletionText, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <StackPanel>
+                        <TextBlock FontSize="17"
+                                   FontWeight="SemiBold"
+                                   Foreground="#FF11662D"
+                                   Text="Ready to play" />
+                        <TextBlock Margin="0,8,0,0"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding CompletionText}" />
+                    </StackPanel>
+                </Border>
 
                 <StackPanel Margin="0,18,0,0"
                             Orientation="Horizontal"
@@ -1626,7 +1582,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
-            <RowDefinition Height="12" />
+            <RowDefinition Height="Auto" />   <!-- sticky step navigation -->
             <RowDefinition Height="Auto" />
             <RowDefinition Height="10" />
             <RowDefinition Height="Auto" />
@@ -1687,19 +1643,64 @@
             </ScrollViewer>
         </Border>
 
+        <!-- Sticky step navigation: screens publish FooterButtons and the
+             shell pins them here, so Back/Continue never scroll out of reach
+             and sit in the same place on every step (Cam 2026-07-31).
+             Screens without the property simply render nothing. -->
+        <ItemsControl Grid.Row="2"
+                      Margin="0,12,0,12"
+                      HorizontalAlignment="Right"
+                      ItemsSource="{Binding CurrentScreen.FooterButtons}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Button MinWidth="150"
+                            Margin="10,0,0,0"
+                            Padding="16,9"
+                            Command="{Binding Command}"
+                            Content="{Binding Label}"
+                            Visibility="{Binding IsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsPrimary}" Value="True">
+                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- The log is a drawer, closed by default: it is diagnostic detail
+             almost nobody reads, and the screens need the vertical space more
+             (Cam 2026-07-31). The CURRENT status line stays visible always -
+             that is the part players act on. -->
         <Border Grid.Row="3"
-                Padding="12"
+                Padding="12,8"
                 Background="#FFF8F8F8"
                 BorderBrush="#FFE0E0E0"
                 BorderThickness="1"
                 CornerRadius="10">
-            <DockPanel>
-                <TextBlock DockPanel.Dock="Top"
-                           Margin="0,0,0,6"
-                           FontWeight="SemiBold"
-                           Foreground="#FF555555"
-                           Text="{Binding Action.StatusText}" />
+            <!-- ExpandDirection=Up: the drawer opens upward, so the chevron
+                 points up when closed and down when open. -->
+            <Expander IsExpanded="False"
+                      ExpandDirection="Up">
+                <Expander.Header>
+                    <TextBlock Margin="4,0,0,0"
+                               FontWeight="SemiBold"
+                               Foreground="#FF555555"
+                               TextTrimming="CharacterEllipsis"
+                               Text="{Binding Action.StatusText}" />
+                </Expander.Header>
                 <TextBox x:Name="LogTextBox"
+                     Margin="0,8,0,0"
                      Background="Transparent"
                      BorderThickness="0"
                      FontFamily="Consolas"
@@ -1710,9 +1711,9 @@
                      TextWrapping="Wrap"
                      VerticalScrollBarVisibility="Auto"
                      AcceptsReturn="True"
-                     MinHeight="72"
-                     MaxHeight="72" />
-            </DockPanel>
+                     MinHeight="120"
+                     MaxHeight="200" />
+            </Expander>
         </Border>
 
         <Grid Grid.Row="5">

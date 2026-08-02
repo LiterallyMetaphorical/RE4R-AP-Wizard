@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\RE4R.AP.Launcher.Core\RE4R.AP.Launcher.Core.csproj" />
@@ -46,7 +46,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>re4r-ap-launcher</AssemblyName>
     <!-- Keep in sync with the Windows launcher's release version. -->
-    <Version>0.2.2-alpha</Version>
+    <Version>0.3.0-alpha</Version>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">

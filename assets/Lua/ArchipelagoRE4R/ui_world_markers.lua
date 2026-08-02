@@ -294,7 +294,15 @@ local function install(ctx)
                 -- Hinted checks always render identify (paid to know); everything
                 -- else uses this frame's allowed tier (client pick, capped).
                 local eff_tier = entry.hinted and DETAIL_TIER.identify or frame_tier
-                local parts = { string.format("%s %dm", label_prefix, math.floor(distance + 0.5)) }
+                -- Fixed reading order (Cam 2026-07-31): tag, chapter, distance,
+                -- height, then everything about the item. The chapter used to
+                -- be prepended after the fact, which put it BEFORE the [AP]
+                -- tag and made the marker read "[Ch1] [AP] ...".
+                local parts = { label_prefix }
+                if type(entry.chapter) == "number" then
+                    parts[#parts + 1] = "[Ch" .. tostring(entry.chapter) .. "]"
+                end
+                parts[#parts + 1] = string.format("%dm", math.floor(distance + 0.5))
 
                 -- Basic: height (signed metres) + area.
                 if dy >= MARKER_HEIGHT_MIN then
@@ -318,12 +326,16 @@ local function install(ctx)
                     end
                 end
 
-                local label = table.concat(parts, " | ")
-                -- Every marker leads with its chapter (off-chapter ones are also
-                -- muted grey to stand out), so a leaked future check reads as
-                -- "[Ch5] ... not now" and same-chapter checks confirm the chapter.
-                if type(entry.chapter) == "number" then
-                    label = "[Ch" .. tostring(entry.chapter) .. "] " .. label
+                -- The tag and chapter read as one unit, so they are joined by
+                -- spaces; the spatial and item fields stay pipe-separated.
+                local head = table.concat({ parts[1], parts[2] }, " ")
+                local rest = {}
+                for index = 3, #parts do
+                    rest[#rest + 1] = parts[index]
+                end
+                local label = head
+                if #rest > 0 then
+                    label = head .. " " .. table.concat(rest, " | ")
                 end
 
                 -- Identify: the real AP placement, appended after the spatial line.

@@ -257,9 +257,20 @@ public sealed class LaunchWorkflowService
                 cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
 
+            // The relaunch line is the whole ballgame: REFramework only loads
+            // the Archipelago scripts at game start, so a player who patches
+            // while RE4R is running sees "nothing works" and reports a bug.
             var finalMessage = request.IsHostedSession
-                ? "RE4R AP is ready. Launch RE4R from Steam to begin your session. Keep this launcher open - closing it will stop your AP server."
-                : "RE4R AP is ready. Launch RE4R from Steam to begin your session - it will connect automatically. You can close the launcher.";
+                ? "Your game is patched and ready.\n\n"
+                    + "1. If RE4R is running, quit it completely.\n"
+                    + "2. Start RE4R from Steam - it connects to the multiworld automatically.\n"
+                    + "3. Press Insert in-game to open the Archipelago window.\n\n"
+                    + "Keep this window open - closing it stops your AP server."
+                : "Your game is patched and ready.\n\n"
+                    + "1. If RE4R is running, quit it completely.\n"
+                    + "2. Start RE4R from Steam - it connects to the multiworld automatically.\n"
+                    + "3. Press Insert in-game to open the Archipelago window.\n\n"
+                    + "You can close this window now. Come back only to patch a new seed.";
             Log(finalMessage);
 
             return new LaunchWorkflowResult

@@ -27,5 +27,9 @@ public sealed class Re4rYamlRequest
     // filler-only side excursions (apworld 0.6.0).
     public bool MinimizeBacktracking { get; set; }
 
+    // The in-game first-run guide (apworld 0.6.3). On by default; players who
+    // know the ropes can turn it off for every seed they generate.
+    public bool Tutorial { get; set; } = true;
+
     public IReadOnlyCollection<string> UnlockedTypewriterStageIds { get; set; } = Array.Empty<string>();
 }

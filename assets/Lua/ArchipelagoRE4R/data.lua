@@ -360,10 +360,11 @@ local function install(ctx)
     -- section-scoped overlay header. Stages stay internal; sections are the
     -- player-facing place vocabulary (see PLAYER_GUIDANCE_DESIGN.md).
     local map_labels = {
-        scenes = {},        -- scene id (number) -> zone display name ("Village")
-        chapter_scene = {}, -- chapter (number) -> scene id
-        stage_scene = {},   -- stage id (number) -> scene id
-        labels = {},        -- array of { scene, stage, x, z, name }
+        scenes = {},         -- scene id (number) -> zone display name ("Village")
+        chapter_scene = {},  -- chapter (number) -> scene id
+        stage_scene = {},    -- stage id (number) -> scene id
+        stage_sections = {}, -- stage id (number) -> curated section-name override
+        labels = {},         -- array of { scene, stage, x, z, name }
     }
     ctx.data.map_labels = map_labels
 
@@ -371,6 +372,7 @@ local function install(ctx)
         map_labels.scenes = {}
         map_labels.chapter_scene = {}
         map_labels.stage_scene = {}
+        map_labels.stage_sections = {}
         map_labels.labels = {}
 
         local payload = json.load_file(MAP_LABELS_FILE)
@@ -396,6 +398,13 @@ local function install(ctx)
             local scene = tonumber(scene_id)
             if stage ~= nil and scene ~= nil then
                 map_labels.stage_scene[stage] = scene
+            end
+        end
+        for stage_key, section_name in pairs(payload.stage_sections or {}) do
+            local stage = tonumber(stage_key)
+            local name = trim_string(section_name)
+            if stage ~= nil and name ~= "" then
+                map_labels.stage_sections[stage] = name
             end
         end
         for _, raw_label in ipairs(payload.labels or {}) do
@@ -446,13 +455,25 @@ local function install(ctx)
     end
 
     -- Nearest pause-map area label: same-stage labels win, else scene-wide
-    -- Voronoi by XZ distance. Mirror of data_parser.py's _resolve_section_name -
-    -- both sides must assign identical names or section counts drift.
+    -- Voronoi by XZ distance. Curated stage_sections overrides win outright
+    -- (one stable name per overridden stage - the header pins to it, matching
+    -- the checks' dataset names). Mirror of data_parser.py's
+    -- _resolve_section_name - both sides must assign identical names or
+    -- section counts drift.
     local function get_section_for_position(stage, chapter, x, z)
         local numeric_stage = tonumber(stage)
         local numeric_x = tonumber(x)
         local numeric_z = tonumber(z)
-        if numeric_stage == nil or numeric_x == nil or numeric_z == nil then
+        if numeric_stage == nil then
+            return nil
+        end
+
+        local override = map_labels.stage_sections[math.floor(numeric_stage)]
+        if override ~= nil then
+            return override
+        end
+
+        if numeric_x == nil or numeric_z == nil then
             return nil
         end
 
@@ -735,6 +756,82 @@ local function install(ctx)
         return total_count - remaining_count, total_count, remaining_count
     end
 
+    -- [Checks tab] Typewriter -> regions ownership, generated offline by
+    -- build_typewriter_regions.py from the authored region order. Each
+    -- typewriter owns every region from its own position up to the next
+    -- typewriter's, so the in-game list can answer "where are my remaining
+    -- checks, and which save point gets me closest".
+    local typewriter_regions = {}
+
+    local function load_typewriter_regions()
+        clear_table(typewriter_regions)
+        local payload = json.load_file(TYPEWRITER_REGIONS_FILE)
+        if type(payload) ~= "table" or type(payload.typewriters) ~= "table" then
+            return
+        end
+        for _, entry in ipairs(payload.typewriters) do
+            if type(entry) == "table" then
+                table.insert(typewriter_regions, entry)
+            end
+        end
+    end
+
+    -- Found/total for one (chapter, section) region, counted across every
+    -- stage that contributes locations to it.
+    local function get_region_progress(chapter, section)
+        local wanted_chapter = tonumber(chapter)
+        local wanted_section = trim_string(section)
+        local found_count = 0
+        local total_count = 0
+
+        for stage_key, stage_entries in pairs(stage_location_display_map or {}) do
+            if type(stage_entries) == "table" then
+                local stage_id = normalize_stage_id(stage_key)
+                for guid, display_entry in pairs(stage_entries) do
+                    if type(display_entry) == "table"
+                        and tonumber(display_entry.chapter) == wanted_chapter
+                        and trim_string(display_entry.section_name) == wanted_section then
+                        total_count = total_count + 1
+                        if stage_id ~= nil and is_guid_acknowledged(stage_id, guid) then
+                            found_count = found_count + 1
+                        end
+                    end
+                end
+            end
+        end
+
+        return found_count, total_count
+    end
+
+    -- The typewriter list with live counts folded in, ready to render.
+    local function get_typewriter_progress()
+        local rows = {}
+        for _, entry in ipairs(typewriter_regions) do
+            local regions = {}
+            local found_total = 0
+            local check_total = 0
+            for _, region in ipairs(entry.regions or {}) do
+                local found, total = get_region_progress(region.chapter, region.section)
+                found_total = found_total + found
+                check_total = check_total + total
+                table.insert(regions, {
+                    chapter = region.chapter,
+                    section = region.section,
+                    found = found,
+                    total = total,
+                })
+            end
+            table.insert(rows, {
+                stage = entry.stage,
+                name = entry.name,
+                regions = regions,
+                found = found_total,
+                total = check_total,
+            })
+        end
+        return rows
+    end
+
     -- Remaining-checks label for toast detail lines. Section-scoped when the
     -- checked location knows its pause-map area ("2 left in Village Square");
     -- the stage-scoped "nearby" wording survives only as the no-section fallback.
@@ -970,6 +1067,9 @@ local function install(ctx)
         load_location_guid_map = load_location_guid_map,
         load_location_display_map = load_location_display_map,
         load_map_labels = load_map_labels,
+        load_typewriter_regions = load_typewriter_regions,
+        get_region_progress = get_region_progress,
+        get_typewriter_progress = get_typewriter_progress,
         get_map_scene = get_map_scene,
         get_zone_name = get_zone_name,
         get_section_for_position = get_section_for_position,

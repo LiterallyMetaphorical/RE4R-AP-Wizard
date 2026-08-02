@@ -31,6 +31,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     private readonly RelayCommand _showCreateGuidanceCommand;
     private readonly RelayCommand _startJoinFlowCommand;
     private readonly RelayCommand _startConfigureYamlCommand;
+    private readonly AsyncRelayCommand _continueFromConfigureYamlCommand;
     private readonly RelayCommand _returnToLandingCommand;
     private readonly RelayCommand _openSetupCommand;
     private readonly RelayCommand _openRoomPageCommand;
@@ -200,6 +201,18 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         // install, no room, and no network, so it must work even while setup
         // checks are failing.
         _startConfigureYamlCommand = new RelayCommand(StartConfigureYaml);
+        // A slot name is mandatory: it is the player's identity in the room,
+        // and continuing without one strands them at connect.
+        _continueFromConfigureYamlCommand = new AsyncRelayCommand(
+            ContinueFromConfigureYamlAsync,
+            () => ConfigureYaml.CanContinue);
+        ConfigureYaml.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName is nameof(ConfigureYamlViewModel.CanContinue))
+            {
+                _continueFromConfigureYamlCommand.NotifyCanExecuteChanged();
+            }
+        };
         _returnToLandingCommand = new RelayCommand(NavigateToLanding);
         _openSetupCommand = new RelayCommand(OpenSetupScreen);
         _openRoomPageCommand = new RelayCommand(OpenRoomPage);
@@ -229,6 +242,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         Landing.StartCreateCommand = _showCreateGuidanceCommand;
         Landing.StartJoinCommand = _startJoinFlowCommand;
         Landing.StartConfigureYamlCommand = _startConfigureYamlCommand;
+        // The settings screen is the joiner's first stop, so it carries the
+        // path onward to the room address instead of dead-ending.
+        ConfigureYaml.ContinueCommand = _continueFromConfigureYamlCommand;
         Landing.OpenRoomPageCommand = _openRoomPageCommand;
         Landing.ReconnectPrefillCommand = _reconnectPrefillCommand;
         Landing.FixAddressCommand = _fixAddressCommand;
@@ -581,8 +597,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             + "enemies and the merchant. An in-progress save was built against the old world, so you "
             + "should START A NEW GAME after patching."
             + Environment.NewLine + Environment.NewLine
-            + "You can undo this by choosing the same options again."
-            + Environment.NewLine + Environment.NewLine + "Continue?");
+            + "You can undo this by choosing the same options again.",
+            proceedLabel: "Unlock and Change Options",
+            cancelLabel: "Keep Them Locked");
 
         if (confirmed)
         {
@@ -603,8 +620,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             "Done With This Multiworld?",
             $"Mark {record.SlotName} on {record.SeedName} as finished?"
             + Environment.NewLine + Environment.NewLine
-            + "RE4R will stop connecting to this room when launched."
-            + Environment.NewLine + Environment.NewLine + "Continue?");
+            + "RE4R will stop connecting to this room when launched.",
+            proceedLabel: "Mark It Finished",
+            cancelLabel: "Cancel");
         if (!confirmed)
         {
             return;
@@ -615,12 +633,13 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         // this or another multiworld later is safe and reproduces the world.
         var restoreVanilla = await _dialogService.ConfirmProceedWithWarningAsync(
             "Restore Vanilla RE4R?",
-            "Also remove the BioRand patch now so RE4R plays normally again?"
+            "Also remove the world patch now so RE4R plays normally again? "
+            + "You can re-patch this or another multiworld anytime. Keeping the patch is fine too - "
+            + "RE4R just won't connect to Archipelago."
             + Environment.NewLine + Environment.NewLine
-            + "Choose Yes to restore vanilla - you can re-patch this or another multiworld anytime. "
-            + "Choose No to keep the patch installed (RE4R just won't connect to Archipelago)."
-            + Environment.NewLine + Environment.NewLine
-            + "Close RE4R first if it's running, or a patch file may be locked.");
+            + "Close RE4R first if it's running, or a patch file may be locked.",
+            proceedLabel: "Remove the Patch",
+            cancelLabel: "Keep the Patch");
 
         var result = await _workflowService.RetireSessionAsync(record, restoreVanilla);
         Action.AppendLog($"Marked {record.SlotName} on {record.SeedName} as finished. RE4R will no longer auto-connect to it.");
@@ -695,7 +714,26 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     {
         ConfigureYaml.IsOrganizerContext = false;
         CurrentScreen = ConfigureYaml;
-        Action.AppendLog("Opening the RE4R YAML configuration screen.");
+        Action.AppendLog("Opening the Archipelago settings screen.");
+    }
+
+    /// <summary>
+    /// Leaving the settings screen for the join step. The draft is flushed
+    /// first (the auto-save is debounced, and the join step reads the SAVED
+    /// draft), and the slot name is carried across directly so it is never
+    /// lost to a race.
+    /// </summary>
+    private async Task ContinueFromConfigureYamlAsync()
+    {
+        await ConfigureYaml.FlushDraftAsync();
+
+        var slotName = ConfigureYaml.SlotName.Trim();
+        if (!string.IsNullOrWhiteSpace(slotName))
+        {
+            Session.SlotName = slotName;
+        }
+
+        StartJoinFlow();
     }
 
     private void NavigateToLanding()
@@ -789,11 +827,13 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         {
             var proceedWithoutDlc = await _dialogService.ConfirmProceedWithWarningAsync(
                 "Separate Ways DLC Not Detected",
-                "Separate Ways DLC is required for AP placeholder items. Please install it from Steam." +
+                "The Separate Ways DLC is required - other players' items appear in your world using "
+                + "its Archipelago-logo model. It could not be detected next to your RE4R install; "
+                + "it's free on Steam if you're missing it." +
                 Environment.NewLine + Environment.NewLine +
-                "The launcher could not detect the Separate Ways Steam DLC manifest next to your RE4R install." +
-                Environment.NewLine + Environment.NewLine +
-                "If your DLC is installed in a non-standard location, you can continue anyway. Proceed?");
+                "If your DLC is installed in a non-standard location, patching anyway is safe.",
+                proceedLabel: "Patch Anyway",
+                cancelLabel: "Cancel");
             if (!proceedWithoutDlc)
             {
                 Action.AppendLog("Workflow stopped because Separate Ways DLC was not confirmed.");
@@ -1058,9 +1098,12 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         // (audit launcherui-9).
         var confirmed = await _dialogService.ConfirmProceedWithWarningAsync(
             "Install REFramework?",
-            "This downloads the latest REFramework release from GitHub and writes dinput8.dll plus the reframework folder into:"
-            + Environment.NewLine + Environment.NewLine + Setup.InstallPath.Trim()
-            + Environment.NewLine + Environment.NewLine + "Proceed?");
+            "REFramework is the mod loader that runs the Archipelago scripts inside RE4R. "
+            + "This downloads its latest release from GitHub and writes dinput8.dll plus the "
+            + "reframework folder into:"
+            + Environment.NewLine + Environment.NewLine + Setup.InstallPath.Trim(),
+            proceedLabel: "Download and Install",
+            cancelLabel: "Cancel");
         if (!confirmed)
         {
             Action.AppendLog("REFramework install was declined.");
@@ -1771,7 +1814,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             "Clear the BioRand cache?",
             "This deletes the BioRand file cache (about 850 MB). Your next patch will "
             + "re-run BioRand setup once (about a minute) to rebuild it - no game files, "
-            + "saves, or sessions are affected.");
+            + "saves, or sessions are affected.",
+            proceedLabel: "Clear the Cache",
+            cancelLabel: "Cancel");
         if (!confirmed)
         {
             return;

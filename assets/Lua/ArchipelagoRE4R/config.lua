@@ -3,7 +3,7 @@ local function install(ctx)
         -- Logged at boot next to the launcher's install stamp so a player's
         -- re2_framework_log.txt identifies the exact deployed build. Bump on
         -- every Lua change that ships (date.rev).
-        MOD_VERSION = "2026.07.30-10",
+        MOD_VERSION = "2026.07.31-1",
         DATA_DIR = "ArchipelagoRE4R",
         WRITE_INTERVAL_SECONDS = 0.25,
         SCAN_INTERVAL_SECONDS = 1 / 30,
@@ -234,6 +234,9 @@ local function install(ctx)
     config.LOCATION_GUID_MAP_FILE = config.DATA_DIR .. "\\location_guid_map.json"
     config.LOCATION_DISPLAY_MAP_FILE = config.DATA_DIR .. "\\location_display_map.json"
     config.MAP_LABELS_FILE = config.DATA_DIR .. "\\map_labels.json"
+    -- [Checks tab] typewriter -> owned regions with check counts, generated
+    -- offline by build_typewriter_regions.py from the authored region order.
+    config.TYPEWRITER_REGIONS_FILE = config.DATA_DIR .. "\\typewriter_regions.json"
     config.PICKUP_EVENT_FLAGS_FILE = config.DATA_DIR .. "\\pickup_event_flags.json"
     -- [Drop audit] passive never-tracked telemetry: every pool guid the live
     -- DropItemManager has ever tracked, unioned across sessions and seeds.

@@ -79,21 +79,28 @@ internal sealed class AvaloniaDialogService : IUiDialogService
         var message =
             $"You have an unfinished session for {prompt.SlotName} on {prompt.NormalizedServer}.\n\n"
             + $"Existing seed: {prompt.ExistingSeedName}\nIncoming seed: {prompt.IncomingSeedName}\n\n"
-            + "Starting a new seed will overwrite your patched game files. Proceed?";
-        return await ShowMessageAsync("Overwrite Existing Session?", message, ["Proceed", "Cancel"]) == "Proceed";
+            + "Patching the new seed overwrites the game files of the existing one. "
+            + "You can always re-patch the old seed later to go back.";
+        return await ShowMessageAsync(
+            "Switch to the New Seed?",
+            message,
+            ["Overwrite and Patch New Seed", "Cancel"]) == "Overwrite and Patch New Seed";
     }
 
     public async Task<ResumeSessionDecision> ChooseResumeActionAsync(ResumeSessionPrompt prompt)
     {
         var result = await ShowMessageAsync(
-            "Resume or Re-patch?",
-            $"A patched session already exists for {prompt.SlotName} on {prompt.NormalizedServer}.\n\n"
-                + $"Seed: {prompt.SeedName}\nLast patched: {prompt.PatchedAtUtc?.ToLocalTime():yyyy-MM-dd HH:mm}",
-            ["Resume", "Re-patch", "Cancel"]);
+            "Already Patched",
+            $"Your game is already patched for this multiworld ({prompt.SlotName} on {prompt.NormalizedServer}).\n\n"
+                + $"Seed: {prompt.SeedName}\nLast patched: {prompt.PatchedAtUtc?.ToLocalTime():yyyy-MM-dd HH:mm}\n\n"
+                + "Keep Current World starts playing with the world exactly as it is.\n"
+                + "Re-patch This Seed rebuilds the game files for this same seed - use it after "
+                + "changing options, verifying game files, or when the world looks wrong.",
+            ["Keep Current World", "Re-patch This Seed", "Cancel"]);
         return result switch
         {
-            "Resume" => ResumeSessionDecision.Resume,
-            "Re-patch" => ResumeSessionDecision.RePatch,
+            "Keep Current World" => ResumeSessionDecision.Resume,
+            "Re-patch This Seed" => ResumeSessionDecision.RePatch,
             _ => ResumeSessionDecision.Cancel,
         };
     }
@@ -115,8 +122,12 @@ internal sealed class AvaloniaDialogService : IUiDialogService
             ["Install", "Cancel"]) == "Install";
     }
 
-    public async Task<bool> ConfirmProceedWithWarningAsync(string title, string message) =>
-        await ShowMessageAsync(title, message, ["Proceed", "Cancel"]) == "Proceed";
+    public async Task<bool> ConfirmProceedWithWarningAsync(
+        string title,
+        string message,
+        string proceedLabel = "Proceed",
+        string cancelLabel = "Cancel") =>
+        await ShowMessageAsync(title, message, [proceedLabel, cancelLabel]) == proceedLabel;
 
     public async Task SetClipboardTextAsync(string text)
     {

@@ -148,30 +148,11 @@ public sealed class LandingViewModel : ObservableObject
         private set => SetProperty(ref _draftPrimaryButtonText, value);
     }
 
-    private bool _isRoleStage = true;
-
-    /// <summary>First landing question: organizer role. One question at a time.</summary>
-    public bool IsRoleStage
-    {
-        get => _isRoleStage;
-        private set
-        {
-            if (SetProperty(ref _isRoleStage, value))
-            {
-                OnPropertyChanged(nameof(IsAddressStage));
-            }
-        }
-    }
-
-    public bool IsAddressStage => !IsRoleStage;
-
-    public ICommand AnswerSomeoneElseCommand => _answerSomeoneElseCommand ??= new RelayCommand(() => IsRoleStage = false);
-
-    public ICommand BackToRoleQuestionCommand => _backToRoleQuestionCommand ??= new RelayCommand(() => IsRoleStage = true);
-
-    private RelayCommand? _answerSomeoneElseCommand;
-    private RelayCommand? _backToRoleQuestionCommand;
-
+    // The landing used to ask a second question ("do you have a room address
+    // yet?") before letting a joiner move. Removed 2026-07-31: the settings
+    // file has no prerequisites and every joiner needs one, so Join now leads
+    // straight there and hands off to the room address at the end. Returning
+    // players skip it entirely via the saved-draft strip above.
     public ICommand? StartCreateCommand
     {
         get => _startCreateCommand;

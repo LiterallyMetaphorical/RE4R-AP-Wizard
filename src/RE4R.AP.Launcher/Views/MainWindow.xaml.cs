@@ -28,13 +28,13 @@ public partial class MainWindow : Window
     {
         if (_viewModel.HasBusyOperation)
         {
-            var proceed = MessageBox.Show(
+            var proceed = ChoiceDialog.Show(
                 this,
-                "The launcher is in the middle of an operation (patching or setup). "
-                    + "Closing now can leave your game install half-patched.\n\nClose anyway?",
-                "Operation In Progress",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning) == MessageBoxResult.Yes;
+                "Something Is Still Running",
+                "Patching or setup is still in progress. Closing now can leave your game "
+                    + "install half-patched - you would need to patch again to fix it.",
+                ["Close Anyway", "Keep It Open"],
+                primaryIndex: 1) == 0;
             if (!proceed)
             {
                 e.Cancel = true;

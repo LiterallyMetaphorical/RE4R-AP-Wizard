@@ -1,0 +1,668 @@
+{
+  "version": 1,
+  "typewriters": [
+    {
+      "stage": 40530,
+      "name": "Village Hunter Road",
+      "regions": [
+        {
+          "chapter": 1,
+          "section": "Hunter's Lodge",
+          "total": 4
+        },
+        {
+          "chapter": 1,
+          "section": "Village Square",
+          "total": 3
+        }
+      ],
+      "total": 7
+    },
+    {
+      "stage": 43300,
+      "name": "Farm",
+      "regions": [
+        {
+          "chapter": 1,
+          "section": "Farm",
+          "total": 9
+        },
+        {
+          "chapter": 1,
+          "section": "Lakeside Settlement",
+          "total": 1
+        },
+        {
+          "chapter": 1,
+          "section": "Lakeside Settlement Cabin",
+          "total": 2
+        }
+      ],
+      "total": 12
+    },
+    {
+      "stage": 44200,
+      "name": "Abandoned Factory",
+      "regions": [
+        {
+          "chapter": 2,
+          "section": "Abandoned Factory",
+          "total": 9
+        },
+        {
+          "chapter": 2,
+          "section": "Valley",
+          "total": 7
+        }
+      ],
+      "total": 16
+    },
+    {
+      "stage": 44110,
+      "name": "Chief's House",
+      "regions": [
+        {
+          "chapter": 2,
+          "section": "Village Chief's Manor",
+          "total": 13
+        },
+        {
+          "chapter": 3,
+          "section": "Village Square",
+          "total": 16
+        }
+      ],
+      "total": 29
+    },
+    {
+      "stage": 40213,
+      "name": "Community Center",
+      "regions": [
+        {
+          "chapter": 3,
+          "section": "Town Hall",
+          "total": 3
+        },
+        {
+          "chapter": 3,
+          "section": "Church Grounds",
+          "total": 1
+        },
+        {
+          "chapter": 3,
+          "section": "Quarry",
+          "total": 2
+        },
+        {
+          "chapter": 3,
+          "section": "Fish Farm",
+          "total": 10
+        },
+        {
+          "chapter": 4,
+          "section": "Boat House",
+          "total": 1
+        },
+        {
+          "chapter": 4,
+          "section": "Lake",
+          "total": 10
+        },
+        {
+          "chapter": 4,
+          "section": "Lakeside Settlement",
+          "total": 6
+        }
+      ],
+      "total": 33
+    },
+    {
+      "stage": 46210,
+      "name": "Carrier (Shooting Range Access)",
+      "regions": [
+        {
+          "chapter": 4,
+          "section": "Merchant Hideout",
+          "total": 2
+        },
+        {
+          "chapter": 4,
+          "section": "Large Cave Shrine",
+          "total": 6
+        },
+        {
+          "chapter": 4,
+          "section": "Mural Cave",
+          "total": 1
+        },
+        {
+          "chapter": 4,
+          "section": "Small Cave Shrine",
+          "total": 4
+        },
+        {
+          "chapter": 4,
+          "section": "Lakeside Shrine",
+          "total": 4
+        },
+        {
+          "chapter": 4,
+          "section": "Forest Altar",
+          "total": 2
+        },
+        {
+          "chapter": 4,
+          "section": "Quarry",
+          "total": 13
+        },
+        {
+          "chapter": 4,
+          "section": "Church Grounds",
+          "total": 7
+        },
+        {
+          "chapter": 4,
+          "section": "Church",
+          "total": 1
+        }
+      ],
+      "total": 40
+    },
+    {
+      "stage": 45401,
+      "name": "Church",
+      "regions": [
+        {
+          "chapter": 5,
+          "section": "Church",
+          "total": 11
+        },
+        {
+          "chapter": 5,
+          "section": "Village Square",
+          "total": 1
+        },
+        {
+          "chapter": 5,
+          "section": "Village Chief's Manor",
+          "total": 1
+        },
+        {
+          "chapter": 5,
+          "section": "Villa",
+          "total": 7
+        }
+      ],
+      "total": 20
+    },
+    {
+      "stage": 47100,
+      "name": "Village to Control Post",
+      "regions": [
+        {
+          "chapter": 6,
+          "section": "Checkpoint Alley",
+          "total": 7
+        },
+        {
+          "chapter": 6,
+          "section": "Checkpoint",
+          "total": 14
+        }
+      ],
+      "total": 21
+    },
+    {
+      "stage": 47400,
+      "name": "Butchery",
+      "regions": [
+        {
+          "chapter": 6,
+          "section": "Slaughterhouse",
+          "total": 10
+        },
+        {
+          "chapter": 7,
+          "section": "Castle Gate",
+          "total": 5
+        }
+      ],
+      "total": 15
+    },
+    {
+      "stage": 50200,
+      "name": "Castle Entrance",
+      "regions": [
+        {
+          "chapter": 7,
+          "section": "Castle Entrance",
+          "total": 1
+        }
+      ],
+      "total": 1
+    },
+    {
+      "stage": 50400,
+      "name": "Audience Chamber",
+      "regions": [
+        {
+          "chapter": 7,
+          "section": "Audience Chamber",
+          "total": 7
+        },
+        {
+          "chapter": 7,
+          "section": "Dungeons",
+          "total": 5
+        },
+        {
+          "chapter": 7,
+          "section": "Treasury",
+          "total": 6
+        }
+      ],
+      "total": 18
+    },
+    {
+      "stage": 50600,
+      "name": "After Audience Chamber",
+      "regions": [
+        {
+          "chapter": 7,
+          "section": "Water Hall",
+          "total": 6
+        },
+        {
+          "chapter": 8,
+          "section": "Wine Cellar Exterior",
+          "total": 1
+        },
+        {
+          "chapter": 8,
+          "section": "Wine Cellar",
+          "total": 3
+        }
+      ],
+      "total": 10
+    },
+    {
+      "stage": 51201,
+      "name": "Courtyard",
+      "regions": [
+        {
+          "chapter": 8,
+          "section": "Courtyard",
+          "total": 7
+        },
+        {
+          "chapter": 8,
+          "section": "Bindery",
+          "total": 8
+        }
+      ],
+      "total": 15
+    },
+    {
+      "stage": 51504,
+      "name": "After Bindery",
+      "regions": [
+        {
+          "chapter": 8,
+          "section": "Castle Battlements",
+          "total": 8
+        },
+        {
+          "chapter": 9,
+          "section": "Grand Hall",
+          "total": 3
+        },
+        {
+          "chapter": 9,
+          "section": "Gallery",
+          "total": 8
+        },
+        {
+          "chapter": 9,
+          "section": "Dining Hall",
+          "total": 2
+        },
+        {
+          "chapter": 9,
+          "section": "Armory",
+          "total": 8
+        },
+        {
+          "chapter": 9,
+          "section": "Library",
+          "total": 6
+        },
+        {
+          "chapter": 9,
+          "section": "Mausoleum",
+          "total": 2
+        }
+      ],
+      "total": 37
+    },
+    {
+      "stage": 53202,
+      "name": "Library (Ashley)",
+      "regions": [
+        {
+          "chapter": 10,
+          "section": "Grand Hall",
+          "total": 2
+        },
+        {
+          "chapter": 10,
+          "section": "Ballroom Entrance",
+          "total": 3
+        },
+        {
+          "chapter": 10,
+          "section": "Ballroom",
+          "total": 7
+        },
+        {
+          "chapter": 10,
+          "section": "Antechamber",
+          "total": 6
+        },
+        {
+          "chapter": 10,
+          "section": "Depths",
+          "total": 3
+        }
+      ],
+      "total": 21
+    },
+    {
+      "stage": 54402,
+      "name": "The Depths",
+      "regions": [
+        {
+          "chapter": 10,
+          "section": "Depths Tunnels",
+          "total": 2
+        },
+        {
+          "chapter": 10,
+          "section": "Underground Laboratory",
+          "total": 7
+        }
+      ],
+      "total": 9
+    },
+    {
+      "stage": 55100,
+      "name": "Mine (Shooting Range)",
+      "regions": [
+        {
+          "chapter": 11,
+          "section": "Mines",
+          "total": 6
+        },
+        {
+          "chapter": 11,
+          "section": "Blast Furnace",
+          "total": 9
+        }
+      ],
+      "total": 15
+    },
+    {
+      "stage": 55201,
+      "name": "After Blast Furnace",
+      "regions": [
+        {
+          "chapter": 11,
+          "section": "Stopover",
+          "total": 3
+        }
+      ],
+      "total": 3
+    },
+    {
+      "stage": 55300,
+      "name": "Hive",
+      "regions": [
+        {
+          "chapter": 11,
+          "section": "Hive",
+          "total": 2
+        },
+        {
+          "chapter": 11,
+          "section": "Krauser",
+          "total": 3
+        }
+      ],
+      "total": 5
+    },
+    {
+      "stage": 56100,
+      "name": "Ballroom",
+      "regions": [
+        {
+          "chapter": 12,
+          "section": "Gondola (Ballroom)",
+          "total": 1
+        },
+        {
+          "chapter": 12,
+          "section": "Throne Room",
+          "total": 3
+        },
+        {
+          "chapter": 12,
+          "section": "Clock Tower",
+          "total": 1
+        }
+      ],
+      "total": 5
+    },
+    {
+      "stage": 56103,
+      "name": "Clock Tower",
+      "regions": [
+        {
+          "chapter": 12,
+          "section": "Upper Clock Tower",
+          "total": 8
+        },
+        {
+          "chapter": 12,
+          "section": "Ancient Chantry",
+          "total": 3
+        },
+        {
+          "chapter": 12,
+          "section": "Dock",
+          "total": 1
+        }
+      ],
+      "total": 12
+    },
+    {
+      "stage": 60101,
+      "name": "Wharf",
+      "regions": [
+        {
+          "chapter": 13,
+          "section": "Wharf",
+          "total": 6
+        },
+        {
+          "chapter": 13,
+          "section": "Surveillance",
+          "total": 4
+        },
+        {
+          "chapter": 13,
+          "section": "Facility 1 Storage",
+          "total": 2
+        }
+      ],
+      "total": 12
+    },
+    {
+      "stage": 61500,
+      "name": "Utility",
+      "regions": [
+        {
+          "chapter": 13,
+          "section": "Utilities",
+          "total": 7
+        },
+        {
+          "chapter": 13,
+          "section": "Dissection",
+          "total": 6
+        },
+        {
+          "chapter": 13,
+          "section": "Freezer",
+          "total": 3
+        },
+        {
+          "chapter": 13,
+          "section": "Systems",
+          "total": 5
+        },
+        {
+          "chapter": 13,
+          "section": "Incubation Lab",
+          "total": 8
+        },
+        {
+          "chapter": 14,
+          "section": "Holding Cell",
+          "total": 2
+        }
+      ],
+      "total": 31
+    },
+    {
+      "stage": 61107,
+      "name": "Facility 1 (Shooting Range)",
+      "regions": [
+        {
+          "chapter": 14,
+          "section": "Facility 1 Exit",
+          "total": 2
+        },
+        {
+          "chapter": 14,
+          "section": "Lower Cargo Depot",
+          "total": 3
+        },
+        {
+          "chapter": 14,
+          "section": "Facility 2",
+          "total": 8
+        }
+      ],
+      "total": 13
+    },
+    {
+      "stage": 63109,
+      "name": "Waste Disposal to Cargo Depot",
+      "regions": [
+        {
+          "chapter": 14,
+          "section": "Waste Disposal",
+          "total": 5
+        },
+        {
+          "chapter": 14,
+          "section": "Upper Cargo Depot",
+          "total": 2
+        },
+        {
+          "chapter": 14,
+          "section": "Amber Storeroom",
+          "total": 2
+        },
+        {
+          "chapter": 14,
+          "section": "Campsite",
+          "total": 7
+        }
+      ],
+      "total": 16
+    },
+    {
+      "stage": 65100,
+      "name": "Campsite",
+      "regions": [
+        {
+          "chapter": 14,
+          "section": "Ruins",
+          "total": 9
+        },
+        {
+          "chapter": 15,
+          "section": "Stronghold",
+          "total": 8
+        }
+      ],
+      "total": 17
+    },
+    {
+      "stage": 66100,
+      "name": "After Ruins",
+      "regions": [
+        {
+          "chapter": 15,
+          "section": "Bulwark Gate",
+          "total": 5
+        }
+      ],
+      "total": 5
+    },
+    {
+      "stage": 67103,
+      "name": "Specimen Storage (Shooting Range)",
+      "regions": [
+        {
+          "chapter": 15,
+          "section": "Specimen Storage",
+          "total": 5
+        },
+        {
+          "chapter": 15,
+          "section": "Sanctuary Approach",
+          "total": 9
+        },
+        {
+          "chapter": 16,
+          "section": "Luis's Laboratory",
+          "total": 2
+        },
+        {
+          "chapter": 16,
+          "section": "Sanctuary",
+          "total": 5
+        }
+      ],
+      "total": 21
+    },
+    {
+      "stage": 68205,
+      "name": "Sanctuary Area 2",
+      "regions": [
+        {
+          "chapter": 16,
+          "section": "Loading Docks",
+          "total": 13
+        },
+        {
+          "chapter": 16,
+          "section": "Underground Passage",
+          "total": 2
+        }
+      ],
+      "total": 15
+    }
+  ]
+}

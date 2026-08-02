@@ -110,13 +110,20 @@ local function install(ctx)
         return rows
     end
 
-    local function draw_actions_content()
+    -- ===== Hints tab =====
+    -- Hint shopping only. Recovery (Force Check) moved to the Checks tab next
+    -- to the location it repairs, post-goal commands went with it, and chat
+    -- moved to the Message Log where the conversation already is.
+    local function draw_hints_content()
         local say = ctx.ap_say
         local economy_fn = ctx.ap_get_hint_economy
         local points, cost = nil, nil
         if type(economy_fn) == "function" then
             points, cost = economy_fn()
         end
+        imgui.text("Hints cost points you earn by finding checks. Buying one")
+        imgui.text("tells you where an item is - yours, or what sits nearby.")
+        imgui.text("")
         imgui.text(string.format(
             "Hint points: %s | Cost per hint: %s",
             tostring(points or "?"), tostring(cost or "?")))
@@ -181,14 +188,47 @@ local function install(ctx)
                     say("!hint_location " .. loc_names[lidx])
                 end
             end
+        end
 
-            imgui.text("")
-            imgui.text("-- Stuck? Force Check (debug) --")
-            imgui.text("Only for a BROKEN/unreachable check - this is basically cheating.")
-            imgui.text("If something broke, please report it to Metasr on Discord.")
+        -- Hints already bought that point at YOUR locations (rescued from the
+        -- deleted Overview tab, where no player ever looked for them).
+        resolve("draw_hints_on_my_world")()
+    end
+
+    -- ===== Recovery (inside the Checks tab) =====
+    -- Force Check plus the post-goal commands. Both are "I am finished with
+    -- this location / this run" actions, so they belong beside the check
+    -- list rather than beside hint shopping.
+    local function draw_recovery_content()
+        local say = ctx.ap_say
+        imgui.text("A check that will not send is a bug - please report it.")
+        imgui.text("Force Check marks it done and releases the item it held.")
+
+        local rows = build_nearby_location_rows()
+        if #rows == 0 then
+            imgui.text("(no unchecked locations near you)")
+        else
+            local loc_labels, loc_ids, loc_names = {}, {}, {}
+            for _, row in ipairs(rows) do
+                local entry = row.entry
+                local label = string.format(
+                    "%s - %s%s",
+                    tostring(entry.section_name ~= "" and entry.section_name or "?"),
+                    tostring(entry.item_name ~= "" and entry.item_name or entry.toast_title or "?"),
+                    row.distance ~= nil and string.format(" (%dm)", math.floor(row.distance + 0.5)) or "")
+                loc_labels[#loc_labels + 1] = label
+                loc_ids[#loc_labels] = tonumber(entry.location_id)
+                loc_names[#loc_labels] = tostring(entry.location_name or "")
+            end
+            local lidx = math.max(1, math.min(#loc_labels, math.floor(tonumber(bridge.actions_location_selected_index) or 1)))
+            local changed_lsel, lsel = imgui.combo("##recovery_location_pick", lidx, loc_labels)
+            if changed_lsel then lidx = lsel end
+            bridge.actions_location_selected_index = lidx
+
             local changed_announce, announce = imgui.checkbox(
-                "Announce force-check in room chat", bridge.force_check_announce ~= false)
+                "Tell the room I did this", bridge.force_check_announce ~= false)
             if changed_announce then bridge.force_check_announce = announce end
+
             if bridge.actions_confirm == "force" then
                 imgui.text("Really force-check: " .. tostring(loc_labels[lidx]))
                 if imgui.button("Yes, Force Check It") then
@@ -209,9 +249,8 @@ local function install(ctx)
             end
         end
 
-        -- 3) Post-goal commands.
         imgui.text("")
-        imgui.text("-- Post-goal --")
+        imgui.text("-- Finished the run? --")
         if bridge.victory_sent == true then
             if bridge.actions_confirm == "release" then
                 imgui.text("Send every remaining item in your world to its owners?")
@@ -237,20 +276,128 @@ local function install(ctx)
         else
             imgui.text("Release / Collect unlock after you reach your goal.")
         end
+    end
 
-        -- 4) Free chat / command box (escape hatch for everything else).
-        imgui.text("")
-        imgui.text("-- Chat / commands --")
-        local changed_say, say_value = imgui.input_text("##actions_say", bridge.actions_say_text or "")
-        if changed_say then bridge.actions_say_text = say_value end
+    -- ===== Debug tab =====
+    -- Audience: a tester who was told "open Debug and do X", and us reading
+    -- what comes back. Grouped by purpose, with the thing we actually want
+    -- pressed - the diagnostics dump - first. The old flat list opened with
+    -- fourteen buttons from a finished toast-rail investigation.
+    local function build_diagnostics_text()
+        local state = bridge.last_state or {}
+        -- Connection facts come from the client, not the bridge: the bridge
+        -- has no slot/server/seed fields (first draft read fields that never
+        -- existed and printed "?" for all three).
+        local info_fn = ctx.ap_get_connection_info or _G.ap_get_connection_info
+        local details = (type(info_fn) == "function") and info_fn() or {}
+        local function value_or(text, fallback)
+            local normalized = tostring(text or "")
+            if normalized == "" then
+                return fallback
+            end
+            return normalized
+        end
+
+        local seed_line = value_or(details.seed, "(unknown)")
+        local expected_seed = tostring(details.expected_seed or "")
+        if expected_seed ~= "" and tostring(details.seed or "") ~= "" then
+            seed_line = seed_line
+                .. (expected_seed == tostring(details.seed) and " (matches this session)" or " (MISMATCH vs " .. expected_seed .. ")")
+        elseif expected_seed ~= "" then
+            seed_line = expected_seed .. " (on record; room not answering)"
+        end
+
+        local lines = {
+            "RE4R Archipelago diagnostics",
+            string.format("mod build: %s", tostring(MOD_VERSION or "?")),
+            string.format("slot: %s", value_or(details.slot, "(not connected)")),
+            string.format("server: %s", value_or(details.server, "(none)")),
+            string.format("seed: %s", seed_line),
+            string.format("room page: %s", value_or(details.room_url, "(not recorded)")),
+            string.format("connection: %s", tostring(bridge.ap_status_label or bridge.ap_connection_status or "?")),
+            string.format("chapter: %s | stage: %s",
+                tostring(bridge.ui_current_chapter_display or "?"),
+                tostring(state.current_stage or "?")),
+            string.format("checks sent this session: %s", tostring(bridge.checks_sent_session or 0)),
+            string.format("acknowledged checks: %s", tostring(count_lookup_entries and count_lookup_entries(bridge.acknowledged_guid_keys) or "?")),
+            string.format("received watermark: %s", tostring(bridge.last_received_index or "?")),
+            string.format("last item received: %s", tostring(bridge.last_item_received or "(none)")),
+            string.format("last warp: %s", tostring(bridge.last_warp_status or "(idle)")),
+        }
+        return table.concat(lines, "\n")
+    end
+
+    local function draw_debug_content()
+        -- 1) Diagnostics: what a developer asks for in every bug thread.
+        imgui.text("Diagnostics")
+        imgui.text(build_diagnostics_text())
+        if imgui.button("Copy diagnostics to clipboard") then
+            local ok = pcall(function() imgui.set_clipboard(build_diagnostics_text()) end)
+            bridge.diagnostics_copy_status = ok and "copied - paste it into your bug report" or "copy failed"
+        end
         imgui.same_line()
-        if imgui.button("Send") then
-            local text = tostring(bridge.actions_say_text or "")
-            if text ~= "" and type(say) == "function" and say(text) then
-                bridge.actions_say_text = ""
+        if imgui.button("Write diagnostics to log") then
+            log.info("[RE4R AP] diagnostics\n" .. build_diagnostics_text())
+            bridge.diagnostics_copy_status = "written to re2_framework_log.txt"
+        end
+        if bridge.diagnostics_copy_status ~= nil then
+            imgui.text("  " .. tostring(bridge.diagnostics_copy_status))
+        end
+
+        -- 2) Pickup probe: what the detector is seeing right now. The first
+        -- question on any "my check did not send" report.
+        imgui.text("")
+        if imgui.collapsing_header("Pickup Probe##ap_debug_probe") then
+            resolve("draw_probe_content")()
+        end
+
+        -- 3) Recovery: things a developer will ask a tester to run.
+        imgui.text("")
+        if imgui.collapsing_header("Item Injection##ap_debug_recovery") then
+            imgui.text("Grants items outside the multiworld. Only use this when")
+            imgui.text("asked to - it can hand you things the seed never placed.")
+            resolve("draw_injection_content")()
+        end
+
+        -- 3) Simulations: safe to press, nothing permanent.
+        imgui.text("")
+        if imgui.collapsing_header("Simulations##ap_debug_sim") then
+            if imgui.button("Preview the progression warning") then
+                bridge.progression_warning_debug_last_result =
+                    tostring(resolve("preview_progression_warning")())
+            end
+            if bridge.progression_warning_debug_last_result ~= nil then
+                imgui.text("  " .. tostring(bridge.progression_warning_debug_last_result))
+            end
+            if imgui.button("Dump world markers to log") then
+                bridge.marker_dump_last_result = tostring(resolve("dump_world_markers_to_log")())
+            end
+            if bridge.marker_dump_last_result ~= nil then
+                imgui.text("  " .. tostring(bridge.marker_dump_last_result))
+            end
+            imgui.text("")
+            imgui.text("DeathLink state: " .. tostring(resolve("ap_debug_deathlink_status")()))
+            imgui.text("The button below REALLY kills you - it triggers a game over.")
+            if imgui.button("Simulate an inbound DeathLink death") then
+                bridge.deathlink_debug_last_result = tostring(resolve("ap_debug_simulate_deathlink")())
+            end
+            if bridge.deathlink_debug_last_result ~= nil then
+                imgui.text("  " .. tostring(bridge.deathlink_debug_last_result))
             end
         end
-        imgui.text("Responses appear as toasts and in the Message Log tab.")
+
+        -- 4) Authoring tools - irrelevant to testers, collapsed.
+        imgui.text("")
+        if imgui.collapsing_header("Chapter Switch##ap_debug_chapter") then
+            resolve("draw_chapter_switch_content")()
+        end
+
+        imgui.text("")
+        if imgui.collapsing_header("Developer only##ap_debug_dev") then
+            resolve("draw_native_log_content")()
+            imgui.text("")
+            resolve("draw_warp_editor_content")()
+        end
     end
 
     local function draw_main_window()
@@ -263,52 +410,21 @@ local function install(ctx)
 
         local tabs_open = (not has_tab_api) or imgui.begin_tab_bar("##ap_main_tabs")
         if tabs_open then
-            -- Overview is what you glance at mid-run (chapter, area, checks);
-            -- everything about the connection lives in Server, which is also
-            -- where the address can be changed (Cam 2026-07-30).
-            draw_tab("Overview", resolve("draw_status_content"))
+            -- Ordered by how often a player needs them. The Checklist is home:
+            -- it answers "where do I go next" and warps you there. The old
+            -- Overview tab was developer telemetry and is gone; its one
+            -- player-facing part (hints on your world) lives in Hints.
+            draw_tab("The Checklist", resolve("draw_checks_content"))
+            draw_tab("Guidance", resolve("draw_guidance_content"))
+            draw_tab("Hints", draw_hints_content)
+            -- Recovery earns a tab of its own: buried at the bottom of the
+            -- Checklist, the one tool a stuck player needs was the hardest
+            -- thing in the window to find (Cam 2026-07-31).
+            draw_tab("Something's Wrong", draw_recovery_content)
             draw_tab("Server", resolve("draw_server_content"))
-            draw_tab("Actions", draw_actions_content)
-            draw_tab("Warp", resolve("draw_warp_content"))
             draw_tab("Message Log", resolve("draw_message_log_content"))
             if bridge.developer_tools_enabled then
-                draw_tab("Debug", function()
-                    resolve("draw_native_log_content")()
-                    imgui.text("")
-                    imgui.text("DeathLink")
-                    imgui.text("  State: " .. tostring(resolve("ap_debug_deathlink_status")()))
-                    if imgui.button("Simulate inbound DeathLink death") then
-                        bridge.deathlink_debug_last_result =
-                            tostring(resolve("ap_debug_simulate_deathlink")())
-                    end
-                    if bridge.deathlink_debug_last_result ~= nil then
-                        imgui.text("  Last: " .. tostring(bridge.deathlink_debug_last_result))
-                    end
-                    imgui.text("")
-                    imgui.text("Progression Warning")
-                    if imgui.button("Preview Progression Warning (real data)") then
-                        bridge.progression_warning_debug_last_result =
-                            tostring(resolve("preview_progression_warning")())
-                    end
-                    if bridge.progression_warning_debug_last_result ~= nil then
-                        imgui.text("  Last: " .. tostring(bridge.progression_warning_debug_last_result))
-                    end
-                    imgui.text("")
-                    imgui.text("World Markers")
-                    if imgui.button("Dump World Markers To Log") then
-                        bridge.marker_dump_last_result =
-                            tostring(resolve("dump_world_markers_to_log")())
-                    end
-                    if bridge.marker_dump_last_result ~= nil then
-                        imgui.text("  Last: " .. tostring(bridge.marker_dump_last_result))
-                    end
-                    imgui.text("")
-                    resolve("draw_probe_content")()
-                    imgui.text("")
-                    resolve("draw_injection_content")()
-                    imgui.text("")
-                    resolve("draw_warp_editor_content")()
-                end)
+                draw_tab("Debug", draw_debug_content)
             end
             if has_tab_api then
                 imgui.end_tab_bar()
@@ -318,6 +434,8 @@ local function install(ctx)
         imgui.end_window()
     end
 
+    -- The Checks tab hosts recovery under its "Something's wrong" header.
+    export("draw_recovery_content", draw_recovery_content)
     export("draw_main_window", draw_main_window)
 end
 

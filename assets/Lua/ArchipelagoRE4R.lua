@@ -22,6 +22,9 @@ dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_overlay.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_world_markers.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_warning.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_windows.lua")(ctx)
+dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_checks.lua")(ctx)
+dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_guidance.lua")(ctx)
+dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_tutorial.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_main_window.lua")(ctx)
 -- In-Lua Archipelago client (lua-apclientpp). Loaded last so it can reach the
 -- full ctx (injection/runtime/session) in later phases. Phase 2a: log-only,
@@ -299,6 +302,7 @@ load_stage_chapter_map()
 load_location_guid_map()
 load_location_display_map()
 load_map_labels()
+load_typewriter_regions()
 load_injectable_items()
 load_warp_points()
 load_warp_unlocks()
@@ -427,81 +431,5 @@ re.on_draw_ui(function()
         end
     end
 
-    -- World markers obey the YAML check_guidance ceiling (slot_data): at "off"
-    -- the whole feature is disabled; rarity colours only appear at
-    -- "markers_rarity". The player can always tune DOWN, never above the ceiling.
-    if bridge.check_guidance_ceiling == "off" then
-        imgui.text("AP Check World Markers: disabled by this slot's YAML (check_guidance: off)")
-    else
-        local changed_markers, markers_value = imgui.checkbox("Show AP Check World Markers", bridge.world_markers_enabled)
-        if changed_markers then
-            bridge.world_markers_enabled = markers_value
-        end
-        if bridge.world_markers_enabled then
-            local changed_marker_distance, marker_distance_value =
-                imgui.slider_float("Marker Visibility Distance", bridge.world_markers_max_distance, 10.0, 100.0, "%.0fm")
-            if changed_marker_distance then
-                bridge.world_markers_max_distance = marker_distance_value
-            end
-
-            -- Marker detail ladder (marker_detail): how much a label says.
-            -- Distance, direction and height are always shown (the Basic tier);
-            -- higher tiers add what-to-look-for and, gated behind Developer Tools,
-            -- the actual AP placement. The pick is capped by the YAML host ceiling
-            -- (marker_detail_ceiling, absent = permissive).
-            local detail_tier_index = { basic = 1, locate = 2, identify = 3, developer = 4 }
-            local detail_names = { "basic", "locate", "identify", "developer" }
-            local detail_labels = {
-                "Basic (distance, direction, height, area)",
-                "Locate (+ what to look for)",
-                "Identify (+ actual AP item -- spoiler)",
-                "Developer (+ [code] matching the spoiler log)",
-            }
-            local ceiling_tier = detail_tier_index[bridge.marker_detail_ceiling or "developer"] or 4
-            local max_tier = math.min(ceiling_tier, bridge.developer_tools_enabled and 4 or 2)
-            local detail_options = {}
-            for i = 1, max_tier do detail_options[i] = detail_labels[i] end
-            local cur_name = bridge.world_markers_detail
-            if type(cur_name) ~= "string" then
-                cur_name = (type(WORLD_MARKER_DETAIL) == "string" and WORLD_MARKER_DETAIL) or "basic"
-            end
-            local cur_tier = math.min(detail_tier_index[cur_name] or 1, max_tier)
-            local changed_detail, new_tier = imgui.combo("Marker Detail", cur_tier, detail_options)
-            if changed_detail then
-                bridge.world_markers_detail = detail_names[new_tier]
-            elseif detail_names[cur_tier] ~= cur_name then
-                bridge.world_markers_detail = detail_names[cur_tier]
-            end
-            if ceiling_tier >= 3 and not bridge.developer_tools_enabled then
-                imgui.text("    Identify: turn on Developer Tools to reveal placements.")
-            end
-
-            -- Off-chapter markers (e.g. a Ch5 check the shared map family leaked
-            -- into Ch1) are muted grey + [Ch N] tagged; this hides them outright.
-            local changed_hide_oc, hide_oc_value =
-                imgui.checkbox("Hide Off-Chapter Markers", bridge.world_markers_hide_offchapter == true)
-            if changed_hide_oc then
-                bridge.world_markers_hide_offchapter = hide_oc_value
-            end
-
-            -- Colours reveal the scouted importance of what a check HOLDS - that is
-            -- hint-tier information: it needs the YAML ceiling AND the opt-in here.
-            if bridge.check_guidance_ceiling == "markers_rarity" then
-                local changed_marker_colors, marker_colors_value =
-                    imgui.checkbox("Marker Importance Colors (reveals scouted rarity)", bridge.world_markers_importance_colors)
-                if changed_marker_colors then
-                    bridge.world_markers_importance_colors = marker_colors_value
-                end
-            end
-        end
-
-        -- Independent of the ambient toggle: purchased hints are information the
-        -- player (or a teammate) explicitly bought, so opting out of ambient
-        -- [AP] markers does not hide [HINT] markers unless this is off too.
-        local changed_hint_markers, hint_markers_value =
-            imgui.checkbox("Show [HINT] Markers (whole stage, purchased hints)", bridge.world_markers_show_hints)
-        if changed_hint_markers then
-            bridge.world_markers_show_hints = hint_markers_value
-        end
-    end
+    imgui.text("Marker settings live in the window's Guidance tab (press Insert).")
 end)

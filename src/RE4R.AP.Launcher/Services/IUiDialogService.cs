@@ -31,7 +31,13 @@ public interface IUiDialogService
 
     Task<bool> ConfirmInstallAsync(InstallConfirmation confirmation);
 
-    Task<bool> ConfirmProceedWithWarningAsync(string title, string message);
+    // Labels carry the ACTION ("Clear the Cache", "Keep Them Locked") so no
+    // prompt ever asks the player to map Yes/No onto consequences.
+    Task<bool> ConfirmProceedWithWarningAsync(
+        string title,
+        string message,
+        string proceedLabel = "Proceed",
+        string cancelLabel = "Cancel");
 
     Task SetClipboardTextAsync(string text);
 

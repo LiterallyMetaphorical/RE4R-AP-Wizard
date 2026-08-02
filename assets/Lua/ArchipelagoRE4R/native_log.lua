@@ -737,88 +737,17 @@ local function install(ctx)
                 tostring(effect_id_none())
             ))
         end
-        if imgui.button("Notice: plain") then
+        -- Two smoke-test buttons. The dozen probe buttons that used to live
+        -- here answered their questions long ago (inline <COLOR> tags render,
+        -- unicode renders, the owner enum is known, the wide panel does not
+        -- honour embedded line breaks); the findings are recorded in this
+        -- file's comments and in the project notes, so the buttons were
+        -- deleted 2026-07-31 rather than left as clutter in a tab testers use.
+        if imgui.button("Push a test notice") then
             push_text_now("AP native rail test - plain text", {})
         end
-        if imgui.button("Notice: hex colour tags") then
-            push_text_now("Sent <COLOR E0B24A>Red9</COLOR> to <COLOR 73C7F5>Alice</COLOR>", {})
-        end
-        if imgui.button("Notice: preset tag (COL FILE)") then
-            push_text_now("Preset tag <COL FILE>gold words</COL> test", {})
-        end
-        if imgui.button("Notice: wide + long") then
-            push_text_now(
-                "Wide log test - a much longer Archipelago line to see how the rail wraps or clips it",
-                { wide = true }
-            )
-        end
-        -- [Two-line probe] Does the wide native panel render an embedded line break
-        -- as a real second line (Cam's goal), or ignore/cram it? The break convention
-        -- differs across RE Engine text elements, so probe all three; whichever shows
-        -- two lines is the one the composer would use for long notices.
-        if imgui.button("Notice: 2-line \\n") then
-            push_text_now("Restored First Aid Spray x1\nfrom before your reload", { wide = true })
-        end
-        if imgui.button("Notice: 2-line \\r\\n") then
-            push_text_now("Restored First Aid Spray x1\r\nfrom before your reload", { wide = true })
-        end
-        if imgui.button("Notice: 2-line <br>") then
-            push_text_now("Restored First Aid Spray x1<br>from before your reload", { wide = true })
-        end
-        if imgui.button("Notice: unicode") then
-            push_text_now("Unicode test: \u{00C5}lice \u{2605} \u{2192} works?", {})
-        end
-        if imgui.button("Notice: owner=Player") then
-            push_text_now("Owner Player test", { owner = enum_value("chainsaw.gui.LogOwnerType", "Player", 0) })
-        end
-        if imgui.button("Notice: glyph sampler") then
-            push_text_now("Glyphs: ← → ★ ◆ • ☠ † × ✝ ✟ ✓ ✗ ⚑ ◈ ↔ ▲", {})
-        end
-        if imgui.button("Notice: glyph prefix demo") then
-            push_text_now(
-                native_glyph_prefix("sent", "PROGRESSION")
-                    .. "Sent <COLOR E0B24A>Red9</COLOR> to <COLOR 73C7F5>Alice</COLOR>",
-                {}
-            )
-        end
-
-        imgui.text(string.format(
-            "Panel states - itemget: %s | notice: %s | recieve: %s",
-            tostring(bridge.native_log_itemget_panel_state or "?"),
-            tostring(bridge.native_log_notice_panel_state or "?"),
-            tostring(bridge.native_log_recieve_panel_state or "?")
-        ))
-        if imgui.button("Install panel-state hooks") then
-            install_panel_state_hooks()
-        end
-        local override_active = type(bridge.native_notice_panel_override) == "string"
-            and bridge.native_notice_panel_override ~= ""
-        local changed_style, style_value =
-            imgui.checkbox("Style notices like item toasts (capture itemget state first)", override_active)
-        if changed_style then
-            if style_value then
-                local captured = bridge.native_log_itemget_panel_state
-                if type(captured) == "string" and captured ~= "" then
-                    bridge.native_notice_panel_override = captured
-                    install_panel_state_hooks()
-                    set_status("notice style override = '" .. captured .. "'")
-                else
-                    set_status("no itemget state captured - install hooks, then pick up any item")
-                end
-            else
-                bridge.native_notice_panel_override = ""
-                set_status("notice style override off")
-            end
-        end
-
-        if imgui.button("ItemGet: placeholder x1") then
+        if imgui.button("Push a test item toast") then
             push_item_get(config.PLACEHOLDER_ITEM_ID, 1)
-        end
-        if imgui.button("ItemGet: placeholder x3 (Value=count?)") then
-            push_item_get(config.PLACEHOLDER_ITEM_ID, 3)
-        end
-        if imgui.button("ItemRecieve: placeholder") then
-            push_item_recieve(config.PLACEHOLDER_ITEM_ID, 1)
         end
     end
 

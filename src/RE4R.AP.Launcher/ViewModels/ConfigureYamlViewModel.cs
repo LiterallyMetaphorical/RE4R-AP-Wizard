@@ -35,6 +35,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     private bool _allowMissableLocations;
     private bool _shuffleKeycards;
     private bool _minimizeBacktracking;
+    private bool _tutorial = true;
     private string _yamlPreview = "Enter your slot name to generate the YAML preview.";
     private string _statusText = "Choose your RE4R settings - they save automatically as you edit.";
     private ICommand? _backToLandingCommand;
@@ -138,22 +139,26 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         {
             if (SetProperty(ref _isOrganizerContext, value))
             {
+                OnPropertyChanged(nameof(ShowContinue));
                 OnPropertyChanged(nameof(HeaderDescription));
+                RebuildFooter();
             }
         }
     }
 
     /// <summary>Always-shown one-liner explaining what this file is.</summary>
     public string FileExplainer =>
-        "A settings file (YAML) is a small text file that describes how your RE4R plays - "
-        + "difficulty, deathlink, which locations hold checks. Every Archipelago player has one for their game.";
+        "Archipelago calls these settings a YAML - a small text file describing how your RE4R plays "
+        + "(difficulty, DeathLink, which options you want). Every player in a multiworld has one for "
+        + "their game, and your host needs yours before they can generate the multiworld.";
 
     /// <summary>Role-aware next-step guidance under the title.</summary>
     public string HeaderDescription => IsOrganizerContext
         ? "This is your own settings file for the multiworld you're organizing. Save or copy it, then head back to the guide - "
           + "you'll drop it in alongside everyone else's when you collect settings files."
-        : "Save or copy your settings file and send it to whoever is organizing the multiworld (usually over Discord). "
-          + "They'll generate the multiworld and send back your room address and slot name.";
+        : "Save or copy your settings file and send it to whoever is hosting the multiworld (usually over Discord). "
+          + "They'll generate the multiworld and send back your room address - then continue below to join it. "
+          + "Already sent yours? Continue straight on.";
 
     public string SelectedDifficulty
     {
@@ -278,6 +283,19 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         }
     }
 
+    public bool Tutorial
+    {
+        get => _tutorial;
+        set
+        {
+            if (SetProperty(ref _tutorial, value))
+            {
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
+
     public string YamlPreview
     {
         get => _yamlPreview;
@@ -293,8 +311,52 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     public ICommand? BackToLandingCommand
     {
         get => _backToLandingCommand;
-        set => SetProperty(ref _backToLandingCommand, value);
+        set
+        {
+            if (SetProperty(ref _backToLandingCommand, value))
+            {
+                RebuildFooter();
+            }
+        }
     }
+
+    /// <summary>
+    /// The joiner's onward step. Join leads here first (the settings file has
+    /// no prerequisites), so this screen carries the path forward rather than
+    /// dead-ending at Back. The next screen states what it needs - this
+    /// button does not ask or assume anything.
+    /// </summary>
+    public ICommand? ContinueCommand
+    {
+        get => _continueCommand;
+        set
+        {
+            if (SetProperty(ref _continueCommand, value))
+            {
+                RebuildFooter();
+            }
+        }
+    }
+
+    private ICommand? _continueCommand;
+
+    /// <summary>Sticky footer actions, pinned by the shell above the log.</summary>
+    public System.Collections.ObjectModel.ObservableCollection<FooterButtonViewModel> FooterButtons { get; } = new();
+
+    private void RebuildFooter()
+    {
+        FooterButtons.Clear();
+        FooterButtons.Add(new FooterButtonViewModel("Back", BackToLandingCommand));
+        FooterButtons.Add(new FooterButtonViewModel("Save to File...", SaveYamlCommand));
+        FooterButtons.Add(new FooterButtonViewModel("Copy to Clipboard", CopyYamlCommand));
+        if (!IsOrganizerContext)
+        {
+            FooterButtons.Add(new FooterButtonViewModel("Continue", ContinueCommand, isPrimary: true));
+        }
+    }
+
+    /// <summary>Organizers return to their guide instead; they have their own step.</summary>
+    public bool ShowContinue => !IsOrganizerContext;
 
     public ICommand SaveYamlCommand { get; }
 
@@ -307,6 +369,12 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     {
         return !string.IsNullOrWhiteSpace(SlotName) && !IsSlotNameBlocking();
     }
+
+    /// <summary>
+    /// Continuing needs a usable slot name - it is the player's identity in
+    /// the room, and the join step cannot be completed without it.
+    /// </summary>
+    public bool CanContinue => CanUseYaml();
 
     // Archipelago silently truncates slot names to 16 characters at
     // generation time and refuses the reserved name - authoring an invalid
@@ -456,6 +524,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         AllowMissableLocations = draft.AllowMissableLocations;
         ShuffleKeycards = draft.ShuffleKeycards;
         MinimizeBacktracking = draft.MinimizeBacktracking;
+        Tutorial = draft.Tutorial;
         var selected = new HashSet<string>(draft.UnlockedTypewriterStageIds, StringComparer.Ordinal);
         foreach (var option in TypewriterOptions)
         {
@@ -463,6 +532,18 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         }
 
         StatusText = $"Restored your saved settings from {draft.SavedAtUtc.ToLocalTime():yyyy-MM-dd HH:mm}.";
+    }
+
+    /// <summary>
+    /// Writes the draft NOW instead of on the 700ms auto-save debounce.
+    /// Leaving this screen must not race the timer: the join step reads the
+    /// SAVED draft, so a player who types a slot name and immediately
+    /// continues would otherwise arrive with it missing.
+    /// </summary>
+    public async Task FlushDraftAsync()
+    {
+        _autoSaveCancellationSource?.Cancel();
+        await PersistDraftAsync();
     }
 
     private async Task PersistDraftAsync()
@@ -482,6 +563,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
                 draft.AllowMissableLocations = AllowMissableLocations;
                 draft.ShuffleKeycards = ShuffleKeycards;
                 draft.MinimizeBacktracking = MinimizeBacktracking;
+                draft.Tutorial = Tutorial;
                 draft.UnlockedTypewriterStageIds = TypewriterOptions
                     .Where(option => option.IsSelected)
                     .Select(option => option.StageId)
@@ -513,6 +595,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             AllowMissableLocations = AllowMissableLocations,
             ShuffleKeycards = ShuffleKeycards,
             MinimizeBacktracking = MinimizeBacktracking,
+            Tutorial = Tutorial,
             UnlockedTypewriterStageIds = TypewriterOptions
                 .Where(option => option.IsSelected)
                 .Select(option => option.StageId)
@@ -590,6 +673,8 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     {
         _saveYamlCommand.NotifyCanExecuteChanged();
         _copyYamlCommand.NotifyCanExecuteChanged();
+        // The shell watches CanContinue to gate the footer's Continue.
+        OnPropertyChanged(nameof(CanContinue));
     }
 
     private static int SoftSnapProgressionBalancing(int value)

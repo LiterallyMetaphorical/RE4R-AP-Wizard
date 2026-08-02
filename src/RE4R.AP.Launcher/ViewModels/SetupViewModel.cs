@@ -116,8 +116,18 @@ public sealed class SetupViewModel : ObservableObject
     public ICommand? ContinueCommand
     {
         get => _continueCommand;
-        set => SetProperty(ref _continueCommand, value);
+        set
+        {
+            if (SetProperty(ref _continueCommand, value))
+            {
+                FooterButtons.Clear();
+                FooterButtons.Add(new FooterButtonViewModel("Continue", value, isPrimary: true));
+            }
+        }
     }
+
+    /// <summary>Sticky footer actions, pinned by the shell above the log.</summary>
+    public System.Collections.ObjectModel.ObservableCollection<FooterButtonViewModel> FooterButtons { get; } = new();
 
     /// <summary>Reclaims the ~850 MB BioRand cache (now in LocalAppData).</summary>
     public ICommand? ClearBioRandCacheCommand

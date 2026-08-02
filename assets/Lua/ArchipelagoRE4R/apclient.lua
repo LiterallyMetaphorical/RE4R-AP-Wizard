@@ -1177,6 +1177,16 @@ return function(ctx)
             end
             info("CheckGuidance ceiling: " .. cg .. " (from slot_data)")
         end
+        -- [Tutorial] The first-run guide, on unless the slot turned it off.
+        -- Older seeds without the key keep it on.
+        do
+            local tut = (type(slot_data) == "table") and slot_data.tutorial or nil
+            local enabled = not ((tut == false) or (tut == 0) or (tut == "0"))
+            if ctx.bridge then
+                ctx.bridge.tutorial_enabled = enabled
+            end
+            info("Tutorial: " .. (enabled and "enabled" or "disabled") .. " (from slot_data)")
+        end
         -- Capture our NUMERIC slot + seed and establish the per-seed session
         -- identity so the durable watermark keys to session_<seed>__<slot>.json
         -- and loads on connect. Clear any stale queue from a prior connection.

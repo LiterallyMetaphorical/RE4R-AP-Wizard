@@ -260,7 +260,24 @@ public sealed class GenerationGuidanceViewModel : ObservableObject
     public ICommand? BackToLandingCommand
     {
         get => _backToLandingCommand;
-        set => SetProperty(ref _backToLandingCommand, value);
+        set
+        {
+            if (SetProperty(ref _backToLandingCommand, value))
+            {
+                RebuildFooter();
+            }
+        }
+    }
+
+    /// <summary>Sticky footer actions, pinned by the shell above the log.</summary>
+    public System.Collections.ObjectModel.ObservableCollection<FooterButtonViewModel> FooterButtons { get; } = new();
+
+    private void RebuildFooter()
+    {
+        FooterButtons.Clear();
+        FooterButtons.Add(new FooterButtonViewModel("Exit Guide", BackToLandingCommand));
+        FooterButtons.Add(new FooterButtonViewModel("Back", BackStepCommand));
+        FooterButtons.Add(new FooterButtonViewModel("Next", NextStepCommand, isPrimary: true));
     }
 
     public string ApInstallPath
@@ -736,14 +753,33 @@ public sealed class GenerationGuidanceViewModel : ObservableObject
             }
 
             Step2Done = copyState == ArchipelagoInstallationService.ApworldCopyState.UpToDate;
-            ApworldStatusText = copyState switch
+            if (copyState == ArchipelagoInstallationService.ApworldCopyState.Outdated)
             {
-                ArchipelagoInstallationService.ApworldCopyState.UpToDate =>
-                    $"RE4R.apworld is in {ArchipelagoInstallationService.GetCustomWorldsPath(_inspection.RootPath)} and up to date.",
-                ArchipelagoInstallationService.ApworldCopyState.Outdated =>
-                    "A DIFFERENT RE4R.apworld is in custom_worlds - copy again to replace it with this launcher's version.",
-                _ => "Not copied yet.",
-            };
+                // Name BOTH versions: "a DIFFERENT file is there" left players
+                // guessing which way the mismatch ran, and the installed copy
+                // is sometimes the NEWER one (mid-playtest hand-copies).
+                var installedVersion = await _apService.ReadApworldWorldVersionAsync(
+                    _apService.GetApworldDestinationPath(_inspection.RootPath),
+                    token);
+                var installedLabel = string.IsNullOrWhiteSpace(installedVersion)
+                    ? "an unreadable version"
+                    : $"version {installedVersion}";
+                var bundledLabel = string.IsNullOrWhiteSpace(_bundledWorldVersion)
+                    ? "the version bundled here"
+                    : $"version {_bundledWorldVersion}";
+                ApworldStatusText =
+                    $"Your custom_worlds folder has {installedLabel}; this app bundles {bundledLabel}. "
+                    + "Copy it over so the multiworld you generate matches what your players patch with.";
+            }
+            else
+            {
+                ApworldStatusText = copyState switch
+                {
+                    ArchipelagoInstallationService.ApworldCopyState.UpToDate =>
+                        $"RE4R.apworld is in {ArchipelagoInstallationService.GetCustomWorldsPath(_inspection.RootPath)} and up to date.",
+                    _ => "Not copied yet.",
+                };
+            }
 
             await EnsureRowsParsedAsync();
             await RefreshWorldsCatalogAsync(token);

@@ -36,6 +36,29 @@ public sealed class JoinFlowViewModel : ObservableObject
         PatchMyGameCommand = _patchMyGameCommand;
 
         Session.PropertyChanged += OnSessionPropertyChanged;
+        RebuildFooter();
+    }
+
+    /// <summary>Sticky footer actions for the current sub-step.</summary>
+    public System.Collections.ObjectModel.ObservableCollection<FooterButtonViewModel> FooterButtons { get; } = new();
+
+    private void RebuildFooter()
+    {
+        FooterButtons.Clear();
+        switch (CurrentStep)
+        {
+            case JoinFlowStep.SessionInfo:
+                FooterButtons.Add(new FooterButtonViewModel("Back", BackToLandingCommand));
+                FooterButtons.Add(new FooterButtonViewModel("Continue", GoToBioRandOptionsCommand, isPrimary: true));
+                break;
+            case JoinFlowStep.BioRandOptions:
+                FooterButtons.Add(new FooterButtonViewModel("Back", BackToSessionInfoCommand));
+                FooterButtons.Add(new FooterButtonViewModel("Patch My Game", PatchMyGameCommand, isPrimary: true));
+                break;
+            case JoinFlowStep.Patching:
+                FooterButtons.Add(new FooterButtonViewModel("Back", BackToSessionInfoCommand));
+                break;
+        }
     }
 
     public event Action? PatchRequested;
@@ -56,6 +79,7 @@ public sealed class JoinFlowViewModel : ObservableObject
                 OnPropertyChanged(nameof(IsSessionInfoStep));
                 OnPropertyChanged(nameof(IsBioRandOptionsStep));
                 OnPropertyChanged(nameof(IsPatchingStep));
+                RebuildFooter();
             }
         }
     }
@@ -69,7 +93,15 @@ public sealed class JoinFlowViewModel : ObservableObject
     public ICommand? BackToLandingCommand
     {
         get => _backToLandingCommand;
-        set => SetProperty(ref _backToLandingCommand, value);
+        set
+        {
+            if (SetProperty(ref _backToLandingCommand, value))
+            {
+                // Wired after construction by the shell; the footer holds a
+                // direct reference, so rebuild once it lands.
+                RebuildFooter();
+            }
+        }
     }
 
     public ICommand GoToBioRandOptionsCommand { get; }

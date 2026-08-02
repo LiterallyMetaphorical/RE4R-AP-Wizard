@@ -51,6 +51,11 @@ public sealed class PendingSessionDraft
     [JsonPropertyName("minimize_backtracking")]
     public bool MinimizeBacktracking { get; set; }
 
+    // Default TRUE so drafts saved before this option existed keep the guide
+    // on, matching the apworld default.
+    [JsonPropertyName("tutorial")]
+    public bool Tutorial { get; set; } = true;
+
     [JsonPropertyName("unlocked_typewriter_stage_ids")]
     public List<string> UnlockedTypewriterStageIds { get; set; } = new();
 

@@ -80,11 +80,18 @@ Rebuilt:     2026-07-31 (rev 4), world_version 0.6.2 - the key-item policy.
              launcher count check; only NEW generations gain the guarantees.
              Verified: 28-generation sweep across default / shuffle_keycards
              / minimize_backtracking, zero failures.
-Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_version 0.6.2
+Rebuilt:     2026-07-31 (rev 5), world_version 0.6.3 - the `tutorial` option.
+             Adds a YAML toggle (default ON) for the in-game getting-started
+             guide; the client reads it from slot_data on connect and older
+             seeds without the key keep the guide on. No logic, pool or item
+             change - locations stay at 474 - so 0.6.x rooms remain
+             patch-compatible. Verified: 28-generation sweep across default /
+             shuffle_keycards / minimize_backtracking, zero failures.
+Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_version 0.6.3
              per that repo's archipelago.json.
 AP target:   Archipelago 0.6.7 (the version the apworld was developed and
              generation-validated against; pinned via the manifest as of 2026-07-12).
-SHA-256:     df17917cb2a6eb38c67822140186ba63042c0476943a246dc099a87af8cf1127
+SHA-256:     bd7bfb492f94b35d9705e76c3dccf2984ac888958425759f60c6fee32a412ff8
 Consumed by: the Generation Guidance screen ("Copy RE4R.apworld to your Archipelago
              custom_worlds folder") - ArchipelagoInstallationService reads the
              world_version out of this zip's manifest for display and copies the

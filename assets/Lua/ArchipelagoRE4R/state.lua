@@ -54,6 +54,12 @@ local function install(ctx)
         loaded_session_state_path = nil,
         victory_sent = false,
         victory_pending = false,
+        -- [Tutorial] tutorial_enabled comes from slot_data (YAML, default on);
+        -- tutorial_shown is per-seed and persists in the session file.
+        tutorial_enabled = true,
+        tutorial_shown = false,
+        tutorial_dialog_open = false,
+        tutorial_page = 1,
         pending_checks = {},
         pending_check_keys = {},
         next_pending_check_id = 1,

@@ -41,6 +41,9 @@ local function install(ctx)
             victory_sent = bridge.victory_sent == true,
             victory_pending = bridge.victory_pending == true,
             last_received_index = math.floor(tonumber(bridge.last_received_index) or -1),
+            -- Per-seed so a returning player is never re-taught, but a brand
+            -- new seed greets a brand new player.
+            tutorial_shown = bridge.tutorial_shown == true,
             -- [Phase 3] durable per-seed checked set ("stage|guid" -> true).
             acknowledged_guid_keys = bridge.acknowledged_guid_keys,
             -- [F8] per-guid, per-save-version received-item watermarks.
@@ -58,6 +61,7 @@ local function install(ctx)
         bridge.victory_sent = false
         bridge.victory_pending = false
         bridge.last_received_index = -1
+        bridge.tutorial_shown = false
         bridge.acknowledged_guid_keys = {}
         bridge.save_reconcile_map = {}
 
@@ -78,6 +82,7 @@ local function install(ctx)
             bridge.victory_sent = payload.victory_sent == true
             bridge.victory_pending = payload.victory_pending == true
             bridge.last_received_index = math.floor(tonumber(payload.last_received_index) or -1)
+            bridge.tutorial_shown = payload.tutorial_shown == true
             if type(payload.acknowledged_guid_keys) == "table" then
                 for k, v in pairs(payload.acknowledged_guid_keys) do
                     if type(k) == "string" and v == true then

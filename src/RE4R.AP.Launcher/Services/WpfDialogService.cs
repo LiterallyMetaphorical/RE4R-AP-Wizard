@@ -88,39 +88,40 @@ public sealed class WpfDialogService : IUiDialogService
             Environment.NewLine + Environment.NewLine +
             $"Existing seed: {prompt.ExistingSeedName}" + Environment.NewLine +
             $"Incoming seed: {prompt.IncomingSeedName}" + Environment.NewLine + Environment.NewLine +
-            "Starting a new seed will overwrite your patched game files. Proceed?";
+            "Patching the new seed overwrites the game files of the existing one. " +
+            "You can always re-patch the old seed later to go back.";
 
-        var result = MessageBox.Show(
+        var chosen = ChoiceDialog.Show(
             _owner,
+            "Switch to the New Seed?",
             message,
-            "Overwrite Existing Session?",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Warning);
+            ["Overwrite and Patch New Seed", "Cancel"]);
 
-        return Task.FromResult(result == MessageBoxResult.Yes);
+        return Task.FromResult(chosen == 0);
     }
 
     public Task<ResumeSessionDecision> ChooseResumeActionAsync(ResumeSessionPrompt prompt)
     {
         var message =
-            $"A patched session already exists for {prompt.SlotName} on {prompt.NormalizedServer}." +
+            $"Your game is already patched for this multiworld ({prompt.SlotName} on {prompt.NormalizedServer})." +
             Environment.NewLine + Environment.NewLine +
             $"Seed: {prompt.SeedName}" + Environment.NewLine +
             $"Last patched: {FormatTimestamp(prompt.PatchedAtUtc)}" + Environment.NewLine + Environment.NewLine +
-            "Choose Yes to Resume, No to Re-patch, or Cancel to stop.";
+            "Keep Current World starts playing with the world exactly as it is." + Environment.NewLine +
+            "Re-patch This Seed rebuilds the game files for this same seed - use it after " +
+            "changing options, verifying game files in Steam, or when the world looks wrong.";
 
-        var result = MessageBox.Show(
+        var chosen = ChoiceDialog.Show(
             _owner,
+            "Already Patched",
             message,
-            "Resume or Re-patch?",
-            MessageBoxButton.YesNoCancel,
-            MessageBoxImage.Question);
+            ["Keep Current World", "Re-patch This Seed", "Cancel"]);
 
         return Task.FromResult(
-            result switch
+            chosen switch
             {
-                MessageBoxResult.Yes => ResumeSessionDecision.Resume,
-                MessageBoxResult.No => ResumeSessionDecision.RePatch,
+                0 => ResumeSessionDecision.Resume,
+                1 => ResumeSessionDecision.RePatch,
                 _ => ResumeSessionDecision.Cancel,
             });
     }
@@ -136,16 +137,14 @@ public sealed class WpfDialogService : IUiDialogService
         return Task.FromResult(result == true);
     }
 
-    public Task<bool> ConfirmProceedWithWarningAsync(string title, string message)
+    public Task<bool> ConfirmProceedWithWarningAsync(
+        string title,
+        string message,
+        string proceedLabel = "Proceed",
+        string cancelLabel = "Cancel")
     {
-        var result = MessageBox.Show(
-            _owner,
-            message,
-            title,
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Warning);
-
-        return Task.FromResult(result == MessageBoxResult.Yes);
+        var chosen = ChoiceDialog.Show(_owner, title, message, [proceedLabel, cancelLabel]);
+        return Task.FromResult(chosen == 0);
     }
 
     public Task SetClipboardTextAsync(string text)

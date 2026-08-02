@@ -77,38 +77,10 @@ local function install(ctx)
         return true
     end
 
-    -- Player-facing session status (Overview tab of the consolidated window).
-    local function draw_status_content()
-        local state = bridge.last_state or {}
-        imgui.text("Playable: " .. format_bool(state.is_playable == true))
-        imgui.text("AP Connection: " .. tostring(bridge.ap_status_label or bridge.ap_connection_status or "Disconnected"))
-        local section_resolver = ctx.get_current_section or _G.get_current_section
-        local current_section = nil
-        if type(section_resolver) == "function" and type(state.current_stage) == "number" then
-            local ok_section, resolved_section = pcall(section_resolver, state.current_stage)
-            if ok_section and type(resolved_section) == "string" and resolved_section ~= "" then
-                current_section = resolved_section
-            end
-        end
-        imgui.text(
-            string.format(
-                "Chapter: %s | Area: %s | Stage: %s",
-                tostring(bridge.ui_current_chapter_display or "(unknown)"),
-                tostring(current_section or "(unknown)"),
-                format_optional(state.current_stage)
-            )
-        )
-        imgui.text(
-            string.format(
-                "Candidate Checks: %s | Checks Sent: %s",
-                tostring(state.candidate_check_count or 0),
-                tostring(bridge.checks_sent_session or 0)
-            )
-        )
-        imgui.text("Last Item Received: " .. tostring(bridge.last_item_received or "(none)"))
-
-        -- [Hints] Unfound hints on OUR locations (durable, storage-synced by
-        -- apclient). Place = section (container gloss) - authored note.
+    -- [Hints] Unfound hints pointing at OUR locations (durable, storage-synced
+    -- by apclient). Lives in the Hints tab now - it used to be buried at the
+    -- bottom of the Overview status dump, where no player looked for it.
+    local function draw_hints_on_my_world()
         local hints = bridge.hints_on_my_world
         if type(hints) == "table" and next(hints) ~= nil then
             local rows = {}
@@ -442,80 +414,62 @@ local function install(ctx)
 
     -- Typewriter warp + chapter switch (Warp tab). Warp system originally
     -- created by JumperDenfer.
-    local function draw_warp_content()
-        if #bridge.typewriter_warp_points > 0 then
-            local changed_warp_index, warp_index = imgui.combo(
-                "##warp_point_selector",
-                bridge.selected_typewriter_warp_index,
-                bridge.typewriter_warp_point_names
-            )
-            if changed_warp_index then
-                select_typewriter_warp_point(warp_index)
-            end
-        else
-            imgui.text("No typewriter warp points loaded")
-        end
-
-        -- Unique imgui ID on its OWN row - load-bearing, not style. The
-        -- original bare "Warp" button on the combo's same_line NEVER received
-        -- clicks (hover reached it, clicks vanished; proven via staged
-        -- instrumentation 2026-07-29). Do not rename back or re-inline.
-        local warp_clicked = imgui.button("Warp Now##ap_warp_exec")
-        if warp_clicked and bridge.pending_warp ~= nil then
-            -- Debounce the sub-tick window between click and execute so a
-            -- double-click cannot queue the warp twice.
+    -- Shared warp execution: the Checks tab warps straight from a typewriter
+    -- row, so the click verdicts (nothing selected / locked / failed) and
+    -- their logging live here rather than inside one tab's draw call.
+    local function execute_typewriter_warp(selected_warp_point)
+        if bridge.pending_warp ~= nil then
             push_warp_feedback_toast("Warp already in progress", nil)
-            warp_clicked = false
+            return false
         end
-        if warp_clicked then
-            local selected_warp_point = bridge.typewriter_warp_points[bridge.selected_typewriter_warp_index]
-            -- Log EVERY click verdict: a warp report with zero [RE4R AP] warp
-            -- lines means the click died in a silent branch here - that
-            -- ambiguity is exactly what made "warp does nothing" undiagnosable
-            -- from the 2026-07-29 log.
-            if selected_warp_point == nil then
-                bridge.last_warp_status = "No typewriter warp selected"
-                log.info(string.format(
-                    "[RE4R AP] warp click: no selection (index=%s of %d points)",
-                    tostring(bridge.selected_typewriter_warp_index),
-                    #bridge.typewriter_warp_points))
-                push_warp_feedback_toast("Warp: nothing selected", "pick a typewriter first")
-            elseif not is_warp_stage_unlocked(selected_warp_point.stage_id) then
-                bridge.last_warp_status = selected_warp_point.name .. " is locked until visited"
-                log.info(string.format(
-                    "[RE4R AP] warp click: %s (stage %s) is LOCKED - stand at that typewriter once this seed to unlock it",
-                    tostring(selected_warp_point.name),
-                    tostring(selected_warp_point.stage_id)))
-                push_warp_feedback_toast(
-                    "Warp locked: " .. tostring(selected_warp_point.name),
-                    "visit that typewriter once this seed to unlock it")
-            else
-                log.info(string.format(
-                    "[RE4R AP] warp click: %s (stage %s) unlocked - executing",
-                    tostring(selected_warp_point.name),
-                    tostring(selected_warp_point.stage_id)))
-                local ok = warpToLocation(
-                    selected_warp_point.stage_id,
-                    selected_warp_point.x,
-                    selected_warp_point.y,
-                    selected_warp_point.z
-                )
-                if ok then
-                    push_warp_feedback_toast(
-                        "Warping to " .. tostring(selected_warp_point.name),
-                        "you may need to warp a few times over")
-                else
-                    bridge.last_warp_status = "Warp failed"
-                    push_warp_feedback_toast(
-                        "Warp failed: " .. tostring(selected_warp_point.name),
-                        "see re2_framework_log.txt for the reason")
-                end
-            end
+        if selected_warp_point == nil then
+            bridge.last_warp_status = "No typewriter warp selected"
+            log.info("[RE4R AP] warp click: no selection")
+            push_warp_feedback_toast("Warp: nothing selected", "pick a typewriter first")
+            return false
+        end
+        if not is_warp_stage_unlocked(selected_warp_point.stage_id) then
+            bridge.last_warp_status = selected_warp_point.name .. " is locked until visited"
+            log.info(string.format(
+                "[RE4R AP] warp click: %s (stage %s) is LOCKED - stand at that typewriter once this seed to unlock it",
+                tostring(selected_warp_point.name),
+                tostring(selected_warp_point.stage_id)))
+            push_warp_feedback_toast(
+                "Warp locked: " .. tostring(selected_warp_point.name),
+                "visit that typewriter once this seed to unlock it")
+            return false
         end
 
-        imgui.text("Last Warp: " .. tostring(bridge.last_warp_status or "(idle)"))
+        log.info(string.format(
+            "[RE4R AP] warp click: %s (stage %s) unlocked - executing",
+            tostring(selected_warp_point.name),
+            tostring(selected_warp_point.stage_id)))
+        local ok = warpToLocation(
+            selected_warp_point.stage_id,
+            selected_warp_point.x,
+            selected_warp_point.y,
+            selected_warp_point.z
+        )
+        if ok then
+            push_warp_feedback_toast(
+                "Warping to " .. tostring(selected_warp_point.name),
+                "you may need to warp a few times over")
+        else
+            bridge.last_warp_status = "Warp failed"
+            push_warp_feedback_toast(
+                "Warp failed: " .. tostring(selected_warp_point.name),
+                "see re2_framework_log.txt for the reason")
+        end
+        return ok == true
+    end
 
-        imgui.text("Chapter Switch")
+    -- Chapter Switch: a jump that needs a loading screen and drops you at the
+    -- chapter's start, so it is a recovery tool rather than travel. It used to
+    -- sit under the warp dropdown; with warping moved into the Checks tab it
+    -- lives in Debug, where the other blunt instruments are.
+    local function draw_chapter_switch_content()
+        imgui.text("Jumps to the start of a chapter on the next loading screen.")
+        imgui.text("Disruptive: it relocates you. For recovery, not travel.")
 
         local changed_chapter_index, chapter_index = imgui.combo(
             "##chapter_switch_selector",
@@ -700,6 +654,21 @@ local function install(ctx)
         local log_entries = bridge.message_log or {}
         local count = #log_entries
 
+        -- Chat lives here, with the conversation it belongs to (moved out of
+        -- the old Actions tab 2026-07-31).
+        local say = ctx.ap_say
+        local changed_say, say_value = imgui.input_text("##message_log_say", bridge.actions_say_text or "")
+        if changed_say then bridge.actions_say_text = say_value end
+        imgui.same_line()
+        if imgui.button("Send") then
+            local text = tostring(bridge.actions_say_text or "")
+            if text ~= "" and type(say) == "function" and say(text) then
+                bridge.actions_say_text = ""
+            end
+        end
+        imgui.text("Type a message, or any Archipelago command (!hint, !release).")
+        imgui.text("")
+
         imgui.text(string.format("AP Events this session: %d", count))
         imgui.same_line()
         if imgui.button("Clear") then
@@ -743,11 +712,12 @@ local function install(ctx)
 
     export("arm_chapter_switch", arm_chapter_switch)
     export("draw_server_content", draw_server_content)
-    export("draw_status_content", draw_status_content)
+    export("draw_hints_on_my_world", draw_hints_on_my_world)
     export("draw_probe_content", draw_probe_content)
     export("draw_injection_content", draw_injection_content)
     export("sync_warp_inputs_to_current_state", sync_warp_inputs_to_current_state)
-    export("draw_warp_content", draw_warp_content)
+    export("draw_chapter_switch_content", draw_chapter_switch_content)
+    export("execute_typewriter_warp", execute_typewriter_warp)
     export("draw_warp_editor_content", draw_warp_editor_content)
     export("capture_message_log_entries", capture_message_log_entries)
     export("draw_message_log_content", draw_message_log_content)
