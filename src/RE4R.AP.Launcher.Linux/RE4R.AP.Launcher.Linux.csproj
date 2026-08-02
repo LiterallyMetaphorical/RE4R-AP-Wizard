@@ -12,9 +12,13 @@
     <Compile Include="..\RE4R.AP.Launcher\Infrastructure\ObservableObject.cs" Link="Shared\Infrastructure\ObservableObject.cs" />
     <Compile Include="..\RE4R.AP.Launcher\Infrastructure\RelayCommand.cs" Link="Shared\Infrastructure\RelayCommand.cs" />
     <Compile Include="..\RE4R.AP.Launcher\Models\*.cs" Link="Shared\Models\%(Filename)%(Extension)" />
-    <Compile Include="..\RE4R.AP.Launcher\Services\GameInstallationInspector.cs" Link="Shared\Services\GameInstallationInspector.cs" />
-    <Compile Include="..\RE4R.AP.Launcher\Services\IUiDialogService.cs" Link="Shared\Services\IUiDialogService.cs" />
-    <Compile Include="..\RE4R.AP.Launcher\Services\ReFrameworkInstallationService.cs" Link="Shared\Services\ReFrameworkInstallationService.cs" />
+    <!-- Wildcard, minus the WPF-only dialog implementation. Naming these one by
+         one is exactly how this build broke: a new shared service landed in the
+         Windows project, the shared view-model started using it, and Linux
+         failed to compile with nothing on the Windows side to notice. -->
+    <Compile Include="..\RE4R.AP.Launcher\Services\*.cs"
+             Exclude="..\RE4R.AP.Launcher\Services\WpfDialogService.cs"
+             Link="Shared\Services\%(Filename)%(Extension)" />
     <Compile Include="..\RE4R.AP.Launcher\ViewModels\*.cs" Link="Shared\ViewModels\%(Filename)%(Extension)" />
   </ItemGroup>
 
@@ -46,7 +50,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>re4r-ap-launcher</AssemblyName>
     <!-- Keep in sync with the Windows launcher's release version. -->
-    <Version>0.3.0-alpha</Version>
+    <Version>0.3.1-alpha</Version>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
