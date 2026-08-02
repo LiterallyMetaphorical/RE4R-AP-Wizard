@@ -50,7 +50,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>re4r-ap-launcher</AssemblyName>
     <!-- Keep in sync with the Windows launcher's release version. -->
-    <Version>0.3.1-alpha</Version>
+    <Version>0.3.2-alpha</Version>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
