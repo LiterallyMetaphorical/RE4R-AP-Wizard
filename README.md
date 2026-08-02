@@ -25,7 +25,7 @@
 - Other players' items appear as Archipelago-logo pickups. Collecting one sends its check and puts nothing in your inventory. Your own items are collected normally.
 - Locations that cannot be collected in game are excluded from the pool, so nothing gets stranded on them.
 
-Three randomization presets, chosen when you patch. Archipelago's locations stay pinned in all of them, so world options can never move or corrupt acheck:
+Three randomization presets, chosen when you patch. Archipelago's locations stay pinned in all of them, so world options can never move or corrupt a check:
 
 - **AP Item Randomization Only** - the multiworld shuffles the fixed campaign
   pickups; everything else is vanilla.
@@ -35,6 +35,13 @@ Three randomization presets, chosen when you patch. Archipelago's locations stay
 
 Changing any single option flips you to a Custom configuration. Options that
 would change the set of checks, or create a softlock, are locked out.
+
+> [!WARNING]
+> **Leave Random Events off.** It reshapes the world - locked doors, removed
+> ladders and walls, relocated key items - and the logic is not yet equipped to
+> handle any of it. A seed may become unfinishable. It is off by default, and
+> turning it on asks you to confirm first, the full randomization preset
+> included.
 
 ## What You Need
 
@@ -160,3 +167,19 @@ dotnet publish src/RE4R.AP.Launcher.Linux/RE4R.AP.Launcher.Linux.csproj \
   -c Release -r linux-x64 --self-contained
 ./re4r-ap-launcher
 ```
+
+## License
+
+MIT, the same license BioRand uses. See [LICENSE](LICENSE).
+
+Each release also bundles other people's work, under their own licenses:
+
+- BioRand, by Ted John, MIT. Its notice ships as
+  `assets/THIRD-PARTY-NOTICES-BioRand.txt`, and the exact build bundled is
+  recorded in `assets/BIORAND_PROVENANCE.txt`.
+- lua-apclientpp, by black-sliver, MIT. Its notice ships as
+  `assets/native/THIRD-PARTY-NOTICES-lua-apclientpp.txt`, and its binary
+  distribution may include OpenSSL under Apache 2.0.
+
+REFramework is downloaded from its own GitHub releases during setup rather than
+bundled here, so it stays under praydog's terms.
