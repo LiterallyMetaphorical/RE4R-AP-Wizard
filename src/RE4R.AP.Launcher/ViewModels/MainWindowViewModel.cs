@@ -23,6 +23,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     private readonly GameInstallationInspector _gameInstallationInspector;
     private readonly ReFrameworkInstallationService _reFrameworkInstallationService;
     private readonly LuaInstallService _luaInstallService;
+    private readonly LauncherUpdateService _updateService = new();
     private readonly AsyncRelayCommand _browseCommand;
     private readonly AsyncRelayCommand _installReFrameworkCommand;
     private readonly AsyncRelayCommand _installArchipelagoLuaModCommand;
@@ -35,6 +36,8 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     private readonly RelayCommand _returnToLandingCommand;
     private readonly RelayCommand _openSetupCommand;
     private readonly RelayCommand _openRoomPageCommand;
+    private readonly RelayCommand _openUpdateReleaseCommand;
+    private readonly RelayCommand _dismissUpdateCommand;
     private readonly RelayCommand _reconnectPrefillCommand;
     private readonly RelayCommand _repatchPrefillCommand;
     private readonly AsyncRelayCommand _retireSessionCommand;
@@ -57,6 +60,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     private GameInstallationInspectionResult _inspection = GameInstallationInspectionResult.CreateDefault();
     private CancellationTokenSource? _installInspectionCancellationSource;
     private CancellationTokenSource? _sessionRefreshCancellationSource;
+    private LauncherUpdateInfo? _updateInfo;
+    private bool _hasUpdate;
+    private string _updateBannerText = string.Empty;
     private bool _isInitializing;
     private bool _initialSetupRedirectDecided;
     private string _lastAutoDetectedGameVersion = string.Empty;
@@ -216,6 +222,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         _returnToLandingCommand = new RelayCommand(NavigateToLanding);
         _openSetupCommand = new RelayCommand(OpenSetupScreen);
         _openRoomPageCommand = new RelayCommand(OpenRoomPage);
+        _updateService.LogMessage += OnWorkflowLogMessage;
+        _openUpdateReleaseCommand = new RelayCommand(OpenUpdateRelease);
+        _dismissUpdateCommand = new RelayCommand(() => HasUpdate = false);
         _reconnectPrefillCommand = new RelayCommand(StartJoinPrefilledFromBanner);
         _repatchPrefillCommand = new RelayCommand(StartRepatchFromBanner);
         _retireSessionCommand = new AsyncRelayCommand(RetireBannerSessionAsync, () => !Action.IsBusy);
@@ -301,6 +310,23 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         set => SetProperty(ref _currentScreen, value);
     }
 
+    /// <summary>A newer release exists on GitHub and the player has not dismissed the notice.</summary>
+    public bool HasUpdate
+    {
+        get => _hasUpdate;
+        private set => SetProperty(ref _hasUpdate, value);
+    }
+
+    public string UpdateBannerText
+    {
+        get => _updateBannerText;
+        private set => SetProperty(ref _updateBannerText, value);
+    }
+
+    public RelayCommand OpenUpdateReleaseCommand => _openUpdateReleaseCommand;
+
+    public RelayCommand DismissUpdateCommand => _dismissUpdateCommand;
+
     public async Task InitializeAsync()
     {
         if (_isInitializing)
@@ -358,6 +384,10 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             // Fire-and-forget: walking ~850 MB of cache files must not delay the
             // ready state. The Setup panel shows "checking size…" until it lands.
             _ = RefreshBioRandCacheSizeAsync();
+
+            // Same deal for the update check - it touches the network, so it can
+            // never sit between the player and a usable window.
+            _ = CheckForUpdateAsync();
 
             Action.StatusText = "Ready.";
             Action.AppendLog("Launcher UI is ready.");
@@ -545,6 +575,54 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             SetError($"Failed to open the room page in your browser: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Startup update check. Silent on every failure: no network, GitHub down,
+    /// rate limit, or a machine that is simply offline must all look identical
+    /// to "no update", never an error the player has to think about.
+    /// </summary>
+    private async Task CheckForUpdateAsync()
+    {
+        try
+        {
+            var info = await _updateService.CheckAsync();
+            if (info is null || !info.IsNewer)
+            {
+                return;
+            }
+
+            await DispatchToUiAsync(() =>
+            {
+                _updateInfo = info;
+                UpdateBannerText =
+                    $"{info.DisplayName} is available. You are running {info.RunningVersion}.";
+                HasUpdate = !string.IsNullOrWhiteSpace(info.ReleaseUrl);
+            });
+        }
+        catch (Exception ex)
+        {
+            Action.AppendLog($"Update check skipped: {ex.Message}");
+        }
+    }
+
+    private void OpenUpdateRelease()
+    {
+        var url = _updateInfo?.ReleaseUrl;
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            Action.AppendLog($"Opened the release page: {url}");
+        }
+        catch (Exception ex)
+        {
+            SetError($"Failed to open the release page in your browser: {ex.Message}");
         }
     }
 
