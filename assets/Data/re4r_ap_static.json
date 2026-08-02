@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-07-31T09:28:41Z",
+  "generated_at_utc": "2026-08-02T01:17:31Z",
   "game": "Resident Evil 4 Remake",
-  "world_version": "0.6.2",
+  "world_version": "0.6.3",
   "placeholder_item_id": 120486400,
   "counts": {
     "locations_total": 474,
@@ -1130,12 +1130,12 @@
       "note": ""
     },
     "2546164502": {
-      "name": "Chapter 3 - Village Square - Silver Token x1 (hanging) [5146332b]",
+      "name": "Chapter 5 - Village Square - Silver Token x1 (hanging) [5146332b]",
       "guid": "5146332b-4869-4271-840b-ccfa61814e3b",
       "identity_kind": "guid",
-      "chapter": 3,
+      "chapter": 5,
       "stage": 40200,
-      "region": "Village",
+      "region": "Church",
       "source_item_name": "Silver Token x1",
       "ap_eligibility": "always",
       "section_name": "Village Square",
