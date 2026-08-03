@@ -42,6 +42,13 @@ public sealed class LaunchWorkflowRequest
     public Func<InstallConfirmation, Task<bool>>? ConfirmLuaInstallAsync { get; set; }
 
     /// <summary>
+    /// Asked before harvesting when the game folder holds patch paks that are
+    /// neither vanilla nor ours. Return false to stop so the player can remove
+    /// them. Null means proceed without asking.
+    /// </summary>
+    public Func<IReadOnlyList<string>, Task<bool>>? ConfirmForeignPatchPaksAsync { get; set; }
+
+    /// <summary>
     /// Invoked when a workflow stage begins, so the UI can render a live
     /// phase checklist instead of a raw log (field note: patch progress).
     /// Exceptions are swallowed; the callback must marshal its own threading.

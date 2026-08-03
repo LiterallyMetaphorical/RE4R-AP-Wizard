@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.Text.RegularExpressions;
 using RE4R.AP.Launcher.Core.Exceptions;
 using RE4R.AP.Launcher.Core.Models;
 using RE4R.AP.Launcher.Core.Utilities;
@@ -220,16 +221,95 @@ public sealed class BioRandProcessRunner
     // the GUID was read through a BioRand pak still installed in the game
     // folder - generation would later die with "Unable to find door to
     // replace". Guid.ToByteArray() matches the RSZ on-disk GUID layout.
-    private static readonly string HarvestSentinelRelativePath = Path.Combine(
-        "natives",
-        "stm",
-        "_chainsaw",
-        "environment",
-        "scene",
-        "gimmick",
-        "st40",
-        "gimmick_st40_903_p000.scn.20");
-    private static readonly byte[] HarvestSentinelDoorGuid = new Guid("9a8b310d-6521-4905-bf55-fd1aeefbf2a3").ToByteArray();
+    // One sentinel is not coverage. The original single st40 check is late-game,
+    // so a mod that rewrites the OPENING of the game passed it silently and the
+    // clean bill of health actively misled the diagnosis (live 2026-08-02).
+    // These are the scenes BioRand's own start-up patches read, so a harvest that
+    // fails any of them is guaranteed to crash generation later. Every GUID here
+    // was verified present in a known-good harvest.
+    private sealed record HarvestSentinel(string Area, string RelativePath, Guid ObjectGuid);
+
+    private static readonly IReadOnlyList<HarvestSentinel> HarvestSentinels = new[]
+    {
+        new HarvestSentinel(
+            "the Chapter 1 opening",
+            Path.Combine("natives", "stm", "_chainsaw", "leveldesign", "chapter", "cp10_chp1_1", "level_cp10_chp1_1_010.scn.20"),
+            new Guid("9fc712ca-478c-45b5-be12-5233edf4fe95")),
+        new HarvestSentinel(
+            "the cabin",
+            Path.Combine("natives", "stm", "_chainsaw", "environment", "scene", "gimmick", "st43", "gimmick_st43_900.scn.20"),
+            new Guid("7a2d6128-79f7-0a71-388f-0ea0a80ce6e7")),
+        new HarvestSentinel(
+            "the cabin approach",
+            Path.Combine("natives", "stm", "_chainsaw", "environment", "scene", "gimmick", "st43", "gimmick_st43_301_p000.scn.20"),
+            new Guid("3e5c7e73-fd33-49b6-b4ac-bba642abb1fc")),
+        new HarvestSentinel(
+            "the castle",
+            Path.Combine("natives", "stm", "_chainsaw", "environment", "scene", "gimmick", "st40", "gimmick_st40_903_p000.scn.20"),
+            new Guid("9a8b310d-6521-4905-bf55-fd1aeefbf2a3")),
+    };
+
+    // Vanilla RE4R's pak stack, per supported game version. The engine loads
+    // re_chunk_000.pak.patch_NNN.pak in ascending order with later paks
+    // overriding earlier ones, so ANY extra pak silently rewrites the game the
+    // harvest is about to snapshot. Versions absent from this table are not
+    // checked at all: guessing a maximum and blocking someone on a game build we
+    // do not recognise is worse than missing the warning.
+    private static readonly Dictionary<string, int> VanillaMaxPatchPakIndex =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["4 Mar 2025"] = 6,
+            ["3 Feb 2026"] = 6,
+            ["31 Mar 2026"] = 6,
+        };
+
+    /// <summary>
+    /// Patch paks in the game folder that are neither vanilla nor ours. Steam's
+    /// "verify integrity" does NOT delete files it does not know about, so a mod
+    /// uninstalled months ago still overrides the game and poisons the harvest
+    /// (live 2026-08-02: a Berserker mod left patch_007 to 011 behind, and four
+    /// hours went into a crash that was really "your game is modded").
+    /// Returns an empty list when the game version is unknown.
+    /// </summary>
+    public IReadOnlyList<string> FindForeignPatchPaks(
+        string installPath,
+        string? detectedGameVersion,
+        IReadOnlyList<string> ourPatchFileNames)
+    {
+        if (string.IsNullOrWhiteSpace(installPath)
+            || !Directory.Exists(installPath)
+            || string.IsNullOrWhiteSpace(detectedGameVersion)
+            || !VanillaMaxPatchPakIndex.TryGetValue(detectedGameVersion, out var vanillaMax))
+        {
+            return Array.Empty<string>();
+        }
+
+        var ours = new HashSet<string>(ourPatchFileNames, StringComparer.OrdinalIgnoreCase);
+        var foreign = new List<string>();
+
+        foreach (var path in Directory.EnumerateFiles(installPath, "re_chunk_000.pak.patch_*.pak", SearchOption.TopDirectoryOnly))
+        {
+            var fileName = Path.GetFileName(path);
+            if (ours.Contains(fileName))
+            {
+                continue;
+            }
+
+            var match = Regex.Match(fileName, @"patch_(\d+)\.pak$", RegexOptions.IgnoreCase);
+            if (!match.Success || !int.TryParse(match.Groups[1].Value, out var index))
+            {
+                continue;
+            }
+
+            if (index > vanillaMax)
+            {
+                foreign.Add(fileName);
+            }
+        }
+
+        foreign.Sort(StringComparer.OrdinalIgnoreCase);
+        return foreign;
+    }
 
     private List<(string StashPath, string OriginalPath)> StashApPatchPaks(
         string installPath,
@@ -375,14 +455,32 @@ public sealed class BioRandProcessRunner
     /// </summary>
     public string? VerifyHarvestIsVanilla(string installPath)
     {
-        var sentinelPath = Path.Combine(BioRandCacheDirectoryPath, HarvestSentinelRelativePath);
-        if (!File.Exists(sentinelPath))
+        var missingFiles = new List<string>();
+        var modifiedAreas = new List<string>();
+
+        foreach (var sentinel in HarvestSentinels)
         {
-            return "BioRand setup finished but the harvested cache is incomplete (its sentinel scene is missing). Clear the BioRand cache from Setup Status and run setup again.";
+            var sentinelPath = Path.Combine(BioRandCacheDirectoryPath, sentinel.RelativePath);
+            if (!File.Exists(sentinelPath))
+            {
+                missingFiles.Add(sentinel.Area);
+                continue;
+            }
+
+            var bytes = File.ReadAllBytes(sentinelPath);
+            if (bytes.AsSpan().IndexOf(sentinel.ObjectGuid.ToByteArray()) < 0)
+            {
+                modifiedAreas.Add(sentinel.Area);
+            }
         }
 
-        var sentinelBytes = File.ReadAllBytes(sentinelPath);
-        if (sentinelBytes.AsSpan().IndexOf(HarvestSentinelDoorGuid) >= 0)
+        if (missingFiles.Count > 0)
+        {
+            return $"The BioRand cache is incomplete: it is missing the scene for {FormatList(missingFiles)}. "
+                + "Clear the BioRand cache from Setup Status and run setup again.";
+        }
+
+        if (modifiedAreas.Count == 0)
         {
             return null;
         }
@@ -393,9 +491,25 @@ public sealed class BioRandProcessRunner
         var pakListSuffix = patchPaks.Count > 0
             ? $" Patch paks currently in the game folder: {string.Join(", ", patchPaks)}."
             : string.Empty;
-        return "BioRand setup snapshotted a MODIFIED game, not the vanilla one - a randomizer patch pak was still active in the game folder during the harvest."
+
+        return $"The BioRand cache was built from a MODIFIED game, not a clean one. {FormatList(modifiedAreas)} "
+            + (modifiedAreas.Count == 1 ? "does" : "do")
+            + " not match the real game, so generation will crash on those scenes."
             + pakListSuffix
-            + " Remove or disable third-party patch paks (for example Fluffy mods or a manually copied BioRand pak), then clear the BioRand cache in Setup Status and run setup again.";
+            + " Vanilla ends at patch_006, so anything above that is a mod, even one you have already uninstalled:"
+            + " Steam's Verify Integrity does not delete files it did not install."
+            + " Delete the extra paks, then clear the BioRand cache in Setup Status and run setup again.";
+    }
+
+    private static string FormatList(IReadOnlyList<string> items)
+    {
+        return items.Count switch
+        {
+            0 => string.Empty,
+            1 => items[0],
+            2 => $"{items[0]} and {items[1]}",
+            _ => $"{string.Join(", ", items.Take(items.Count - 1))} and {items[^1]}",
+        };
     }
 
     /// <summary>
@@ -615,7 +729,7 @@ public sealed class BioRandProcessRunner
 
         if (exitCode != 0)
         {
-            var errorMessage = $"BioRand generation failed with exit code {exitCode}. Check the [BioRand] log lines above for the first error and then try again.";
+            var errorMessage = DescribeGenerationFailure(exitCode);
             Log(errorMessage);
             return new BioRandGenerationResult
             {
@@ -977,6 +1091,37 @@ public sealed class BioRandProcessRunner
         {
             Log($"  ... and {stagedFiles.Count - previewCount} more staged files.");
         }
+    }
+
+    /// <summary>
+    /// Turns BioRand's exit code into something a player can act on.
+    /// A NEGATIVE exit code is a Windows crash status, not a message BioRand
+    /// chose to return, so telling the player to "check the log for the first
+    /// error" sends them into thousands of stack frames with no error in them.
+    /// Every crash we have seen came from parsing the cached copy of the game's
+    /// files, which is the one thing they can fix themselves.
+    /// </summary>
+    private static string DescribeGenerationFailure(int exitCode)
+    {
+        if (exitCode >= 0)
+        {
+            return $"BioRand generation failed with exit code {exitCode}. Check the [BioRand] log lines above for the first error and then try again.";
+        }
+
+        // Name the crash and stop. The player-facing advice lives one layer up,
+        // in the shell's message mapping, so this stays a factual detail line.
+        var crash = exitCode switch
+        {
+            -1073741571 => "ran out of stack space",
+            -1073741819 => "hit an access violation",
+            -1073740791 => "detected corrupted memory",
+            -1073740940 => "detected a corrupted heap",
+            -532462766 => "threw an unhandled error",
+            _ => "crashed",
+        };
+
+        return $"BioRand {crash} (exit code {exitCode}). The [BioRand] lines above carry the stack, "
+            + "which names the game file it was reading.";
     }
 
     private static string FormatCommandLine(ProcessStartInfo startInfo)

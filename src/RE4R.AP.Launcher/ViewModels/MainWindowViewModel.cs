@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Net.Sockets;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using RE4R.AP.Launcher.Core.Exceptions;
 using RE4R.AP.Launcher.Core.Models;
 using RE4R.AP.Launcher.Core.Services;
@@ -579,6 +580,28 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
+    /// A modded game folder, caught before the harvest copies the mod's work
+    /// into the cache. Warn rather than block: the check keys off a game version
+    /// table, and being wrong about that must not strand someone who is fine.
+    /// </summary>
+    private async Task<bool> ConfirmForeignPatchPaksAsync(IReadOnlyList<string> foreignPaks)
+    {
+        var list = string.Join(Environment.NewLine, foreignPaks.Select(name => "    " + name));
+        return await _dialogService.ConfirmProceedWithWarningAsync(
+            "Your Game Has Mod Files In It",
+            "These files are in your RE4R folder but are not part of the game, and are not from this wizard:"
+            + Environment.NewLine + Environment.NewLine + list
+            + Environment.NewLine + Environment.NewLine
+            + "The game loads them on top of everything else, so the wizard would copy their changes and treat them as the real game. "
+            + "Patching almost always fails afterwards, usually with a crash that looks nothing like this."
+            + Environment.NewLine + Environment.NewLine
+            + "These are left behind by mod managers even after you uninstall the mod, and Steam's Verify Integrity does not delete them, "
+            + "because Steam only knows about its own files. Delete them from your RE4R folder and patch again.",
+            proceedLabel: "Patch Anyway",
+            cancelLabel: "Let Me Remove Them");
+    }
+
+    /// <summary>
     /// Startup update check. Silent on every failure: no network, GitHub down,
     /// rate limit, or a machine that is simply offline must all look identical
     /// to "no update", never an error the player has to think about.
@@ -1017,6 +1040,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             NotifyAsync = message => _dialogService.ShowNotificationAsync("RE4R AP Launcher", message),
             ConfirmOverwriteDifferentSeedAsync = prompt => _dialogService.ConfirmOverwriteDifferentSeedAsync(prompt),
             ChooseResumeActionAsync = prompt => _dialogService.ChooseResumeActionAsync(prompt),
+            ConfirmForeignPatchPaksAsync = ConfirmForeignPatchPaksAsync,
             ConfirmPatchInstallAsync = confirmation => _dialogService.ConfirmInstallAsync(confirmation),
             ConfirmLuaInstallAsync = confirmation => _dialogService.ConfirmInstallAsync(confirmation),
             OnStepStarting = step => _ = DispatchToUiAsync(() => PatchLaunch.MarkStepStarting(step)),
@@ -1113,14 +1137,37 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
                 + Environment.NewLine + Environment.NewLine + $"Details: {raw}";
         }
 
-        if (step == WorkflowStep.RunBioRandGeneration
-            && (raw.Contains("-532462766", StringComparison.Ordinal) || raw.Contains("0xE0434352", StringComparison.OrdinalIgnoreCase)))
+        // Any NEGATIVE exit code is a crash. This used to match only
+        // -532462766, the managed-exception code, so the first player to hit a
+        // stack overflow (-1073741571, live 2026-08-02) got the raw text and no
+        // guidance at all.
+        if (step == WorkflowStep.RunBioRandGeneration && ContainsCrashExitCode(raw))
         {
-            return "BioRand crashed while generating your world. This usually means your RE4R version differs from what this launcher supports, or the BioRand cache is stale - verify your game files in Steam, then try again. If it keeps happening, send the launcher log to the developer."
+            return "BioRand crashed while building your world. That is almost always a damaged game file rather than anything you set wrong."
+                + Environment.NewLine + Environment.NewLine
+                + "1. Verify your game files in Steam: right click Resident Evil 4, Properties, Installed Files, Verify integrity of game files."
+                + Environment.NewLine
+                + "2. Then clear the BioRand cache on the Setup screen, and patch again. Do this second: the cache is a copy of your game files, so clearing it before verifying just copies the same damage back."
+                + Environment.NewLine
+                + "3. If it still crashes, send the launcher log. It names the exact file BioRand was reading."
                 + Environment.NewLine + Environment.NewLine + $"Details: {raw}";
         }
 
         return raw;
+    }
+
+    /// <summary>
+    /// True when the message carries a negative "exit code N", which on Windows
+    /// is a crash status rather than a code the program chose to return. Matching
+    /// the whole class beats listing individual codes, which is how the stack
+    /// overflow slipped through with no guidance attached.
+    /// </summary>
+    private static bool ContainsCrashExitCode(string raw)
+    {
+        var match = Regex.Match(raw, @"exit code (-\d+)");
+        return match.Success
+            && int.TryParse(match.Groups[1].Value, out var code)
+            && code < 0;
     }
 
     private void UpdateLandingBlockingState()

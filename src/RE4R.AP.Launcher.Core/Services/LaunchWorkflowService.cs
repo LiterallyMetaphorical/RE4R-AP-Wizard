@@ -426,6 +426,28 @@ public sealed class LaunchWorkflowService
                 ? "BioRand setup has not been run for this install yet. Running setup now."
                 : "The game or the launcher's bundled BioRand changed since setup last ran. Rebuilding the vanilla file cache now.");
 
+        var ourPatchFileNames = await CollectRecordedPatchFileNamesAsync(cancellationToken);
+
+        // Catch a modded game BEFORE spending a minute harvesting it. The
+        // harvest reads the whole pak stack, so a leftover mod pak silently
+        // becomes "vanilla" in the cache and every later generation crashes on
+        // scenes that do not match the real game.
+        var foreignPaks = _bioRandProcessRunner.FindForeignPatchPaks(
+            request.Re4rInstallPath,
+            request.GameVersion,
+            ourPatchFileNames);
+        if (foreignPaks.Count > 0)
+        {
+            Log($"Found {foreignPaks.Count} patch pak(s) in the game folder that are neither vanilla nor ours: {string.Join(", ", foreignPaks)}");
+            if (request.ConfirmForeignPatchPaksAsync is not null
+                && !await request.ConfirmForeignPatchPaksAsync(foreignPaks))
+            {
+                throw new WorkflowException(
+                    WorkflowStep.CheckSetup,
+                    "Stopped so you can remove the extra patch paks. Delete them from your RE4R folder, then patch again.");
+            }
+        }
+
         try
         {
             var result = await _bioRandProcessRunner.RunSetupAsync(
@@ -433,7 +455,7 @@ public sealed class LaunchWorkflowService
                 {
                     Re4rInstallPath = request.Re4rInstallPath,
                     GameFingerprint = normalizedFingerprint,
-                    ApPatchFileNames = await CollectRecordedPatchFileNamesAsync(cancellationToken),
+                    ApPatchFileNames = ourPatchFileNames,
                 },
                 cancellationToken);
 
