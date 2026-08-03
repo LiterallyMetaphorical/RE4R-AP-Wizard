@@ -264,6 +264,15 @@ local function install(ctx)
 
         local visible = imgui.begin_window("Archipelago Server Port Mismatch Detected", true, nil)
         if not visible then
+            -- The titlebar X is a dismissal too. Just dropping the frame left
+            -- the dialog state in place, so the window was back on the next
+            -- frame - the same does-nothing bug as the Dismiss button.
+            local dismiss = ctx.ap_dismiss_port_recovery or _G.ap_dismiss_port_recovery
+            if type(dismiss) == "function" then
+                dismiss()
+            else
+                bridge.port_recovery_dialog = nil
+            end
             imgui.end_window()
             return
         end

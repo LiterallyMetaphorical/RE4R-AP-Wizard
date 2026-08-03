@@ -174,6 +174,12 @@ return function(ctx)
     local function open_port_recovery(kind, actual_seed, attempts)
         local bridge = ctx.bridge
         if bridge == nil then return end
+        -- The player dismissed this exact warning: stay quiet until a connect
+        -- succeeds or the address changes (both clear the latch). Without it
+        -- the watchdog re-opened the dialog on the very next poll tick, so
+        -- Dismiss appeared to do nothing (playtest 2026-08-02). A DIFFERENT
+        -- kind still opens: that is new information, not a repeat.
+        if st.port_recovery_dismissed_kind == kind then return end
         local host, port = split_server_address(st.server)
         if type(bridge.port_recovery_input) ~= "string" or bridge.port_recovery_input == "" then
             bridge.port_recovery_input = (port ~= nil) and tostring(port) or ""
@@ -1147,6 +1153,7 @@ return function(ctx)
         -- Whatever the recovery dialog was worried about, it is resolved.
         st.last_contact_clock = os.clock()
         st.slot_connected = true
+        st.port_recovery_dismissed_kind = nil
         close_port_recovery()
         -- [DeathLink] Read the slot's death_link setting (added to fill_slot_data in the
         -- apworld). Accept boolean true or numeric/string 1. Reset the per-connection
@@ -1766,6 +1773,9 @@ return function(ctx)
         -- recovery dialog straight away.
         st.last_contact_clock = os.clock()
         st.slot_connected = false
+        -- A new address is a fresh conversation: an old dismissal must not
+        -- mute warnings about the NEW port.
+        st.port_recovery_dismissed_kind = nil
         if ctx.bridge ~= nil then
             ctx.bridge.launcher_server_address = new_server
         end
@@ -1876,6 +1886,10 @@ return function(ctx)
     local function poll_port_recovery()
         if ap == nil or st.slot_connected then return end
         if ctx.bridge ~= nil and ctx.bridge.port_recovery_dialog ~= nil then return end
+        -- Dismissed watchdog warnings stay dismissed. open_port_recovery also
+        -- checks the latch, but bailing here keeps the warn line below from
+        -- firing on every poll tick of a long outage.
+        if st.port_recovery_dismissed_kind == "unreachable" then return end
         local ok_state, state = pcall(function() return ap:get_state() end)
         if ok_state and state == AP.State.SLOT_CONNECTED then
             st.slot_connected = true
@@ -1892,8 +1906,15 @@ return function(ctx)
     end
 
     local function ap_dismiss_port_recovery()
+        local dialog = (ctx.bridge ~= nil) and ctx.bridge.port_recovery_dialog or nil
+        -- Latch the kind BEFORE closing (close nils the dialog). "unreachable"
+        -- is the fallback because it is the only kind the watchdog re-opens on
+        -- its own.
+        st.port_recovery_dismissed_kind =
+            (type(dialog) == "table" and dialog.kind ~= nil) and tostring(dialog.kind) or "unreachable"
         close_port_recovery()
-        info("port recovery: dialog dismissed by the player")
+        info(string.format("port recovery: '%s' dialog dismissed by the player",
+            tostring(st.port_recovery_dismissed_kind)))
         return true
     end
     ctx.ap_dismiss_port_recovery = ap_dismiss_port_recovery
