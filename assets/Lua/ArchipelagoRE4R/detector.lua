@@ -576,7 +576,10 @@ local function install(ctx)
         return key ~= nil and bridge.pending_check_keys[key] == true
     end
 
-    local function enqueue_pending_pickup_accept(raw_context_arg, guid, stage)
+    -- runtime_stage is the volume the player was standing in, which can differ
+    -- from the canonicalized dataset stage. Both are recorded so the commit hook
+    -- can find this entry under whichever one it reports.
+    local function enqueue_pending_pickup_accept(raw_context_arg, guid, stage, runtime_stage)
         local normalized_guid = normalize_guid(guid)
         local context_key = get_context_id_key(raw_context_arg)
         if normalized_guid == nil or context_key == nil or type(stage) ~= "number" then
@@ -597,6 +600,7 @@ local function install(ctx)
             if entry.stage == stage and (entry.context_key == context_key or entry.guid == normalized_guid) then
                 entry.guid = normalized_guid
                 entry.context_key = context_key
+                entry.runtime_stage = runtime_stage
                 entry.queued_at_unix_ms = now_ms
                 return true
             end
@@ -605,6 +609,7 @@ local function install(ctx)
         table.insert(bridge.pending_pickup_accepts, {
             id = bridge.next_pending_pickup_accept_id,
             stage = stage,
+            runtime_stage = runtime_stage,
             guid = normalized_guid,
             context_key = context_key,
             queued_at_unix_ms = now_ms,
@@ -675,8 +680,13 @@ local function install(ctx)
         if type(stage) ~= "number" then
             return nil
         end
+        -- Match the canonicalized stage OR the runtime volume the accept was
+        -- taken in. The commit hook has no guid to canonicalize with, so it can
+        -- only report the raw volume; comparing that against the canonicalized
+        -- stage alone silently loses every check in a room whose sub-areas
+        -- overlap.
         for index, entry in ipairs(bridge.pending_pickup_accepts) do
-            if entry.stage == stage then
+            if entry.stage == stage or entry.runtime_stage == stage then
                 table.remove(bridge.pending_pickup_accepts, index)
                 return entry
             end
@@ -841,6 +851,13 @@ local function install(ctx)
                 -- the world (live miss 2026-07-23, Abandoned Factory: drops filed
                 -- under 44210 grabbed while the runtime reported 44200 ->
                 -- "not_in_dataset", checks lost, a placeholder entered the case).
+                -- Keep the volume we were STANDING in as well. The commit hook
+                -- reports that raw runtime stage, not this canonicalized one, so
+                -- the pending accept has to be findable under both or the commit
+                -- cannot match it (live miss 2026-08-02, Abandoned Factory:
+                -- accept filed under 44210, commit arrived as 44200 -> "commit
+                -- unmatched", check lost).
+                local runtime_stage = stage
                 if guid ~= nil then
                     local dataset_stage = resolve_tracked_stage(guid)
                     if dataset_stage ~= nil then
@@ -957,7 +974,7 @@ local function install(ctx)
                     return sdk.PreHookResult.CALL_ORIGINAL
                 end
 
-                if guid ~= nil and enqueue_pending_pickup_accept(context_arg, guid, stage) then
+                if guid ~= nil and enqueue_pending_pickup_accept(context_arg, guid, stage, runtime_stage) then
                     -- [Own-pickup toast] Arm HERE, not at commit: the game pushes
                     -- its own item toast around the moment the item lands, which
                     -- can beat the commit hook, and accept always precedes both.
