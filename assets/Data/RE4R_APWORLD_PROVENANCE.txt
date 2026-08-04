@@ -87,11 +87,27 @@ Rebuilt:     2026-07-31 (rev 5), world_version 0.6.3 - the `tutorial` option.
              change - locations stay at 474 - so 0.6.x rooms remain
              patch-compatible. Verified: 28-generation sweep across default /
              shuffle_keycards / minimize_backtracking, zero failures.
-Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_version 0.6.3
+Rebuilt:     2026-08-04, world_version 0.6.4 - ownership-conditional twins.
+             The Library / Freezer / Utilities Gold Bar fallbacks spawn only
+             when their weapon is owned at area load (vanilla NG+ carryover,
+             DYNAMIC under multiworld injection), so all three join the Lake
+             pair's advancement ban: progression never lands on a spot that
+             may not exist this seed; filler/useful still may, and Force
+             Check recovers the absent side. The Freezer LE 5 primary keeps
+             the same ban conservatively until an owned-at-load run observes
+             it (the Library and Utilities primaries are proven to coexist
+             with their spawned fallbacks - both twins collected and acked
+             in one run). The guid list fails generation loudly if the
+             dataset drops one of its spots. Pool unchanged (474), so 0.6.x
+             rooms still pass the launcher count check. Verified:
+             10-generation two-slot RE4R+RE2R sweep across the live-room
+             config / backtracking-off / shuffle_keycards+missables, zero
+             failures, all 60 banned-spot placements non-progression.
+Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_version 0.6.4
              per that repo's archipelago.json.
 AP target:   Archipelago 0.6.7 (the version the apworld was developed and
              generation-validated against; pinned via the manifest as of 2026-07-12).
-SHA-256:     bd7bfb492f94b35d9705e76c3dccf2984ac888958425759f60c6fee32a412ff8
+SHA-256:     f2af30d5c333eb6e7c0527f26ee5ef66d695fa86df3f7c9164adab3b5f807044
 Consumed by: the Generation Guidance screen ("Copy RE4R.apworld to your Archipelago
              custom_worlds folder") - ArchipelagoInstallationService reads the
              world_version out of this zip's manifest for display and copies the
