@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-08-04T21:13:39Z",
+  "generated_at_utc": "2026-08-04T22:18:43Z",
   "game": "Resident Evil 4 Remake",
   "world_version": "0.6.5",
   "placeholder_item_id": 120486400,
@@ -1178,7 +1178,7 @@
       "note": ""
     },
     "3348623832": {
-      "name": "Chapter 3 - Town Hall - Shotgun Shells x3 [c58965fd]",
+      "name": "Chapter 3 - Town Hall - Shotgun Shells x3 (drawer) [c58965fd]",
       "guid": "c58965fd-0c42-4bd4-9001-af81a1b72bdb",
       "identity_kind": "guid",
       "chapter": 3,
@@ -1190,7 +1190,7 @@
       "x": 33.84,
       "y": 1.95,
       "z": 17.28,
-      "container": "",
+      "container": "drawer",
       "note": ""
     },
     "3962856436": {
@@ -2154,7 +2154,7 @@
       "note": ""
     },
     "1464193906": {
-      "name": "Chapter 3 - Fish Farm - Small Key x1 [beea1fb2]",
+      "name": "Chapter 3 - Fish Farm - Small Key x1 (drawer) [beea1fb2]",
       "guid": "beea1fb2-9686-4a4a-8c90-5ae1b27cddf9",
       "identity_kind": "guid",
       "chapter": 3,
@@ -2166,7 +2166,7 @@
       "x": 115.35,
       "y": -3.34,
       "z": 58.8,
-      "container": "",
+      "container": "drawer",
       "note": ""
     },
     "1623237470": {
@@ -2250,7 +2250,7 @@
       "note": ""
     },
     "3378340952": {
-      "name": "Chapter 4 - Church Grounds - Resources (Small) x1 [01c70b00]",
+      "name": "Chapter 4 - Church Grounds - Resources (Small) x1 (drawer) [01c70b00]",
       "guid": "01c70b00-cad3-44ba-8c5f-aff487acc610",
       "identity_kind": "guid",
       "chapter": 4,
@@ -2262,7 +2262,7 @@
       "x": 63.33,
       "y": 5.06,
       "z": 48.95,
-      "container": "",
+      "container": "drawer",
       "note": ""
     },
     "1289575852": {
@@ -2314,7 +2314,7 @@
       "note": ""
     },
     "4153818031": {
-      "name": "Chapter 5 - Church - Blue Dial x1 [2755ebe4]",
+      "name": "Chapter 5 - Church - Blue Dial x1 (chest) [2755ebe4]",
       "guid": "2755ebe4-80cb-4a1c-b222-dfab116d73bd",
       "identity_kind": "guid",
       "chapter": 5,
@@ -2326,7 +2326,7 @@
       "x": 105.36,
       "y": 12.29,
       "z": 106.58,
-      "container": "",
+      "container": "chest",
       "note": ""
     },
     "685836783": {
@@ -2346,7 +2346,7 @@
       "note": ""
     },
     "1347906916": {
-      "name": "Chapter 4 - Lakeside Shrine - Gunpowder x3 [ca7c0a7b]",
+      "name": "Chapter 4 - Lakeside Shrine - Gunpowder x3 (drawer) [ca7c0a7b]",
       "guid": "ca7c0a7b-45c0-458e-969e-c2f1cea651c3",
       "identity_kind": "guid",
       "chapter": 4,
@@ -2358,7 +2358,7 @@
       "x": 109.15,
       "y": 9.71,
       "z": 129.24,
-      "container": "",
+      "container": "drawer",
       "note": ""
     },
     "1053860888": {
@@ -2506,7 +2506,7 @@
       "note": ""
     },
     "1081806973": {
-      "name": "Chapter 4 - Lakeside Shrine - Alexandrite x1 [eb597315]",
+      "name": "Chapter 4 - Lakeside Shrine - Alexandrite x1 (hanging) [eb597315]",
       "guid": "eb597315-f2b7-4f58-8c8a-ccaace88db81",
       "identity_kind": "guid",
       "chapter": 4,
@@ -2518,7 +2518,7 @@
       "x": 125.45,
       "y": -4.48,
       "z": 142.32,
-      "container": "",
+      "container": "hanging",
       "note": ""
     },
     "3461757690": {

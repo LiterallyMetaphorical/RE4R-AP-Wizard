@@ -15,7 +15,7 @@
         "y": 5.49,
         "z": -8.03,
         "container": "",
-        "note": ""
+        "note": "by the tower"
       },
       "cb8b64ce-38b1-40f2-8276-c5e815782a85": {
         "location_id": 3403951514,
@@ -45,7 +45,7 @@
         "y": 3.13,
         "z": -20.37,
         "container": "",
-        "note": ""
+        "note": "in the hut toward the farm"
       },
       "bd3288ac-5646-4290-9603-5052e2a88721": {
         "location_id": 2835325570,
@@ -60,7 +60,7 @@
         "y": 1.15,
         "z": -5.23,
         "container": "",
-        "note": ""
+        "note": "near the town hall"
       },
       "ee42961c-2da1-4131-ba37-91909c46180e": {
         "location_id": 2522533126,
@@ -75,7 +75,7 @@
         "y": 2.04,
         "z": 15.58,
         "container": "",
-        "note": ""
+        "note": "left of the lower house"
       },
       "a0780a23-5252-4334-9d76-5a2f69a1998c": {
         "location_id": 983954331,
@@ -90,7 +90,7 @@
         "y": 3.03,
         "z": -31.35,
         "container": "case",
-        "note": ""
+        "note": "in the house before the farm"
       },
       "a944127e-273f-4538-819a-9ec5253a9c7f": {
         "location_id": 1597669214,
@@ -105,7 +105,7 @@
         "y": 1.27,
         "z": -4.82,
         "container": "ashley",
-        "note": ""
+        "note": "in Ashley's house"
       },
       "4526972b-c59e-4030-9a36-b0e79d2babec": {
         "location_id": 3109295253,
@@ -135,7 +135,7 @@
         "y": 5.01,
         "z": -2.07,
         "container": "hanging",
-        "note": ""
+        "note": "by Ashley's house"
       }
     },
     "40210": {
@@ -182,7 +182,7 @@
         "y": 4.39,
         "z": -20.09,
         "container": "crate",
-        "note": ""
+        "note": "upstairs by the shotgun room"
       },
       "55c55c23-73c5-4c4f-9e9e-bbc45347edd0": {
         "location_id": 2873550400,
@@ -197,7 +197,7 @@
         "y": 0.94,
         "z": -21.03,
         "container": "",
-        "note": ""
+        "note": "in the two-story siege house"
       },
       "196a3dbd-92f6-4280-a46e-7df9c5ea52fc": {
         "location_id": 670413801,
@@ -212,7 +212,7 @@
         "y": 0.65,
         "z": -20.74,
         "container": "",
-        "note": ""
+        "note": "in the two-story siege house"
       },
       "0f392d46-1b87-4bbe-aa1e-e855df4eeb7f": {
         "location_id": 3579577135,
@@ -259,7 +259,7 @@
         "y": 2.01,
         "z": 17.35,
         "container": "crate",
-        "note": ""
+        "note": "lower center of the village"
       }
     },
     "40213": {
@@ -295,7 +295,7 @@
       },
       "c58965fd-0c42-4bd4-9001-af81a1b72bdb": {
         "location_id": 3348623832,
-        "location_name": "Chapter 3 - Town Hall - Shotgun Shells x3 [c58965fd]",
+        "location_name": "Chapter 3 - Town Hall - Shotgun Shells x3 (drawer) [c58965fd]",
         "toast_title": "Shotgun Shells",
         "item_name": "Shotgun Shells x3",
         "classification": "FILLER",
@@ -305,7 +305,7 @@
         "x": 33.84,
         "y": 1.95,
         "z": 17.28,
-        "container": "",
+        "container": "drawer",
         "note": ""
       }
     },
@@ -481,7 +481,7 @@
         "y": 3.2,
         "z": -82.3,
         "container": "key",
-        "note": ""
+        "note": "in the wayshrine"
       }
     },
     "43310": {
@@ -742,7 +742,7 @@
         "y": -3.6,
         "z": -144.14,
         "container": "key",
-        "note": ""
+        "note": "in the wayshrine"
       },
       "63b02474-6c38-42e3-8b7d-1949474e03dd": {
         "location_id": 3465696690,
@@ -757,7 +757,7 @@
         "y": 3.79,
         "z": -125.33,
         "container": "hanging",
-        "note": ""
+        "note": "up a tree"
       }
     },
     "43410": {
@@ -806,7 +806,7 @@
         "y": -4.17,
         "z": -108.27,
         "container": "",
-        "note": ""
+        "note": "inside a hut"
       }
     },
     "43500": {
@@ -885,7 +885,7 @@
         "y": 5.6,
         "z": 133.72,
         "container": "hanging",
-        "note": ""
+        "note": "in the woods"
       }
     },
     "44110": {
@@ -1086,7 +1086,7 @@
         "y": 0.17,
         "z": 163.78,
         "container": "",
-        "note": ""
+        "note": "deep in the factory"
       },
       "5a8888c1-b60f-43b4-b0b2-2362ae156fcf": {
         "location_id": 1354428845,
@@ -1101,7 +1101,7 @@
         "y": 0.5,
         "z": 159.66,
         "container": "",
-        "note": ""
+        "note": "deep in the factory"
       },
       "b661a20b-a5a7-41cf-981e-aaba42f5d117": {
         "location_id": 3312977059,
@@ -1116,7 +1116,7 @@
         "y": 0.86,
         "z": 162.09,
         "container": "chest",
-        "note": ""
+        "note": "behind the factory"
       },
       "ce9baef9-fdb9-4c71-ace1-d4f70c2c7b3d": {
         "location_id": 4240025224,
@@ -1131,7 +1131,7 @@
         "y": -0.66,
         "z": 158.56,
         "container": "hanging",
-        "note": ""
+        "note": "behind the factory"
       }
     },
     "44210": {
@@ -1336,11 +1336,11 @@
         "y": 5.45,
         "z": 48.25,
         "container": "",
-        "note": ""
+        "note": "in the graveyard"
       },
       "01c70b00-cad3-44ba-8c5f-aff487acc610": {
         "location_id": 3378340952,
-        "location_name": "Chapter 4 - Church Grounds - Resources (Small) x1 [01c70b00]",
+        "location_name": "Chapter 4 - Church Grounds - Resources (Small) x1 (drawer) [01c70b00]",
         "toast_title": "Resources (Small)",
         "item_name": "Resources (Small) x1",
         "classification": "FILLER",
@@ -1350,7 +1350,7 @@
         "x": 63.33,
         "y": 5.06,
         "z": 48.95,
-        "container": "",
+        "container": "drawer",
         "note": ""
       },
       "49910003-c896-4c5e-acb8-3d231b3ef918": {
@@ -1396,7 +1396,7 @@
         "y": 4.51,
         "z": 59.35,
         "container": "hanging",
-        "note": ""
+        "note": "in the graveyard"
       },
       "1f5c91ce-4726-4dde-9a88-65cdcb05df55": {
         "location_id": 1860434857,
@@ -1411,7 +1411,7 @@
         "y": 10.7,
         "z": 87.56,
         "container": "case",
-        "note": ""
+        "note": "in front of the church"
       },
       "5eec4331-ab42-4a19-a379-77138517e693": {
         "location_id": 1793291604,
@@ -1426,7 +1426,7 @@
         "y": 11.7,
         "z": 111.94,
         "container": "chest",
-        "note": ""
+        "note": "behind the church"
       }
     },
     "45210": {
@@ -1464,7 +1464,7 @@
       },
       "ca7c0a7b-45c0-458e-969e-c2f1cea651c3": {
         "location_id": 1347906916,
-        "location_name": "Chapter 4 - Lakeside Shrine - Gunpowder x3 [ca7c0a7b]",
+        "location_name": "Chapter 4 - Lakeside Shrine - Gunpowder x3 (drawer) [ca7c0a7b]",
         "toast_title": "Gunpowder",
         "item_name": "Gunpowder x3",
         "classification": "FILLER",
@@ -1474,12 +1474,12 @@
         "x": 109.15,
         "y": 9.71,
         "z": 129.24,
-        "container": "",
+        "container": "drawer",
         "note": ""
       },
       "eb597315-f2b7-4f58-8c8a-ccaace88db81": {
         "location_id": 1081806973,
-        "location_name": "Chapter 4 - Lakeside Shrine - Alexandrite x1 [eb597315]",
+        "location_name": "Chapter 4 - Lakeside Shrine - Alexandrite x1 (hanging) [eb597315]",
         "toast_title": "Alexandrite",
         "item_name": "Alexandrite x1",
         "classification": "FILLER",
@@ -1489,8 +1489,8 @@
         "x": 125.45,
         "y": -4.48,
         "z": 142.32,
-        "container": "",
-        "note": ""
+        "container": "hanging",
+        "note": "over the cliff path"
       },
       "93f90f71-2757-487d-af43-8764d4bacd2e": {
         "location_id": 1158197127,
@@ -1505,7 +1505,7 @@
         "y": -5.23,
         "z": 138.16,
         "container": "key",
-        "note": ""
+        "note": "in the wayshrine"
       }
     },
     "45302": {
@@ -1657,7 +1657,7 @@
         "y": 8.26,
         "z": 119.8,
         "container": "",
-        "note": ""
+        "note": "by the bedding"
       },
       "01d18f77-12d2-4c30-9758-676897c031e0": {
         "location_id": 896489704,
@@ -1704,7 +1704,7 @@
         "y": 4.91,
         "z": 105.99,
         "container": "key",
-        "note": ""
+        "note": "in the wayshrine before the Gigante fight"
       }
     },
     "45400": {
@@ -1740,7 +1740,7 @@
       },
       "beea1fb2-9686-4a4a-8c90-5ae1b27cddf9": {
         "location_id": 1464193906,
-        "location_name": "Chapter 3 - Fish Farm - Small Key x1 [beea1fb2]",
+        "location_name": "Chapter 3 - Fish Farm - Small Key x1 (drawer) [beea1fb2]",
         "toast_title": "Small Key",
         "item_name": "Small Key x1",
         "classification": "PROGRESSION",
@@ -1750,7 +1750,7 @@
         "x": 115.35,
         "y": -3.34,
         "z": 58.8,
-        "container": "",
+        "container": "drawer",
         "note": ""
       },
       "aaa3d858-0c03-4c97-8e4f-940b19d37b67": {
@@ -1796,7 +1796,7 @@
         "y": -5.09,
         "z": 44.7,
         "container": "chest",
-        "note": ""
+        "note": "in the swamp"
       }
     },
     "45401": {
@@ -1828,7 +1828,7 @@
         "y": 23.35,
         "z": 106.82,
         "container": "barrel",
-        "note": ""
+        "note": "in the church attic"
       },
       "89c7a0d8-cd65-4b80-a770-0ce0caa994f7": {
         "location_id": 1243484650,
@@ -1843,7 +1843,7 @@
         "y": 12.43,
         "z": 104.1,
         "container": "",
-        "note": ""
+        "note": "on the church ground floor"
       },
       "dbcfdcb8-9de7-473e-99c4-a6d95a2b31ac": {
         "location_id": 3723536482,
@@ -1892,7 +1892,7 @@
       },
       "2755ebe4-80cb-4a1c-b222-dfab116d73bd": {
         "location_id": 4153818031,
-        "location_name": "Chapter 5 - Church - Blue Dial x1 [2755ebe4]",
+        "location_name": "Chapter 5 - Church - Blue Dial x1 (chest) [2755ebe4]",
         "toast_title": "Blue Dial",
         "item_name": "Blue Dial x1",
         "classification": "PROGRESSION",
@@ -1902,7 +1902,7 @@
         "x": 105.36,
         "y": 12.29,
         "z": 106.58,
-        "container": "",
+        "container": "chest",
         "note": ""
       },
       "0c0f0d4b-177c-48c8-9958-702ed8a666f7": {
@@ -1918,7 +1918,7 @@
         "y": 10.63,
         "z": 107.15,
         "container": "smallkey",
-        "note": ""
+        "note": "in the church storeroom"
       },
       "151a4801-d98b-4eec-b0b1-884b64f9f5c2": {
         "location_id": 978914635,
@@ -1933,7 +1933,7 @@
         "y": 16.64,
         "z": 110.03,
         "container": "",
-        "note": ""
+        "note": "in Ashley's room"
       },
       "98fdec48-9bf2-4dc5-b41b-5bc7a3f8cf40": {
         "location_id": 1666167729,
@@ -1948,7 +1948,7 @@
         "y": 23.13,
         "z": 96.67,
         "container": "case",
-        "note": ""
+        "note": "in the church attic"
       },
       "53f24a6c-d17f-4ec0-a5c9-26fa93a2065c": {
         "location_id": 3692297634,
@@ -2134,7 +2134,7 @@
         "y": -6.58,
         "z": 117.33,
         "container": "",
-        "note": ""
+        "note": "on the forest path"
       },
       "b1900d7e-963c-40b2-894b-8a9b219a9f0a": {
         "location_id": 1157572538,
@@ -2149,7 +2149,7 @@
         "y": -6.29,
         "z": -12.04,
         "container": "chest",
-        "note": ""
+        "note": "in the sunken chest (dive)"
       },
       "5116e358-571b-4583-b0f3-67844119fee4": {
         "location_id": 307378197,
@@ -2164,7 +2164,7 @@
         "y": -6.29,
         "z": -12.04,
         "container": "chest",
-        "note": ""
+        "note": "in the sunken chest (dive)"
       },
       "bbceba06-29d7-4d6c-b086-fc3258759052": {
         "location_id": 3457246612,
@@ -2179,7 +2179,7 @@
         "y": -4.21,
         "z": -153.87,
         "container": "",
-        "note": ""
+        "note": "north lake dive"
       },
       "eca0aa37-e0d9-4f04-9e04-24c1e58486cc": {
         "location_id": 2225151346,
@@ -2194,7 +2194,7 @@
         "y": -6.81,
         "z": -14.13,
         "container": "chest",
-        "note": ""
+        "note": "in the sunken ship"
       },
       "98470ac3-e051-4782-8407-c3b7e04e2855": {
         "location_id": 281322348,
@@ -2209,7 +2209,7 @@
         "y": -6.71,
         "z": -30.01,
         "container": "",
-        "note": ""
+        "note": "by the chickens"
       }
     },
     "46110": {
@@ -2946,7 +2946,7 @@
         "y": 9.65,
         "z": 32.62,
         "container": "chest",
-        "note": ""
+        "note": "by the catapults"
       },
       "6765f856-84a8-44ab-bc92-6d2c0057c46d": {
         "location_id": 3932417768,
@@ -3053,7 +3053,7 @@
         "y": 14.06,
         "z": 42.86,
         "container": "key",
-        "note": ""
+        "note": "in the cubic device case"
       },
       "d5bb6d76-8718-4eaf-ab7f-d96583114f85": {
         "location_id": 1451098177,
@@ -3100,7 +3100,7 @@
         "y": 12.51,
         "z": 38.04,
         "container": "",
-        "note": ""
+        "note": "at the dungeon entrance"
       }
     },
     "50501": {
@@ -3228,7 +3228,7 @@
         "y": 19.39,
         "z": 23.04,
         "container": "",
-        "note": ""
+        "note": "inside the iron maiden"
       },
       "4855cd04-6a45-4c7c-93e6-78489a8ea07f": {
         "location_id": 211620226,
@@ -3258,7 +3258,7 @@
         "y": 17.95,
         "z": 11.95,
         "container": "hanging",
-        "note": ""
+        "note": "outside the treasury"
       }
     },
     "50505": {
@@ -3384,7 +3384,7 @@
         "y": 13.19,
         "z": 79.79,
         "container": "case",
-        "note": ""
+        "note": "at the gondola station"
       }
     },
     "51101": {
@@ -3478,7 +3478,7 @@
         "y": 26.34,
         "z": 20.72,
         "container": "case",
-        "note": ""
+        "note": "in the corridor before rejoining Ashley"
       },
       "b1e533fa-b79d-4944-8dcc-9a2c22430803": {
         "location_id": 1339134035,
@@ -3493,7 +3493,7 @@
         "y": 26.35,
         "z": 20.55,
         "container": "case",
-        "note": ""
+        "note": "in the corridor before rejoining Ashley"
       }
     },
     "51201": {
@@ -3510,7 +3510,7 @@
         "y": 25.8,
         "z": 22.59,
         "container": "",
-        "note": ""
+        "note": "in the room where you rejoin Ashley"
       }
     },
     "51401": {
@@ -3527,7 +3527,7 @@
         "y": 26.0,
         "z": -14.17,
         "container": "chest",
-        "note": ""
+        "note": "chest reached with Ashley's boost"
       }
     },
     "51404": {
@@ -3685,7 +3685,7 @@
         "y": 29.62,
         "z": -62.35,
         "container": "case",
-        "note": ""
+        "note": "in the rampart passage"
       }
     },
     "51600": {
@@ -3702,7 +3702,7 @@
         "y": 37.12,
         "z": -122.11,
         "container": "",
-        "note": ""
+        "note": "on tower A"
       },
       "46e22b63-47d7-42ae-9093-284b00a55e33": {
         "location_id": 2925879259,
@@ -3717,7 +3717,7 @@
         "y": 37.69,
         "z": -122.71,
         "container": "chest",
-        "note": ""
+        "note": "on tower A's roof"
       },
       "d0022d12-2e88-4269-856b-02f807ee9a20": {
         "location_id": 164154149,
@@ -3843,7 +3843,7 @@
         "y": 25.44,
         "z": 19.59,
         "container": "",
-        "note": ""
+        "note": "behind the Knights' Hall"
       }
     },
     "52202": {
@@ -3922,7 +3922,7 @@
         "y": 31.43,
         "z": 17.79,
         "container": "dresser",
-        "note": ""
+        "note": "in the Long Gallery"
       },
       "071e1736-c8d1-47f9-ba98-019e44446366": {
         "location_id": 930068914,
@@ -3967,7 +3967,7 @@
         "y": 30.72,
         "z": 18.19,
         "container": "hanging",
-        "note": ""
+        "note": "in the corridor before the Knights' Hall"
       }
     },
     "52300": {
@@ -3984,7 +3984,7 @@
         "y": 26.4,
         "z": 49.72,
         "container": "",
-        "note": ""
+        "note": "in the cubic device cabinet"
       }
     },
     "52303": {
@@ -4001,7 +4001,7 @@
         "y": 27.39,
         "z": 71.34,
         "container": "chest",
-        "note": ""
+        "note": "in the big chest after the bridge rises"
       },
       "c579fc1d-5015-4b55-a2f9-c19d92ffd058": {
         "location_id": 3948809760,
@@ -4200,7 +4200,7 @@
         "y": 28.66,
         "z": 81.36,
         "container": "chest",
-        "note": ""
+        "note": "needs the Bunch of Keys"
       }
     },
     "53201": {
@@ -4217,7 +4217,7 @@
         "y": 27.4,
         "z": 71.4,
         "container": "hanging",
-        "note": ""
+        "note": "by the second-floor stairs"
       }
     },
     "53202": {
@@ -4234,7 +4234,7 @@
         "y": 34.7,
         "z": 54.14,
         "container": "chest",
-        "note": ""
+        "note": "by the exit; needs the Bunch of Keys"
       },
       "1f4f6137-2674-4bb3-923f-0cdc33a9320c": {
         "location_id": 2994240178,
@@ -4249,7 +4249,7 @@
         "y": 35.52,
         "z": 53.88,
         "container": "key",
-        "note": ""
+        "note": "in the salon cubic device case"
       }
     },
     "53303": {
@@ -4266,7 +4266,7 @@
         "y": 13.29,
         "z": 105.32,
         "container": "chest",
-        "note": ""
+        "note": "needs the Bunch of Keys"
       }
     },
     "53304": {
@@ -4300,7 +4300,7 @@
         "y": 28.14,
         "z": 58.72,
         "container": "",
-        "note": ""
+        "note": "in the corridor toward the Ballroom"
       }
     },
     "54102": {
@@ -4471,7 +4471,7 @@
         "y": 30.3,
         "z": 54.39,
         "container": "underwater",
-        "note": ""
+        "note": "in the fountain"
       }
     },
     "54300": {
@@ -4565,7 +4565,7 @@
         "y": 32.77,
         "z": 64.61,
         "container": "key",
-        "note": ""
+        "note": "in the cubic device case"
       },
       "f03e2b8c-075b-4bef-9d51-ae3560b142c0": {
         "location_id": 437207146,
@@ -4691,7 +4691,7 @@
         "y": -30.28,
         "z": -6.6,
         "container": "",
-        "note": ""
+        "note": "in the elevator room"
       },
       "89c2e17a-dc58-40f5-9da8-475b215cb06e": {
         "location_id": 273834339,
@@ -4706,7 +4706,7 @@
         "y": -30.13,
         "z": -15.03,
         "container": "",
-        "note": ""
+        "note": "in the elevator room"
       },
       "2c6dc819-92db-48af-b6f5-3bb33ad54355": {
         "location_id": 4153607658,
@@ -4721,7 +4721,7 @@
         "y": -30.38,
         "z": -8.43,
         "container": "hanging",
-        "note": ""
+        "note": "in the elevator room"
       }
     },
     "54405": {
@@ -4785,7 +4785,7 @@
         "y": -29.57,
         "z": -0.73,
         "container": "",
-        "note": ""
+        "note": "in the storeroom"
       }
     },
     "54407": {
@@ -4802,7 +4802,7 @@
         "y": -30.41,
         "z": -39.85,
         "container": "",
-        "note": ""
+        "note": "by the power control panel"
       },
       "df312d32-af74-457c-84ee-32cfd3913f50": {
         "location_id": 994461688,
@@ -4817,7 +4817,7 @@
         "y": -29.19,
         "z": -29.66,
         "container": "",
-        "note": ""
+        "note": "by the power control panel"
       }
     },
     "55103": {
@@ -5161,7 +5161,7 @@
         "y": 27.45,
         "z": 31.41,
         "container": "case",
-        "note": ""
+        "note": "at the gondola station"
       }
     },
     "56102": {
@@ -5195,7 +5195,7 @@
         "y": 48.87,
         "z": -112.05,
         "container": "chest",
-        "note": ""
+        "note": "before the lift"
       },
       "7dcba43a-d376-4f68-b8ab-58c49cfe9e95": {
         "location_id": 1544470848,
@@ -5210,7 +5210,7 @@
         "y": 43.37,
         "z": -113.39,
         "container": "chest",
-        "note": ""
+        "note": "midway up the clock tower"
       },
       "9b72f6d9-bdbf-4046-b73e-76bec9c3e00a": {
         "location_id": 4020474884,
@@ -5240,7 +5240,7 @@
         "y": 66.07,
         "z": -104.48,
         "container": "",
-        "note": ""
+        "note": "after the lift"
       },
       "59f2f272-0039-415e-85ee-66d930c3d60d": {
         "location_id": 1869521830,
@@ -5270,7 +5270,7 @@
         "y": 59.07,
         "z": -112.38,
         "container": "",
-        "note": ""
+        "note": "on the outer walkway"
       }
     },
     "56104": {
@@ -5302,7 +5302,7 @@
         "y": 64.63,
         "z": -108.12,
         "container": "",
-        "note": ""
+        "note": "on the outer walkway"
       }
     },
     "56200": {
@@ -5319,7 +5319,7 @@
         "y": 53.56,
         "z": -98.64,
         "container": "",
-        "note": ""
+        "note": "in the Salazar arena"
       },
       "4a156a5b-61b5-4432-baea-d8df58aeaf55": {
         "location_id": 1247234535,
@@ -5334,7 +5334,7 @@
         "y": 52.42,
         "z": -115.39,
         "container": "",
-        "note": ""
+        "note": "in the Salazar arena"
       },
       "76982055-f15a-4bfb-8bf6-809300c9089c": {
         "location_id": 2520057731,
@@ -5349,7 +5349,7 @@
         "y": 51.05,
         "z": -109.84,
         "container": "",
-        "note": ""
+        "note": "in the Salazar arena"
       }
     },
     "56301": {

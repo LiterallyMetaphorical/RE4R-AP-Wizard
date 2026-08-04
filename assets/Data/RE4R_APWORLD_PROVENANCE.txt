@@ -119,11 +119,23 @@ Rebuilt:     2026-08-04 (rev 2), world_version 0.6.5 - container glosses from
              surfaces. Verified: 3-seed two-slot RE4R+RE2R sweep, zero
              failures, ownership-twin spoiler check still zero progression
              placements.
+Rebuilt:     2026-08-04 (rev 3), world_version stays 0.6.5 (unreleased) -
+             translated context notes. data/context_notes.json carries 81
+             hand-translated English notes for every pool location whose
+             scene dev name says more than the section + container gloss
+             ("inside the iron maiden", "at the gondola station", "left of
+             the lower house"); the display map merges them into its note
+             field (authored BioRand Descriptions win) and markers render
+             the note at identify detail - hinted markers included. The
+             translation pass caught 3 missed tokens (all-kana drawer x4,
+             katakana chest, suspended treasure -> hanging): synthesized
+             kinds 79 -> 85, six more names gain their gloss, codes/guids
+             verified byte-stable. 2-seed generation sanity passed.
 Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_version 0.6.5
              per that repo's archipelago.json.
 AP target:   Archipelago 0.6.7 (the version the apworld was developed and
              generation-validated against; pinned via the manifest as of 2026-07-12).
-SHA-256:     1b29c1d593095d44b336d96424c187a2ac22c665ceb26c7bd194657bbac5a384
+SHA-256:     4b99b930f9c60a882b0b535406f78138d2323b1e75a95a5b5de0773832f7eef4
 Consumed by: the Generation Guidance screen ("Copy RE4R.apworld to your Archipelago
              custom_worlds folder") - ArchipelagoInstallationService reads the
              world_version out of this zip's manifest for display and copies the

@@ -137,6 +137,9 @@ local function install(ctx)
             item_name = (display_entry and display_entry.item_name) or "",
             section_name = (display_entry and display_entry.section_name) or "",
             gloss = gloss,
+            -- Finding note: authored BioRand prose or the context note
+            -- translated from the scene dev names. Identify-tier only.
+            note = (display_entry and display_entry.note) or "",
             chapter = display_entry and tonumber(display_entry.chapter),
         }
     end
@@ -323,6 +326,16 @@ local function install(ctx)
                             tag = " (" .. entry.gloss .. ")"
                         end
                         parts[#parts + 1] = '"' .. item_name .. '"' .. tag
+                    end
+                end
+
+                -- Identify: the finding note (authored prose or the English
+                -- translation of the scene dev note) as its own pipe field.
+                -- Hinted markers render identify, so a paid hint gets it too.
+                if eff_tier >= DETAIL_TIER.identify then
+                    local note = tostring(entry.note or "")
+                    if note ~= "" then
+                        parts[#parts + 1] = note
                     end
                 end
 
