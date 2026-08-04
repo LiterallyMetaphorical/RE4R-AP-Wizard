@@ -103,11 +103,27 @@ Rebuilt:     2026-08-04, world_version 0.6.4 - ownership-conditional twins.
              10-generation two-slot RE4R+RE2R sweep across the live-room
              config / backtracking-off / shuffle_keycards+missables, zero
              failures, all 60 banned-spot placements non-progression.
-Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_version 0.6.4
+Rebuilt:     2026-08-04 (rev 2), world_version 0.6.5 - container glosses from
+             the dev names. A live ghost-item report was a Ruby sitting zero
+             meters from its marker, invisible inside a closed drawer the
+             dataset knew nothing about. data_parser now synthesizes a
+             container kind from the scene dev-note name wherever BioRand
+             carries no tag (the hanging-detection rail): 54 new spots
+             across 15 kinds (cases, nests, crates, barrels, untagged
+             chests, drawers, dressers, cupboards, incinerator, oven,
+             attic, roof, desk, locker, shelf, underwater). Location names
+             gain the gloss (hanging precedent): 53 names change while
+             codes, guids, and source items are verified byte-stable; pool
+             unchanged (474). Markers at locate detail and above - and all
+             hinted markers - render the gloss via the existing container
+             surfaces. Verified: 3-seed two-slot RE4R+RE2R sweep, zero
+             failures, ownership-twin spoiler check still zero progression
+             placements.
+Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_version 0.6.5
              per that repo's archipelago.json.
 AP target:   Archipelago 0.6.7 (the version the apworld was developed and
              generation-validated against; pinned via the manifest as of 2026-07-12).
-SHA-256:     f2af30d5c333eb6e7c0527f26ee5ef66d695fa86df3f7c9164adab3b5f807044
+SHA-256:     1b29c1d593095d44b336d96424c187a2ac22c665ceb26c7bd194657bbac5a384
 Consumed by: the Generation Guidance screen ("Copy RE4R.apworld to your Archipelago
              custom_worlds folder") - ArchipelagoInstallationService reads the
              world_version out of this zip's manifest for display and copies the

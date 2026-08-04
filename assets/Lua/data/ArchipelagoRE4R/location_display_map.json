@@ -79,7 +79,7 @@
       },
       "a0780a23-5252-4334-9d76-5a2f69a1998c": {
         "location_id": 983954331,
-        "location_name": "Chapter 3 - Village Square - Ruby x1 [a0780a23]",
+        "location_name": "Chapter 3 - Village Square - Ruby x1 (case) [a0780a23]",
         "toast_title": "Ruby",
         "item_name": "Ruby x1",
         "classification": "FILLER",
@@ -89,7 +89,7 @@
         "x": 26.35,
         "y": 3.03,
         "z": -31.35,
-        "container": "",
+        "container": "case",
         "note": ""
       },
       "a944127e-273f-4538-819a-9ec5253a9c7f": {
@@ -109,7 +109,7 @@
       },
       "4526972b-c59e-4030-9a36-b0e79d2babec": {
         "location_id": 3109295253,
-        "location_name": "Chapter 3 - Village Square - Ornate Necklace x1 [4526972b]",
+        "location_name": "Chapter 3 - Village Square - Ornate Necklace x1 (case) [4526972b]",
         "toast_title": "Ornate Necklace",
         "item_name": "Ornate Necklace x1",
         "classification": "FILLER",
@@ -119,7 +119,7 @@
         "x": 31.76,
         "y": 2.32,
         "z": -5.8,
-        "container": "",
+        "container": "case",
         "note": ""
       },
       "5146332b-4869-4271-840b-ccfa61814e3b": {
@@ -171,7 +171,7 @@
       },
       "bb6ad758-09a8-4953-9ea6-efef58d02fe8": {
         "location_id": 200989878,
-        "location_name": "Chapter 3 - Village Square - Hand Grenade x1 [bb6ad758]",
+        "location_name": "Chapter 3 - Village Square - Hand Grenade x1 (breakable crate) [bb6ad758]",
         "toast_title": "Hand Grenade",
         "item_name": "Hand Grenade x1",
         "classification": "FILLER",
@@ -181,7 +181,7 @@
         "x": 2.08,
         "y": 4.39,
         "z": -20.09,
-        "container": "",
+        "container": "crate",
         "note": ""
       },
       "55c55c23-73c5-4c4f-9e9e-bbc45347edd0": {
@@ -248,7 +248,7 @@
     "40211": {
       "36416bae-5da5-494c-bece-e5ff7cbbbf9e": {
         "location_id": 4293052662,
-        "location_name": "Chapter 3 - Village Square - Hand Grenade x1 [36416bae]",
+        "location_name": "Chapter 3 - Village Square - Hand Grenade x1 (breakable crate) [36416bae]",
         "toast_title": "Hand Grenade",
         "item_name": "Hand Grenade x1",
         "classification": "FILLER",
@@ -258,14 +258,14 @@
         "x": 9.65,
         "y": 2.01,
         "z": 17.35,
-        "container": "",
+        "container": "crate",
         "note": ""
       }
     },
     "40213": {
       "fc404c8c-dab8-47a1-b819-2bf811d8b10b": {
         "location_id": 3310140270,
-        "location_name": "Chapter 3 - Town Hall - First Aid Spray x1 [fc404c8c]",
+        "location_name": "Chapter 3 - Town Hall - First Aid Spray x1 (case) [fc404c8c]",
         "toast_title": "First Aid Spray",
         "item_name": "First Aid Spray x1",
         "classification": "FILLER",
@@ -275,7 +275,7 @@
         "x": 35.27,
         "y": 2.03,
         "z": 14.41,
-        "container": "",
+        "container": "case",
         "note": ""
       },
       "853f288f-987c-487f-bbc2-e52ac167f827": {
@@ -312,7 +312,7 @@
     "40504": {
       "b0db3874-bb80-4810-ab80-18678be89fe4": {
         "location_id": 395845661,
-        "location_name": "Chapter 1 - Hunter's Lodge - Handgun Ammo x12 [b0db3874]",
+        "location_name": "Chapter 1 - Hunter's Lodge - Handgun Ammo x12 (barrel) [b0db3874]",
         "toast_title": "Handgun Ammo",
         "item_name": "Handgun Ammo x12",
         "classification": "FILLER",
@@ -322,12 +322,12 @@
         "x": -116.28,
         "y": 7.83,
         "z": 47.3,
-        "container": "",
+        "container": "barrel",
         "note": ""
       },
       "7dd282d8-8a8b-49ea-8969-975599eeb399": {
         "location_id": 2725107616,
-        "location_name": "Chapter 1 - Hunter's Lodge - Handgun Ammo x8 [7dd282d8]",
+        "location_name": "Chapter 1 - Hunter's Lodge - Handgun Ammo x8 (desk) [7dd282d8]",
         "toast_title": "Handgun Ammo",
         "item_name": "Handgun Ammo x8",
         "classification": "FILLER",
@@ -337,7 +337,7 @@
         "x": -125.33,
         "y": 7.45,
         "z": 36.5,
-        "container": "",
+        "container": "desk",
         "note": ""
       }
     },
@@ -391,7 +391,7 @@
     "40510": {
       "7a166d5b-c9d6-4ca0-8292-5ac2c3ea825b": {
         "location_id": 187622435,
-        "location_name": "Chapter 1 - Hunter's Lodge - Green Herb x1 [7a166d5b]",
+        "location_name": "Chapter 1 - Hunter's Lodge - Green Herb x1 (dresser) [7a166d5b]",
         "toast_title": "Green Herb",
         "item_name": "Green Herb x1",
         "classification": "FILLER",
@@ -401,14 +401,14 @@
         "x": -194.03,
         "y": 11.13,
         "z": 65.64,
-        "container": "",
+        "container": "dresser",
         "note": ""
       }
     },
     "40530": {
       "c0fd9f8a-6899-484d-802f-b6f78300e08c": {
         "location_id": 4081994245,
-        "location_name": "Chapter 1 - Hunter's Lodge - Gunpowder x2 [c0fd9f8a]",
+        "location_name": "Chapter 1 - Hunter's Lodge - Gunpowder x2 (barrel) [c0fd9f8a]",
         "toast_title": "Gunpowder",
         "item_name": "Gunpowder x2",
         "classification": "FILLER",
@@ -418,7 +418,7 @@
         "x": -114.31,
         "y": 7.96,
         "z": 56.62,
-        "container": "",
+        "container": "barrel",
         "note": ""
       }
     },
@@ -440,7 +440,7 @@
       },
       "37763e1e-4078-48ef-be29-8f5aa6fbbd73": {
         "location_id": 1639345572,
-        "location_name": "Chapter 1 - Farm - Hand Grenade x1 [37763e1e]",
+        "location_name": "Chapter 1 - Farm - Hand Grenade x1 (barrel) [37763e1e]",
         "toast_title": "Hand Grenade",
         "item_name": "Hand Grenade x1",
         "classification": "FILLER",
@@ -450,7 +450,7 @@
         "x": 27.66,
         "y": 4.38,
         "z": -79.23,
-        "container": "",
+        "container": "barrel",
         "note": ""
       },
       "17737610-ae41-4873-a03e-fe375a8f6eac": {
@@ -502,7 +502,7 @@
       },
       "afc7f1fc-9dd2-4cef-a4a8-f0b83bddcb3a": {
         "location_id": 1223425605,
-        "location_name": "Chapter 1 - Farm - Handgun Ammo x10 [afc7f1fc]",
+        "location_name": "Chapter 1 - Farm - Handgun Ammo x10 (cupboard) [afc7f1fc]",
         "toast_title": "Handgun Ammo",
         "item_name": "Handgun Ammo x10",
         "classification": "FILLER",
@@ -512,12 +512,12 @@
         "x": 69.07,
         "y": 7.14,
         "z": -71.82,
-        "container": "",
+        "container": "cupboard",
         "note": ""
       },
       "4f1ca0b3-788f-4408-8b53-674a8be40966": {
         "location_id": 3034559754,
-        "location_name": "Chapter 1 - Farm - Ruby x1 [4f1ca0b3]",
+        "location_name": "Chapter 1 - Farm - Ruby x1 (drawer) [4f1ca0b3]",
         "toast_title": "Ruby",
         "item_name": "Ruby x1",
         "classification": "FILLER",
@@ -527,7 +527,7 @@
         "x": 65.29,
         "y": 4.29,
         "z": -67.89,
-        "container": "",
+        "container": "drawer",
         "note": ""
       },
       "07b4f8f5-1ada-46aa-83fb-53d8fc78462f": {
@@ -716,7 +716,7 @@
       },
       "47ea5d75-1530-4634-a5c4-d002180ec9d1": {
         "location_id": 1830376409,
-        "location_name": "Chapter 4 - Lakeside Settlement - Handgun Ammo x5 [47ea5d75]",
+        "location_name": "Chapter 4 - Lakeside Settlement - Handgun Ammo x5 (bird's nest) [47ea5d75]",
         "toast_title": "Handgun Ammo",
         "item_name": "Handgun Ammo x5",
         "classification": "FILLER",
@@ -726,7 +726,7 @@
         "x": 206.5,
         "y": -4.58,
         "z": -116.31,
-        "container": "",
+        "container": "nest",
         "note": ""
       },
       "20fdbe51-1286-4cc2-bf55-b4b267647900": {
@@ -936,7 +936,7 @@
       },
       "680e5dc3-e7c5-41ec-aa8d-b7656e807e48": {
         "location_id": 746851187,
-        "location_name": "Chapter 2 - Village Chief's Manor - Brown Chicken Egg x1 [680e5dc3]",
+        "location_name": "Chapter 2 - Village Chief's Manor - Brown Chicken Egg x1 (oven) [680e5dc3]",
         "toast_title": "Brown Chicken Egg",
         "item_name": "Brown Chicken Egg x1",
         "classification": "FILLER",
@@ -946,12 +946,12 @@
         "x": 2.23,
         "y": 8.87,
         "z": 95.69,
-        "container": "",
+        "container": "oven",
         "note": ""
       },
       "942a6929-e447-45cf-81f0-b6cd7caccb6a": {
         "location_id": 3562896740,
-        "location_name": "Chapter 2 - Village Chief's Manor - Gunpowder x3 [942a6929]",
+        "location_name": "Chapter 2 - Village Chief's Manor - Gunpowder x3 (bird's nest) [942a6929]",
         "toast_title": "Gunpowder",
         "item_name": "Gunpowder x3",
         "classification": "FILLER",
@@ -961,7 +961,7 @@
         "x": -4.98,
         "y": 8.75,
         "z": 103.65,
-        "container": "",
+        "container": "nest",
         "note": ""
       },
       "648d1ae2-8085-4e1e-a2f3-a7cd569927dd": {
@@ -981,7 +981,7 @@
       },
       "422c2430-972b-4ea5-bca1-c3600e00b63e": {
         "location_id": 2458781681,
-        "location_name": "Chapter 2 - Village Chief's Manor - Yellow Herb x1 [422c2430]",
+        "location_name": "Chapter 2 - Village Chief's Manor - Yellow Herb x1 (attic) [422c2430]",
         "toast_title": "Yellow Herb",
         "item_name": "Yellow Herb x1",
         "classification": "FILLER",
@@ -991,7 +991,7 @@
         "x": 10.56,
         "y": 17.67,
         "z": 104.23,
-        "container": "",
+        "container": "attic",
         "note": ""
       },
       "94397035-0f4a-487c-a43b-55879f83e064": {
@@ -1026,7 +1026,7 @@
       },
       "37260eb3-5c06-4a54-a57c-eed762c05413": {
         "location_id": 1700496647,
-        "location_name": "Chapter 2 - Village Chief's Manor - Ruby x1 [37260eb3]",
+        "location_name": "Chapter 2 - Village Chief's Manor - Ruby x1 (drawer) [37260eb3]",
         "toast_title": "Ruby",
         "item_name": "Ruby x1",
         "classification": "FILLER",
@@ -1036,7 +1036,7 @@
         "x": 5.58,
         "y": 9.87,
         "z": 95.19,
-        "container": "",
+        "container": "drawer",
         "note": ""
       },
       "a528b618-89e2-4880-a4f8-43ed01caffa0": {
@@ -1137,7 +1137,7 @@
     "44210": {
       "d76a84b6-357a-4161-9cb4-07aeaa0784b2": {
         "location_id": 1912529288,
-        "location_name": "Chapter 2 - Abandoned Factory - Kitchen Knife x1 [d76a84b6]",
+        "location_name": "Chapter 2 - Abandoned Factory - Kitchen Knife x1 (breakable crate) [d76a84b6]",
         "toast_title": "Kitchen Knife",
         "item_name": "Kitchen Knife x1",
         "classification": "USEFUL",
@@ -1147,12 +1147,12 @@
         "x": -7.6,
         "y": 0.32,
         "z": 189.96,
-        "container": "",
+        "container": "crate",
         "note": ""
       },
       "d31cc7cc-20da-4186-8773-52a78d1cafb3": {
         "location_id": 2919633733,
-        "location_name": "Chapter 2 - Abandoned Factory - Handgun Ammo x10 [d31cc7cc]",
+        "location_name": "Chapter 2 - Abandoned Factory - Handgun Ammo x10 (incinerator) [d31cc7cc]",
         "toast_title": "Handgun Ammo",
         "item_name": "Handgun Ammo x10",
         "classification": "FILLER",
@@ -1162,7 +1162,7 @@
         "x": -9.26,
         "y": -0.72,
         "z": 200.56,
-        "container": "",
+        "container": "incinerator",
         "note": ""
       },
       "43e29273-5995-4654-ac40-dcc6082a50bd": {
@@ -1182,7 +1182,7 @@
       },
       "768028fb-e4d9-4c4c-ac8e-eae41a39e76f": {
         "location_id": 207963812,
-        "location_name": "Chapter 2 - Abandoned Factory - Sapphire x1 [768028fb]",
+        "location_name": "Chapter 2 - Abandoned Factory - Sapphire x1 (incinerator) [768028fb]",
         "toast_title": "Sapphire",
         "item_name": "Sapphire x1",
         "classification": "FILLER",
@@ -1192,7 +1192,7 @@
         "x": -11.32,
         "y": -0.69,
         "z": 196.86,
-        "container": "",
+        "container": "incinerator",
         "note": ""
       }
     },
@@ -1214,7 +1214,7 @@
       },
       "d0644c83-84cd-4507-8201-f214ccc54999": {
         "location_id": 3630876178,
-        "location_name": "Chapter 2 - Valley - Flash Grenade x1 [d0644c83]",
+        "location_name": "Chapter 2 - Valley - Flash Grenade x1 (locker) [d0644c83]",
         "toast_title": "Flash Grenade",
         "item_name": "Flash Grenade x1",
         "classification": "FILLER",
@@ -1224,7 +1224,7 @@
         "x": 68.54,
         "y": -5.69,
         "z": 233.16,
-        "container": "",
+        "container": "locker",
         "note": ""
       },
       "f030283e-0e14-4b3f-a32d-b032216be8f9": {
@@ -1308,7 +1308,7 @@
     "45100": {
       "f154c8b4-2f9a-4845-93bc-0af7dcb67e06": {
         "location_id": 3016662218,
-        "location_name": "Chapter 3 - Church Grounds - Rifle Ammo x3 [f154c8b4]",
+        "location_name": "Chapter 3 - Church Grounds - Rifle Ammo x3 (bird's nest) [f154c8b4]",
         "toast_title": "Rifle Ammo",
         "item_name": "Rifle Ammo x3",
         "classification": "FILLER",
@@ -1318,7 +1318,7 @@
         "x": 62.9,
         "y": 0.11,
         "z": 38.46,
-        "container": "",
+        "container": "nest",
         "note": ""
       }
     },
@@ -1355,7 +1355,7 @@
       },
       "49910003-c896-4c5e-acb8-3d231b3ef918": {
         "location_id": 1289575852,
-        "location_name": "Chapter 4 - Church Grounds - Chicken Egg x1 [49910003]",
+        "location_name": "Chapter 4 - Church Grounds - Chicken Egg x1 (bird's nest) [49910003]",
         "toast_title": "Chicken Egg",
         "item_name": "Chicken Egg x1",
         "classification": "FILLER",
@@ -1365,7 +1365,7 @@
         "x": 75.45,
         "y": 5.51,
         "z": 68.91,
-        "container": "",
+        "container": "nest",
         "note": ""
       },
       "62c6da2f-cf29-4ed0-aa53-fb5064dd2441": {
@@ -1400,7 +1400,7 @@
       },
       "1f5c91ce-4726-4dde-9a88-65cdcb05df55": {
         "location_id": 1860434857,
-        "location_name": "Chapter 4 - Church Grounds - Red Gemstone Ring x1 [1f5c91ce]",
+        "location_name": "Chapter 4 - Church Grounds - Red Gemstone Ring x1 (case) [1f5c91ce]",
         "toast_title": "Red Gemstone Ring",
         "item_name": "Red Gemstone Ring x1",
         "classification": "FILLER",
@@ -1410,7 +1410,7 @@
         "x": 100.44,
         "y": 10.7,
         "z": 87.56,
-        "container": "",
+        "container": "case",
         "note": ""
       },
       "5eec4331-ab42-4a19-a379-77138517e693": {
@@ -1449,7 +1449,7 @@
     "45300": {
       "77df8e41-2a23-4e64-876f-a981a0765357": {
         "location_id": 685836783,
-        "location_name": "Chapter 4 - Lakeside Shrine - Hand Grenade x1 [77df8e41]",
+        "location_name": "Chapter 4 - Lakeside Shrine - Hand Grenade x1 (breakable crate) [77df8e41]",
         "toast_title": "Hand Grenade",
         "item_name": "Hand Grenade x1",
         "classification": "FILLER",
@@ -1459,7 +1459,7 @@
         "x": 110.74,
         "y": 12.74,
         "z": 128.23,
-        "container": "",
+        "container": "crate",
         "note": ""
       },
       "ca7c0a7b-45c0-458e-969e-c2f1cea651c3": {
@@ -1770,7 +1770,7 @@
       },
       "d9d7ae27-f6ca-44bb-bc1d-31e2d10f23b0": {
         "location_id": 2215213662,
-        "location_name": "Chapter 3 - Fish Farm - Shotgun Shells x3 [d9d7ae27]",
+        "location_name": "Chapter 3 - Fish Farm - Shotgun Shells x3 (bird's nest) [d9d7ae27]",
         "toast_title": "Shotgun Shells",
         "item_name": "Shotgun Shells x3",
         "classification": "FILLER",
@@ -1780,7 +1780,7 @@
         "x": 151.68,
         "y": -0.7,
         "z": 55.96,
-        "container": "",
+        "container": "nest",
         "note": ""
       },
       "67a3014c-6aec-4999-9267-b4ceaa33b532": {
@@ -1817,7 +1817,7 @@
       },
       "f610a292-1256-436b-bf7f-9e74baa879ed": {
         "location_id": 4101159736,
-        "location_name": "Chapter 5 - Church - Attachable Mines x5 [f610a292]",
+        "location_name": "Chapter 5 - Church - Attachable Mines x5 (barrel) [f610a292]",
         "toast_title": "Attachable Mines",
         "item_name": "Attachable Mines x5",
         "classification": "FILLER",
@@ -1827,7 +1827,7 @@
         "x": 106.32,
         "y": 23.35,
         "z": 106.82,
-        "container": "",
+        "container": "barrel",
         "note": ""
       },
       "89c7a0d8-cd65-4b80-a770-0ce0caa994f7": {
@@ -1877,7 +1877,7 @@
       },
       "3909672c-958f-4280-81ca-8840d352341f": {
         "location_id": 2454685510,
-        "location_name": "Chapter 5 - Church - Handgun Ammo x15 [3909672c]",
+        "location_name": "Chapter 5 - Church - Handgun Ammo x15 (rooftop) [3909672c]",
         "toast_title": "Handgun Ammo",
         "item_name": "Handgun Ammo x15",
         "classification": "FILLER",
@@ -1887,7 +1887,7 @@
         "x": 106.67,
         "y": 22.25,
         "z": 106.41,
-        "container": "",
+        "container": "roof",
         "note": ""
       },
       "2755ebe4-80cb-4a1c-b222-dfab116d73bd": {
@@ -1937,7 +1937,7 @@
       },
       "98fdec48-9bf2-4dc5-b41b-5bc7a3f8cf40": {
         "location_id": 1666167729,
-        "location_name": "Chapter 5 - Church - Wellington x1 [98fdec48]",
+        "location_name": "Chapter 5 - Church - Wellington x1 (case) [98fdec48]",
         "toast_title": "Wellington",
         "item_name": "Wellington x1",
         "classification": "FILLER",
@@ -1947,7 +1947,7 @@
         "x": 96.46,
         "y": 23.13,
         "z": 96.67,
-        "container": "",
+        "container": "case",
         "note": ""
       },
       "53f24a6c-d17f-4ec0-a5c9-26fa93a2065c": {
@@ -2031,7 +2031,7 @@
       },
       "a48703e6-8f6e-463f-8b3d-e732db281b7a": {
         "location_id": 3737170323,
-        "location_name": "Chapter 3 - Quarry - Kitchen Knife x1 [a48703e6]",
+        "location_name": "Chapter 3 - Quarry - Kitchen Knife x1 (drawer) [a48703e6]",
         "toast_title": "Kitchen Knife",
         "item_name": "Kitchen Knife x1",
         "classification": "USEFUL",
@@ -2041,7 +2041,7 @@
         "x": 207.92,
         "y": -3.37,
         "z": 78.62,
-        "container": "",
+        "container": "drawer",
         "note": ""
       },
       "56c6e2fb-6485-402a-bf4e-8dc7dac0f63b": {
@@ -2153,7 +2153,7 @@
       },
       "5116e358-571b-4583-b0f3-67844119fee4": {
         "location_id": 307378197,
-        "location_name": "Chapter 4 - Lake - Gold Bar (L) x1 [5116e358]",
+        "location_name": "Chapter 4 - Lake - Gold Bar (L) x1 (chest) [5116e358]",
         "toast_title": "Gold Bar (L)",
         "item_name": "Gold Bar (L) x1",
         "classification": "FILLER",
@@ -2163,7 +2163,7 @@
         "x": 303.82,
         "y": -6.29,
         "z": -12.04,
-        "container": "",
+        "container": "chest",
         "note": ""
       },
       "bbceba06-29d7-4d6c-b086-fc3258759052": {
@@ -2215,7 +2215,7 @@
     "46110": {
       "8cc3596d-a368-4595-acb4-8ea72c4beb66": {
         "location_id": 1836166293,
-        "location_name": "Chapter 4 - Small Cave Shrine - Hexagon Piece C x1 [8cc3596d]",
+        "location_name": "Chapter 4 - Small Cave Shrine - Hexagon Piece C x1 (case) [8cc3596d]",
         "toast_title": "Hexagon Piece C",
         "item_name": "Hexagon Piece C x1",
         "classification": "PROGRESSION",
@@ -2225,7 +2225,7 @@
         "x": 115.25,
         "y": 11.89,
         "z": 112.9,
-        "container": "",
+        "container": "case",
         "note": ""
       },
       "82f8a752-986f-43f5-9baf-32ce0f895f74": {
@@ -2277,7 +2277,7 @@
     "46111": {
       "e006b64a-2f86-4d40-9df0-5b1cf294763e": {
         "location_id": 2188521977,
-        "location_name": "Chapter 4 - Boat House - Handgun Ammo x10 [e006b64a]",
+        "location_name": "Chapter 4 - Boat House - Handgun Ammo x10 (barrel) [e006b64a]",
         "toast_title": "Handgun Ammo",
         "item_name": "Handgun Ammo x10",
         "classification": "FILLER",
@@ -2287,7 +2287,7 @@
         "x": 342.26,
         "y": -5.34,
         "z": 91.8,
-        "container": "",
+        "container": "barrel",
         "note": ""
       }
     },
@@ -2309,7 +2309,7 @@
       },
       "37849b90-5395-43c4-a11a-ad9dd79d8218": {
         "location_id": 1314803934,
-        "location_name": "Chapter 4 - Large Cave Shrine - Flash Grenade x1 [37849b90]",
+        "location_name": "Chapter 4 - Large Cave Shrine - Flash Grenade x1 (breakable crate) [37849b90]",
         "toast_title": "Flash Grenade",
         "item_name": "Flash Grenade x1",
         "classification": "FILLER",
@@ -2319,7 +2319,7 @@
         "x": 202.89,
         "y": -6.86,
         "z": 185.05,
-        "container": "",
+        "container": "crate",
         "note": ""
       },
       "1d851cfa-ecc2-43c6-94e7-f52afc688243": {
@@ -3202,7 +3202,7 @@
     "50504": {
       "d2946303-e2ae-4bb9-b5f5-a6e6d11d7a64": {
         "location_id": 3795475687,
-        "location_name": "Chapter 7 - Treasury - Gunpowder x5 [d2946303]",
+        "location_name": "Chapter 7 - Treasury - Gunpowder x5 (case) [d2946303]",
         "toast_title": "Gunpowder",
         "item_name": "Gunpowder x5",
         "classification": "FILLER",
@@ -3212,7 +3212,7 @@
         "x": -114.65,
         "y": 19.05,
         "z": 27.19,
-        "container": "",
+        "container": "case",
         "note": ""
       },
       "3a33dce0-9986-43de-ad40-a5a27691d55e": {
@@ -3373,7 +3373,7 @@
     "50700": {
       "74d39fb5-b527-4811-9e0f-f58ceeb5eeb1": {
         "location_id": 3425277917,
-        "location_name": "Chapter 7 - Audience Chamber - Elegant Crown x1 [74d39fb5]",
+        "location_name": "Chapter 7 - Audience Chamber - Elegant Crown x1 (case) [74d39fb5]",
         "toast_title": "Elegant Crown",
         "item_name": "Elegant Crown x1",
         "classification": "FILLER",
@@ -3383,7 +3383,7 @@
         "x": -109.38,
         "y": 13.19,
         "z": 79.79,
-        "container": "",
+        "container": "case",
         "note": ""
       }
     },
@@ -3422,7 +3422,7 @@
       },
       "57ad46f8-12d3-47bf-b894-1fafe91357a6": {
         "location_id": 477270599,
-        "location_name": "Chapter 8 - Courtyard - Elegant Chessboard x1 [57ad46f8]",
+        "location_name": "Chapter 8 - Courtyard - Elegant Chessboard x1 (chest) [57ad46f8]",
         "toast_title": "Elegant Chessboard",
         "item_name": "Elegant Chessboard x1",
         "classification": "FILLER",
@@ -3432,7 +3432,7 @@
         "x": 91.57,
         "y": 21.8,
         "z": 28.94,
-        "container": "",
+        "container": "chest",
         "note": ""
       },
       "7239dae7-46fc-48f0-930d-d51ab896b935": {
@@ -3467,7 +3467,7 @@
       },
       "c5639616-2aa4-4c57-b662-7b013f5aa2d0": {
         "location_id": 2881858764,
-        "location_name": "Chapter 8 - Courtyard - Accessory: Stylish Mask x1 [c5639616]",
+        "location_name": "Chapter 8 - Courtyard - Accessory: Stylish Mask x1 (case) [c5639616]",
         "toast_title": "Accessory: Stylish Mask",
         "item_name": "Accessory: Stylish Mask x1",
         "classification": "FILLER",
@@ -3477,12 +3477,12 @@
         "x": 59.56,
         "y": 26.34,
         "z": 20.72,
-        "container": "",
+        "container": "case",
         "note": ""
       },
       "b1e533fa-b79d-4944-8dcc-9a2c22430803": {
         "location_id": 1339134035,
-        "location_name": "Chapter 8 - Courtyard - Gold Token x1 [b1e533fa]",
+        "location_name": "Chapter 8 - Courtyard - Gold Token x1 (case) [b1e533fa]",
         "toast_title": "Gold Token",
         "item_name": "Gold Token x1",
         "classification": "FILLER",
@@ -3492,7 +3492,7 @@
         "x": 59.51,
         "y": 26.35,
         "z": 20.55,
-        "container": "",
+        "container": "case",
         "note": ""
       }
     },
@@ -3516,7 +3516,7 @@
     "51401": {
       "b8db5d3f-c67b-48bf-9857-891db4b65769": {
         "location_id": 3828856188,
-        "location_name": "Chapter 8 - Wine Cellar - Depraved Idol x1 [b8db5d3f]",
+        "location_name": "Chapter 8 - Wine Cellar - Depraved Idol x1 (chest) [b8db5d3f]",
         "toast_title": "Depraved Idol",
         "item_name": "Depraved Idol x1",
         "classification": "FILLER",
@@ -3526,7 +3526,7 @@
         "x": 40.15,
         "y": 26.0,
         "z": -14.17,
-        "container": "",
+        "container": "chest",
         "note": ""
       }
     },
@@ -3674,7 +3674,7 @@
     "51503": {
       "8b52985b-07ce-4b82-a5a9-6670df065572": {
         "location_id": 757378908,
-        "location_name": "Chapter 8 - Bindery - Small Key x1 [8b52985b]",
+        "location_name": "Chapter 8 - Bindery - Small Key x1 (case) [8b52985b]",
         "toast_title": "Small Key",
         "item_name": "Small Key x1",
         "classification": "PROGRESSION",
@@ -3684,7 +3684,7 @@
         "x": -32.25,
         "y": 29.62,
         "z": -62.35,
-        "container": "",
+        "container": "case",
         "note": ""
       }
     },
@@ -3911,7 +3911,7 @@
     "52203": {
       "28a694ae-a785-4fa1-bd1b-9135379ceb93": {
         "location_id": 2356255468,
-        "location_name": "Chapter 9 - Armory - Small Key x1 [28a694ae]",
+        "location_name": "Chapter 9 - Armory - Small Key x1 (dresser) [28a694ae]",
         "toast_title": "Small Key",
         "item_name": "Small Key x1",
         "classification": "PROGRESSION",
@@ -3921,7 +3921,7 @@
         "x": 103.12,
         "y": 31.43,
         "z": 17.79,
-        "container": "",
+        "container": "dresser",
         "note": ""
       },
       "071e1736-c8d1-47f9-ba98-019e44446366": {
@@ -4306,7 +4306,7 @@
     "54102": {
       "5f1af48d-6ac9-45fb-be01-47e7bf22da51": {
         "location_id": 3840671653,
-        "location_name": "Chapter 10 - Ballroom Entrance - Brown Chicken Egg x1 [5f1af48d]",
+        "location_name": "Chapter 10 - Ballroom Entrance - Brown Chicken Egg x1 (bird's nest) [5f1af48d]",
         "toast_title": "Brown Chicken Egg",
         "item_name": "Brown Chicken Egg x1",
         "classification": "FILLER",
@@ -4316,12 +4316,12 @@
         "x": 188.56,
         "y": 33.52,
         "z": 29.09,
-        "container": "",
+        "container": "nest",
         "note": ""
       },
       "f428b54f-288c-4427-a4c1-035b6baebc04": {
         "location_id": 3248757525,
-        "location_name": "Chapter 10 - Ballroom Entrance - First Aid Spray x1 [f428b54f]",
+        "location_name": "Chapter 10 - Ballroom Entrance - First Aid Spray x1 (cupboard) [f428b54f]",
         "toast_title": "First Aid Spray",
         "item_name": "First Aid Spray x1",
         "classification": "FILLER",
@@ -4331,7 +4331,7 @@
         "x": 167.8,
         "y": 33.81,
         "z": 27.7,
-        "container": "",
+        "container": "cupboard",
         "note": ""
       },
       "b1137a19-e4e6-4ead-8b6c-6879a62b3f76": {
@@ -4383,7 +4383,7 @@
       },
       "b7fbbb90-da3e-47e8-a8b8-a62f4bef7617": {
         "location_id": 114443367,
-        "location_name": "Chapter 10 - Ballroom - Submachine Gun Ammo x30 [b7fbbb90]",
+        "location_name": "Chapter 10 - Ballroom - Submachine Gun Ammo x30 (breakable crate) [b7fbbb90]",
         "toast_title": "Submachine Gun Ammo",
         "item_name": "Submachine Gun Ammo x30",
         "classification": "FILLER",
@@ -4393,7 +4393,7 @@
         "x": 183.99,
         "y": 29.22,
         "z": 70.2,
-        "container": "",
+        "container": "crate",
         "note": ""
       },
       "fa089a01-4796-4777-8e21-0c4fbdcce354": {
@@ -4460,7 +4460,7 @@
     "54204": {
       "076c4036-0d5d-44b4-b657-dfcc6f7c7feb": {
         "location_id": 3698145116,
-        "location_name": "Chapter 10 - Antechamber - Handgun Ammo x10 [076c4036]",
+        "location_name": "Chapter 10 - Antechamber - Handgun Ammo x10 (underwater) [076c4036]",
         "toast_title": "Handgun Ammo",
         "item_name": "Handgun Ammo x10",
         "classification": "FILLER",
@@ -4470,7 +4470,7 @@
         "x": 227.49,
         "y": 30.3,
         "z": 54.39,
-        "container": "",
+        "container": "underwater",
         "note": ""
       }
     },
@@ -4584,7 +4584,7 @@
       },
       "44427870-17f1-450a-b8d7-7e03bcda6e1d": {
         "location_id": 262918373,
-        "location_name": "Chapter 12 - Throne Room - Ornate Necklace x1 [44427870]",
+        "location_name": "Chapter 12 - Throne Room - Ornate Necklace x1 (case) [44427870]",
         "toast_title": "Ornate Necklace",
         "item_name": "Ornate Necklace x1",
         "classification": "FILLER",
@@ -4594,7 +4594,7 @@
         "x": 302.17,
         "y": 33.89,
         "z": 51.39,
-        "container": "",
+        "container": "case",
         "note": ""
       }
     },
@@ -4727,7 +4727,7 @@
     "54405": {
       "afd1d1b8-8fca-4226-90b0-b37d5289540f": {
         "location_id": 1813201737,
-        "location_name": "Chapter 10 - Underground Laboratory - First Aid Spray x1 [afd1d1b8]",
+        "location_name": "Chapter 10 - Underground Laboratory - First Aid Spray x1 (chest) [afd1d1b8]",
         "toast_title": "First Aid Spray",
         "item_name": "First Aid Spray x1",
         "classification": "FILLER",
@@ -4737,12 +4737,12 @@
         "x": 177.17,
         "y": -29.63,
         "z": -10.77,
-        "container": "",
+        "container": "chest",
         "note": ""
       },
       "0dc9092b-a279-4c35-80ec-c75775af6d85": {
         "location_id": 3463946678,
-        "location_name": "Chapter 10 - Underground Laboratory - Gunpowder x5 [0dc9092b]",
+        "location_name": "Chapter 10 - Underground Laboratory - Gunpowder x5 (chest) [0dc9092b]",
         "toast_title": "Gunpowder",
         "item_name": "Gunpowder x5",
         "classification": "FILLER",
@@ -4752,7 +4752,7 @@
         "x": 177.46,
         "y": -29.65,
         "z": -10.98,
-        "container": "",
+        "container": "chest",
         "note": ""
       },
       "7f14ace2-9afb-4456-b692-66450513500b": {
@@ -5150,7 +5150,7 @@
     "56100": {
       "c81920a2-7fad-4fa9-8621-2016183892f7": {
         "location_id": 2968071828,
-        "location_name": "Chapter 12 - Gondola (Ballroom) - Small Key x1 [c81920a2]",
+        "location_name": "Chapter 12 - Gondola (Ballroom) - Small Key x1 (case) [c81920a2]",
         "toast_title": "Small Key",
         "item_name": "Small Key x1",
         "classification": "PROGRESSION",
@@ -5160,7 +5160,7 @@
         "x": 186.55,
         "y": 27.45,
         "z": 31.41,
-        "container": "",
+        "container": "case",
         "note": ""
       }
     },
@@ -5214,7 +5214,7 @@
       },
       "9b72f6d9-bdbf-4046-b73e-76bec9c3e00a": {
         "location_id": 4020474884,
-        "location_name": "Chapter 12 - Upper Clock Tower - Alexandrite x1 [9b72f6d9]",
+        "location_name": "Chapter 12 - Upper Clock Tower - Alexandrite x1 (bird's nest) [9b72f6d9]",
         "toast_title": "Alexandrite",
         "item_name": "Alexandrite x1",
         "classification": "FILLER",
@@ -5224,7 +5224,7 @@
         "x": 176.95,
         "y": 36.14,
         "z": -101.26,
-        "container": "",
+        "container": "nest",
         "note": ""
       },
       "01efc98e-2850-4fe4-a830-6d9b5ab36574": {
@@ -5276,7 +5276,7 @@
     "56104": {
       "8a4d3026-9349-4c77-828f-eec060568fef": {
         "location_id": 3857977178,
-        "location_name": "Chapter 12 - Upper Clock Tower - Yellow Diamond x1 [8a4d3026]",
+        "location_name": "Chapter 12 - Upper Clock Tower - Yellow Diamond x1 (bird's nest) [8a4d3026]",
         "toast_title": "Yellow Diamond",
         "item_name": "Yellow Diamond x1",
         "classification": "FILLER",
@@ -5286,7 +5286,7 @@
         "x": 200.62,
         "y": 63.63,
         "z": -105.98,
-        "container": "",
+        "container": "nest",
         "note": ""
       },
       "7fc72377-2858-47b3-9638-f9a1a84346d4": {
@@ -5878,7 +5878,7 @@
       },
       "0935e381-39a7-4d4f-ad49-d6c07bf24187": {
         "location_id": 3863606038,
-        "location_name": "Chapter 13 - Systems - Gunpowder x3 [0935e381]",
+        "location_name": "Chapter 13 - Systems - Gunpowder x3 (shelf) [0935e381]",
         "toast_title": "Gunpowder",
         "item_name": "Gunpowder x3",
         "classification": "FILLER",
@@ -5888,7 +5888,7 @@
         "x": 104.03,
         "y": 15.73,
         "z": -45.16,
-        "container": "",
+        "container": "shelf",
         "note": ""
       }
     },

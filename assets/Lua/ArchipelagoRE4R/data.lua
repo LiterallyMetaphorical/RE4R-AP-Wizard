@@ -857,9 +857,11 @@ local function install(ctx)
     end
 
     -- Player-facing gloss for items.csv Container values. Mirror of
-    -- data_parser._CONTAINER_GLOSS - keep the two in sync. "hanging" is
-    -- synthesized by the parser from the scene dev-note name (shoot-to-drop
-    -- treasures); every other key is a raw BioRand items.csv Container value.
+    -- data_parser._CONTAINER_GLOSS - keep the two in sync. "hanging" and every
+    -- kind from "crate" down are synthesized by the parser from the scene
+    -- dev-note name (drops hidden in furniture or odd places that BioRand
+    -- never tagged - the "ghost report" class); the keys above them are raw
+    -- BioRand items.csv Container values.
     local CONTAINER_GLOSS = {
         chest = "chest",
         long = "long chest",
@@ -871,6 +873,21 @@ local function install(ctx)
         display = "wall display",
         bawk = "nest",
         hanging = "hanging",
+        crate = "breakable crate",
+        drawer = "drawer",
+        dresser = "dresser",
+        cupboard = "cupboard",
+        shelf = "shelf",
+        locker = "locker",
+        oven = "oven",
+        incinerator = "incinerator",
+        barrel = "barrel",
+        nest = "bird's nest",
+        case = "case",
+        attic = "attic",
+        roof = "rooftop",
+        desk = "desk",
+        underwater = "underwater",
     }
 
     local function get_container_gloss(container)
