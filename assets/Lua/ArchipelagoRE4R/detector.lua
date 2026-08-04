@@ -1290,7 +1290,14 @@ local function install(ctx)
     -- run). Born from the loc56 cut-content hunt: 2 confirmed dead herbs took
     -- a manual probe + screenshots; this collects the same evidence for free
     -- during every playtest.
-    local drop_audit = { seen = nil, dirty = false }
+    -- [v2] Each tracked drop also records its LIVE world position. The 08-02
+    -- ghost reports were all for spots the audit proves alive, which leaves
+    -- marker-offset (the marker's dataset coordinates vs where the drop
+    -- really sits) and stale markers as the open explanations. Diffing pos
+    -- against re4r_ap_static.json's x/y/z offline measures the first one
+    -- directly. Caveat for readers: tracked does not mean visible - inert
+    -- possession twins report positions too.
+    local drop_audit = { seen = nil, pos = nil, dirty = false }
     local drop_audit_last_scan = 0.0
     local drop_audit_last_write = 0.0
 
@@ -1299,12 +1306,49 @@ local function install(ctx)
             return
         end
         drop_audit.seen = {}
+        drop_audit.pos = {}
         local payload = json.load_file(DROP_AUDIT_FILE)
         if type(payload) == "table" and type(payload.seen) == "table" then
             for guid, stamp in pairs(payload.seen) do
                 drop_audit.seen[guid] = stamp
             end
         end
+        -- v1 files simply have no pos table; they upgrade in place on the
+        -- next write.
+        if type(payload) == "table" and type(payload.pos) == "table" then
+            for guid, position in pairs(payload.pos) do
+                if type(position) == "table"
+                    and type(position.x) == "number"
+                    and type(position.y) == "number"
+                    and type(position.z) == "number" then
+                    drop_audit.pos[guid] = { x = position.x, y = position.y, z = position.z }
+                end
+            end
+        end
+    end
+
+    local function read_drop_world_position(game_object)
+        local ok, position = pcall(function()
+            local transform = game_object:get_Transform()
+            if transform == nil then
+                return nil
+            end
+            local vec = transform:get_Position()
+            if vec == nil then
+                return nil
+            end
+            return { x = tonumber(vec.x), y = tonumber(vec.y), z = tonumber(vec.z) }
+        end)
+        if not ok or type(position) ~= "table"
+            or type(position.x) ~= "number"
+            or type(position.y) ~= "number"
+            or type(position.z) ~= "number" then
+            return nil
+        end
+        local function round_cm(value)
+            return math.floor(value * 100 + 0.5) / 100
+        end
+        return { x = round_cm(position.x), y = round_cm(position.y), z = round_cm(position.z) }
     end
 
     local function drop_audit_scan()
@@ -1338,11 +1382,26 @@ local function install(ctx)
                 end)
                 if ok_go and game_object ~= nil then
                     local guid = normalize_guid(tostring(get_game_object_guid(game_object)))
-                    if guid ~= nil
-                        and resolve_tracked_stage(guid) ~= nil
-                        and drop_audit.seen[guid] == nil then
-                        drop_audit.seen[guid] = os.time()
-                        drop_audit.dirty = true
+                    if guid ~= nil and resolve_tracked_stage(guid) ~= nil then
+                        if drop_audit.seen[guid] == nil then
+                            drop_audit.seen[guid] = os.time()
+                            drop_audit.dirty = true
+                        end
+                        -- Last-known live position wins: a cage item that gets
+                        -- shot down should report where it landed, not where
+                        -- it hung. The 0.5m epsilon keeps physics jitter from
+                        -- dirtying the file forever.
+                        local position = read_drop_world_position(game_object)
+                        if position ~= nil then
+                            local previous = drop_audit.pos[guid]
+                            if previous == nil
+                                or math.abs(previous.x - position.x) > 0.5
+                                or math.abs(previous.y - position.y) > 0.5
+                                or math.abs(previous.z - position.z) > 0.5 then
+                                drop_audit.pos[guid] = position
+                                drop_audit.dirty = true
+                            end
+                        end
                     end
                 end
             end
@@ -1361,7 +1420,7 @@ local function install(ctx)
             drop_audit_last_write = now
             drop_audit.dirty = false
             pcall(function()
-                json.dump_file(DROP_AUDIT_FILE, { version = 1, seen = drop_audit.seen })
+                json.dump_file(DROP_AUDIT_FILE, { version = 2, seen = drop_audit.seen, pos = drop_audit.pos })
             end)
         end
     end)
