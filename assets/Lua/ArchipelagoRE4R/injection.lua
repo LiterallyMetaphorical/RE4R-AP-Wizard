@@ -2319,6 +2319,7 @@ local function install(ctx)
     local key_mirror_was_default = true
     local key_mirror_pending = {}
     local key_mirror_attempts = 0
+    local key_mirror_delivered = 0
 
     re.on_frame(function()
         local now = os.clock()
@@ -2343,6 +2344,7 @@ local function install(ctx)
                 key_mirror_was_default = true
                 key_mirror_pending = {}
                 key_mirror_attempts = 0
+                key_mirror_delivered = 0
                 return
             end
 
@@ -2352,6 +2354,7 @@ local function install(ctx)
             if key_mirror_was_default then
                 key_mirror_was_default = false
                 key_mirror_attempts = 0
+                key_mirror_delivered = 0
                 key_mirror_pending = {}
                 local source = key_item_snapshot
                 local origin = "boot snapshot"
@@ -2380,6 +2383,7 @@ local function install(ctx)
                 for _, item_id in ipairs(key_mirror_pending) do
                     local status = inject_item_to_inventory(item_id, 1)
                     if inject_status_succeeded(status) then
+                        key_mirror_delivered = key_mirror_delivered + 1
                         log.info(string.format(
                             "[RE4R AP] key-item mirror: %d transferred (%s)",
                             item_id, tostring(status)))
@@ -2395,6 +2399,18 @@ local function install(ctx)
                 key_mirror_pending = still_pending
                 if #key_mirror_pending == 0 then
                     log.info("[RE4R AP] key-item mirror: complete")
+                    -- Say it out loud. Key items appearing in another
+                    -- character's inventory with no explanation reads as a bug
+                    -- (or as cheating) rather than as the thing that keeps her
+                    -- doors openable (Cam, live 2026-08-06).
+                    local push = ctx.push_info_toast or _G.push_info_toast
+                    if type(push) == "function" and key_mirror_delivered > 0 then
+                        push("Key items carried over", string.format(
+                            "%d key item%s from the campaign lead came with you",
+                            key_mirror_delivered,
+                            key_mirror_delivered == 1 and "" or "s"))
+                    end
+                    key_mirror_delivered = 0
                 end
             end
         end)
