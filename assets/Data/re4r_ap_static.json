@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-08-04T22:18:43Z",
+  "generated_at_utc": "2026-08-05T02:39:23Z",
   "game": "Resident Evil 4 Remake",
-  "world_version": "0.6.5",
+  "world_version": "0.6.6",
   "placeholder_item_id": 120486400,
   "counts": {
     "locations_total": 474,
@@ -1786,12 +1786,12 @@
       "note": ""
     },
     "2458781681": {
-      "name": "Chapter 2 - Village Chief's Manor - Yellow Herb x1 (attic) [422c2430]",
+      "name": "Chapter 5 - Village Chief's Manor - Yellow Herb x1 (attic) [422c2430]",
       "guid": "422c2430-972b-4ea5-bca1-c3600e00b63e",
       "identity_kind": "guid",
-      "chapter": 2,
+      "chapter": 5,
       "stage": 44110,
-      "region": "Village",
+      "region": "Church",
       "source_item_name": "Yellow Herb x1",
       "ap_eligibility": "always",
       "section_name": "Village Chief's Manor",

@@ -131,11 +131,22 @@ Rebuilt:     2026-08-04 (rev 3), world_version stays 0.6.5 (unreleased) -
              katakana chest, suspended treasure -> hanging): synthesized
              kinds 79 -> 85, six more names gain their gloss, codes/guids
              verified byte-stable. 2-seed generation sanity passed.
-Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_version 0.6.5
+Rebuilt:     2026-08-04 (rev 4), world_version 0.6.6 - the manor attic herb is
+             a Chapter 5 check. Two testers ghost-reported the Village
+             Chief's Manor Yellow Herb (422c2430) in ch2; a third reported
+             it obtainable in ch5, and the geometry agrees (same attic floor
+             as the Antique Camera, y=17.67, reached by boosting Ashley on
+             the ch5 revisit). Same misattribution class as the camera and
+             Elegant Bangle. Beyond the label, ch2 was a logic hazard - fill
+             could trust a reach that needs the escort. One location moves
+             (ch2 -> ch5, Village -> Church); everything else byte-stable.
+             Verified: 3-seed sweep across default / backtracking-off /
+             shuffle_keycards+missables, zero failures.
+Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_version 0.6.6
              per that repo's archipelago.json.
 AP target:   Archipelago 0.6.7 (the version the apworld was developed and
              generation-validated against; pinned via the manifest as of 2026-07-12).
-SHA-256:     4b99b930f9c60a882b0b535406f78138d2323b1e75a95a5b5de0773832f7eef4
+SHA-256:     0c0d0fe71556b2263e9204f63d900430d8f2d71f537ade5a41164569f232c4e4
 Consumed by: the Generation Guidance screen ("Copy RE4R.apworld to your Archipelago
              custom_worlds folder") - ArchipelagoInstallationService reads the
              world_version out of this zip's manifest for display and copies the
