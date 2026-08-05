@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-08-05T23:11:04Z",
+  "generated_at_utc": "2026-08-05T23:39:11Z",
   "game": "Resident Evil 4 Remake",
   "world_version": "0.6.7",
   "placeholder_item_id": 120486400,
@@ -490,10 +490,10 @@
   ],
   "locations": {
     "3286922255": {
-      "name": "Chapter 3 - Village Square - Green Herb x1 [22f519ca]",
+      "name": "Chapter 1 - Village Square - Green Herb x1 [22f519ca]",
       "guid": "22f519ca-c70b-4dca-9516-a10d7789a2cd",
       "identity_kind": "guid",
-      "chapter": 3,
+      "chapter": 1,
       "stage": 40200,
       "region": "Village",
       "source_item_name": "Green Herb x1",
@@ -890,10 +890,10 @@
       "note": ""
     },
     "3114038778": {
-      "name": "Chapter 3 - Village Square - Shotgun Shells x3 [5669e67a]",
+      "name": "Chapter 1 - Village Square - Shotgun Shells x3 [5669e67a]",
       "guid": "5669e67a-8d34-4a8c-944d-472e9345a6d3",
       "identity_kind": "guid",
-      "chapter": 3,
+      "chapter": 1,
       "stage": 40210,
       "region": "Village",
       "source_item_name": "Shotgun Shells x3",
@@ -906,10 +906,10 @@
       "note": ""
     },
     "3403951514": {
-      "name": "Chapter 3 - Village Square - Green Herb x1 [cb8b64ce]",
+      "name": "Chapter 1 - Village Square - Green Herb x1 [cb8b64ce]",
       "guid": "cb8b64ce-38b1-40f2-8276-c5e815782a85",
       "identity_kind": "guid",
-      "chapter": 3,
+      "chapter": 1,
       "stage": 40200,
       "region": "Village",
       "source_item_name": "Green Herb x1",
@@ -922,10 +922,10 @@
       "note": ""
     },
     "4278692060": {
-      "name": "Chapter 3 - Village Square - Vintage Compass x1 (small-key drawer) [91f26b7e]",
+      "name": "Chapter 1 - Village Square - Vintage Compass x1 (small-key drawer) [91f26b7e]",
       "guid": "91f26b7e-c9f2-4645-acb1-8240d7de2947",
       "identity_kind": "guid",
-      "chapter": 3,
+      "chapter": 1,
       "stage": 40210,
       "region": "Village",
       "source_item_name": "Vintage Compass x1",
@@ -938,10 +938,10 @@
       "note": ""
     },
     "3368380827": {
-      "name": "Chapter 3 - Village Square - Handgun Ammo x10 [3d1da35b]",
+      "name": "Chapter 1 - Village Square - Handgun Ammo x10 [3d1da35b]",
       "guid": "3d1da35b-c5ca-4056-8946-50cf81ca487a",
       "identity_kind": "guid",
-      "chapter": 3,
+      "chapter": 1,
       "stage": 40200,
       "region": "Village",
       "source_item_name": "Handgun Ammo x10",
@@ -954,10 +954,10 @@
       "note": ""
     },
     "2835325570": {
-      "name": "Chapter 3 - Village Square - Green Herb x1 [bd3288ac]",
+      "name": "Chapter 1 - Village Square - Green Herb x1 [bd3288ac]",
       "guid": "bd3288ac-5646-4290-9603-5052e2a88721",
       "identity_kind": "guid",
-      "chapter": 3,
+      "chapter": 1,
       "stage": 40200,
       "region": "Village",
       "source_item_name": "Green Herb x1",
@@ -970,10 +970,10 @@
       "note": ""
     },
     "2522533126": {
-      "name": "Chapter 3 - Village Square - Red Herb x1 [ee42961c]",
+      "name": "Chapter 1 - Village Square - Red Herb x1 [ee42961c]",
       "guid": "ee42961c-2da1-4131-ba37-91909c46180e",
       "identity_kind": "guid",
-      "chapter": 3,
+      "chapter": 1,
       "stage": 40200,
       "region": "Village",
       "source_item_name": "Red Herb x1",
@@ -986,10 +986,10 @@
       "note": ""
     },
     "200989878": {
-      "name": "Chapter 3 - Village Square - Hand Grenade x1 (breakable crate) [bb6ad758]",
+      "name": "Chapter 1 - Village Square - Hand Grenade x1 (breakable crate) [bb6ad758]",
       "guid": "bb6ad758-09a8-4953-9ea6-efef58d02fe8",
       "identity_kind": "guid",
-      "chapter": 3,
+      "chapter": 1,
       "stage": 40210,
       "region": "Village",
       "source_item_name": "Hand Grenade x1",
@@ -1002,10 +1002,10 @@
       "note": ""
     },
     "4293052662": {
-      "name": "Chapter 3 - Village Square - Hand Grenade x1 (breakable crate) [36416bae]",
+      "name": "Chapter 1 - Village Square - Hand Grenade x1 (breakable crate) [36416bae]",
       "guid": "36416bae-5da5-494c-bece-e5ff7cbbbf9e",
       "identity_kind": "guid",
-      "chapter": 3,
+      "chapter": 1,
       "stage": 40211,
       "region": "Village",
       "source_item_name": "Hand Grenade x1",
@@ -1018,10 +1018,10 @@
       "note": ""
     },
     "2873550400": {
-      "name": "Chapter 3 - Village Square - Handgun Ammo x10 [55c55c23]",
+      "name": "Chapter 1 - Village Square - Handgun Ammo x10 [55c55c23]",
       "guid": "55c55c23-73c5-4c4f-9e9e-bbc45347edd0",
       "identity_kind": "guid",
-      "chapter": 3,
+      "chapter": 1,
       "stage": 40210,
       "region": "Village",
       "source_item_name": "Handgun Ammo x10",
@@ -1034,10 +1034,10 @@
       "note": ""
     },
     "670413801": {
-      "name": "Chapter 3 - Village Square - First Aid Spray x1 [196a3dbd]",
+      "name": "Chapter 1 - Village Square - First Aid Spray x1 [196a3dbd]",
       "guid": "196a3dbd-92f6-4280-a46e-7df9c5ea52fc",
       "identity_kind": "guid",
-      "chapter": 3,
+      "chapter": 1,
       "stage": 40210,
       "region": "Village",
       "source_item_name": "First Aid Spray x1",
@@ -1050,10 +1050,10 @@
       "note": ""
     },
     "983954331": {
-      "name": "Chapter 3 - Village Square - Ruby x1 (case) [a0780a23]",
+      "name": "Chapter 1 - Village Square - Ruby x1 (case) [a0780a23]",
       "guid": "a0780a23-5252-4334-9d76-5a2f69a1998c",
       "identity_kind": "guid",
-      "chapter": 3,
+      "chapter": 1,
       "stage": 40200,
       "region": "Village",
       "source_item_name": "Ruby x1",
@@ -1066,10 +1066,10 @@
       "note": ""
     },
     "3579577135": {
-      "name": "Chapter 3 - Village Square - W-870 x5 (wall display) [0f392d46]",
+      "name": "Chapter 1 - Village Square - W-870 x5 (wall display) [0f392d46]",
       "guid": "0f392d46-1b87-4bbe-aa1e-e855df4eeb7f",
       "identity_kind": "guid",
-      "chapter": 3,
+      "chapter": 1,
       "stage": 40210,
       "region": "Village",
       "source_item_name": "W-870 x5",
@@ -1082,10 +1082,10 @@
       "note": ""
     },
     "20659167": {
-      "name": "Chapter 3 - Village Square - Velvet Blue x1 [64c086ca]",
+      "name": "Chapter 1 - Village Square - Velvet Blue x1 [64c086ca]",
       "guid": "64c086ca-b513-4e15-9076-8064d5dc758b",
       "identity_kind": "guid",
-      "chapter": 3,
+      "chapter": 1,
       "stage": 40210,
       "region": "Village",
       "source_item_name": "Velvet Blue x1",
@@ -1114,10 +1114,10 @@
       "note": ""
     },
     "3109295253": {
-      "name": "Chapter 3 - Village Square - Ornate Necklace x1 (case) [4526972b]",
+      "name": "Chapter 1 - Village Square - Ornate Necklace x1 (case) [4526972b]",
       "guid": "4526972b-c59e-4030-9a36-b0e79d2babec",
       "identity_kind": "guid",
-      "chapter": 3,
+      "chapter": 1,
       "stage": 40200,
       "region": "Village",
       "source_item_name": "Ornate Necklace x1",

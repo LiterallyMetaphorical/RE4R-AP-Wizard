@@ -206,11 +206,18 @@ Rebuilt:     2026-08-06 (rev 6), world_version stays 0.6.7 (unreleased) - the
              needed). New [4, Lakeside Settlement Cabin] order row; Rhinoceros
              Beetle gains an `on the tree` note. Pool/codes unchanged (474).
              Sweep 9/9, now asserting no own Boat Fuel at or past Boat House.
+Rebuilt:     2026-08-06 (rev 7), world_version stays 0.6.7 (unreleased) - the
+             village square is one Chapter 1 area (18 checks, was 3 + 15
+             split across ch1/ch3); the square is looted on the ch1 visit.
+             The two Ashley-escort treasures there stay ch5 by guid. The
+             Insignia Key / Crystal Marble gate moves to (3, Town Hall),
+             the next region along, since the ch3 square no longer
+             materializes. Pool/codes unchanged (474); sweep 9/9.
 Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_version 0.6.7
              per that repo's archipelago.json.
 AP target:   Archipelago 0.6.7 (the version the apworld was developed and
              generation-validated against; pinned via the manifest as of 2026-07-12).
-SHA-256:     65b77299997b2df2f88a316a5edd9215aa068f6342bf3edc64c19eba1fec20f0
+SHA-256:     2e96b6741ee7206fb27a46c8f8808943f6eb1451248cadb12d43a4c7d74a0787
 Consumed by: the Generation Guidance screen ("Copy RE4R.apworld to your Archipelago
              custom_worlds folder") - ArchipelagoInstallationService reads the
              world_version out of this zip's manifest for display and copies the
