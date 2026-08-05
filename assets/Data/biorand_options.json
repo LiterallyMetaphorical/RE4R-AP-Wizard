@@ -240,8 +240,8 @@
      "items": [
       {
        "key": "gimmicks-traps",
-       "label": "Traps",
-       "description": "The amount of bear traps, and trip wires in the randomizer. Random events override any nearby traps.",
+       "label": "Bear Traps and Trip Wires",
+       "description": "The amount of bear traps, and trip wires in the randomizer. Random events override any nearby traps. Off by default: added traps read as unfair rather than fun.",
        "type": "percent",
        "min": 0,
        "max": 1,
@@ -249,8 +249,8 @@
        "advanced": false,
        "defaults": [
         0.0,
-        1,
-        1
+        0.0,
+        0.0
        ]
       },
       {
@@ -3650,8 +3650,8 @@
      "items": [
       {
        "key": "enemy-scale-probability",
-       "label": "Unusual scale probability",
-       "description": "The percentage of enemies that are an unusual size.",
+       "label": "Unusual Enemy Size Chance",
+       "description": "The percentage of enemies that are an unusual size (giant or tiny). Set to 0% to keep every enemy its normal size.",
        "type": "percent",
        "min": 0,
        "max": 1,

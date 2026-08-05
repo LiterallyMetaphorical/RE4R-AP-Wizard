@@ -9,7 +9,20 @@ The payload itself is a build artifact (git-ignored); rebuild it with:
 
 Source repo:    biorand-re4r-ap (fork; never upstream biorand/re4r)
 Source branch:  ap-manifest-input
-Source commit:  27dc205 (2026-08-05: AP PLACEMENT QUANTITIES - playtest report:
+Source commit:  e586795 (2026-08-06: OPTION DEFINITIONS - traps default to 0%
+                in every mode (added bear traps and trip wires read as unfair
+                rather than fun; players who want them raise the slider), the
+                trap option is labelled "Bear Traps and Trip Wires" instead of
+                the generic "Traps", and the enemy-size option - always
+                present, always on at 3%, and never findable under the name
+                "Unusual scale probability" - becomes "Unusual Enemy Size
+                Chance" with a description saying 0% keeps normal sizes. Its
+                3% default is unchanged. Definition-only: AP generations take
+                every value explicitly from the launcher catalog, so this
+                changes no world; the matching catalog edit ships in
+                assets/Data/biorand_options.json. Patch smoke re-run on this
+                payload, exit 0.)
+                Prior: 27dc205 (2026-08-05: AP PLACEMENT QUANTITIES - playtest report:
                 world pickups labeled x3 delivered x1. The manifest carried
                 only an item id per GUID and BuildApPlacements wrote every
                 placement as Item(id, 1), while the player-facing surfaces
@@ -121,8 +134,8 @@ Source commit:  27dc205 (2026-08-05: AP PLACEMENT QUANTITIES - playtest report:
                 DLC entitlement needed). Includes b27f7ac (drop-catalog fix)
                 and 90140f0 (purity gates).)
 Publish:        -c Release -r win-x64 --self-contained -p:PublishSingleFile=true (net10.0)
-biorand-re4r.exe SHA-256: 66b92490a53674bab7e5d95fd3a31805226a76272fa406127cc7ec94cd3c5166
-ProductVersion: 1.0.0+27dc20526fcac790cc573332dc71f786e66560d3 (the launcher
+biorand-re4r.exe SHA-256: 3766de015a3710365a048869b900f58b70da019ff3795c8c41623e809c360c6e
+ProductVersion: 1.0.0+e58679570007268c93cad3c0571ded98693440e5 (the launcher
                 writes this into version_stamp.json, and a change here is what
                 triggers the one-time setup cache re-harvest)
 Built with:     .NET SDK 10.0.301
@@ -185,7 +198,11 @@ Note:           setup cache rebuild is triggered by a BioRand version change
                 swap; a pre-swap save with a crossbow in the inventory HEALS
                 on re-patch (the owned weapon no longer matches placeholder
                 drops).
-Prior payload:  7d04b9f3b36fd8f56393dce6862897ff8b171b22edf76d0793cf1d09fb0845ab
+Prior payload:  66b92490a53674bab7e5d95fd3a31805226a76272fa406127cc7ec94cd3c5166
+                (commit 27dc205) - AP placement quantities; superseded the
+                same week by the option-definition build above, never shipped
+                to a player re-patch on its own.
+                7d04b9f3b36fd8f56393dce6862897ff8b171b22edf76d0793cf1d09fb0845ab
                 (commit a52cdc5) - the AP-mode generation crash fix; shipped
                 from v0.2.1-alpha through v0.3.2-alpha.
                 25d86ceeb26d8de9cf12e7ae81be54ce0adf9badce98d9864687bbfabbf03716
