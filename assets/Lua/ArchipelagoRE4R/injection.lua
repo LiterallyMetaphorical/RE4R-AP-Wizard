@@ -1846,12 +1846,72 @@ local function install(ctx)
             )
         end
 
+        -- Fit-checked placement (playtest report 2026-08-05: injected items
+        -- hanging past the case boundary). forceSetItem plants the item's
+        -- anchor at the first empty CELL and never asks whether the footprint
+        -- fits, so anything larger than 1x1 placed near the edge overhung the
+        -- grid. The engine's own answers: enableAddItem(item, AddItemType.Add)
+        -- says whether ANY legal spot exists, and add() is the fit-checked
+        -- sibling of forceSetItem that refuses an illegal anchor. Signatures
+        -- from il2cpp_dump.json; every call is verified by its effects.
+        local add_method = inject_find_method(cs_type, "add", 4)
+        local enable_add = inject_find_method(cs_type, "enableAddItem", 2)
+
+        local engine_says_fits = nil
+        if enable_add ~= nil then
+            engine_says_fits = inject_safe_call(function()
+                return enable_add:call(inject_get_managed(cs_inventory), item, 0)
+            end)
+        end
+        if engine_says_fits == false then
+            -- A case can have free cells and still no legal spot for a tall
+            -- item; Storage is the honest destination, not an overhang.
+            return inject_write_storage(item, normalized_item_id, remaining, route_label, "no space fits the item")
+        end
+
         local empty_slots = inject_safe_call(function()
             return get_empty:call(inject_get_managed(cs_inventory), 0)
         end)
         local empty_slot_count = inject_get_collection_count(empty_slots)
         if type(empty_slot_count) ~= "number" or empty_slot_count <= 0 then
             return inject_write_storage(item, normalized_item_id, remaining, route_label, "attache case full")
+        end
+
+        local placed_suffix = (absorbed > 0)
+            and string.format(" (+%d stacked into existing stacks)", absorbed)
+            or ""
+
+        if add_method ~= nil then
+            for slot_index = 0, empty_slot_count - 1 do
+                local candidate = inject_get_collection_item(empty_slots, slot_index)
+                if candidate ~= nil then
+                    local add_result = inject_safe_call(function()
+                        return add_method:call(inject_get_managed(cs_inventory), item, 0, candidate, 0)
+                    end)
+                    local added = tonumber(inject_safe_call(function()
+                        local result_managed = inject_get_managed(add_result)
+                        return result_managed ~= nil and result_managed:get_field("AddCount") or nil
+                    end))
+                    if type(added) == "number" and added > 0 then
+                        if absorbed > 0 then
+                            record_local_injection_suppression(normalized_item_id, remaining)
+                        end
+                        local row, column = inject_get_slot_row_column(candidate)
+                        return string.format(
+                            "%s added %d x%d at slot (%s,%s)%s",
+                            route_label,
+                            normalized_item_id,
+                            remaining,
+                            tostring(row or "?"),
+                            tostring(column or "?"),
+                            placed_suffix
+                        )
+                    end
+                end
+            end
+            log.info(string.format(
+                "[RE4R AP] %s: add() refused every empty slot, falling back to forceSetItem",
+                route_label))
         end
 
         local first_slot = inject_get_collection_item(empty_slots, 0)
@@ -1874,10 +1934,6 @@ local function install(ctx)
                 inject_value_to_string(stack_add_result)
             )
         end
-
-        local placed_suffix = (absorbed > 0)
-            and string.format(" (+%d stacked into existing stacks)", absorbed)
-            or ""
 
         local force_set_bool = coerce_to_bool(force_set_result)
         if force_set_bool or force_set_result == true or force_set_result ~= nil then
