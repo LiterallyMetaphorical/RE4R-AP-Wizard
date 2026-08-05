@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-08-05T18:13:12Z",
+  "generated_at_utc": "2026-08-05T23:11:04Z",
   "game": "Resident Evil 4 Remake",
   "world_version": "0.6.7",
   "placeholder_item_id": 120486400,
@@ -1450,12 +1450,12 @@
       "note": ""
     },
     "1257184391": {
-      "name": "Chapter 1 - Lakeside Settlement Cabin - Red Gemstone Ring x1 (long chest) [d9d70aa6]",
+      "name": "Chapter 4 - Lakeside Settlement Cabin - Red Gemstone Ring x1 (long chest) [d9d70aa6]",
       "guid": "d9d70aa6-477f-4612-a330-05724f036e2b",
       "identity_kind": "guid",
-      "chapter": 1,
+      "chapter": 4,
       "stage": 43410,
-      "region": "Village",
+      "region": "Lake",
       "source_item_name": "Red Gemstone Ring x1",
       "ap_eligibility": "always",
       "section_name": "Lakeside Settlement Cabin",

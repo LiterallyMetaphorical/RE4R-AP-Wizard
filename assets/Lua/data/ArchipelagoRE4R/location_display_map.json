@@ -682,7 +682,7 @@
         "y": -4.55,
         "z": -104.37,
         "container": "",
-        "note": ""
+        "note": "on the tree"
       },
       "8eee05a5-29b2-477d-afcf-f7046857d74a": {
         "location_id": 3124753747,
@@ -778,11 +778,11 @@
       },
       "d9d70aa6-477f-4612-a330-05724f036e2b": {
         "location_id": 1257184391,
-        "location_name": "Chapter 1 - Lakeside Settlement Cabin - Red Gemstone Ring x1 (long chest) [d9d70aa6]",
+        "location_name": "Chapter 4 - Lakeside Settlement Cabin - Red Gemstone Ring x1 (long chest) [d9d70aa6]",
         "toast_title": "Red Gemstone Ring",
         "item_name": "Red Gemstone Ring x1",
         "classification": "FILLER",
-        "chapter": 1,
+        "chapter": 4,
         "stage_name": "Lakeside cabin.",
         "section_name": "Lakeside Settlement Cabin",
         "x": 254.75,
