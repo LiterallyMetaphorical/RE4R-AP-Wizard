@@ -192,11 +192,16 @@ Rebuilt:     2026-08-06 (rev 4), world_version stays 0.6.7 (unreleased) - keys
              Sweep: 9/9 across backtracking / keycards / missables configs
              with per-seed key-window, own-world and drawer-progression
              spoiler assertions.
+Rebuilt:     2026-08-06 (rev 5), world_version stays 0.6.7 (unreleased) - the
+             Allow Missable Locations text now names small-key drawers as
+             the second permanently-losable case it governs (a discarded
+             Small Key can seal a drawer). Option text only; no logic, pool
+             or data change.
 Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_version 0.6.7
              per that repo's archipelago.json.
 AP target:   Archipelago 0.6.7 (the version the apworld was developed and
              generation-validated against; pinned via the manifest as of 2026-07-12).
-SHA-256:     450d0b10be8328fe40b78e5cde4fd5502f825e2b839ebca83d8be08340b32179
+SHA-256:     73038a7a1a05bb67b5045a74f8b7a1c68ae7732a5c04c24f460c4144f6946547
 Consumed by: the Generation Guidance screen ("Copy RE4R.apworld to your Archipelago
              custom_worlds folder") - ArchipelagoInstallationService reads the
              world_version out of this zip's manifest for display and copies the

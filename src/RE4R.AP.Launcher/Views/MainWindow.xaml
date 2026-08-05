@@ -565,7 +565,7 @@
                             <CheckBox IsChecked="{Binding AllowMissableLocations}"
                                       Content="Allow missable locations" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="Off by default, which keeps progression items away from spots you can permanently walk past. On allows them there - riskier seeds." />
+                                       Text="Off by default, which keeps progression items away from spots you can permanently lose: ones you can walk past for good, and small-key drawers (a discarded Small Key can seal one). On allows them in both - riskier seeds." />
                         </StackPanel>
 
                         <StackPanel Style="{StaticResource OptionCardStyle}">

@@ -84,7 +84,7 @@ Someone else hosts; you just play. Four things trip people up:
 - **Death Link** - share deaths with the room.
 - **Progression Balancing** - how hard the multiworld works to keep your important items early. 50-70 suits RE4R's gated chapters; lower values mean longer waits on other players.
 - **Check Guidance** - the ceiling for in-game Markers.
-- **Allow Missable Locations** - off by default, keeping progression items off spots you can permanently lose.
+- **Allow Missable Locations** - off by default, keeping progression items off spots you can permanently lose: ones you can walk past for good, and small-key drawers, since a discarded Small Key can seal one. Turn it on for riskier seeds where both can hold progression.
 - **Shuffle Keycards** - off by default; the island keycards stay at their native spots.
 - **Minimize Backtracking + Side Areas** - off by default; when on, keeps important checks on the main path.
 - **Unlocked Typewriters** - save points you can warp to from the start.
