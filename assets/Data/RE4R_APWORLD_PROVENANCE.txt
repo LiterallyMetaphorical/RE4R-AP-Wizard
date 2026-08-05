@@ -179,11 +179,24 @@ Rebuilt:     2026-08-05 (rev 3), world_version stays 0.6.7 (unreleased) - Manor
              unchanged (474). 6/6 two-slot sweep with a new per-seed spoiler
              assertion that no slot's own emblem lands at or past its Manor
              Approach.
+Rebuilt:     2026-08-06 (rev 4), world_version stays 0.6.7 (unreleased) - keys
+             ahead of their drawers. A live seed put the first Small Key in
+             chapter 7, sealing every early drawer for most of the run: the
+             count rule gates the Nth drawer behind N keys but said nothing
+             about where keys generate. pre_fill now locks the Nth key into a
+             random location whose region sits at-or-before the Nth drawer's
+             in the authored order. Drawers hold progression only under
+             allow_missable_locations (the game flags Small Keys discardable
+             partway through the campaign, so a tossed key can strand a
+             drawer - the chapteronly shape). Pool and codes unchanged (474).
+             Sweep: 9/9 across backtracking / keycards / missables configs
+             with per-seed key-window, own-world and drawer-progression
+             spoiler assertions.
 Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_version 0.6.7
              per that repo's archipelago.json.
 AP target:   Archipelago 0.6.7 (the version the apworld was developed and
              generation-validated against; pinned via the manifest as of 2026-07-12).
-SHA-256:     f4f95c6a6cbec471ddf4edfdfc1e97a0607b22903740d7139d79c6a66a4f1b5a
+SHA-256:     450d0b10be8328fe40b78e5cde4fd5502f825e2b839ebca83d8be08340b32179
 Consumed by: the Generation Guidance screen ("Copy RE4R.apworld to your Archipelago
              custom_worlds folder") - ArchipelagoInstallationService reads the
              world_version out of this zip's manifest for display and copies the
