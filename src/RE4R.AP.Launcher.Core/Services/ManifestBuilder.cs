@@ -49,7 +49,7 @@ public sealed class ManifestBuilder
 
         Log($"Building manifest for {scoutSession.Locations.Count} locations using BioRand game-version {gameVersion}.");
 
-        var placements = new SortedDictionary<string, int>(StringComparer.Ordinal);
+        var placements = new SortedDictionary<string, ManifestPlacement>(StringComparer.Ordinal);
         var placeholderCount = 0;
         var realRe4rCount = 0;
         var skippedNoGuidCount = 0;
@@ -68,15 +68,15 @@ public sealed class ManifestBuilder
                 continue;
             }
 
-            var manifestItemId = ResolveManifestItemId(staticData, scoutSession, scoutedLocation);
+            var manifestPlacement = ResolveManifestPlacement(staticData, scoutSession, scoutedLocation);
 
-            if (!placements.TryAdd(staticLocation.Guid, manifestItemId))
+            if (!placements.TryAdd(staticLocation.Guid, manifestPlacement))
             {
                 throw new ManifestBuildException(
                     $"The AP manifest encountered duplicate GUID {staticLocation.Guid}. The bundled world data needs to be regenerated.");
             }
 
-            if (manifestItemId == staticData.PlaceholderItemId)
+            if (manifestPlacement.ItemId == staticData.PlaceholderItemId)
             {
                 placeholderCount++;
             }
@@ -113,14 +113,14 @@ public sealed class ManifestBuilder
         };
     }
 
-    private static int ResolveManifestItemId(
+    private static ManifestPlacement ResolveManifestPlacement(
         StaticGameData staticData,
         ArchipelagoScoutSessionResult scoutSession,
         ScoutLocationResult scoutedLocation)
     {
         if (scoutedLocation.OwningPlayerSlot != scoutSession.ConnectedPlayerSlot)
         {
-            return staticData.PlaceholderItemId;
+            return new ManifestPlacement(staticData.PlaceholderItemId, 1);
         }
 
         if (!staticData.Items.TryGetValue(scoutedLocation.ItemId, out var staticItem))
@@ -135,18 +135,26 @@ public sealed class ManifestBuilder
                 $"AP item {scoutedLocation.ItemId} ({staticItem.Name}) did not have a valid BioRand item id in the bundled world data.");
         }
 
-        return staticItem.BioRandItemId;
+        // The engine id alone cannot express the quantity (Rifle Ammo x4 and
+        // x5 share one id), so the manifest carries the same delivery count
+        // the received-item path uses: a world pickup of your own item must
+        // match what the multiworld says it is.
+        return new ManifestPlacement(staticItem.BioRandItemId, Math.Max(1, staticItem.Count));
     }
 
     private string BuildConfigJson(
-        IReadOnlyDictionary<string, int> placements,
+        IReadOnlyDictionary<string, ManifestPlacement> placements,
         BioRandOptions options,
         string gameVersion)
     {
         var placementObject = new JsonObject();
         foreach (var placement in placements)
         {
-            placementObject[placement.Key] = placement.Value;
+            placementObject[placement.Key] = new JsonObject
+            {
+                ["item"] = placement.Value.ItemId,
+                ["count"] = placement.Value.Count,
+            };
         }
 
         var normalized = BioRandOptions.Sanitize(options);
@@ -194,4 +202,6 @@ public sealed class ManifestBuilder
     {
         LogMessage?.Invoke(message);
     }
+
+    private readonly record struct ManifestPlacement(int ItemId, int Count);
 }

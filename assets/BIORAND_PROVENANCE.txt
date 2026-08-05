@@ -9,7 +9,20 @@ The payload itself is a build artifact (git-ignored); rebuild it with:
 
 Source repo:    biorand-re4r-ap (fork; never upstream biorand/re4r)
 Source branch:  ap-manifest-input
-Source commit:  a52cdc5 (2026-07-31: CRASH FIX - the Bindery canonicalize
+Source commit:  27dc205 (2026-08-05: AP PLACEMENT QUANTITIES - playtest report:
+                world pickups labeled x3 delivered x1. The manifest carried
+                only an item id per GUID and BuildApPlacements wrote every
+                placement as Item(id, 1), while the player-facing surfaces
+                name the real amount; the id alone cannot express it (Rifle
+                Ammo x4 and x5 share one engine id). Placements now parse as
+                the legacy bare id (quantity 1, old configs stay valid) OR an
+                {item, count} object, and the world drop is written with the
+                count - the same number the received-item path has always
+                delivered. Verified: legacy-form and pair-form configs both
+                generate to exit 0 on the same cache/seed, on the dev build
+                AND this published single-file payload; the pair pak differs
+                from the legacy pak only by the written quantities.)
+                Prior: a52cdc5 (2026-07-31: CRASH FIX - the Bindery canonicalize
                 deserialized CheckFlagSettings into typed objects, and its
                 OptionSettings<Param> field is the engine's one GENERIC type,
                 whose CLR name can never match the RSZ name. The serializer
@@ -108,8 +121,8 @@ Source commit:  a52cdc5 (2026-07-31: CRASH FIX - the Bindery canonicalize
                 DLC entitlement needed). Includes b27f7ac (drop-catalog fix)
                 and 90140f0 (purity gates).)
 Publish:        -c Release -r win-x64 --self-contained -p:PublishSingleFile=true (net10.0)
-biorand-re4r.exe SHA-256: 7d04b9f3b36fd8f56393dce6862897ff8b171b22edf76d0793cf1d09fb0845ab
-ProductVersion: 1.0.0+a52cdc5f64a6f11025ef6110cce7a471f408c7b4 (the launcher
+biorand-re4r.exe SHA-256: 66b92490a53674bab7e5d95fd3a31805226a76272fa406127cc7ec94cd3c5166
+ProductVersion: 1.0.0+27dc20526fcac790cc573332dc71f786e66560d3 (the launcher
                 writes this into version_stamp.json, and a change here is what
                 triggers the one-time setup cache re-harvest)
 Built with:     .NET SDK 10.0.301
@@ -124,17 +137,19 @@ DOOR LOCKS ARE BANNED IN AP MODE - DO NOT "FIX" THIS
     lock whose key AP placed behind it is a softlock (same class as the lodge-key
     bug). Re-enabling requires rules.py to model BioRand's locks first.
 
-THIS payload: All 24 new option keys (23 patch gates + del-orca) verified
-                present in the freshly built assemblies that went into this
-                publish, and the launcher's own catalog loader resolves all of
-                them (443 options, defaults ON except del-orca, advanced flags
-                as intended). Build 0/0. NOT yet generation-tested: the gates
-                are the same one-line pattern as the long-standing
-                automatic-bolt-thrower gate, and every default preserves the
-                previous behaviour, so a default run should produce the same
-                world as the a4d59bd payload MINUS the orca. OWED IN-GAME:
-                confirm Del Lago is Del Lago again, and that a mode-1 run is
-                otherwise unchanged.
+THIS payload: Both manifest forms patch against the harvested cache (seed
+                424242): the legacy bare-id config and the {item, count}
+                config each produce a patch pak at exit 0, and the pair pak
+                differs from the legacy pak only by the written quantities.
+                The launcher release that ships this payload also ships the
+                count-emitting ManifestBuilder plus static data with per-item
+                counts; the payload alone stays backward-compatible with
+                bare-id configs. The version change triggers the one-time
+                setup cache re-harvest per machine, and existing rooms must
+                RE-PATCH before their world drops carry full stacks
+                (quantities already collected short are not recoverable).
+                OWED IN-GAME: pick up one own-world xN stack after a re-patch
+                and watch it deliver N.
 
 Verified (v3 payload, still applicable): ap-mode
                 scratch generation against the harvested cache (seed
@@ -170,7 +185,10 @@ Note:           setup cache rebuild is triggered by a BioRand version change
                 swap; a pre-swap save with a crossbow in the inventory HEALS
                 on re-patch (the owned weapon no longer matches placeholder
                 drops).
-Prior payload:  25d86ceeb26d8de9cf12e7ae81be54ce0adf9badce98d9864687bbfabbf03716
+Prior payload:  7d04b9f3b36fd8f56393dce6862897ff8b171b22edf76d0793cf1d09fb0845ab
+                (commit a52cdc5) - the AP-mode generation crash fix; shipped
+                from v0.2.1-alpha through v0.3.2-alpha.
+                25d86ceeb26d8de9cf12e7ae81be54ce0adf9badce98d9864687bbfabbf03716
                 (commit a4d59bd) - AP logo model v4 (mesh + material +
                 inventory icon). This was the shipped payload from 2026-07-28
                 until now; this file still described v3 while it was staged.
