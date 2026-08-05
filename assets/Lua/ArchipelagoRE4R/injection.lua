@@ -2136,15 +2136,77 @@ local function install(ctx)
     export("inject_get_route_hint", inject_get_route_hint)
     export("inject_read_key_item_ids", inject_read_key_item_ids)
 
+    -- Reads the campaign lead's key-item ids out of InventoryManager's
+    -- per-context save-data table. The live controller unregisters while
+    -- another character plays, but this table is what the game itself
+    -- restores the lead from afterwards, so it survives boots and saves made
+    -- INSIDE the section - the exact case the boot snapshot cannot cover
+    -- (live log 2026-08-05, three occurrences of "snapshot is empty (no lead
+    -- session this boot)": booting into an Ashley save BK'd her on the Bunch
+    -- of Keys / Salazar Insignia doors). Per-SAVE truth by construction: the
+    -- table is part of the loaded save, so this cannot repeat the retro-heal
+    -- mistake a persisted snapshot would risk. Chain verified against
+    -- il2cpp_dump.json: _InventorySaveDataTable is Dictionary<ContextID,
+    -- InventorySaveDataBase>; the lead's key inventory ContextID is
+    -- (4, 2, 1, 4000); KeyItemInventorySaveData.Items[] entries carry .Item
+    -- (chainsaw.Item) whose _ItemId is the engine id.
+    local function inject_read_lead_key_items_from_savedata()
+        local ids = {}
+        local inventory_manager = sdk.get_managed_singleton("chainsaw.InventoryManager")
+        if inventory_manager == nil then
+            return ids
+        end
+        inventory_manager = inject_try_add_ref(inventory_manager)
+        local manager_managed = inject_get_managed(inventory_manager)
+        if manager_managed == nil then
+            return ids
+        end
+        local save_table = inject_safe_call(function()
+            return manager_managed:get_field("_InventorySaveDataTable")
+        end)
+        local key = inject_create_context_id(4, 2, 1, 4000)
+        if save_table == nil or key == nil then
+            return ids
+        end
+        local save_data = inject_direct_dictionary_lookup(save_table, key)
+        local save_managed = inject_get_managed(save_data)
+        if save_managed == nil then
+            return ids
+        end
+        local items = inject_safe_call(function()
+            return save_managed:get_field("Items")
+        end)
+        local total = inject_get_collection_count(items)
+        if type(total) ~= "number" then
+            return ids
+        end
+        for index = 0, math.min(total, 64) - 1 do
+            local entry_managed = inject_get_managed(inject_get_collection_item(items, index))
+            if entry_managed ~= nil then
+                local item_value = inject_safe_call(function()
+                    return entry_managed:get_field("Item")
+                end)
+                local item_managed = inject_get_managed(item_value)
+                local item_id = item_managed ~= nil and tonumber(inject_safe_call(function()
+                    return item_managed:get_field("_ItemId")
+                end)) or nil
+                if type(item_id) == "number" and item_id > 0 then
+                    table.insert(ids, item_id)
+                end
+            end
+        end
+        return ids
+    end
+
     -- Snapshot while the lead plays; replay into the next character's key
     -- inventory the moment they take over. Throttled - this reads reflection
-    -- and must not run every frame. Deliberately NOT persisted: the snapshot is
-    -- per-SAVE truth, and writing it to the per-seed session file would repeat
-    -- the retro-heal mistake (a wrong save's key items granting access it never
-    -- earned). Cost of not persisting: saving and reloading INSIDE the section
-    -- loses the snapshot, so re-entering from a lead save is the recovery.
+    -- and must not run every frame. The boot snapshot stays the fast path;
+    -- when it is empty (fresh boot straight into the section) the save-data
+    -- reader above supplies the same truth.
     local key_mirror_last_clock = 0.0
     local key_mirror_was_default = true
+    local key_mirror_pending = {}
+    local key_mirror_attempts = 0
 
     re.on_frame(function()
         local now = os.clock()
@@ -2167,31 +2229,61 @@ local function install(ctx)
                     end
                 end
                 key_mirror_was_default = true
+                key_mirror_pending = {}
+                key_mirror_attempts = 0
                 return
             end
 
-            -- Non-lead character. Fire once per takeover.
+            -- Non-lead character. Build the pending list once per takeover:
+            -- the boot snapshot wins when it exists, and the lead's save-data
+            -- table covers a boot straight into the section.
             if key_mirror_was_default then
                 key_mirror_was_default = false
-                if #key_item_snapshot == 0 then
-                    log.info("[RE4R AP] key-item mirror: another character took over but the snapshot is empty (no lead session this boot) - nothing to mirror")
+                key_mirror_attempts = 0
+                key_mirror_pending = {}
+                local source = key_item_snapshot
+                local origin = "boot snapshot"
+                if #source == 0 then
+                    source = inject_read_lead_key_items_from_savedata()
+                    origin = "lead save data"
+                end
+                for _, item_id in ipairs(source) do
+                    table.insert(key_mirror_pending, item_id)
+                end
+                if #key_mirror_pending == 0 then
+                    log.info("[RE4R AP] key-item mirror: another character took over and no lead key items were found in the snapshot or the save-data table - nothing to mirror")
                     return
                 end
-                local mirrored, failed = 0, 0
-                for _, item_id in ipairs(key_item_snapshot) do
+                log.info(string.format(
+                    "[RE4R AP] key-item mirror: mirroring %d key item(s) from the %s",
+                    #key_mirror_pending, origin))
+            end
+
+            -- Retry until everything lands. The takeover can be observed
+            -- before the new character's controllers finish registering, and
+            -- the old fire-once version lost the whole mirror to that race.
+            if #key_mirror_pending > 0 then
+                key_mirror_attempts = key_mirror_attempts + 1
+                local still_pending = {}
+                for _, item_id in ipairs(key_mirror_pending) do
                     local status = inject_item_to_inventory(item_id, 1)
                     if inject_status_succeeded(status) then
-                        mirrored = mirrored + 1
-                    else
-                        failed = failed + 1
                         log.info(string.format(
-                            "[RE4R AP] key-item mirror: %d did not transfer (%s)",
+                            "[RE4R AP] key-item mirror: %d transferred (%s)",
                             item_id, tostring(status)))
+                    else
+                        table.insert(still_pending, item_id)
+                        if key_mirror_attempts == 1 or key_mirror_attempts % 15 == 0 then
+                            log.info(string.format(
+                                "[RE4R AP] key-item mirror: %d not transferred yet (attempt %d: %s)",
+                                item_id, key_mirror_attempts, tostring(status)))
+                        end
                     end
                 end
-                log.info(string.format(
-                    "[RE4R AP] key-item mirror: gave the active character %d of %d key item(s), %d failed",
-                    mirrored, #key_item_snapshot, failed))
+                key_mirror_pending = still_pending
+                if #key_mirror_pending == 0 then
+                    log.info("[RE4R AP] key-item mirror: complete")
+                end
             end
         end)
         if not ok then
