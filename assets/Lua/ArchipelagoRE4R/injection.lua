@@ -2022,11 +2022,123 @@ local function install(ctx)
         )
     end
 
+    -- The pool's four weapon-with-ammo-count items, mapped to the ammo the
+    -- game gives you when the gun is already yours. Kept explicit because the
+    -- catalog's `class` column is empty on every weapon and ammo row, and the
+    -- engine exposes no weapon-to-ammo lookup to read instead. Any other weapon
+    -- stays a weapon: receiving a gun you happen to own is legitimate multiworld
+    -- content, and only these four encode an ammo amount.
+    local INJECT_WEAPON_AMMO_FALLBACK = {
+        [274995456] = 112803200,  -- W-870              -> Shotgun Shells
+        [274838656] = 112800000,  -- Red9               -> Handgun Ammo
+        [275478656] = 112804800,  -- CQBR Assault Rifle -> Rifle Ammo
+        [275158656] = 112806400,  -- LE 5               -> Submachine Gun Ammo
+    }
+
+    -- Membership test over the attache grid. inject_collect_partial_stacks only
+    -- reports stacks with room left, and a weapon is a full "stack", so
+    -- ownership needs its own walk.
+    local function inject_case_holds_item(cs_inventory, normalized_item_id)
+        local managed = inject_get_managed(cs_inventory)
+        if managed == nil then
+            return false
+        end
+        local items_list = inject_safe_call(function()
+            return managed:get_field("_InventoryItems")
+        end)
+        local total = inject_get_collection_count(items_list)
+        if type(total) ~= "number" then
+            return false
+        end
+        for index = 0, math.min(total, 200) - 1 do
+            local wrapper_managed = inject_get_managed(inject_get_collection_item(items_list, index))
+            if wrapper_managed ~= nil then
+                local wrapped_managed = inject_get_managed(inject_safe_call(function()
+                    return wrapper_managed:get_field("<Item>k__BackingField")
+                end))
+                if wrapped_managed ~= nil then
+                    local wrapped_id = tonumber(inject_safe_call(function()
+                        return wrapped_managed:get_field("_ItemId")
+                    end))
+                    if wrapped_id == normalized_item_id then
+                        return true
+                    end
+                end
+            end
+        end
+        return false
+    end
+
+    -- Owned = in Storage OR in the attache case. Storage matters most: injected
+    -- weapons land there, so a second copy there is exactly what merges.
+    local function inject_player_owns_item(normalized_item_id)
+        local armoury_manager = sdk.get_managed_singleton("chainsaw.ArmouryManager")
+        if armoury_manager ~= nil then
+            armoury_manager = inject_try_add_ref(armoury_manager)
+            local stored = inject_safe_call(function()
+                return inject_get_managed(armoury_manager):call("existsItem", normalized_item_id)
+            end)
+            if stored == true then
+                return true
+            end
+        end
+
+        local inventory_manager = sdk.get_managed_singleton("chainsaw.InventoryManager")
+        if inventory_manager == nil then
+            return false
+        end
+        inventory_manager = inject_try_add_ref(inventory_manager)
+        local controller_table = inject_safe_call(function()
+            return inject_get_managed(inventory_manager):get_field("_ControllerTable")
+        end)
+        if controller_table == nil then
+            return false
+        end
+        local controller = inject_find_controller_by_type(
+            controller_table, { "chainsaw.CsInventoryController" })
+        if controller == nil then
+            return false
+        end
+        local cs_inventory = inject_safe_call(function()
+            return inject_get_managed(controller):get_field("<_CsInventory>k__BackingField")
+        end)
+        if cs_inventory == nil then
+            return false
+        end
+        return inject_case_holds_item(cs_inventory, normalized_item_id)
+    end
+
+    -- Convert only when the placement carries an ammo count AND the gun is
+    -- already the player's. Fail-closed: any error reading ownership leaves the
+    -- delivery exactly as it was before this fix existed.
+    local function inject_weapon_ammo_conversion_applies(normalized_item_id, normalized_count)
+        if INJECT_WEAPON_AMMO_FALLBACK[normalized_item_id] == nil or normalized_count <= 1 then
+            return false
+        end
+        local ok, owned = pcall(inject_player_owns_item, normalized_item_id)
+        return ok and owned == true
+    end
+
     inject_item_to_inventory = function(item_id, count)
         local normalized_item_id = math.floor(tonumber(item_id) or 0)
         local normalized_count = math.max(1, math.floor(tonumber(count) or 0))
         if normalized_item_id <= 0 then
             return "Inject failed: invalid item id"
+        end
+
+        -- [Owned weapon -> ammo] Four pool items are a WEAPON carrying an ammo
+        -- count ("W-870 x5", "Red9 x5", "CQBR Assault Rifle x20", "LE 5 x60"):
+        -- the count is what the game hands you when you already own that gun.
+        -- Delivering the weapon itself to a player who owns one is destructive,
+        -- not merely redundant - storage MERGES duplicate weapons and the
+        -- merged result keeps the un-upgraded state, silently wiping the
+        -- upgrades on the copy the player was carrying (live 2026-08-06).
+        if inject_weapon_ammo_conversion_applies(normalized_item_id, normalized_count) then
+            local ammo_item_id = INJECT_WEAPON_AMMO_FALLBACK[normalized_item_id]
+            log.info(string.format(
+                "[RE4R AP] weapon %d already owned; delivering %d of its ammo (%d) instead",
+                normalized_item_id, normalized_count, ammo_item_id))
+            normalized_item_id = ammo_item_id
         end
 
         local item_kind = inject_get_item_kind(normalized_item_id)
