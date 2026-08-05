@@ -48,6 +48,10 @@ local function install(ctx)
             acknowledged_guid_keys = bridge.acknowledged_guid_keys,
             -- [F8] per-guid, per-save-version received-item watermarks.
             save_reconcile = bridge.save_reconcile_map or {},
+            -- [Non-lead pickups] Locations collected by a character whose
+            -- inventory the game discards; the item still owes delivery to
+            -- the lead. Persisted so quitting mid-section cannot lose it.
+            non_lead_checked_locations = bridge.non_lead_checked_locations or {},
         }, 4)
         if not ok then
             log.error("[ArchipelagoRE4R] Failed to write session state to " .. tostring(session_state_path))
@@ -64,6 +68,7 @@ local function install(ctx)
         bridge.tutorial_shown = false
         bridge.acknowledged_guid_keys = {}
         bridge.save_reconcile_map = {}
+        bridge.non_lead_checked_locations = {}
 
         local payload = json.load_file(session_state_path)
         local migrated_from = nil
@@ -101,6 +106,15 @@ local function install(ctx)
                             if wmn ~= nil then sw[tostring(count_key)] = math.floor(wmn) end
                         end
                         bridge.save_reconcile_map[guid] = { save_watermarks = sw }
+                    end
+                end
+            end
+            -- [Non-lead pickups] json round-trips integer keys as strings.
+            if type(payload.non_lead_checked_locations) == "table" then
+                for lid, flag in pairs(payload.non_lead_checked_locations) do
+                    local lidn = tonumber(lid)
+                    if lidn ~= nil and flag == true then
+                        bridge.non_lead_checked_locations[math.floor(lidn)] = true
                     end
                 end
             end

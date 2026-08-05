@@ -725,7 +725,11 @@ return function(ctx)
             elseif idx ~= bridge.last_received_index + 1 then
                 break -- gap: wait for the missing index (flush any lazy advances)
             elseif entry.player == st.numeric_slot
-                and type(entry.location) == "number" and entry.location > 0 then
+                and type(entry.location) == "number" and entry.location > 0
+                -- ...unless a non-lead character made that pickup: the item
+                -- went into an inventory the game then threw away, so it owes
+                -- delivery to the lead exactly like a foreign gift would.
+                and bridge.non_lead_checked_locations[entry.location] ~= true then
                 -- own-world physical pickup: BioRand already granted it in-game.
                 info(string.format("own-find skip idx=%d ap=%s location=%d",
                     idx, tostring(entry.item), entry.location))
@@ -756,6 +760,14 @@ return function(ctx)
                             record_local_injection_suppression(mapping.re4r_item_id, committed)
                         end
                         bridge.injected_ap_item_indexes[idx] = true
+                        -- The non-lead debt for this location is settled.
+                        if type(entry.location) == "number"
+                            and bridge.non_lead_checked_locations[entry.location] == true then
+                            bridge.non_lead_checked_locations[entry.location] = nil
+                            info(string.format(
+                                "delivered the item a non-lead character picked up at location %d",
+                                entry.location))
+                        end
                         bridge.last_item_received = string.format("AP #%d -> item %d x%d",
                             idx, mapping.re4r_item_id, mapping.count)
                         bridge.state_dirty = true
@@ -950,6 +962,26 @@ return function(ctx)
                         marked = true
                         -- [Phase 5 Group 3] session Checks-Sent counter for the status window
                         bridge.checks_sent_session = (bridge.checks_sent_session or 0) + 1
+                    end
+                end
+                -- [Non-lead pickups] A location collected while someone other
+                -- than the campaign lead is playing granted its item into an
+                -- inventory the game DISCARDS at section end (proven live:
+                -- Ashley's grid and even Storage are gone when Leon returns).
+                -- Remember it, so the own-find skip below does not later
+                -- assume the player still has what they picked up.
+                local is_default = ctx.inject_is_default_character_active
+                    or _G.inject_is_default_character_active
+                if type(is_default) == "function" then
+                    local ok_char, lead_active = pcall(is_default)
+                    if ok_char and lead_active == false then
+                        for _, lid in ipairs(to_send) do
+                            bridge.non_lead_checked_locations[lid] = true
+                        end
+                        marked = true
+                        info(string.format(
+                            "%d location(s) collected by a non-lead character - their items will be delivered when the lead returns",
+                            #to_send))
                     end
                 end
                 bridge.state_dirty = true

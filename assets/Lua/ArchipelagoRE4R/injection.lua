@@ -1233,7 +1233,12 @@ local function install(ctx)
     -- Candidate accessors for "what key items are held". The class is not
     -- documented anywhere in this repo, so probe the plausible names and dump the
     -- real member list once if every guess misses.
+    -- The real names, read off a live member dump (2026-08-06): the controller
+    -- exposes getItems/getInventoryItems, NOT the get_Items/getItemList shapes
+    -- guessed here originally - so this probe always missed and the boot
+    -- snapshot was silently empty every run.
     local KEY_ITEM_LIST_ACCESSORS = {
+        "getItems", "getInventoryItems",
         "get_ItemList", "getItemList", "get_Items", "get_KeyItemList", "get_ItemDataList",
     }
     local KEY_ITEM_LIST_FIELDS = {

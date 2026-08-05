@@ -60,6 +60,11 @@ local function install(ctx)
         tutorial_shown = false,
         tutorial_dialog_open = false,
         tutorial_page = 1,
+        -- [Non-lead pickups] Location ids collected while a character other
+        -- than the campaign lead was playing. Their inventory is thrown away
+        -- when the section ends, so the own-find skip must not assume the
+        -- player kept what they physically picked up. Per-seed, persisted.
+        non_lead_checked_locations = {},
         pending_checks = {},
         pending_check_keys = {},
         next_pending_check_id = 1,
