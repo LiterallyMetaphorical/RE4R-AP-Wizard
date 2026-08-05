@@ -60,6 +60,24 @@ would change the set of checks, or create a softlock, are locked out.
 
 You only run the Wizard to set up or when the seed changes. Day to day, just launch the game!
 
+### Joining someone else's multiworld
+
+Someone else hosts; you just play. Four things trip people up:
+
+1. **The launcher folder can live anywhere.** It never goes inside the
+   game's folder. Extract it wherever you like and run the exe from there.
+2. **Your host needs two files from you before a room even exists:** your
+   settings YAML and `RE4R.apworld`. Make the YAML in Configure Archipelago
+   Settings (the Join flow starts there). The apworld ships with the
+   launcher in `assets\Data`, and the Join screen's "Show RE4R.apworld
+   Folder" button takes you straight to it. Without that file, the host's
+   generator does not know your game exists.
+3. **Send both to your host.** Only the host needs the apworld, and you do
+   not need an Archipelago install of your own - the launcher patches your
+   game and talks to the room by itself.
+4. **Then join.** The host generates the multiworld and sends back the room
+   address and your slot name. Enter them in Join a Multiworld and patch.
+
 ### Your settings file
 
 - **Difficulty** - the game's own difficulty.

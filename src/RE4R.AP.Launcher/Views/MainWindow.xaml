@@ -1095,6 +1095,8 @@
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
+                                <RowDefinition Height="12" />
+                                <RowDefinition Height="Auto" />
                                 <RowDefinition Height="16" />
                                 <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
@@ -1103,7 +1105,32 @@
                                        FontWeight="SemiBold"
                                        Text="Session Info" />
 
-                            <Grid Grid.Row="2">
+                            <!-- The pre-room handoff trips joiners up (Discord,
+                                 2026-08-05): the host cannot generate without this
+                                 launcher's apworld, and nothing else in the flow
+                                 said so. Informational blue, same palette as the
+                                 update notice - guidance, not a warning. -->
+                            <Border Grid.Row="2"
+                                    Padding="12,8"
+                                    Background="#FFE3F2FD"
+                                    BorderBrush="#FF90CAF9"
+                                    BorderThickness="1"
+                                    CornerRadius="8">
+                                <StackPanel>
+                                    <TextBlock FontWeight="SemiBold"
+                                               Text="Before there is a room to join" />
+                                    <TextBlock Margin="0,4,0,0"
+                                               TextWrapping="Wrap"
+                                               Text="Your host generates the multiworld, and they need two files from you first: your settings YAML (made in Configure Archipelago Settings) and this launcher's RE4R.apworld, which teaches their generator your game. Send both, then enter the room details they give you back." />
+                                    <Button Margin="0,8,0,0"
+                                            HorizontalAlignment="Left"
+                                            Padding="10,2"
+                                            Command="{Binding OpenApworldFolderCommand}"
+                                            Content="Show RE4R.apworld Folder" />
+                                </StackPanel>
+                            </Border>
+
+                            <Grid Grid.Row="4">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="220" />
                                     <ColumnDefinition Width="*" />

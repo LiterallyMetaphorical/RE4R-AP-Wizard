@@ -256,6 +256,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         // The settings screen is the joiner's first stop, so it carries the
         // path onward to the room address instead of dead-ending.
         ConfigureYaml.ContinueCommand = _continueFromConfigureYamlCommand;
+        JoinFlow.OpenApworldFolderCommand = new RelayCommand(OpenApworldFolder);
         Landing.OpenRoomPageCommand = _openRoomPageCommand;
         Landing.ReconnectPrefillCommand = _reconnectPrefillCommand;
         Landing.FixAddressCommand = _fixAddressCommand;
@@ -1428,6 +1429,21 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             var message = $"Failed to open the log folder: {ex.Message}";
+            Action.AppendLog(message);
+            SetError(message);
+        }
+    }
+
+    private void OpenApworldFolder()
+    {
+        try
+        {
+            _ = _dialogService.OpenFolderAsync(
+                Path.Combine(AppContext.BaseDirectory, "assets", "Data"));
+        }
+        catch (Exception ex)
+        {
+            var message = $"Failed to open the apworld folder: {ex.Message}";
             Action.AppendLog(message);
             SetError(message);
         }

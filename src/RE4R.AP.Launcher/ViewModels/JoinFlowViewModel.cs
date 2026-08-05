@@ -42,6 +42,13 @@ public sealed class JoinFlowViewModel : ObservableObject
     /// <summary>Sticky footer actions for the current sub-step.</summary>
     public System.Collections.ObjectModel.ObservableCollection<FooterButtonViewModel> FooterButtons { get; } = new();
 
+    /// <summary>
+    /// Opens the folder holding the bundled RE4R.apworld. Joiners have to hand
+    /// that file to their host before a room can even exist, and the Discord
+    /// support thread (2026-08-05) showed nobody finds assets\Data unaided.
+    /// </summary>
+    public ICommand? OpenApworldFolderCommand { get; set; }
+
     private void RebuildFooter()
     {
         FooterButtons.Clear();
