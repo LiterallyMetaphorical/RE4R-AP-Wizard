@@ -82,6 +82,8 @@ local draw_check_progress_overlay = ctx.draw_check_progress_overlay
 local draw_ap_status_menu_overlay = ctx.draw_ap_status_menu_overlay
 local draw_world_check_markers = ctx.draw_world_check_markers
 local draw_main_window = ctx.draw_main_window
+local maybe_show_tutorial = ctx.maybe_show_tutorial
+local draw_tutorial_dialog = ctx.draw_tutorial_dialog
 local draw_progression_warning_dialog = ctx.draw_progression_warning_dialog
 local draw_port_recovery_dialog = ctx.draw_port_recovery_dialog
 local capture_message_log_entries = ctx.capture_message_log_entries
@@ -412,6 +414,9 @@ re.on_frame(function()
     -- Connection recovery sits above everything else: it is only ever
     -- visible when the session cannot reach its own multiworld.
     draw_port_recovery_dialog()
+    -- First-seed welcome: armed on the first playable Chapter 1 tick.
+    maybe_show_tutorial()
+    draw_tutorial_dialog()
     draw_main_window()
 end)
 
