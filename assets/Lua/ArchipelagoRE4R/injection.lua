@@ -1604,6 +1604,199 @@ local function install(ctx)
         return string.format("%s inject failed: unknown currency item", route_label)
     end
 
+    -- [Stack-aware delivery] Top up existing same-item stacks before opening a
+    -- new one. Playtest report 2026-08-05: every injected ammo arrived as its
+    -- own one-slot stack because this route only ever targeted an EMPTY slot
+    -- with forceSetItem. Names verified against il2cpp_dump.json:
+    -- CsInventory._InventoryItems is List<CsInventoryItem>; the wrapper's
+    -- <Item>/<SlotIndex>/<CurrSlotType> backing fields hold the payload and
+    -- its grid position; chainsaw.Item carries _ItemId/_CurrentItemCount;
+    -- ItemDefiniition._StackMax bounds a stack; CsInventory.stackAdd(item,
+    -- slotType, slotIndex) merges into the stack AT that slot and returns
+    -- AddItemResult{AddCount}. Every engine effect is verified by re-reading
+    -- state (REFramework returns nil without throwing on signature misses);
+    -- any surprise stops the merge loop and leaves the remainder to the
+    -- legacy empty-slot path, so delivery can never fall below the old route.
+    local function inject_address_of(value)
+        local managed = inject_get_managed(value)
+        if managed == nil then
+            return nil
+        end
+        return inject_safe_call(function()
+            return managed:get_address()
+        end)
+    end
+
+    local function inject_read_item_count(item_value)
+        local managed = inject_get_managed(item_value)
+        if managed == nil then
+            return nil
+        end
+        return tonumber(inject_safe_call(function()
+            return managed:get_field("_CurrentItemCount")
+        end))
+    end
+
+    local function inject_set_item_count(item_value, new_count)
+        local managed = inject_get_managed(item_value)
+        if managed == nil then
+            return false
+        end
+        inject_safe_call(function()
+            managed:set_field("_CurrentItemCount", new_count)
+        end)
+        return inject_read_item_count(item_value) == new_count
+    end
+
+    local function inject_collect_partial_stacks(cs_inventory, normalized_item_id, exclude_address)
+        local partials = {}
+        local managed = inject_get_managed(cs_inventory)
+        if managed == nil then
+            return partials
+        end
+        local items_list = inject_safe_call(function()
+            return managed:get_field("_InventoryItems")
+        end)
+        local total = inject_get_collection_count(items_list)
+        if type(total) ~= "number" then
+            return partials
+        end
+        for index = 0, math.min(total, 200) - 1 do
+            local wrapper = inject_get_collection_item(items_list, index)
+            local wrapper_managed = inject_get_managed(wrapper)
+            if wrapper_managed ~= nil then
+                local wrapped_item = inject_safe_call(function()
+                    return wrapper_managed:get_field("<Item>k__BackingField")
+                end)
+                local wrapped_managed = inject_get_managed(wrapped_item)
+                if wrapped_managed ~= nil
+                    and (exclude_address == nil or inject_address_of(wrapped_item) ~= exclude_address) then
+                    local wrapped_id = tonumber(inject_safe_call(function()
+                        return wrapped_managed:get_field("_ItemId")
+                    end))
+                    if wrapped_id == normalized_item_id then
+                        local current = inject_read_item_count(wrapped_item)
+                        local define = inject_safe_call(function()
+                            return wrapped_managed:get_field("<_ItemDefine>k__BackingField")
+                        end)
+                        local define_managed = inject_get_managed(define)
+                        local stack_max = define_managed ~= nil and tonumber(inject_safe_call(function()
+                            return define_managed:get_field("_StackMax")
+                        end)) or nil
+                        if type(current) == "number" and type(stack_max) == "number"
+                            and stack_max > current then
+                            table.insert(partials, {
+                                wrapper = wrapper_managed,
+                                item = wrapped_item,
+                                slot_type = inject_safe_call(function()
+                                    return wrapper_managed:get_field("<CurrSlotType>k__BackingField")
+                                end),
+                                slot_index = inject_safe_call(function()
+                                    return wrapper_managed:get_field("<SlotIndex>k__BackingField")
+                                end),
+                            })
+                        end
+                    end
+                end
+            end
+        end
+        return partials
+    end
+
+    -- Returns how many of the item's units were absorbed into existing stacks
+    -- and how many remain on the item instance afterwards.
+    local function inject_try_stack_delivery(cs_inventory, item, normalized_item_id, normalized_count, route_label)
+        local remaining = normalized_count
+        local absorbed = 0
+        local cs_type = inject_get_value_type(cs_inventory)
+        local stack_add = inject_find_method(cs_type, "stackAdd", 3)
+        if stack_add == nil then
+            return absorbed, remaining
+        end
+        local partials = inject_collect_partial_stacks(
+            cs_inventory, normalized_item_id, inject_address_of(item))
+        if #partials == 0 then
+            return absorbed, remaining
+        end
+
+        local cs_managed = inject_get_managed(cs_inventory)
+        for _, entry in ipairs(partials) do
+            if remaining <= 0 then
+                break
+            end
+            if entry.slot_type == nil or entry.slot_index == nil then
+                break
+            end
+            local before = inject_read_item_count(entry.item)
+            local result = inject_safe_call(function()
+                return stack_add:call(cs_managed, item, entry.slot_type, entry.slot_index)
+            end)
+            local after = inject_read_item_count(entry.item)
+            local gained = (type(before) == "number" and type(after) == "number")
+                and (after - before) or 0
+            if gained <= 0 then
+                log.info(string.format(
+                    "[RE4R AP] %s: stackAdd made no progress (result=%s), leaving %d for slot placement",
+                    route_label, inject_value_to_string(result), remaining))
+                break
+            end
+            absorbed = absorbed + gained
+            remaining = math.max(0, remaining - gained)
+            log.info(string.format(
+                "[RE4R AP] %s: stacked %d into an existing stack (%d -> %d), %d remaining",
+                route_label, gained, before, after, remaining))
+            -- Commit-hook suppression matches on EXACT count, and the engine
+            -- reports injected writes through the same hook as world pickups:
+            -- record the actual merged amount so a partial stackAdd commit
+            -- cannot dodge apclient's full-count record. Extra unconsumed
+            -- entries expire with the suppression window, same as today.
+            record_local_injection_suppression(normalized_item_id, gained)
+            -- Keep the source item's own count truthful for whatever happens
+            -- next (slot placement, storage overflow, or nothing).
+            if inject_read_item_count(item) ~= remaining then
+                inject_set_item_count(item, remaining)
+            end
+        end
+        return absorbed, remaining
+    end
+
+    -- The engine marks forceSetItem inserts with the wrapper's IsForceGet
+    -- flag; organic pickups carry false. Live evidence says the flag does not
+    -- block merging, but clear it so an injected stack is indistinguishable
+    -- from an organic one. Best effort: failure changes nothing.
+    local function inject_clear_force_get(cs_inventory, placed_item)
+        local placed_address = inject_address_of(placed_item)
+        if placed_address == nil then
+            return
+        end
+        local managed = inject_get_managed(cs_inventory)
+        if managed == nil then
+            return
+        end
+        local items_list = inject_safe_call(function()
+            return managed:get_field("_InventoryItems")
+        end)
+        local total = inject_get_collection_count(items_list)
+        if type(total) ~= "number" then
+            return
+        end
+        for index = 0, math.min(total, 200) - 1 do
+            local wrapper = inject_get_collection_item(items_list, index)
+            local wrapper_managed = inject_get_managed(wrapper)
+            if wrapper_managed ~= nil then
+                local wrapped_item = inject_safe_call(function()
+                    return wrapper_managed:get_field("<Item>k__BackingField")
+                end)
+                if inject_address_of(wrapped_item) == placed_address then
+                    inject_safe_call(function()
+                        wrapper_managed:call("set_IsForceGet", false)
+                    end)
+                    return
+                end
+            end
+        end
+    end
+
     local function inject_write_main_inventory(controller_table, item, normalized_item_id, normalized_count, route_label)
         -- "Inventory" without the Key/Treasure/Unique prefix would also match the
         -- specialised controllers, so the type hint is the exact class name.
@@ -1640,12 +1833,25 @@ local function install(ctx)
             return string.format("%s inject failed: forceSetItem missing", route_label)
         end
 
+        -- Existing stacks with room absorb the delivery first; only the
+        -- remainder needs a slot of its own.
+        local absorbed, remaining = inject_try_stack_delivery(
+            cs_inventory, item, normalized_item_id, normalized_count, route_label)
+        if remaining <= 0 then
+            return string.format(
+                "%s stacked all %d of item %d into existing stacks",
+                route_label,
+                normalized_count,
+                normalized_item_id
+            )
+        end
+
         local empty_slots = inject_safe_call(function()
             return get_empty:call(inject_get_managed(cs_inventory), 0)
         end)
         local empty_slot_count = inject_get_collection_count(empty_slots)
         if type(empty_slot_count) ~= "number" or empty_slot_count <= 0 then
-            return inject_write_storage(item, normalized_item_id, normalized_count, route_label, "attache case full")
+            return inject_write_storage(item, normalized_item_id, remaining, route_label, "attache case full")
         end
 
         local first_slot = inject_get_collection_item(empty_slots, 0)
@@ -1669,15 +1875,26 @@ local function install(ctx)
             )
         end
 
+        local placed_suffix = (absorbed > 0)
+            and string.format(" (+%d stacked into existing stacks)", absorbed)
+            or ""
+
         local force_set_bool = coerce_to_bool(force_set_result)
         if force_set_bool or force_set_result == true or force_set_result ~= nil then
+            inject_clear_force_get(cs_inventory, item)
+            if absorbed > 0 then
+                -- The slot placement commits the REMAINDER, not the full
+                -- delivery apclient records; add the exact-count entry.
+                record_local_injection_suppression(normalized_item_id, remaining)
+            end
             return string.format(
-                "%s injected %d x%d into slot (%s,%s)",
+                "%s injected %d x%d into slot (%s,%s)%s",
                 route_label,
                 normalized_item_id,
-                normalized_count,
+                remaining,
                 tostring(row or "?"),
-                tostring(column or "?")
+                tostring(column or "?"),
+                placed_suffix
             )
         end
 
@@ -1686,13 +1903,18 @@ local function install(ctx)
         end)
         local empty_slot_count_after = inject_get_collection_count(empty_slots_after)
         if type(empty_slot_count_after) == "number" and empty_slot_count_after < empty_slot_count then
+            inject_clear_force_get(cs_inventory, item)
+            if absorbed > 0 then
+                record_local_injection_suppression(normalized_item_id, remaining)
+            end
             return string.format(
-                "%s injected %d x%d into slot (%s,%s)",
+                "%s injected %d x%d into slot (%s,%s)%s",
                 route_label,
                 normalized_item_id,
-                normalized_count,
+                remaining,
                 tostring(row or "?"),
-                tostring(column or "?")
+                tostring(column or "?"),
+                placed_suffix
             )
         end
 
