@@ -169,11 +169,21 @@ Rebuilt:     2026-08-05 (rev 2), world_version stays 0.6.7 (unreleased) - seven
              Chief's Manor, Valley and Fish Farm with no check moves. Codes
              and pool unchanged (474). 6/6 two-slot sweep across the same
              two option configs.
+Rebuilt:     2026-08-05 (rev 3), world_version stays 0.6.7 (unreleased) - Manor
+             Grounds is renamed Manor Approach and the Hexagonal
+             Emblem's region gate moves from the Village Chief's Manor
+             entrance onto Manor Approach itself, the door it always
+             modelled. The emblem now provably generates before the sideyard;
+             the manor inherits the rule through the chain. Closes the
+             playtest ask for a region beyond the emblem gate. Codes and pool
+             unchanged (474). 6/6 two-slot sweep with a new per-seed spoiler
+             assertion that no slot's own emblem lands at or past its Manor
+             Approach.
 Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_version 0.6.7
              per that repo's archipelago.json.
 AP target:   Archipelago 0.6.7 (the version the apworld was developed and
              generation-validated against; pinned via the manifest as of 2026-07-12).
-SHA-256:     5ad9b73732dff2e4324df22ffaa0858c0c9ad2f940ef6e1f8e62d5111f38e25c
+SHA-256:     f4f95c6a6cbec471ddf4edfdfc1e97a0607b22903740d7139d79c6a66a4f1b5a
 Consumed by: the Generation Guidance screen ("Copy RE4R.apworld to your Archipelago
              custom_worlds folder") - ArchipelagoInstallationService reads the
              world_version out of this zip's manifest for display and copies the
