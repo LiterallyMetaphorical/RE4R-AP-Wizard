@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-08-05T15:08:35Z",
+  "generated_at_utc": "2026-08-05T15:15:43Z",
   "game": "Resident Evil 4 Remake",
-  "world_version": "0.6.6",
+  "world_version": "0.6.7",
   "placeholder_item_id": 120486400,
   "counts": {
     "locations_total": 474,
@@ -2234,12 +2234,12 @@
       "note": ""
     },
     "2566556648": {
-      "name": "Chapter 4 - Church Grounds - Handgun Ammo x10 [bc3fb2b3]",
+      "name": "Chapter 3 - Church Grounds - Handgun Ammo x10 [bc3fb2b3]",
       "guid": "bc3fb2b3-369e-4ef5-bd49-bb514b995cf9",
       "identity_kind": "guid",
-      "chapter": 4,
+      "chapter": 3,
       "stage": 45200,
-      "region": "Lake",
+      "region": "Village",
       "source_item_name": "Handgun Ammo x10",
       "ap_eligibility": "always",
       "section_name": "Church Grounds",
@@ -2250,12 +2250,12 @@
       "note": ""
     },
     "3378340952": {
-      "name": "Chapter 4 - Church Grounds - Resources (Small) x1 (drawer) [01c70b00]",
+      "name": "Chapter 3 - Church Grounds - Resources (Small) x1 (drawer) [01c70b00]",
       "guid": "01c70b00-cad3-44ba-8c5f-aff487acc610",
       "identity_kind": "guid",
-      "chapter": 4,
+      "chapter": 3,
       "stage": 45200,
-      "region": "Lake",
+      "region": "Village",
       "source_item_name": "Resources (Small) x1",
       "ap_eligibility": "always",
       "section_name": "Church Grounds",
@@ -2266,12 +2266,12 @@
       "note": ""
     },
     "1289575852": {
-      "name": "Chapter 4 - Church Grounds - Chicken Egg x1 (bird's nest) [49910003]",
+      "name": "Chapter 3 - Church Grounds - Chicken Egg x1 (bird's nest) [49910003]",
       "guid": "49910003-c896-4c5e-acb8-3d231b3ef918",
       "identity_kind": "guid",
-      "chapter": 4,
+      "chapter": 3,
       "stage": 45200,
-      "region": "Lake",
+      "region": "Village",
       "source_item_name": "Chicken Egg x1",
       "ap_eligibility": "always",
       "section_name": "Church Grounds",
@@ -2298,12 +2298,12 @@
       "note": ""
     },
     "3184495528": {
-      "name": "Chapter 4 - Church Grounds - Resource (Large) x1 [62c6da2f]",
+      "name": "Chapter 3 - Church Grounds - Resource (Large) x1 [62c6da2f]",
       "guid": "62c6da2f-cf29-4ed0-aa53-fb5064dd2441",
       "identity_kind": "guid",
-      "chapter": 4,
+      "chapter": 3,
       "stage": 45200,
-      "region": "Lake",
+      "region": "Village",
       "source_item_name": "Resource (Large) x1",
       "ap_eligibility": "always",
       "section_name": "Church Grounds",
@@ -2362,7 +2362,7 @@
       "note": ""
     },
     "1053860888": {
-      "name": "Chapter 3 - Quarry - Yellow Herb x1 [0d3094ff]",
+      "name": "Chapter 3 - Dock - Yellow Herb x1 [0d3094ff]",
       "guid": "0d3094ff-23fd-4415-be8e-86a3912bdd32",
       "identity_kind": "guid",
       "chapter": 3,
@@ -2370,7 +2370,7 @@
       "region": "Village",
       "source_item_name": "Yellow Herb x1",
       "ap_eligibility": "always",
-      "section_name": "Quarry",
+      "section_name": "Dock",
       "x": 206.74,
       "y": -3.31,
       "z": 80.11,
@@ -2378,7 +2378,7 @@
       "note": ""
     },
     "3737170323": {
-      "name": "Chapter 3 - Quarry - Kitchen Knife x1 (drawer) [a48703e6]",
+      "name": "Chapter 3 - Dock - Kitchen Knife x1 (drawer) [a48703e6]",
       "guid": "a48703e6-8f6e-463f-8b3d-e732db281b7a",
       "identity_kind": "guid",
       "chapter": 3,
@@ -2386,7 +2386,7 @@
       "region": "Village",
       "source_item_name": "Kitchen Knife x1",
       "ap_eligibility": "always",
-      "section_name": "Quarry",
+      "section_name": "Dock",
       "x": 207.92,
       "y": -3.37,
       "z": 78.62,
@@ -2394,12 +2394,12 @@
       "note": ""
     },
     "4211929842": {
-      "name": "Chapter 4 - Church Grounds - Emerald x1 (hanging) [56f1673f]",
+      "name": "Chapter 3 - Church Grounds - Emerald x1 (hanging) [56f1673f]",
       "guid": "56f1673f-5db8-4a1e-84bc-22fbcd733064",
       "identity_kind": "guid",
-      "chapter": 4,
+      "chapter": 3,
       "stage": 45200,
-      "region": "Lake",
+      "region": "Village",
       "source_item_name": "Emerald x1",
       "ap_eligibility": "always",
       "section_name": "Church Grounds",
@@ -2410,7 +2410,7 @@
       "note": ""
     },
     "1476300534": {
-      "name": "Chapter 3 - Fish Farm - Depraved Idol x1 (multi-key cache) [56c6e2fb]",
+      "name": "Chapter 3 - Dock - Depraved Idol x1 (multi-key cache) [56c6e2fb]",
       "guid": "56c6e2fb-6485-402a-bf4e-8dc7dac0f63b",
       "identity_kind": "guid",
       "chapter": 3,
@@ -2418,7 +2418,7 @@
       "region": "Village",
       "source_item_name": "Depraved Idol x1",
       "ap_eligibility": "always",
-      "section_name": "Fish Farm",
+      "section_name": "Dock",
       "x": 204.26,
       "y": -3.24,
       "z": 71.22,
@@ -2426,12 +2426,12 @@
       "note": ""
     },
     "1860434857": {
-      "name": "Chapter 4 - Church Grounds - Red Gemstone Ring x1 (case) [1f5c91ce]",
+      "name": "Chapter 3 - Church Grounds - Red Gemstone Ring x1 (case) [1f5c91ce]",
       "guid": "1f5c91ce-4726-4dde-9a88-65cdcb05df55",
       "identity_kind": "guid",
-      "chapter": 4,
+      "chapter": 3,
       "stage": 45200,
-      "region": "Lake",
+      "region": "Village",
       "source_item_name": "Red Gemstone Ring x1",
       "ap_eligibility": "always",
       "section_name": "Church Grounds",
@@ -2458,12 +2458,12 @@
       "note": ""
     },
     "1793291604": {
-      "name": "Chapter 4 - Church Grounds - Elegant Headdress x1 (chest) [5eec4331]",
+      "name": "Chapter 3 - Church Grounds - Elegant Headdress x1 (chest) [5eec4331]",
       "guid": "5eec4331-ab42-4a19-a379-77138517e693",
       "identity_kind": "guid",
-      "chapter": 4,
+      "chapter": 3,
       "stage": 45200,
-      "region": "Lake",
+      "region": "Village",
       "source_item_name": "Elegant Headdress x1",
       "ap_eligibility": "always",
       "section_name": "Church Grounds",
@@ -2842,12 +2842,12 @@
       "note": ""
     },
     "4266056736": {
-      "name": "Chapter 4 - Merchant Hideout - Hexagon Piece A x1 [b7e52462]",
+      "name": "Chapter 3 - Merchant Hideout - Hexagon Piece A x1 [b7e52462]",
       "guid": "b7e52462-cfc7-4c0b-8b5c-11ff2aa92072",
       "identity_kind": "guid",
-      "chapter": 4,
+      "chapter": 3,
       "stage": 46210,
-      "region": "Lake",
+      "region": "Village",
       "source_item_name": "Hexagon Piece A x1",
       "ap_eligibility": "always",
       "section_name": "Merchant Hideout",
@@ -2874,12 +2874,12 @@
       "note": ""
     },
     "660388321": {
-      "name": "Chapter 4 - Merchant Hideout - Brass Pocket Watch x1 (small-key drawer) [936c3bfb]",
+      "name": "Chapter 3 - Merchant Hideout - Brass Pocket Watch x1 (small-key drawer) [936c3bfb]",
       "guid": "936c3bfb-4af3-4271-88cf-45f00f57a675",
       "identity_kind": "guid",
-      "chapter": 4,
+      "chapter": 3,
       "stage": 46210,
-      "region": "Lake",
+      "region": "Village",
       "source_item_name": "Brass Pocket Watch x1",
       "ap_eligibility": "always",
       "section_name": "Merchant Hideout",

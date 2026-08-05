@@ -64,7 +64,7 @@
         {
           "chapter": 2,
           "section": "Village Chief's Manor",
-          "total": 13
+          "total": 12
         },
         {
           "chapter": 3,
@@ -72,7 +72,7 @@
           "total": 15
         }
       ],
-      "total": 28
+      "total": 27
     },
     {
       "stage": 40213,
@@ -82,21 +82,40 @@
           "chapter": 3,
           "section": "Town Hall",
           "total": 3
-        },
+        }
+      ],
+      "total": 3
+    },
+    {
+      "stage": 45401,
+      "name": "Church Grounds",
+      "regions": [
         {
           "chapter": 3,
           "section": "Church Grounds",
-          "total": 1
-        },
+          "total": 8
+        }
+      ],
+      "total": 8
+    },
+    {
+      "stage": 46210,
+      "name": "Carrier (Shooting Range Access)",
+      "regions": [
         {
           "chapter": 3,
-          "section": "Quarry",
+          "section": "Merchant Hideout",
           "total": 2
         },
         {
           "chapter": 3,
+          "section": "Dock",
+          "total": 3
+        },
+        {
+          "chapter": 3,
           "section": "Fish Farm",
-          "total": 10
+          "total": 9
         },
         {
           "chapter": 4,
@@ -112,18 +131,6 @@
           "chapter": 4,
           "section": "Lakeside Settlement",
           "total": 6
-        }
-      ],
-      "total": 33
-    },
-    {
-      "stage": 46210,
-      "name": "Carrier (Shooting Range Access)",
-      "regions": [
-        {
-          "chapter": 4,
-          "section": "Merchant Hideout",
-          "total": 2
         },
         {
           "chapter": 4,
@@ -157,16 +164,11 @@
         },
         {
           "chapter": 4,
-          "section": "Church Grounds",
-          "total": 7
-        },
-        {
-          "chapter": 4,
           "section": "Church",
           "total": 1
         }
       ],
-      "total": 40
+      "total": 62
     },
     {
       "stage": 45401,
@@ -185,7 +187,7 @@
         {
           "chapter": 5,
           "section": "Village Chief's Manor",
-          "total": 1
+          "total": 2
         },
         {
           "chapter": 5,
@@ -193,7 +195,7 @@
           "total": 7
         }
       ],
-      "total": 21
+      "total": 22
     },
     {
       "stage": 47100,
