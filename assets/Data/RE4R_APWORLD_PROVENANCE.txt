@@ -159,11 +159,21 @@ Rebuilt:     2026-08-05, world_version 0.6.7 - chapter 3 walks in order. A
              chapter 5 block. Codes and pool unchanged (474), so 0.6.x rooms
              still pass the launcher count check. Verified: 6/6 two-slot
              sweep across minimize-backtracking and shuffle-keycards configs.
+Rebuilt:     2026-08-05 (rev 2), world_version stays 0.6.7 (unreleased) - seven
+             stage-section corrections: 44201 becomes the new Manor
+             Grounds section (sideyard shrine + storehouse past the emblem
+             gate; its 4 checks leave "Abandoned Factory" and the region
+             slots between Valley and the manor), 55301 joins the Hive (its
+             Gold Bar read "Blast Furnace" from the neighbouring volume),
+             and 44101 / 44300 / 45400 / 45510 pin the header to Village
+             Chief's Manor, Valley and Fish Farm with no check moves. Codes
+             and pool unchanged (474). 6/6 two-slot sweep across the same
+             two option configs.
 Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_version 0.6.7
              per that repo's archipelago.json.
 AP target:   Archipelago 0.6.7 (the version the apworld was developed and
              generation-validated against; pinned via the manifest as of 2026-07-12).
-SHA-256:     27bc7c7d019e4fd7b51c7919aab1d434dbc87d1e2c3d6c9b6421036bc30830fd
+SHA-256:     5ad9b73732dff2e4324df22ffaa0858c0c9ad2f940ef6e1f8e62d5111f38e25c
 Consumed by: the Generation Guidance screen ("Copy RE4R.apworld to your Archipelago
              custom_worlds folder") - ArchipelagoInstallationService reads the
              world_version out of this zip's manifest for display and copies the

@@ -47,12 +47,17 @@
         {
           "chapter": 2,
           "section": "Abandoned Factory",
-          "total": 9
+          "total": 5
         },
         {
           "chapter": 2,
           "section": "Valley",
           "total": 7
+        },
+        {
+          "chapter": 2,
+          "section": "Manor Grounds",
+          "total": 4
         }
       ],
       "total": 16
@@ -407,10 +412,10 @@
         {
           "chapter": 11,
           "section": "Blast Furnace",
-          "total": 9
+          "total": 8
         }
       ],
-      "total": 15
+      "total": 14
     },
     {
       "stage": 55201,
@@ -431,7 +436,7 @@
         {
           "chapter": 11,
           "section": "Hive",
-          "total": 2
+          "total": 3
         },
         {
           "chapter": 11,
@@ -439,7 +444,7 @@
           "total": 3
         }
       ],
-      "total": 5
+      "total": 6
     },
     {
       "stage": 56100,

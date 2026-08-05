@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-08-05T15:15:43Z",
+  "generated_at_utc": "2026-08-05T15:25:53Z",
   "game": "Resident Evil 4 Remake",
   "world_version": "0.6.7",
   "placeholder_item_id": 120486400,
@@ -1722,7 +1722,7 @@
       "note": ""
     },
     "2344051260": {
-      "name": "Chapter 2 - Abandoned Factory - Resource (Large) x1 [36ead06d]",
+      "name": "Chapter 2 - Manor Grounds - Resource (Large) x1 [36ead06d]",
       "guid": "36ead06d-abe4-45ae-ac9e-bc14bf135a97",
       "identity_kind": "guid",
       "chapter": 2,
@@ -1730,7 +1730,7 @@
       "region": "Village",
       "source_item_name": "Resource (Large) x1",
       "ap_eligibility": "always",
-      "section_name": "Abandoned Factory",
+      "section_name": "Manor Grounds",
       "x": -6.3,
       "y": 0.17,
       "z": 163.78,
@@ -1738,7 +1738,7 @@
       "note": ""
     },
     "1354428845": {
-      "name": "Chapter 2 - Abandoned Factory - Handgun Ammo x10 [5a8888c1]",
+      "name": "Chapter 2 - Manor Grounds - Handgun Ammo x10 [5a8888c1]",
       "guid": "5a8888c1-b60f-43b4-b0b2-2362ae156fcf",
       "identity_kind": "guid",
       "chapter": 2,
@@ -1746,7 +1746,7 @@
       "region": "Village",
       "source_item_name": "Handgun Ammo x10",
       "ap_eligibility": "always",
-      "section_name": "Abandoned Factory",
+      "section_name": "Manor Grounds",
       "x": 2.71,
       "y": 0.5,
       "z": 159.66,
@@ -1882,7 +1882,7 @@
       "note": ""
     },
     "3312977059": {
-      "name": "Chapter 2 - Abandoned Factory - Sapphire x1 (chest) [b661a20b]",
+      "name": "Chapter 2 - Manor Grounds - Sapphire x1 (chest) [b661a20b]",
       "guid": "b661a20b-a5a7-41cf-981e-aaba42f5d117",
       "identity_kind": "guid",
       "chapter": 2,
@@ -1890,7 +1890,7 @@
       "region": "Village",
       "source_item_name": "Sapphire x1",
       "ap_eligibility": "always",
-      "section_name": "Abandoned Factory",
+      "section_name": "Manor Grounds",
       "x": -14.61,
       "y": 0.86,
       "z": 162.09,
@@ -1946,7 +1946,7 @@
       "note": ""
     },
     "4240025224": {
-      "name": "Chapter 2 - Abandoned Factory - Alexandrite x1 (hanging) [ce9baef9]",
+      "name": "Chapter 2 - Manor Grounds - Alexandrite x1 (hanging) [ce9baef9]",
       "guid": "ce9baef9-fdb9-4c71-ace1-d4f70c2c7b3d",
       "identity_kind": "guid",
       "chapter": 2,
@@ -1954,7 +1954,7 @@
       "region": "Village",
       "source_item_name": "Alexandrite x1",
       "ap_eligibility": "always",
-      "section_name": "Abandoned Factory",
+      "section_name": "Manor Grounds",
       "x": 20.62,
       "y": -0.66,
       "z": 158.56,
@@ -5674,7 +5674,7 @@
       "note": ""
     },
     "3037436385": {
-      "name": "Chapter 11 - Blast Furnace - Gold Bar (L) x1 (chest) [95125fe0]",
+      "name": "Chapter 11 - Hive - Gold Bar (L) x1 (chest) [95125fe0]",
       "guid": "95125fe0-aa06-4866-9eb7-edaf54bae986",
       "identity_kind": "guid",
       "chapter": 11,
@@ -5682,7 +5682,7 @@
       "region": "Island Entry",
       "source_item_name": "Gold Bar (L) x1",
       "ap_eligibility": "always",
-      "section_name": "Blast Furnace",
+      "section_name": "Hive",
       "x": 144.54,
       "y": -72.39,
       "z": 40.12,
