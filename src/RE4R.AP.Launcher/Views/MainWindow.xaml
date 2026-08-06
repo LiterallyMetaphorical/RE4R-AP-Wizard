@@ -689,11 +689,20 @@
                                 <TextBlock Margin="0,6,0,0"
                                            TextWrapping="Wrap"
                                            Text="Hosting is normal after that: generating writes an AP_*.zip into their output folder, they upload it to archipelago.gg/uploads and create the room, then send you the room address." />
-                                <Button Margin="0,10,0,0"
-                                        HorizontalAlignment="Left"
-                                        Padding="10,2"
-                                        Command="{Binding OpenApworldFolderCommand}"
-                                        Content="Show RE4R.apworld Folder" />
+                                <!-- One button per file, next to the list naming
+                                     them. Save also lives in the footer, but the
+                                     footer is generic; here the two actions read
+                                     as "get these two files" (Cam, 2026-08-06). -->
+                                <StackPanel Margin="0,10,0,0"
+                                            Orientation="Horizontal">
+                                    <Button Padding="10,2"
+                                            Command="{Binding SaveYamlCommand}"
+                                            Content="Save YAML File..." />
+                                    <Button Margin="8,0,0,0"
+                                            Padding="10,2"
+                                            Command="{Binding OpenApworldFolderCommand}"
+                                            Content="Show RE4R.apworld Folder" />
+                                </StackPanel>
                             </StackPanel>
                         </Border>
                     </StackPanel>
