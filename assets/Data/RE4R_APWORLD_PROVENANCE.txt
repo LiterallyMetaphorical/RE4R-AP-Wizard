@@ -225,11 +225,18 @@ Rebuilt:     2026-08-06 (rev 8), world_version stays 0.6.7 (unreleased) -
              own instead of the AP item). THE POOL COUNT CHANGED: rooms
              generated on 474 fail the launcher count check by design.
              Sweep 9/9 with new locked-cache and dead-location assertions.
+Rebuilt:     2026-08-06 (rev 9), world_version stays 0.6.7 (unreleased) - the
+             last 3 locked caches gain their keys: Dock multi-key cache =
+             Hexagon Pieces A/B/C (Cam), Checkpoint walkway = Old Wayshrine
+             Key, Library lock box = Cubic Device (both per walkthroughs).
+             The Dock one is the live risk: chapter 3 location, pieces not
+             guaranteed until the chapter 5 church. 11 locked spots now
+             covered. Sweep 9/9.
 Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_version 0.6.7
              per that repo's archipelago.json.
 AP target:   Archipelago 0.6.7 (the version the apworld was developed and
              generation-validated against; pinned via the manifest as of 2026-07-12).
-SHA-256:     274e84698477c76c97e8e2441f8e2b28c3e9f1d121e254a3f53a075f332cfe09
+SHA-256:     e73b35eaaf21ebe50cdd4daeda1af70114d0d9686148bf867fea4bd7e1714359
 Consumed by: the Generation Guidance screen ("Copy RE4R.apworld to your Archipelago
              custom_worlds folder") - ArchipelagoInstallationService reads the
              world_version out of this zip's manifest for display and copies the
