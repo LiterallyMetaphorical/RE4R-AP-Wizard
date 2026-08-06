@@ -5083,21 +5083,6 @@
         "z": 40.12,
         "container": "chest",
         "note": ""
-      },
-      "74e5889d-5f15-4a4a-81b3-eb14a624f057": {
-        "location_id": 4132205707,
-        "location_name": "Chapter 11 - Hive - Hand Grenade x1 [74e5889d]",
-        "toast_title": "Hand Grenade",
-        "item_name": "Hand Grenade x1",
-        "classification": "FILLER",
-        "chapter": 11,
-        "stage_name": "Unknown Stage 55301",
-        "section_name": "Hive",
-        "x": 171.57,
-        "y": -75.23,
-        "z": 25.18,
-        "container": "",
-        "note": ""
       }
     },
     "55302": {
@@ -6617,21 +6602,6 @@
         "y": 13.3,
         "z": -142.26,
         "container": "",
-        "note": ""
-      },
-      "9afde0a2-b6b9-46e8-b8dc-3d9b15b1f4fd": {
-        "location_id": 3922853059,
-        "location_name": "Chapter 14 - Ruins - Fighting Knife x0 (boss drop) [9afde0a2]",
-        "toast_title": "Fighting Knife",
-        "item_name": "Fighting Knife x0",
-        "classification": "USEFUL",
-        "chapter": 14,
-        "stage_name": "Unknown Stage 65100",
-        "section_name": "Ruins",
-        "x": 176.74,
-        "y": 28.58,
-        "z": -176.98,
-        "container": "boss",
         "note": ""
       },
       "6e54747d-c332-4d2f-9fc1-0f70857b8e92": {

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "item_count": 129,
+  "item_count": 128,
   "items": {
     "42736575": {
       "name": "Insignia Key x1",
@@ -340,11 +340,6 @@
     "2217291210": {
       "name": "Velvet Blue x1",
       "re4r_item_id": 120864000,
-      "count": 1
-    },
-    "2295140511": {
-      "name": "Fighting Knife x0",
-      "re4r_item_id": 276437056,
       "count": 1
     },
     "2310309362": {

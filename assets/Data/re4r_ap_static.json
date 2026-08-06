@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-08-05T23:39:11Z",
+  "generated_at_utc": "2026-08-06T00:21:34Z",
   "game": "Resident Evil 4 Remake",
   "world_version": "0.6.7",
   "placeholder_item_id": 120486400,
   "counts": {
-    "locations_total": 474,
-    "guid_locations": 474,
+    "locations_total": 472,
+    "guid_locations": 472,
     "noguid_locations": 0,
-    "items_total": 129,
-    "always_locations": 474,
+    "items_total": 128,
+    "always_locations": 472,
     "optional_key_locations": 0
   },
   "location_codes": [
@@ -341,7 +341,6 @@
     2603290953,
     1181478752,
     345113636,
-    4132205707,
     1695330782,
     2968071828,
     3613474941,
@@ -436,7 +435,6 @@
     1621305829,
     477784732,
     4160060702,
-    3922853059,
     2973829167,
     1310744604,
     3413204006,
@@ -5737,22 +5735,6 @@
       "container": "",
       "note": ""
     },
-    "4132205707": {
-      "name": "Chapter 11 - Hive - Hand Grenade x1 [74e5889d]",
-      "guid": "74e5889d-5f15-4a4a-81b3-eb14a624f057",
-      "identity_kind": "guid",
-      "chapter": 11,
-      "stage": 55301,
-      "region": "Island Entry",
-      "source_item_name": "Hand Grenade x1",
-      "ap_eligibility": "always",
-      "section_name": "Hive",
-      "x": 171.57,
-      "y": -75.23,
-      "z": 25.18,
-      "container": "",
-      "note": ""
-    },
     "1695330782": {
       "name": "Chapter 11 - Hive - Yellow Herb x1 [613e6ec0]",
       "guid": "613e6ec0-ab68-47ca-aa9f-7574bf116269",
@@ -7257,22 +7239,6 @@
       "container": "",
       "note": ""
     },
-    "3922853059": {
-      "name": "Chapter 14 - Ruins - Fighting Knife x0 (boss drop) [9afde0a2]",
-      "guid": "9afde0a2-b6b9-46e8-b8dc-3d9b15b1f4fd",
-      "identity_kind": "guid",
-      "chapter": 14,
-      "stage": 65100,
-      "region": "Island Deep",
-      "source_item_name": "Fighting Knife x0",
-      "ap_eligibility": "always",
-      "section_name": "Ruins",
-      "x": 176.74,
-      "y": 28.58,
-      "z": -176.98,
-      "container": "boss",
-      "note": ""
-    },
     "2973829167": {
       "name": "Chapter 14 - Ruins - Red Herb x1 [6e54747d]",
       "guid": "6e54747d-c332-4d2f-9fc1-0f70857b8e92",
@@ -8549,13 +8515,6 @@
       "biorand_item_id": 120864000,
       "biorand_name": "Velvet Blue",
       "classification": "FILLER",
-      "count": 1
-    },
-    "2295140511": {
-      "name": "Fighting Knife x0",
-      "biorand_item_id": 276437056,
-      "biorand_name": "Fighting Knife",
-      "classification": "USEFUL",
       "count": 1
     },
     "2310309362": {
