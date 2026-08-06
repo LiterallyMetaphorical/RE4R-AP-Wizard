@@ -1226,6 +1226,27 @@ return function(ctx)
             end
             info("Tutorial: " .. (enabled and "enabled" or "disabled") .. " (from slot_data)")
         end
+        -- [Random Events] AP-authored event roll: some checks may have moved
+        -- (new stage, coordinates and section) and some may not exist at all.
+        -- The display layer (markers, checklist, section counts) follows the
+        -- roll; detection stays guid-canonical and needs nothing. Rooms
+        -- without the block clear any override left by a previous connection.
+        do
+            local re = (type(slot_data) == "table") and slot_data.random_events or nil
+            local set_overrides = ctx.set_random_events_overrides or _G.set_random_events_overrides
+            if type(set_overrides) == "function" then
+                local ok_overrides, summary = pcall(set_overrides, re)
+                if ok_overrides and type(re) == "table"
+                    and (re.enabled == true or re.enabled == 1 or re.enabled == "1") then
+                    local moved = (type(summary) == "table") and summary.moved or 0
+                    local removed = (type(summary) == "table") and summary.removed or 0
+                    info("Random Events ACTIVE (from slot_data): " .. tostring(moved)
+                        .. " check(s) moved, " .. tostring(removed) .. " removed")
+                elseif not ok_overrides then
+                    info("Random Events overrides FAILED to apply: " .. tostring(summary))
+                end
+            end
+        end
         -- Capture our NUMERIC slot + seed and establish the per-seed session
         -- identity so the durable watermark keys to session_<seed>__<slot>.json
         -- and loads on connect. Clear any stale queue from a prior connection.

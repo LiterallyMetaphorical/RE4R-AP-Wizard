@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-08-06T00:21:34Z",
+  "generated_at_utc": "2026-08-06T18:24:19Z",
   "game": "Resident Evil 4 Remake",
-  "world_version": "0.6.7",
+  "world_version": "0.7.0",
   "placeholder_item_id": 120486400,
   "counts": {
     "locations_total": 472,

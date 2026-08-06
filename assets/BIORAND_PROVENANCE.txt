@@ -9,7 +9,13 @@ The payload itself is a build artifact (git-ignored); rebuild it with:
 
 Source repo:    biorand-re4r-ap (fork; never upstream biorand/re4r)
 Source branch:  ap-manifest-input
-Source commit:  e586795 (2026-08-06: OPTION DEFINITIONS - traps default to 0%
+Source commit:  05f581e (2026-08-06: FORCED EVENTS - BioRand takes its event
+                set from the multiworld. The apworld rolls the Village event
+                set at generation time and the launcher pins it in as
+                ap-forced-events, with an event-data hash so a drifted
+                events.csv fails the patch instead of desyncing the logic.
+                Ships with the Random Events release (world 0.7.0).)
+                Prior: e586795 (2026-08-06: OPTION DEFINITIONS - traps default to 0%
                 in every mode (added bear traps and trip wires read as unfair
                 rather than fun; players who want them raise the slider), the
                 trap option is labelled "Bear Traps and Trip Wires" instead of
@@ -134,8 +140,8 @@ Source commit:  e586795 (2026-08-06: OPTION DEFINITIONS - traps default to 0%
                 DLC entitlement needed). Includes b27f7ac (drop-catalog fix)
                 and 90140f0 (purity gates).)
 Publish:        -c Release -r win-x64 --self-contained -p:PublishSingleFile=true (net10.0)
-biorand-re4r.exe SHA-256: 3766de015a3710365a048869b900f58b70da019ff3795c8c41623e809c360c6e
-ProductVersion: 1.0.0+e58679570007268c93cad3c0571ded98693440e5 (the launcher
+biorand-re4r.exe SHA-256: 9c1699d0034e082d3ef028ce079f525b371e98a05b6c442e23b40735f9d64b1c
+ProductVersion: 1.0.0+05f581e7cdf1c912869903a760539cdebb1c7bac (the launcher
                 writes this into version_stamp.json, and a change here is what
                 triggers the one-time setup cache re-harvest)
 Built with:     .NET SDK 10.0.301

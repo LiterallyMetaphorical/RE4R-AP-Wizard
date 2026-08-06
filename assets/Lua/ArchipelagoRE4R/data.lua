@@ -288,6 +288,11 @@ local function install(ctx)
     -- if either piece moves.
     local invalidate_location_id_reverse_index
 
+    -- [Random Events] Forward declaration for the same reason: the display-map
+    -- loader re-applies the slot's random-events overrides after every reload,
+    -- and the override machinery lives below the loader.
+    local apply_random_events_overrides
+
     local function load_location_display_map()
         local payload = json.load_file(LOCATION_DISPLAY_MAP_FILE)
         clear_table(stage_location_display_map)
@@ -353,6 +358,101 @@ local function install(ctx)
 
         rebuild_progression_warning_chapter_maps()
         invalidate_location_id_reverse_index()
+        apply_random_events_overrides()
+    end
+
+    -- [Random Events] AP-authored Random Events can move a check to another
+    -- part of the map or delete it outright. slot_data carries the roll
+    -- (moved_checks keyed by location code with stage/x/y/z/section, plus
+    -- removed_checks). The DISPLAY layer follows it here: entries move to
+    -- their destination stage bucket with new coordinates and section, and
+    -- removed entries disappear from markers, checklist and counts. Detection
+    -- is deliberately untouched - pickups canonicalize by GUID to their
+    -- DATASET stage (resolve_tracked_stage), which does not change when the
+    -- physical item moves, so the guid map keeps filing checks exactly as
+    -- before.
+    local random_events_overrides = nil
+    local random_events_summary = { moved = 0, removed = 0 }
+
+    apply_random_events_overrides = function()
+        random_events_summary.moved = 0
+        random_events_summary.removed = 0
+        local overrides = random_events_overrides
+        if type(overrides) ~= "table" then
+            return
+        end
+
+        local function find_entry(location_id)
+            for stage_key, stage_entries in pairs(stage_location_display_map) do
+                for guid, entry in pairs(stage_entries) do
+                    if entry.location_id == location_id then
+                        return stage_key, guid, entry
+                    end
+                end
+            end
+            return nil
+        end
+
+        for code_key, move in pairs(overrides.moved_checks or {}) do
+            local location_id = tonumber(code_key)
+            local new_stage = (type(move) == "table") and tonumber(move.stage) or nil
+            if location_id ~= nil and new_stage ~= nil then
+                local stage_key, guid, entry = find_entry(location_id)
+                if entry ~= nil then
+                    stage_location_display_map[stage_key][guid] = nil
+                    local new_key = tostring(new_stage)
+                    if stage_location_display_map[new_key] == nil then
+                        stage_location_display_map[new_key] = {}
+                    end
+                    entry.x = tonumber(move.x) or entry.x
+                    entry.y = tonumber(move.y) or entry.y
+                    entry.z = tonumber(move.z) or entry.z
+                    if type(move.section) == "string" and move.section ~= "" then
+                        entry.section_name = move.section
+                    end
+                    stage_location_display_map[new_key][guid] = entry
+                    random_events_summary.moved = random_events_summary.moved + 1
+                end
+            end
+        end
+
+        for _, code in ipairs(overrides.removed_checks or {}) do
+            local location_id = tonumber(code)
+            if location_id ~= nil then
+                local stage_key, guid = find_entry(location_id)
+                if stage_key ~= nil then
+                    stage_location_display_map[stage_key][guid] = nil
+                    random_events_summary.removed = random_events_summary.removed + 1
+                end
+            end
+        end
+
+        if random_events_summary.moved > 0 or random_events_summary.removed > 0 then
+            rebuild_progression_warning_chapter_maps()
+            invalidate_location_id_reverse_index()
+        end
+    end
+
+    -- Called on slot connect (and disconnect, with nil). Reloads the display
+    -- map from disk first so overrides always apply to pristine data - a
+    -- reconnect to a different room, or to no room, must never inherit the
+    -- previous room's moves. Returns the applied summary for the caller's log.
+    local function set_random_events_overrides(overrides)
+        local normalized = nil
+        if type(overrides) == "table"
+            and (overrides.enabled == true or overrides.enabled == 1 or overrides.enabled == "1") then
+            normalized = {
+                moved_checks = (type(overrides.moved_checks) == "table") and overrides.moved_checks or {},
+                removed_checks = (type(overrides.removed_checks) == "table") and overrides.removed_checks or {},
+            }
+        end
+
+        local had_overrides = random_events_overrides ~= nil
+        random_events_overrides = normalized
+        if normalized ~= nil or had_overrides then
+            load_location_display_map()
+        end
+        return random_events_summary
     end
 
     -- Pause-map label data (map_labels.json): the literal area names the player
@@ -1083,6 +1183,7 @@ local function install(ctx)
         load_stage_chapter_map = load_stage_chapter_map,
         load_location_guid_map = load_location_guid_map,
         load_location_display_map = load_location_display_map,
+        set_random_events_overrides = set_random_events_overrides,
         load_map_labels = load_map_labels,
         load_typewriter_regions = load_typewriter_regions,
         get_region_progress = get_region_progress,

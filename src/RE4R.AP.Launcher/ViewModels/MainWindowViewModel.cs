@@ -231,7 +231,6 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         _retireSessionCommand = new AsyncRelayCommand(RetireBannerSessionAsync, () => !Action.IsBusy);
         _unlockBioRandOptionsCommand = new AsyncRelayCommand(UnlockBioRandOptionsAsync, () => !Action.IsBusy);
         BioRandOptions.UnlockCommand = _unlockBioRandOptionsCommand;
-        BioRandOptions.RandomEventsTurnedOn += OnRandomEventsTurnedOn;
 
         // Pin the options to the previous patch of this room whenever the player reaches the
         // options step, so a re-patch can't silently discard what they pick.
@@ -684,59 +683,6 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         BioRandOptionCatalog.ModeCustom => "Custom settings",
         _ => "your previous settings",
     };
-
-    /// <summary>
-    /// Random Events relocates a handful of scripted world items, and the
-    /// multiworld's logic does not model any of it. Verified against BioRand's
-    /// events.csv: 52 lockdoor, 16 remove and 53 move operations, plus one that
-    /// relocates a chapter's start. Ten of those land directly on AP check
-    /// GUIDs - the Crystal Marble, Hexagonal Emblem and Boat Fuel are moved,
-    /// and the Hexagonal Emblem also carries a removekey that deletes the
-    /// placement outright. Warn plainly and turn it back off unless the player
-    /// insists.
-    /// </summary>
-    private async void OnRandomEventsTurnedOn()
-    {
-        try
-        {
-            // Yield first: this arrives from a checkbox's property-change
-            // notification, and opening a modal dialog inside that never
-            // shows. Let the input event finish, then prompt.
-            await Task.Yield();
-
-            var proceed = await _dialogService.ConfirmProceedWithWarningAsync(
-                "Random Events Is Not Covered By Logic",
-                "Random Events reshapes the world itself. It locks doors, takes away ladders "
-                + "and walls, changes what an area looks like ahead of the story, and can even "
-                + "change where a chapter starts you."
-                + Environment.NewLine + Environment.NewLine
-                + "The multiworld's logic assumes the normal route and models none of that. "
-                + "It also moves scripted key items: as it stands, the Crystal Marble, the "
-                + "Hexagonal Emblem and the Boat Fuel can each be relocated to another part of "
-                + "the map, and the Hexagonal Emblem can be taken out of the world entirely."
-                + Environment.NewLine + Environment.NewLine
-                + "So a key item you need can end up somewhere you cannot reach, or nowhere at "
-                + "all, and the seed stops being finishable."
-                + Environment.NewLine + Environment.NewLine
-                + "Recommended: leave it off.",
-                proceedLabel: "Enable It Anyway",
-                cancelLabel: "Leave It Off");
-
-            if (!proceed)
-            {
-                BioRandOptions.TurnRandomEventsOff();
-                Action.AppendLog("Random Events left off: the multiworld's logic does not model it.");
-            }
-            else
-            {
-                Action.AppendLog("Random Events enabled despite the logic warning.");
-            }
-        }
-        catch (Exception ex)
-        {
-            Action.AppendLog($"Could not show the Random Events warning: {ex.Message}");
-        }
-    }
 
     /// <summary>
     /// The player wants to change a pinned config. Warn first - the non-check world re-rolls - then

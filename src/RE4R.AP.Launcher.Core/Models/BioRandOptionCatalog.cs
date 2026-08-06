@@ -35,6 +35,9 @@ public static class BioRandOptionCatalog
     /// - start-chapter: starting at N makes every AP check in chapters 1..N-1 unreachable.
     /// - skip-ashley-section: deletes a whole segment, and any AP checks in it. (BioRand default TRUE!)
     /// - game-version: must match the setup harvest; not user-facing.
+    /// - random-events: the multiworld authors the event set at generation time (the YAML option);
+    ///   the roll arrives via slot_data and is pinned in as ap-forced-events. A local toggle here
+    ///   would let a patch fire events the room's logic never modeled.
     /// </summary>
     public static readonly string[] ApLockedKeys =
     [
@@ -44,6 +47,7 @@ public static class BioRandOptionCatalog
         "skip-ashley-section",
         "ap-mode",
         "ap-placements",
+        "random-events",
     ];
 
     public const string RandomItemsKey = "random-items";
@@ -82,29 +86,6 @@ public static class BioRandOptionCatalog
         }
 
         return values;
-    }
-
-    /// <summary>
-    /// Random Events REQUIRES Random Items AND Random Enemies - <c>EventModifier.Apply</c> throws
-    /// otherwise, failing generation. Rather than let a player build a config that crashes, we
-    /// switch it off (and the UI tells them why). Returns true if it had to be forced off.
-    /// </summary>
-    public static bool ApplyRandomEventsDependency(Dictionary<string, JsonNode?> values)
-    {
-        ArgumentNullException.ThrowIfNull(values);
-
-        if (!GetBool(values, RandomEventsKey))
-        {
-            return false;
-        }
-
-        if (GetBool(values, RandomItemsKey) && GetBool(values, RandomEnemiesKey))
-        {
-            return false;
-        }
-
-        values[RandomEventsKey] = JsonValue.Create(false);
-        return true;
     }
 
     public static bool GetBool(IReadOnlyDictionary<string, JsonNode?> values, string key) =>

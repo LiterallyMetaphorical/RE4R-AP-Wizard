@@ -34,17 +34,25 @@ public sealed class ManifestBuilder
 
         // Since apworld 0.6.0 every location is unconditional, so a healthy
         // room scouts exactly the bundled count. The always/total split is
-        // kept for older static data where an optional tier existed.
+        // kept for older static data where an optional tier existed. An
+        // AP-authored Random Events roll can delete checks outright (the
+        // removekey events); slot_data says how many, so the expectation
+        // shrinks by exactly that count and anything else still fails.
+        var removedByEvents = scoutSession.RandomEvents.Enabled
+            ? scoutSession.RandomEvents.RemovedLocationCodes.Count
+            : 0;
         var scoutedCount = scoutSession.Locations.Count;
-        if (scoutedCount == staticData.Counts.LocationsTotal
-            || (staticData.Counts.AlwaysLocations > 0 && scoutedCount == staticData.Counts.AlwaysLocations))
+        if (scoutedCount == staticData.Counts.LocationsTotal - removedByEvents
+            || (staticData.Counts.AlwaysLocations > 0 && scoutedCount == staticData.Counts.AlwaysLocations - removedByEvents))
         {
-            Log($"Room has {scoutedCount} RE4R locations.");
+            Log(removedByEvents == 0
+                ? $"Room has {scoutedCount} RE4R locations."
+                : $"Room has {scoutedCount} RE4R locations ({removedByEvents} removed by the Random Events roll).");
         }
         else
         {
             throw new ManifestBuildException(
-                $"The AP server returned {scoutedCount} locations, but the bundled RE4R world data expects {staticData.Counts.LocationsTotal}. The room was probably generated with a different RE4R.apworld version than this launcher bundles.");
+                $"The AP server returned {scoutedCount} locations, but the bundled RE4R world data expects {staticData.Counts.LocationsTotal - removedByEvents}. The room was probably generated with a different RE4R.apworld version than this launcher bundles.");
         }
 
         Log($"Building manifest for {scoutSession.Locations.Count} locations using BioRand game-version {gameVersion}.");
@@ -101,7 +109,7 @@ public sealed class ManifestBuilder
             $"{skippedNoGuidCount} no-GUID locations skipped.");
         Log("AP manifest JSON is ready for BioRand generation.");
 
-        var configJson = BuildConfigJson(placements, normalizedOptions, gameVersion);
+        var configJson = BuildConfigJson(placements, normalizedOptions, gameVersion, scoutSession.RandomEvents);
 
         return new ManifestBuildResult
         {
@@ -145,7 +153,8 @@ public sealed class ManifestBuilder
     private string BuildConfigJson(
         IReadOnlyDictionary<string, ManifestPlacement> placements,
         BioRandOptions options,
-        string gameVersion)
+        string gameVersion,
+        RandomEventsSlotData randomEvents)
     {
         var placementObject = new JsonObject();
         foreach (var placement in placements)
@@ -160,16 +169,7 @@ public sealed class ManifestBuilder
         var normalized = BioRandOptions.Sanitize(options);
         var values = new Dictionary<string, JsonNode?>(normalized.Values, StringComparer.Ordinal);
 
-        // 1. Random Events REQUIRES Random Items AND Random Enemies - EventModifier.Apply THROWS
-        //    otherwise, which would fail the whole patch. Players can now toggle those two freely
-        //    (any tweak flips the mode to Custom), so enforce the dependency rather than letting
-        //    them build a config that crashes. The UI surfaces this too, but this is the backstop.
-        if (BioRandOptionCatalog.ApplyRandomEventsDependency(values))
-        {
-            Log("Random Events needs both Random Items and Random Enemies, so it has been switched off for this patch.");
-        }
-
-        // 2. Emit EVERY catalog key explicitly, INCLUDING random-items / random-enemies, which are
+        // 1. Emit EVERY catalog key explicitly, INCLUDING random-items / random-enemies, which are
         //    now ordinary player-facing toggles rather than mode-forced axes. Omitting a key makes
         //    BioRand fall back to its own default - and many default to true (extra-merchants,
         //    extra-hiding-lockers, random-inventory, randomized-messages, ...). That leak is exactly
@@ -180,7 +180,7 @@ public sealed class ManifestBuilder
             root[pair.Key] = pair.Value?.DeepClone();
         }
 
-        // 3. AP locks LAST, so no preset and no player tweak can smuggle in a scope change that
+        // 2. AP locks LAST, so no preset and no player tweak can smuggle in a scope change that
         //    removes or strands AP checks. (Item-generation options cannot corrupt a check - AP
         //    placements are written by explicit id and merged last - so these are the only genuine
         //    AP-breakers. Note BioRand defaults skip-ashley-section to TRUE, which would delete a
@@ -191,6 +191,37 @@ public sealed class ManifestBuilder
         root["skip-ashley-section"] = false;
         root["ap-mode"] = true;
         root["ap-placements"] = placementObject;
+
+        // 3. Random Events is AP-locked too: the multiworld already rolled the event set at
+        //    generation time (or declined to), so the room decides, never this machine. When the
+        //    roll is present it is pinned into the fork as the complete forced set, together with
+        //    the hash of the event data it was rolled against - a drifted events.csv fails the
+        //    patch instead of quietly desyncing the world from the logic. EventModifier requires
+        //    random-items and random-enemies for random-events, so those are forced on with it.
+        if (randomEvents.Enabled)
+        {
+            root[BioRandOptionCatalog.RandomEventsKey] = true;
+            root[BioRandOptionCatalog.RandomItemsKey] = true;
+            root[BioRandOptionCatalog.RandomEnemiesKey] = true;
+            var forcedEvents = new JsonArray();
+            foreach (var eventName in randomEvents.ChosenEvents)
+            {
+                forcedEvents.Add(JsonValue.Create(eventName));
+            }
+
+            root["ap-forced-events"] = forcedEvents;
+            if (!string.IsNullOrWhiteSpace(randomEvents.EventDataHash))
+            {
+                root["ap-event-data-hash"] = randomEvents.EventDataHash;
+            }
+
+            Log($"AP-authored Random Events: pinning {randomEvents.ChosenEvents.Count} events into BioRand "
+                + "(random-items and random-enemies forced on with them).");
+        }
+        else
+        {
+            root[BioRandOptionCatalog.RandomEventsKey] = false;
+        }
 
         return root.ToJsonString(new JsonSerializerOptions
         {

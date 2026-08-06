@@ -173,6 +173,13 @@ public sealed class ArchipelagoScoutClient
                 ? $"Authenticated with the AP server as team {team}, slot {connectedSlot}. Room currently lists {playerCount} player entries."
                 : $"Authenticated with the AP server as team {team}, slot {connectedSlot}.");
 
+            var randomEvents = ParseRandomEventsSlotData(connectedPacket);
+            if (randomEvents.Enabled)
+            {
+                Log($"This room uses AP-authored Random Events: {randomEvents.ChosenEvents.Count} events chosen, "
+                    + $"{randomEvents.RemovedLocationCodes.Count} checks removed by events.");
+            }
+
             // Since apworld 0.4.0 the room's location count varies with the
             // RandomizeGatedKeys option, so scout exactly what the room
             // declares (missing + checked from Connected) instead of the full
@@ -213,6 +220,7 @@ public sealed class ArchipelagoScoutClient
                 ConnectedPlayerSlot = connectedSlot,
                 Locations = locations,
                 RoomLocationIds = roomLocationIds,
+                RandomEvents = randomEvents,
             };
         }
         catch (ArchipelagoScoutException)
@@ -648,6 +656,73 @@ public sealed class ArchipelagoScoutClient
         {
             throw new ArchipelagoTimeoutException(timeoutMessage, ex);
         }
+    }
+
+    /// <summary>
+    /// Reads slot_data.random_events from the Connected packet. Absent or
+    /// malformed blocks read as disabled: rooms from older apworlds simply
+    /// have no block, and a malformed one must not brick scouting - the
+    /// ManifestBuilder count check still catches a world that removed
+    /// locations without telling us.
+    /// </summary>
+    private static RandomEventsSlotData ParseRandomEventsSlotData(JsonElement connectedPacket)
+    {
+        if (!TryGetProperty(connectedPacket, "slot_data", out var slotData)
+            || slotData.ValueKind != JsonValueKind.Object
+            || !slotData.TryGetProperty("random_events", out var block)
+            || block.ValueKind != JsonValueKind.Object
+            || !block.TryGetProperty("enabled", out var enabled)
+            || enabled.ValueKind != JsonValueKind.True)
+        {
+            return RandomEventsSlotData.Disabled;
+        }
+
+        var chosen = new List<string>();
+        if (block.TryGetProperty("chosen", out var chosenElement)
+            && chosenElement.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var element in chosenElement.EnumerateArray())
+            {
+                if (element.ValueKind == JsonValueKind.String
+                    && element.GetString() is { Length: > 0 } name)
+                {
+                    chosen.Add(name);
+                }
+            }
+        }
+
+        string? eventDataHash = null;
+        if (block.TryGetProperty("event_data_hash", out var hashElement)
+            && hashElement.ValueKind == JsonValueKind.String)
+        {
+            eventDataHash = hashElement.GetString();
+        }
+
+        var removed = new List<long>();
+        if (block.TryGetProperty("removed_checks", out var removedElement)
+            && removedElement.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var element in removedElement.EnumerateArray())
+            {
+                if (element.ValueKind == JsonValueKind.Number && element.TryGetInt64(out var code))
+                {
+                    removed.Add(code);
+                }
+                else if (element.ValueKind == JsonValueKind.String
+                    && long.TryParse(element.GetString(), out code))
+                {
+                    removed.Add(code);
+                }
+            }
+        }
+
+        return new RandomEventsSlotData
+        {
+            Enabled = true,
+            ChosenEvents = chosen,
+            EventDataHash = eventDataHash,
+            RemovedLocationCodes = removed,
+        };
     }
 
     private static long[] GetRoomLocationIds(JsonElement connectedPacket, long[] knownLocationIds)

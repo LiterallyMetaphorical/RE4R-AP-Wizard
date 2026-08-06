@@ -29,7 +29,6 @@ public sealed class BioRandOptionsViewModel : ObservableObject
     private bool _isUnlockedForChange;
     private string _pinnedNotice = string.Empty;
     private string _modeStatusText = "Choose a launch mode to continue.";
-    private string _dependencyNotice = string.Empty;
 
     public BioRandOptionsViewModel()
     {
@@ -107,25 +106,6 @@ public sealed class BioRandOptionsViewModel : ObservableObject
         get => _modeStatusText;
         set => SetProperty(ref _modeStatusText, value);
     }
-
-    /// <summary>
-    /// Explains an option we had to switch off for the player - currently only Random Events,
-    /// which makes BioRand throw unless Random Items AND Random Enemies are both on. Never act
-    /// silently.
-    /// </summary>
-    public string DependencyNotice
-    {
-        get => _dependencyNotice;
-        set
-        {
-            if (SetProperty(ref _dependencyNotice, value))
-            {
-                OnPropertyChanged(nameof(HasDependencyNotice));
-            }
-        }
-    }
-
-    public bool HasDependencyNotice => !string.IsNullOrWhiteSpace(DependencyNotice);
 
     /// <summary>
     /// True when this room was already patched, so the recorded options are being shown and the
@@ -239,7 +219,6 @@ public sealed class BioRandOptionsViewModel : ObservableObject
             _isApplyingPreset = false;
         }
 
-        RefreshDependencies();
         UpdateModeState();
     }
 
@@ -281,6 +260,40 @@ public sealed class BioRandOptionsViewModel : ObservableObject
 
             Pages.Add(pageVm);
         }
+
+        AddRandomEventsNote();
+    }
+
+    /// <summary>
+    /// Random Events is a BioRand original that Archipelago now authors: the
+    /// multiworld picks the event set at generation time so the logic can
+    /// react to it, which moved the choice into the player YAML. Rather than
+    /// deleting the option from this screen silently, leave a read-only row
+    /// where it used to live saying where it went. Display only: the row has
+    /// no key in _itemsByKey, so it can never reach the BioRand config
+    /// (ManifestBuilder forces the real key from slot_data).
+    /// </summary>
+    private void AddRandomEventsNote()
+    {
+        var generalGroup = Pages.FirstOrDefault(p => string.Equals(p.Title, "General", StringComparison.Ordinal))
+            ?.Groups.FirstOrDefault();
+        if (generalGroup is null)
+        {
+            return;
+        }
+
+        generalGroup.Options.Add(new BioRandOptionItemViewModel(new BioRandOptionDefinition
+        {
+            Key = "note-random-events",
+            Label = "Random Events (set in your YAML)",
+            Description =
+                "A BioRand original, adapted for Archipelago: the multiworld now picks the "
+                + "event set itself when it generates, so the logic can react to what the "
+                + "events change. Turn it on with the experimental Random Events option in "
+                + "your player YAML; whatever your room rolled is applied automatically "
+                + "when you patch.",
+            Type = "note",
+        }));
     }
 
     private void ApplyPreset(int mode)
@@ -303,37 +316,6 @@ public sealed class BioRandOptionsViewModel : ObservableObject
         {
             _isApplyingPreset = false;
         }
-
-        RefreshDependencies();
-    }
-
-    /// <summary>
-    /// Raised when the player switches Random Events ON. The shell warns that
-    /// the multiworld's logic does not model what events move around, and
-    /// turns it back off if they decline.
-    /// </summary>
-    public event Action? RandomEventsTurnedOn;
-
-    private bool _randomEventsWarned;
-
-    /// <summary>Switches Random Events off without re-raising the warning.</summary>
-    public void TurnRandomEventsOff()
-    {
-        if (!_itemsByKey.TryGetValue(BioRandOptionCatalog.RandomEventsKey, out var events))
-        {
-            return;
-        }
-
-        var previous = events.SuppressChangeNotifications;
-        events.SuppressChangeNotifications = true;
-        events.BoolValue = false;
-        events.SuppressChangeNotifications = previous;
-
-        // Rearm by hand. Suppressing the notification above is what stops this
-        // from bouncing the dialog straight back, but it also means
-        // RefreshDependencies never sees the OFF state that normally rearms -
-        // so without this, declining once silences the warning for good.
-        _randomEventsWarned = false;
     }
 
     /// <summary>Any player tweak means the config is no longer the preset - so say so.</summary>
@@ -343,8 +325,6 @@ public sealed class BioRandOptionsViewModel : ObservableObject
         {
             return;
         }
-
-        RefreshDependencies();
 
         if (!IsCustomSelected)
         {
@@ -360,56 +340,6 @@ public sealed class BioRandOptionsViewModel : ObservableObject
         if (!AvailableModes.Contains(CustomMode))
         {
             AvailableModes.Add(CustomMode);
-        }
-    }
-
-    /// <summary>
-    /// Random Events makes BioRand THROW unless Random Items AND Random Enemies are both on. Switch
-    /// it off and TELL the player rather than letting the patch fail (or acting silently).
-    /// </summary>
-    private void RefreshDependencies()
-    {
-        if (!_itemsByKey.TryGetValue(BioRandOptionCatalog.RandomEventsKey, out var events))
-        {
-            return;
-        }
-
-        var items = _itemsByKey.TryGetValue(BioRandOptionCatalog.RandomItemsKey, out var i) && i.BoolValue;
-        var enemies = _itemsByKey.TryGetValue(BioRandOptionCatalog.RandomEnemiesKey, out var e) && e.BoolValue;
-        var satisfied = items && enemies;
-
-        events.IsEnabled = satisfied;
-
-        if (!satisfied && events.BoolValue)
-        {
-            var previous = events.SuppressChangeNotifications;
-            events.SuppressChangeNotifications = true;
-            events.BoolValue = false;
-            events.SuppressChangeNotifications = previous;
-
-            DependencyNotice =
-                "Random Events was switched off: it needs both Random Items and Random Enemies, " +
-                "and BioRand cannot generate without them.";
-            return;
-        }
-
-        // Warn once whenever Random Events ends up ON - whether the player
-        // ticked it or a preset did (the full-randomization mode turns it on
-        // for them, which is how most people will meet it). Rearms when it
-        // goes back off, so the warning cannot nag on every keystroke.
-        if (events.BoolValue && !_randomEventsWarned)
-        {
-            _randomEventsWarned = true;
-            RandomEventsTurnedOn?.Invoke();
-        }
-        else if (!events.BoolValue)
-        {
-            _randomEventsWarned = false;
-        }
-
-        if (satisfied)
-        {
-            DependencyNotice = string.Empty;
         }
     }
 
@@ -441,7 +371,7 @@ public sealed class BioRandOptionsViewModel : ObservableObject
             SelectModeKey or null => "Choose a launch mode to continue.",
             "mode1" => "The multiworld shuffles the fixed item pickups. Everything else - items, enemies, the merchant - stays vanilla.",
             "mode2" => "The multiworld shuffles the check items, and BioRand re-rolls every other world pickup. Enemies and the merchant stay vanilla.",
-            "mode3" => "Everything in Full Item Randomization, plus randomized enemies, bosses, the merchant and random events.",
+            "mode3" => "Everything in Full Item Randomization, plus randomized enemies, bosses and the merchant. Random Events is decided by your YAML, not this mode.",
             CustomModeKey => "Custom: your own mix of BioRand options. Your multiworld checks are shuffled and pinned no matter what you change here.",
             _ => "Choose a launch mode to continue.",
         };

@@ -40,16 +40,25 @@ public sealed class BioRandOptionItemViewModel : ObservableObject
 
     /// <summary>
     /// Descriptions render inline for the switches - the meaningful toggles (Random Items, Random
-    /// Enemies, ...) - and as tooltips everywhere else. Showing them under all 419 options, most of
-    /// which are rows in a ratio matrix, would double the height of every tab for no gain.
+    /// Enemies, ...) - and for note rows, and as tooltips everywhere else. Showing them under all
+    /// 419 options, most of which are rows in a ratio matrix, would double the height of every tab
+    /// for no gain.
     /// </summary>
-    public bool ShowInlineDescription => IsSwitch && HasDescription;
+    public bool ShowInlineDescription => (IsSwitch || IsNote) && HasDescription;
 
     public bool IsAdvanced => _definition.Advanced;
 
     public bool IsSwitch => _definition.IsSwitch;
 
-    public bool IsNumeric => !_definition.IsSwitch;
+    /// <summary>
+    /// A display-only row: label plus description, no control. Used for the
+    /// Random Events pointer, which is AP-authored and lives in the YAML now.
+    /// Note items are never registered in the options dictionary, so they can
+    /// never emit a config value.
+    /// </summary>
+    public bool IsNote => string.Equals(_definition.Type, "note", StringComparison.OrdinalIgnoreCase);
+
+    public bool IsNumeric => !_definition.IsSwitch && !IsNote;
 
     public bool IsPercent => _definition.IsPercent;
 

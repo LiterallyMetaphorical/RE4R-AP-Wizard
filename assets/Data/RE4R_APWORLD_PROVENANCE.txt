@@ -232,11 +232,37 @@ Rebuilt:     2026-08-06 (rev 9), world_version stays 0.6.7 (unreleased) - the
              The Dock one is the live risk: chapter 3 location, pieces not
              guaranteed until the chapter 5 church. 11 locked spots now
              covered. Sweep 9/9.
-Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_version 0.6.7
+Rebuilt:     2026-08-06 (rev 10), world_version 0.7.0 - Random Events, authored
+             by the multiworld (experimental YAML toggle, default off). The
+             apworld rolls BioRand's Village event set at generation time:
+             inert events roll at BioRand's weights, five modeled events may
+             fire (both PorchKeyHunts, FactoryReturn, HexShuffle, Shutter),
+             and every access-changing event is pinned off. HexShuffle
+             trades the Hexagonal Emblem and Crystal Marble between the
+             Valley and the manor (their regions follow, so the gates keep
+             meaning what they say); FactoryReturn deletes the emblem pickup
+             (that seed scouts 471 and the launcher count check allows for
+             it; the emblem item swaps into the pool for one filler; a
+             guardian carries a spare emblem in-game). slot_data ships the
+             chosen set plus an event-data hash; the launcher pins them into
+             the bundled fork as ap-forced-events (a drifted events.csv
+             fails the patch loudly) and the in-game client moves markers,
+             checklist and section counts to the new spots. Off-seeds are
+             untouched. Verified: 500-seed roll sweep against a port of the
+             fork's forced filter, 6 on + 1 off generations at 472, and
+             three real-cache fork generations (HexShuffle placements at the
+             moved coordinates in the output log, FactoryReturn's emblem
+             absent from the world, tampered hash refused).
+Rebuilt:     2026-08-06 (rev 11), the release merge - Random Events joins
+             the fix line, so one build carries both. The event chart was
+             regenerated against the current 472-check pool. Also drops a
+             duplicate Tutorial option class that both branches carried
+             (the second silently replaced the first).
+Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_version 0.7.0
              per that repo's archipelago.json.
 AP target:   Archipelago 0.6.7 (the version the apworld was developed and
              generation-validated against; pinned via the manifest as of 2026-07-12).
-SHA-256:     e73b35eaaf21ebe50cdd4daeda1af70114d0d9686148bf867fea4bd7e1714359
+SHA-256:     2d0ed44dab77c26d6312278c23f7d7ac6ee2493fd579522fbdb06c682029147e
 Consumed by: the Generation Guidance screen ("Copy RE4R.apworld to your Archipelago
              custom_worlds folder") - ArchipelagoInstallationService reads the
              world_version out of this zip's manifest for display and copies the

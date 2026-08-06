@@ -31,5 +31,10 @@ public sealed class Re4rYamlRequest
     // know the ropes can turn it off for every seed they generate.
     public bool Tutorial { get; set; } = true;
 
+    // EXPERIMENTAL: the multiworld authors BioRand's Random Events at
+    // generation time and the logic reacts to them (apworld 0.7.0). Off by
+    // default; the launcher pins the rolled set into BioRand at patch time.
+    public bool RandomEvents { get; set; }
+
     public IReadOnlyCollection<string> UnlockedTypewriterStageIds { get; set; } = Array.Empty<string>();
 }

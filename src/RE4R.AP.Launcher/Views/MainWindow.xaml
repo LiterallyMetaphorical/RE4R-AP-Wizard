@@ -588,6 +588,15 @@
 
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Random Events (Experimental)" />
+                            <CheckBox IsChecked="{Binding RandomEvents}"
+                                      Content="Let the multiworld author BioRand's Random Events" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Off by default. On: the Village chapters gain scripted set-pieces that the multiworld itself picks when the room generates, so the logic reacts to them - a couple of checks can trade places, and one event can replace the Hexagonal Emblem pickup with a guardian enemy who drops the emblem. Experimental and lightly tested; the launcher's bundled BioRand applies your room's roll automatically at patch time." />
+                        </StackPanel>
+
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="In-Game Tutorial" />
                             <CheckBox IsChecked="{Binding Tutorial}"
                                       Content="Show the getting-started guide" />
@@ -1369,22 +1378,6 @@
                                     </DockPanel>
                                 </Border>
 
-                                <!-- We never silently change a player's setting: Random Events makes
-                                     BioRand throw unless Random Items AND Random Enemies are both on,
-                                     so when we switch it off we say so here. -->
-                                <Border Grid.Row="2"
-                                        Margin="0,0,0,8"
-                                        Padding="10,7"
-                                        Background="#FFFFF4E5"
-                                        BorderBrush="#FFE0C48C"
-                                        BorderThickness="1"
-                                        CornerRadius="4"
-                                        Visibility="{Binding BioRandOptions.HasDependencyNotice, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                    <TextBlock Foreground="#FF6B5326"
-                                               TextWrapping="Wrap"
-                                               Text="{Binding BioRandOptions.DependencyNotice}" />
-                                </Border>
-
                                 <TabControl Grid.Row="3"
                                             MaxHeight="430"
                                             BorderThickness="1"
@@ -1427,6 +1420,14 @@
                                                                                           ToolTip="{Binding Description}"
                                                                                           AutomationProperties.Name="{Binding Label}"
                                                                                           Visibility="{Binding IsSwitch, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+                                                                                <!-- Display-only rows (currently just the Random Events pointer:
+                                                                                     AP authors the event set now, so the choice lives in the YAML). -->
+                                                                                <TextBlock FontWeight="SemiBold"
+                                                                                           Foreground="DimGray"
+                                                                                           TextWrapping="Wrap"
+                                                                                           Text="{Binding Label}"
+                                                                                           Visibility="{Binding IsNote, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
                                                                                 <Grid Visibility="{Binding IsNumeric, Converter={StaticResource BooleanToVisibilityConverter}}"
                                                                                       ToolTip="{Binding Description}">
