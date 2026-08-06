@@ -66,9 +66,9 @@ Someone else hosts; you just play. You do not need an Archipelago install of
 your own - the launcher patches your game and talks to the room by itself -
 and the launcher folder can live anywhere, never inside the game's folder.
 
-Since you are not hosting, your host needs two files from you before a room
-can exist. Join a Multiworld lists both while you wait for their details,
-with a button for each file:
+Clicking Join a Multiworld opens Configure Archipelago Settings first, because
+your settings file has to exist before your host can generate anything. That
+screen lists the two files your host needs, with a button for each:
 
 - **RE4R.apworld** goes in their Archipelago folder, under `custom_worlds`
 - **RE4R_YourSlotName.yaml** goes in the `Players` folder next to it

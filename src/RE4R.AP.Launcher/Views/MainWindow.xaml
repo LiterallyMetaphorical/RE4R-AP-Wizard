@@ -671,10 +671,34 @@
                                 CornerRadius="8"
                                 Visibility="{Binding ShowJoinerHandoff, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <StackPanel>
-                                <TextBlock TextWrapping="Wrap">
-                                    <Run Text="You will send this file to your host, along with RE4R.apworld. " />
-                                    <Run Text="Join a Multiworld lists where each one goes on their PC." />
+                                <TextBlock FontWeight="SemiBold"
+                                           Text="Since you are not hosting, your host needs two files from you" />
+                                <TextBlock Margin="0,6,0,0"
+                                           TextWrapping="Wrap">
+                                    <Run Text="RE4R.apworld" FontWeight="SemiBold" />
+                                    <Run Text=" goes in their Archipelago folder, under custom_worlds" />
                                 </TextBlock>
+                                <TextBlock Margin="0,2,0,0"
+                                           TextWrapping="Wrap">
+                                    <Run Text="{Binding SuggestedFileName, Mode=OneWay}" FontWeight="SemiBold" />
+                                    <Run Text=" goes in the Players folder next to it" />
+                                </TextBlock>
+                                <TextBlock Margin="0,8,0,0"
+                                           TextWrapping="Wrap"
+                                           Text="They then generate with Generate.py in an Archipelago 0.6.7 install (only that version is supported right now). The archipelago.gg website cannot generate community games, so it has to be done on their PC." />
+                                <TextBlock Margin="0,6,0,0"
+                                           TextWrapping="Wrap"
+                                           Text="Hosting is normal after that: generating writes an AP_*.zip into their output folder, they upload it to archipelago.gg/uploads and create the room, then send you the room address. Continue to the next screen to fill it in." />
+                                <StackPanel Margin="0,10,0,0"
+                                            Orientation="Horizontal">
+                                    <Button Padding="10,2"
+                                            Command="{Binding SaveYamlCommand}"
+                                            Content="Save YAML File..." />
+                                    <Button Margin="8,0,0,0"
+                                            Padding="10,2"
+                                            Command="{Binding OpenApworldFolderCommand}"
+                                            Content="Show RE4R.apworld Folder" />
+                                </StackPanel>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -1148,24 +1172,12 @@
                                     CornerRadius="8">
                                 <StackPanel>
                                     <TextBlock FontWeight="SemiBold"
-                                               Text="Since you are not hosting, your host needs two files from you" />
-                                    <TextBlock Margin="0,6,0,0"
+                                               Text="Waiting on your host?" />
+                                    <TextBlock Margin="0,4,0,0"
                                                TextWrapping="Wrap">
-                                        <Run Text="RE4R.apworld" FontWeight="SemiBold" />
-                                        <Run Text=" goes in their Archipelago folder, under custom_worlds" />
+                                        <Run Text="They cannot generate until they have your settings file and RE4R.apworld, and the room address only exists once they have. Configure Archipelago Settings spells out where each file goes on their PC." />
                                     </TextBlock>
-                                    <TextBlock Margin="0,2,0,0"
-                                               TextWrapping="Wrap">
-                                        <Run Text="{Binding YamlFileName, Mode=OneWay}" FontWeight="SemiBold" />
-                                        <Run Text=" goes in the Players folder next to it" />
-                                    </TextBlock>
-                                    <TextBlock Margin="0,8,0,0"
-                                               TextWrapping="Wrap"
-                                               Text="They then generate with Generate.py in an Archipelago 0.6.7 install (only that version is supported right now). The archipelago.gg website cannot generate community games, so it has to be done on their PC." />
-                                    <TextBlock Margin="0,6,0,0"
-                                               TextWrapping="Wrap"
-                                               Text="Hosting is normal after that: generating writes an AP_*.zip into their output folder, they upload it to archipelago.gg/uploads and create the room, then send you the room address to fill in below." />
-                                    <StackPanel Margin="0,10,0,0"
+                                    <StackPanel Margin="0,8,0,0"
                                                 Orientation="Horizontal">
                                         <Button Padding="10,2"
                                                 Command="{Binding SaveYamlCommand}"
