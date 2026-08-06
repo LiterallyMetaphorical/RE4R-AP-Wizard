@@ -62,21 +62,25 @@ You only run the Wizard to set up or when the seed changes. Day to day, just lau
 
 ### Joining someone else's multiworld
 
-Someone else hosts; you just play. Four things trip people up:
+Someone else hosts; you just play. You do not need an Archipelago install of
+your own - the launcher patches your game and talks to the room by itself -
+and the launcher folder can live anywhere, never inside the game's folder.
 
-1. **The launcher folder can live anywhere.** It never goes inside the
-   game's folder. Extract it wherever you like and run the exe from there.
-2. **Your host needs two files from you before a room even exists:** your
-   settings YAML and `RE4R.apworld`. Make the YAML in Configure Archipelago
-   Settings (the Join flow starts there). The apworld ships with the
-   launcher in `assets\Data`, and the Join screen's "Show RE4R.apworld
-   Folder" button takes you straight to it. Without that file, the host's
-   generator does not know your game exists.
-3. **Send both to your host.** Only the host needs the apworld, and you do
-   not need an Archipelago install of your own - the launcher patches your
-   game and talks to the room by itself.
-4. **Then join.** The host generates the multiworld and sends back the room
-   address and your slot name. Enter them in Join a Multiworld and patch.
+Since you are not hosting, your host needs two files from you before a room
+can exist. Configure Archipelago Settings lists both when you make your
+settings, with a button that opens the folder holding the apworld:
+
+- **RE4R.apworld** goes in their Archipelago folder, under `custom_worlds`
+- **RE4R_YourSlotName.yaml** goes in the `Players` folder next to it
+
+They then generate with `Generate.py` in an Archipelago 0.6.7 install (only
+that version is supported right now). The archipelago.gg website cannot
+generate community games, so it has to be done on their PC.
+
+Hosting is normal after that: generating writes an `AP_*.zip` into their
+output folder, they upload it to archipelago.gg/uploads and create the room,
+then send you the room address. Enter it in Join a Multiworld with your slot
+name and patch.
 
 ### Your settings file
 

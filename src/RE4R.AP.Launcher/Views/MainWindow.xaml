@@ -656,6 +656,46 @@
                                    Foreground="DimGray"
                                    TextWrapping="Wrap"
                                    Text="{Binding StatusText}" />
+
+                        <!-- The handoff, at the moment the file exists. A host who
+                             is not playing RE4R starts on the archipelago.gg
+                             generator, which cannot build a community world at
+                             all, so that dead end is named rather than left to be
+                             discovered (Cam, 2026-08-06). Joiners only: an
+                             organizer is not sending anything to anyone. -->
+                        <Border Margin="0,16,0,0"
+                                Padding="12,10"
+                                Background="#FFE3F2FD"
+                                BorderBrush="#FF90CAF9"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Visibility="{Binding ShowJoinerHandoff, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <StackPanel>
+                                <TextBlock FontWeight="SemiBold"
+                                           Text="Since you are not hosting, your host needs two files from you" />
+                                <TextBlock Margin="0,6,0,0"
+                                           TextWrapping="Wrap">
+                                    <Run Text="RE4R.apworld" FontWeight="SemiBold" />
+                                    <Run Text=" goes in their Archipelago folder, under custom_worlds" />
+                                </TextBlock>
+                                <TextBlock Margin="0,2,0,0"
+                                           TextWrapping="Wrap">
+                                    <Run Text="{Binding SuggestedFileName, Mode=OneWay}" FontWeight="SemiBold" />
+                                    <Run Text=" goes in the Players folder next to it" />
+                                </TextBlock>
+                                <TextBlock Margin="0,8,0,0"
+                                           TextWrapping="Wrap"
+                                           Text="They then generate with Generate.py in an Archipelago 0.6.7 install (only that version is supported right now). The archipelago.gg website cannot generate community games, so it has to be done on their PC." />
+                                <TextBlock Margin="0,6,0,0"
+                                           TextWrapping="Wrap"
+                                           Text="Hosting is normal after that: generating writes an AP_*.zip into their output folder, they upload it to archipelago.gg/uploads and create the room, then send you the room address." />
+                                <Button Margin="0,10,0,0"
+                                        HorizontalAlignment="Left"
+                                        Padding="10,2"
+                                        Command="{Binding OpenApworldFolderCommand}"
+                                        Content="Show RE4R.apworld Folder" />
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </StackPanel>
                 </Grid>

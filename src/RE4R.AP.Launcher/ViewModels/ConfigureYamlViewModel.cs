@@ -109,6 +109,8 @@ public sealed class ConfigureYamlViewModel : ObservableObject
                 RebuildYamlPreview();
                 UpdateCommandStates();
                 QueueDraftSave();
+                // The handoff panel names the file they are about to send.
+                OnPropertyChanged(nameof(SuggestedFileName));
             }
         }
     }
@@ -142,6 +144,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             {
                 OnPropertyChanged(nameof(ShowContinue));
                 OnPropertyChanged(nameof(HeaderDescription));
+                OnPropertyChanged(nameof(ShowJoinerHandoff));
                 RebuildFooter();
             }
         }
@@ -434,7 +437,16 @@ public sealed class ConfigureYamlViewModel : ObservableObject
 
     public ICommand CopyYamlCommand { get; }
 
-    private string SuggestedFileName =>
+    /// <summary>
+    /// Shown to joiners only: an organizer generating their own multiworld is
+    /// not sending anything to anybody.
+    /// </summary>
+    public bool ShowJoinerHandoff => !IsOrganizerContext;
+
+    /// <summary>Opens the folder holding the bundled RE4R.apworld.</summary>
+    public System.Windows.Input.ICommand? OpenApworldFolderCommand { get; set; }
+
+    public string SuggestedFileName =>
         string.IsNullOrWhiteSpace(SlotName) ? "RE4R_You.yaml" : $"RE4R_{SlotName.Trim()}.yaml";
 
     private bool CanUseYaml()

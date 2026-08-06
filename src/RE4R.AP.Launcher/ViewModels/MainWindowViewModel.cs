@@ -255,7 +255,10 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         // The settings screen is the joiner's first stop, so it carries the
         // path onward to the room address instead of dead-ending.
         ConfigureYaml.ContinueCommand = _continueFromConfigureYamlCommand;
-        JoinFlow.OpenApworldFolderCommand = new RelayCommand(OpenApworldFolder);
+        var openApworldFolderCommand = new RelayCommand(OpenApworldFolder);
+        JoinFlow.OpenApworldFolderCommand = openApworldFolderCommand;
+        // The same button on the settings screen, where the handoff is explained.
+        ConfigureYaml.OpenApworldFolderCommand = openApworldFolderCommand;
         Landing.OpenRoomPageCommand = _openRoomPageCommand;
         Landing.ReconnectPrefillCommand = _reconnectPrefillCommand;
         Landing.FixAddressCommand = _fixAddressCommand;
