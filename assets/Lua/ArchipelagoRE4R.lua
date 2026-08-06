@@ -421,8 +421,9 @@ re.on_frame(function()
 end)
 
 re.on_draw_ui(function()
-    -- One window, one toggle (consolidation 2026-07-17). Developer Tools
-    -- reveals the Debug tab (probe / inject / warp editor).
+    -- Bootstrap toggles ONLY. Everything a player configures (markers and
+    -- their detail) moved into the window's Guidance tab, because this menu
+    -- is REFramework's and new players never open it (2026-07-31).
     local changed_main, main_value = imgui.checkbox("Show Archipelago RE4R Window", bridge.main_window_enabled)
     if changed_main then
         bridge.main_window_enabled = main_value
