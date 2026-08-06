@@ -225,11 +225,32 @@ Rebuilt:     2026-08-06 (rev 8), world_version stays 0.6.7 (unreleased) -
              own instead of the AP item). THE POOL COUNT CHANGED: rooms
              generated on 474 fail the launcher count check by design.
              Sweep 9/9 with new locked-cache and dead-location assertions.
-Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_version 0.6.7
+Rebuilt:     2026-08-06 (rev 9), world_version 0.7.0 - Random Events, authored
+             by the multiworld (experimental YAML toggle, default off). The
+             apworld rolls BioRand's Village event set at generation time:
+             inert events roll at BioRand's weights, five modeled events may
+             fire (both PorchKeyHunts, FactoryReturn, HexShuffle, Shutter),
+             and every access-changing event is pinned off. HexShuffle
+             trades the Hexagonal Emblem and Crystal Marble between the
+             Valley and the manor (their regions follow, so the gates keep
+             meaning what they say); FactoryReturn deletes the emblem pickup
+             (that seed scouts 471 and the launcher count check allows for
+             it; the emblem item swaps into the pool for one filler; a
+             guardian carries a spare emblem in-game). slot_data ships the
+             chosen set plus an event-data hash; the launcher pins them into
+             the bundled fork as ap-forced-events (a drifted events.csv
+             fails the patch loudly) and the in-game client moves markers,
+             checklist and section counts to the new spots. Off-seeds are
+             untouched. Verified: 500-seed roll sweep against a port of the
+             fork's forced filter, 6 on + 1 off generations at 472, and
+             three real-cache fork generations (HexShuffle placements at the
+             moved coordinates in the output log, FactoryReturn's emblem
+             absent from the world, tampered hash refused).
+Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_version 0.7.0
              per that repo's archipelago.json.
 AP target:   Archipelago 0.6.7 (the version the apworld was developed and
              generation-validated against; pinned via the manifest as of 2026-07-12).
-SHA-256:     274e84698477c76c97e8e2441f8e2b28c3e9f1d121e254a3f53a075f332cfe09
+SHA-256:     ade0105f578b5ddc657b432cec47ffc76ba6a634150665e6ff5ab18ba1bf5679
 Consumed by: the Generation Guidance screen ("Copy RE4R.apworld to your Archipelago
              custom_worlds folder") - ArchipelagoInstallationService reads the
              world_version out of this zip's manifest for display and copies the
