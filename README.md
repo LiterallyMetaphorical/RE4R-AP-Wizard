@@ -67,8 +67,8 @@ your own - the launcher patches your game and talks to the room by itself -
 and the launcher folder can live anywhere, never inside the game's folder.
 
 Since you are not hosting, your host needs two files from you before a room
-can exist. Configure Archipelago Settings lists both when you make your
-settings, with a button that opens the folder holding the apworld:
+can exist. Join a Multiworld lists both while you wait for their details,
+with a button for each file:
 
 - **RE4R.apworld** goes in their Archipelago folder, under `custom_worlds`
 - **RE4R_YourSlotName.yaml** goes in the `Players` folder next to it

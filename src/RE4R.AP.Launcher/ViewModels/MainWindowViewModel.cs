@@ -257,8 +257,11 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         ConfigureYaml.ContinueCommand = _continueFromConfigureYamlCommand;
         var openApworldFolderCommand = new RelayCommand(OpenApworldFolder);
         JoinFlow.OpenApworldFolderCommand = openApworldFolderCommand;
-        // The same button on the settings screen, where the handoff is explained.
         ConfigureYaml.OpenApworldFolderCommand = openApworldFolderCommand;
+        // Session Info is where Join actually lands and where the player waits
+        // on the host, so the handoff lives there - and both files must be
+        // reachable from it, including the settings file made on the other screen.
+        JoinFlow.SaveYamlCommand = ConfigureYaml.SaveYamlCommand;
         Landing.OpenRoomPageCommand = _openRoomPageCommand;
         Landing.ReconnectPrefillCommand = _reconnectPrefillCommand;
         Landing.FixAddressCommand = _fixAddressCommand;

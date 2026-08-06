@@ -49,6 +49,19 @@ public sealed class JoinFlowViewModel : ObservableObject
     /// </summary>
     public ICommand? OpenApworldFolderCommand { get; set; }
 
+    /// <summary>Saves the settings file, so both files can be grabbed here.</summary>
+    public ICommand? SaveYamlCommand { get; set; }
+
+    /// <summary>
+    /// The settings file's name, matching what the settings screen offers to
+    /// save. Named here so the handoff list says the real filename rather than
+    /// a placeholder.
+    /// </summary>
+    public string YamlFileName =>
+        string.IsNullOrWhiteSpace(Session.SlotName)
+            ? "RE4R_You.yaml"
+            : $"RE4R_{Session.SlotName.Trim()}.yaml";
+
     private void RebuildFooter()
     {
         FooterButtons.Clear();
@@ -173,6 +186,11 @@ public sealed class JoinFlowViewModel : ObservableObject
             || string.Equals(e.PropertyName, nameof(SessionViewModel.SlotName), StringComparison.Ordinal))
         {
             _goToBioRandOptionsCommand.NotifyCanExecuteChanged();
+        }
+
+        if (string.Equals(e.PropertyName, nameof(SessionViewModel.SlotName), StringComparison.Ordinal))
+        {
+            OnPropertyChanged(nameof(YamlFileName));
         }
     }
 }

@@ -671,38 +671,10 @@
                                 CornerRadius="8"
                                 Visibility="{Binding ShowJoinerHandoff, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <StackPanel>
-                                <TextBlock FontWeight="SemiBold"
-                                           Text="Since you are not hosting, your host needs two files from you" />
-                                <TextBlock Margin="0,6,0,0"
-                                           TextWrapping="Wrap">
-                                    <Run Text="RE4R.apworld" FontWeight="SemiBold" />
-                                    <Run Text=" goes in their Archipelago folder, under custom_worlds" />
+                                <TextBlock TextWrapping="Wrap">
+                                    <Run Text="You will send this file to your host, along with RE4R.apworld. " />
+                                    <Run Text="Join a Multiworld lists where each one goes on their PC." />
                                 </TextBlock>
-                                <TextBlock Margin="0,2,0,0"
-                                           TextWrapping="Wrap">
-                                    <Run Text="{Binding SuggestedFileName, Mode=OneWay}" FontWeight="SemiBold" />
-                                    <Run Text=" goes in the Players folder next to it" />
-                                </TextBlock>
-                                <TextBlock Margin="0,8,0,0"
-                                           TextWrapping="Wrap"
-                                           Text="They then generate with Generate.py in an Archipelago 0.6.7 install (only that version is supported right now). The archipelago.gg website cannot generate community games, so it has to be done on their PC." />
-                                <TextBlock Margin="0,6,0,0"
-                                           TextWrapping="Wrap"
-                                           Text="Hosting is normal after that: generating writes an AP_*.zip into their output folder, they upload it to archipelago.gg/uploads and create the room, then send you the room address." />
-                                <!-- One button per file, next to the list naming
-                                     them. Save also lives in the footer, but the
-                                     footer is generic; here the two actions read
-                                     as "get these two files" (Cam, 2026-08-06). -->
-                                <StackPanel Margin="0,10,0,0"
-                                            Orientation="Horizontal">
-                                    <Button Padding="10,2"
-                                            Command="{Binding SaveYamlCommand}"
-                                            Content="Save YAML File..." />
-                                    <Button Margin="8,0,0,0"
-                                            Padding="10,2"
-                                            Command="{Binding OpenApworldFolderCommand}"
-                                            Content="Show RE4R.apworld Folder" />
-                                </StackPanel>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -1176,15 +1148,33 @@
                                     CornerRadius="8">
                                 <StackPanel>
                                     <TextBlock FontWeight="SemiBold"
-                                               Text="Before there is a room to join" />
-                                    <TextBlock Margin="0,4,0,0"
+                                               Text="Since you are not hosting, your host needs two files from you" />
+                                    <TextBlock Margin="0,6,0,0"
+                                               TextWrapping="Wrap">
+                                        <Run Text="RE4R.apworld" FontWeight="SemiBold" />
+                                        <Run Text=" goes in their Archipelago folder, under custom_worlds" />
+                                    </TextBlock>
+                                    <TextBlock Margin="0,2,0,0"
+                                               TextWrapping="Wrap">
+                                        <Run Text="{Binding YamlFileName, Mode=OneWay}" FontWeight="SemiBold" />
+                                        <Run Text=" goes in the Players folder next to it" />
+                                    </TextBlock>
+                                    <TextBlock Margin="0,8,0,0"
                                                TextWrapping="Wrap"
-                                               Text="Your host generates the multiworld, and they need two files from you first: your settings YAML (made in Configure Archipelago Settings) and this launcher's RE4R.apworld, which teaches their generator your game. Send both, then enter the room details they give you back." />
-                                    <Button Margin="0,8,0,0"
-                                            HorizontalAlignment="Left"
-                                            Padding="10,2"
-                                            Command="{Binding OpenApworldFolderCommand}"
-                                            Content="Show RE4R.apworld Folder" />
+                                               Text="They then generate with Generate.py in an Archipelago 0.6.7 install (only that version is supported right now). The archipelago.gg website cannot generate community games, so it has to be done on their PC." />
+                                    <TextBlock Margin="0,6,0,0"
+                                               TextWrapping="Wrap"
+                                               Text="Hosting is normal after that: generating writes an AP_*.zip into their output folder, they upload it to archipelago.gg/uploads and create the room, then send you the room address to fill in below." />
+                                    <StackPanel Margin="0,10,0,0"
+                                                Orientation="Horizontal">
+                                        <Button Padding="10,2"
+                                                Command="{Binding SaveYamlCommand}"
+                                                Content="Save YAML File..." />
+                                        <Button Margin="8,0,0,0"
+                                                Padding="10,2"
+                                                Command="{Binding OpenApworldFolderCommand}"
+                                                Content="Show RE4R.apworld Folder" />
+                                    </StackPanel>
                                 </StackPanel>
                             </Border>
 
