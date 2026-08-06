@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-08-06T18:24:19Z",
+  "generated_at_utc": "2026-08-06T18:38:28Z",
   "game": "Resident Evil 4 Remake",
   "world_version": "0.7.0",
   "placeholder_item_id": 120486400,
@@ -1432,12 +1432,12 @@
       "note": ""
     },
     "2705323619": {
-      "name": "Chapter 1 - Lakeside Settlement Cabin - Gold Bar x1 (small-key drawer) [6b18f016]",
+      "name": "Chapter 4 - Lakeside Settlement Cabin - Gold Bar x1 (small-key drawer) [6b18f016]",
       "guid": "6b18f016-6936-492a-93d2-0881695a5679",
       "identity_kind": "guid",
-      "chapter": 1,
+      "chapter": 4,
       "stage": 43410,
-      "region": "Village",
+      "region": "Lake",
       "source_item_name": "Gold Bar x1",
       "ap_eligibility": "always",
       "section_name": "Lakeside Settlement Cabin",

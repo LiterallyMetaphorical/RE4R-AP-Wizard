@@ -258,11 +258,18 @@ Rebuilt:     2026-08-06 (rev 11), the release merge - Random Events joins
              regenerated against the current 472-check pool. Also drops a
              duplicate Tutorial option class that both branches carried
              (the second silently replaced the first).
+Rebuilt:     2026-08-06 (rev 12), world_version stays 0.7.0 (unreleased) -
+             Luis's house (stage 43410) is a chapter 4 area: its locked
+             drawer joins the ring at ch4 and leaves the missable list.
+             That drawer and the lakeside beetle become filler-only under
+             minimize_backtracking (both sit where you pass in ch1 but only
+             fill in ch4). Force-spawning them early is deferred fork work.
+             Pool/codes unchanged (472). Sweep 12/12.
 Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_version 0.7.0
              per that repo's archipelago.json.
 AP target:   Archipelago 0.6.7 (the version the apworld was developed and
              generation-validated against; pinned via the manifest as of 2026-07-12).
-SHA-256:     2d0ed44dab77c26d6312278c23f7d7ac6ee2493fd579522fbdb06c682029147e
+SHA-256:     6d9f3a3d8e561fa85cfa396434ba587baaf8b94cfeed0a1bed453efe4f5a0314
 Consumed by: the Generation Guidance screen ("Copy RE4R.apworld to your Archipelago
              custom_worlds folder") - ArchipelagoInstallationService reads the
              world_version out of this zip's manifest for display and copies the
