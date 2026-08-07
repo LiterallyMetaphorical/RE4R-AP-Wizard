@@ -21,7 +21,7 @@
 
 ## What gets randomized
 
-- **474 item locations** across the full Leon campaign, chapters 1 to 16. Includes Key Items with logic to ensure they spawn before you need them.
+- **467 item locations** across the full Leon campaign, chapters 1 to 16. Includes Key Items with logic to ensure they spawn before you need them.
 - Other players' items appear as Archipelago-logo pickups. Collecting one sends its check and puts nothing in your inventory. Your own items are collected normally.
 - Locations that cannot be collected in game are excluded from the pool, so nothing gets stranded on them.
 

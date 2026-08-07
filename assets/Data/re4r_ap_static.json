@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-08-06T18:38:28Z",
+  "generated_at_utc": "2026-08-07T02:08:29Z",
   "game": "Resident Evil 4 Remake",
   "world_version": "0.7.0",
   "placeholder_item_id": 120486400,
   "counts": {
-    "locations_total": 472,
-    "guid_locations": 472,
+    "locations_total": 467,
+    "guid_locations": 467,
     "noguid_locations": 0,
-    "items_total": 128,
-    "always_locations": 472,
+    "items_total": 127,
+    "always_locations": 467,
     "optional_key_locations": 0
   },
   "location_codes": [
@@ -155,8 +155,6 @@
     1314803934,
     2409660383,
     1836166293,
-    1157572538,
-    307378197,
     3457246612,
     2713762160,
     33263936,
@@ -281,7 +279,6 @@
     4227412291,
     3535467731,
     2584610508,
-    2052532493,
     3021010994,
     4214161125,
     979265628,
@@ -385,7 +382,6 @@
     1389048763,
     1390391135,
     3939807705,
-    3810227427,
     2171899648,
     2466761935,
     2602424321,
@@ -401,7 +397,6 @@
     3087395330,
     2738569655,
     2456513306,
-    677426247,
     3969814053,
     2285020721,
     3511403168,
@@ -2759,38 +2754,6 @@
       "container": "case",
       "note": ""
     },
-    "1157572538": {
-      "name": "Chapter 4 - Lake - Red9 x5 (chest) [b1900d7e]",
-      "guid": "b1900d7e-963c-40b2-894b-8a9b219a9f0a",
-      "identity_kind": "guid",
-      "chapter": 4,
-      "stage": 46100,
-      "region": "Lake",
-      "source_item_name": "Red9 x5",
-      "ap_eligibility": "always",
-      "section_name": "Lake",
-      "x": 303.82,
-      "y": -6.29,
-      "z": -12.04,
-      "container": "chest",
-      "note": ""
-    },
-    "307378197": {
-      "name": "Chapter 4 - Lake - Gold Bar (L) x1 (chest) [5116e358]",
-      "guid": "5116e358-571b-4583-b0f3-67844119fee4",
-      "identity_kind": "guid",
-      "chapter": 4,
-      "stage": 46100,
-      "region": "Lake",
-      "source_item_name": "Gold Bar (L) x1",
-      "ap_eligibility": "always",
-      "section_name": "Lake",
-      "x": 303.82,
-      "y": -6.29,
-      "z": -12.04,
-      "container": "chest",
-      "note": ""
-    },
     "3457246612": {
       "name": "Chapter 4 - Lake - Blasphemer's Head x1 [bbceba06]",
       "guid": "bbceba06-29d7-4d6c-b086-fc3258759052",
@@ -4775,22 +4738,6 @@
       "container": "key",
       "note": ""
     },
-    "2052532493": {
-      "name": "Chapter 9 - Library - Gold Bar (L) x1 [cff97c32]",
-      "guid": "cff97c32-8579-4b80-90f0-cebdb638e6c3",
-      "identity_kind": "guid",
-      "chapter": 9,
-      "stage": 53200,
-      "region": "Castle Deep",
-      "source_item_name": "Gold Bar (L) x1",
-      "ap_eligibility": "always",
-      "section_name": "Library",
-      "x": 136.98,
-      "y": 32.66,
-      "z": 97.45,
-      "container": "",
-      "note": ""
-    },
     "3021010994": {
       "name": "Chapter 9 - Library - Bunch of Keys x1 [c1d0972b]",
       "guid": "c1d0972b-2174-4db8-834c-40db87df9883",
@@ -6439,22 +6386,6 @@
       "container": "",
       "note": ""
     },
-    "3810227427": {
-      "name": "Chapter 13 - Freezer - Gold Bar (L) x1 [c0d12ced]",
-      "guid": "c0d12ced-3c73-46a0-b2e4-dde585174000",
-      "identity_kind": "guid",
-      "chapter": 13,
-      "stage": 61305,
-      "region": "Island Entry",
-      "source_item_name": "Gold Bar (L) x1",
-      "ap_eligibility": "always",
-      "section_name": "Freezer",
-      "x": 94.58,
-      "y": 19.32,
-      "z": -90.58,
-      "container": "",
-      "note": ""
-    },
     "2171899648": {
       "name": "Chapter 13 - Freezer - LE 5 x60 [296a288f]",
       "guid": "296a288f-d414-41a5-8151-d5deef727233",
@@ -6693,22 +6624,6 @@
       "y": 11.39,
       "z": -67.14,
       "container": "chest",
-      "note": ""
-    },
-    "677426247": {
-      "name": "Chapter 13 - Utilities - Gold Bar (L) x1 [8cfe20a5]",
-      "guid": "8cfe20a5-29cb-44df-9567-b4fb52f42ded",
-      "identity_kind": "guid",
-      "chapter": 13,
-      "stage": 61202,
-      "region": "Island Entry",
-      "source_item_name": "Gold Bar (L) x1",
-      "ap_eligibility": "always",
-      "section_name": "Utilities",
-      "x": 74.17,
-      "y": 11.38,
-      "z": -67.12,
-      "container": "",
       "note": ""
     },
     "3969814053": {
@@ -8914,13 +8829,6 @@
       "biorand_item_id": 117600000,
       "biorand_name": "Gunpowder",
       "classification": "FILLER",
-      "count": 5
-    },
-    "4205257849": {
-      "name": "Red9 x5",
-      "biorand_item_id": 274838656,
-      "biorand_name": "Red9",
-      "classification": "USEFUL",
       "count": 5
     },
     "4249727162": {

@@ -265,11 +265,28 @@ Rebuilt:     2026-08-06 (rev 12), world_version stays 0.7.0 (unreleased) -
              minimize_backtracking (both sit where you pass in ch1 but only
              fill in ch4). Force-spawning them early is deferred fork work.
              Pool/codes unchanged (472). Sweep 12/12.
+Rebuilt:     2026-08-06 (rev 13), world_version stays 0.7.0 (unreleased) - the
+             possession-conditional spots leave the pool, 472 -> 467. Whether
+             these five drops exist depends on which weapon is owned when the
+             area loads, which no multiworld can predict (an injected or
+             merchant-bought gun flips it): the Lake sunken chest is a true
+             either/or pair, and the Library / Freezer / Utilities Gold Bars
+             are NG+ carryover fallbacks that most runs never spawn at all.
+             The rules-side advancement ban kept them safe for logic but still
+             left the player a marker pointing at nothing, so they are cut
+             instead (Cam's call: empty checks are the worst experience the
+             project ships). Their primaries stay, including the Utilities
+             Biosensor Scope the Dissection gate needs; the Freezer LE 5
+             primary keeps its lone conservative ban. Red9 x5 leaves the item
+             pool with its only source (127 item defs, was 128). THE POOL
+             COUNT CHANGED: rooms generated on 472 fail the launcher count
+             check by design. Sweep 12/12 across backtracking / keycards /
+             missables / events configs.
 Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_version 0.7.0
              per that repo's archipelago.json.
 AP target:   Archipelago 0.6.7 (the version the apworld was developed and
              generation-validated against; pinned via the manifest as of 2026-07-12).
-SHA-256:     6d9f3a3d8e561fa85cfa396434ba587baaf8b94cfeed0a1bed453efe4f5a0314
+SHA-256:     fb74a4a1b69fa7a33edd3f51a39c907837631d7f10d62bf306a375c29ae2a54e
 Consumed by: the Generation Guidance screen ("Copy RE4R.apworld to your Archipelago
              custom_worlds folder") - ArchipelagoInstallationService reads the
              world_version out of this zip's manifest for display and copies the

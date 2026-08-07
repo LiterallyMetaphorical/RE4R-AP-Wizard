@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "item_count": 128,
+  "item_count": 127,
   "items": {
     "42736575": {
       "name": "Insignia Key x1",
@@ -625,11 +625,6 @@
     "4171742266": {
       "name": "Gunpowder x5",
       "re4r_item_id": 117600000,
-      "count": 5
-    },
-    "4205257849": {
-      "name": "Red9 x5",
-      "re4r_item_id": 274838656,
       "count": 5
     },
     "4249727162": {

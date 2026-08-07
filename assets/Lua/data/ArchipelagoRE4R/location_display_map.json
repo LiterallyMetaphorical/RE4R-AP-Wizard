@@ -2136,36 +2136,6 @@
         "container": "",
         "note": "on the forest path"
       },
-      "b1900d7e-963c-40b2-894b-8a9b219a9f0a": {
-        "location_id": 1157572538,
-        "location_name": "Chapter 4 - Lake - Red9 x5 (chest) [b1900d7e]",
-        "toast_title": "Red9",
-        "item_name": "Red9 x5",
-        "classification": "USEFUL",
-        "chapter": 4,
-        "stage_name": "Outside of boat house and leading up to alter with 2 heads cave + Bawk Island + ship wreck - Missing from stages",
-        "section_name": "Lake",
-        "x": 303.82,
-        "y": -6.29,
-        "z": -12.04,
-        "container": "chest",
-        "note": "in the sunken chest (dive)"
-      },
-      "5116e358-571b-4583-b0f3-67844119fee4": {
-        "location_id": 307378197,
-        "location_name": "Chapter 4 - Lake - Gold Bar (L) x1 (chest) [5116e358]",
-        "toast_title": "Gold Bar (L)",
-        "item_name": "Gold Bar (L) x1",
-        "classification": "FILLER",
-        "chapter": 4,
-        "stage_name": "Outside of boat house and leading up to alter with 2 heads cave + Bawk Island + ship wreck - Missing from stages",
-        "section_name": "Lake",
-        "x": 303.82,
-        "y": -6.29,
-        "z": -12.04,
-        "container": "chest",
-        "note": "in the sunken chest (dive)"
-      },
       "bbceba06-29d7-4d6c-b086-fc3258759052": {
         "location_id": 3457246612,
         "location_name": "Chapter 4 - Lake - Blasphemer's Head x1 [bbceba06]",
@@ -4157,21 +4127,6 @@
         "container": "key",
         "note": ""
       },
-      "cff97c32-8579-4b80-90f0-cebdb638e6c3": {
-        "location_id": 2052532493,
-        "location_name": "Chapter 9 - Library - Gold Bar (L) x1 [cff97c32]",
-        "toast_title": "Gold Bar (L)",
-        "item_name": "Gold Bar (L) x1",
-        "classification": "FILLER",
-        "chapter": 9,
-        "stage_name": "Unknown Stage 53200",
-        "section_name": "Library",
-        "x": 136.98,
-        "y": 32.66,
-        "z": 97.45,
-        "container": "",
-        "note": ""
-      },
       "c1d0972b-2174-4db8-834c-40db87df9883": {
         "location_id": 3021010994,
         "location_name": "Chapter 9 - Library - Bunch of Keys x1 [c1d0972b]",
@@ -5736,21 +5691,6 @@
         "z": -67.14,
         "container": "chest",
         "note": ""
-      },
-      "8cfe20a5-29cb-44df-9567-b4fb52f42ded": {
-        "location_id": 677426247,
-        "location_name": "Chapter 13 - Utilities - Gold Bar (L) x1 [8cfe20a5]",
-        "toast_title": "Gold Bar (L)",
-        "item_name": "Gold Bar (L) x1",
-        "classification": "FILLER",
-        "chapter": 13,
-        "stage_name": "Unknown Stage 61202",
-        "section_name": "Utilities",
-        "x": 74.17,
-        "y": 11.38,
-        "z": -67.12,
-        "container": "",
-        "note": ""
       }
     },
     "61203": {
@@ -5907,21 +5847,6 @@
         "x": 89.75,
         "y": 19.61,
         "z": -99.01,
-        "container": "",
-        "note": ""
-      },
-      "c0d12ced-3c73-46a0-b2e4-dde585174000": {
-        "location_id": 3810227427,
-        "location_name": "Chapter 13 - Freezer - Gold Bar (L) x1 [c0d12ced]",
-        "toast_title": "Gold Bar (L)",
-        "item_name": "Gold Bar (L) x1",
-        "classification": "FILLER",
-        "chapter": 13,
-        "stage_name": "Unknown Stage 61305",
-        "section_name": "Freezer",
-        "x": 94.58,
-        "y": 19.32,
-        "z": -90.58,
         "container": "",
         "note": ""
       },
