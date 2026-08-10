@@ -1151,7 +1151,10 @@
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="12" />
                                 <RowDefinition Height="Auto" />
-                                <RowDefinition Height="16" />
+                                <!-- The gap below the handoff panel rides on the
+                                     panel's own margin, not a spacer row, so
+                                     hiding the panel does not leave a hole. -->
+                                <RowDefinition Height="0" />
                                 <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
 
@@ -1165,11 +1168,13 @@
                                  said so. Informational blue, same palette as the
                                  update notice - guidance, not a warning. -->
                             <Border Grid.Row="2"
+                                    Margin="0,0,0,16"
                                     Padding="12,8"
                                     Background="#FFE3F2FD"
                                     BorderBrush="#FF90CAF9"
                                     BorderThickness="1"
-                                    CornerRadius="8">
+                                    CornerRadius="8"
+                                    Visibility="{Binding ShowJoinerHandoff, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <StackPanel>
                                     <TextBlock FontWeight="SemiBold"
                                                Text="Waiting on your host?" />

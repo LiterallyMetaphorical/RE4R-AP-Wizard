@@ -203,7 +203,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         // Archipelago install, so the guidance must open even while the RE4R
         // setup checks are failing.
         _showCreateGuidanceCommand = new RelayCommand(ShowCreateGuidance);
-        _startJoinFlowCommand = new RelayCommand(StartJoinFlow, () => !Landing.HasBlockingIssues);
+        _startJoinFlowCommand = new RelayCommand(() => StartJoinFlow(showJoinerHandoff: true), () => !Landing.HasBlockingIssues);
         // Deliberately ungated: building a YAML settings file needs no game
         // install, no room, and no network, so it must work even while setup
         // checks are failing.
@@ -476,10 +476,16 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             Session.SlotName = _pendingDraft.SlotName;
         }
 
-        StartJoinFlow();
+        StartJoinFlow(showJoinerHandoff: false);
     }
 
-    private void StartJoinFlow()
+    /// <param name="showJoinerHandoff">
+    /// Whether Session Info should carry the "Waiting on your host?" panel. It
+    /// is guidance for a joiner with no room yet, so a host arriving from their
+    /// own checklist, and any path resuming a session that already has a room,
+    /// pass false rather than telling them to send files to themselves.
+    /// </param>
+    private void StartJoinFlow(bool showJoinerHandoff)
     {
         if (string.IsNullOrWhiteSpace(Session.SlotName) && _pendingDraft is not null)
         {
@@ -487,6 +493,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             Action.AppendLog($"Prefilled your slot name from the saved draft ({_pendingDraft.SlotName}). It must match the YAML you sent - exactly, including capitalization.");
         }
 
+        JoinFlow.ShowJoinerHandoff = showJoinerHandoff;
         CurrentScreen = JoinFlow;
         Action.AppendLog("Opening the join-session flow.");
         JoinFlow.Enter();
@@ -517,7 +524,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             }
         }
 
-        StartJoinFlow();
+        StartJoinFlow(showJoinerHandoff: draft?.IsOrganizer != true);
     }
 
     private void StartJoinPrefilledFromBanner()
@@ -533,7 +540,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
                 : "Reconnect: your details are prefilled. If the room moved, update the address - re-scouting the same seed just updates the connection info without re-patching.");
         }
 
-        StartJoinFlow();
+        StartJoinFlow(showJoinerHandoff: false);
     }
 
     private void StartRepatchFromBanner()
@@ -556,7 +563,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             + "the same world is rebuilt, with the same items in the same places, using the launcher's current BioRand. "
             + "Just continue through to Patch My Game.");
 
-        StartJoinFlow();
+        StartJoinFlow(showJoinerHandoff: false);
         JoinFlow.GoToBioRandOptionsCommand.Execute(null);
     }
 
@@ -841,7 +848,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             Session.SlotName = slotName;
         }
 
-        StartJoinFlow();
+        StartJoinFlow(showJoinerHandoff: !ConfigureYaml.IsOrganizerContext);
     }
 
     private void NavigateToLanding()

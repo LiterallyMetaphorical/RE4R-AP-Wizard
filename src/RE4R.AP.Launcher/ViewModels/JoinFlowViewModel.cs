@@ -132,6 +132,22 @@ public sealed class JoinFlowViewModel : ObservableObject
 
     public bool IsSessionInfoStep => CurrentStep == JoinFlowStep.SessionInfo;
 
+    private bool _showJoinerHandoff = true;
+
+    /// <summary>
+    /// Whether the "Waiting on your host?" panel belongs on Session Info. It
+    /// only makes sense for a joiner whose room does not exist yet, but every
+    /// path in the launcher lands on this same screen: a host arrives here
+    /// from their own generation checklist, and the banner paths arrive with a
+    /// room that already exists. Both were being told to send files to
+    /// themselves (Cam, 2026-08-06). Whoever opens the flow decides.
+    /// </summary>
+    public bool ShowJoinerHandoff
+    {
+        get => _showJoinerHandoff;
+        set => SetProperty(ref _showJoinerHandoff, value);
+    }
+
     public bool IsBioRandOptionsStep => CurrentStep == JoinFlowStep.BioRandOptions;
 
     public bool IsPatchingStep => CurrentStep == JoinFlowStep.Patching;
