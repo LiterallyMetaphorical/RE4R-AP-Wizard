@@ -494,6 +494,14 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         }
 
         JoinFlow.ShowJoinerHandoff = showJoinerHandoff;
+
+        // Random Events drags item and enemy randomization on with it (BioRand
+        // throws otherwise), and the options screen is asked to choose a mode
+        // BEFORE the scout reports what the room actually rolled. The player's
+        // own draft is the best answer available at this point; the patch
+        // screen corrects the record once the real one arrives.
+        JoinFlow.BioRandOptions.RandomEventsForced = _pendingDraft?.RandomEvents == true;
+
         CurrentScreen = JoinFlow;
         Action.AppendLog("Opening the join-session flow.");
         JoinFlow.Enter();
@@ -841,6 +849,12 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     private async Task ContinueFromConfigureYamlAsync()
     {
         await ConfigureYaml.FlushDraftAsync();
+
+        // The flush writes to the store, not to this cached copy, and the join
+        // step reads the copy (Random Events forcing, slot name). Without the
+        // reload the settings just saved are a step behind for the rest of the
+        // flow.
+        _pendingDraft = await _draftStore.TryLoadAsync();
 
         var slotName = ConfigureYaml.SlotName.Trim();
         if (!string.IsNullOrWhiteSpace(slotName))

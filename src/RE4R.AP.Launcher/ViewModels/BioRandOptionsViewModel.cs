@@ -27,6 +27,7 @@ public sealed class BioRandOptionsViewModel : ObservableObject
     private bool _isApplyingPreset;
     private bool _isPinnedToPreviousPatch;
     private bool _isUnlockedForChange;
+    private bool _randomEventsForced;
     private string _pinnedNotice = string.Empty;
     private string _modeStatusText = "Choose a launch mode to continue.";
 
@@ -219,6 +220,11 @@ public sealed class BioRandOptionsViewModel : ObservableObject
             _isApplyingPreset = false;
         }
 
+        // Same reason as ApplyPreset: a recorded config writes both keys, so
+        // re-assert the forcing over it rather than showing a re-patch the
+        // stale values its own manifest is about to override.
+        ApplyRandomEventsForcing();
+
         UpdateModeState();
     }
 
@@ -291,7 +297,8 @@ public sealed class BioRandOptionsViewModel : ObservableObject
                 + "event set itself when it generates, so the logic can react to what the "
                 + "events change. Turn it on with the experimental Random Events option in "
                 + "your player YAML; whatever your room rolled is applied automatically "
-                + "when you patch.",
+                + "when you patch. It cannot run without item and enemy randomization, so "
+                + "turning it on turns those on too, whichever mode you pick here.",
             Type = "note",
         }));
     }
@@ -315,6 +322,67 @@ public sealed class BioRandOptionsViewModel : ObservableObject
         finally
         {
             _isApplyingPreset = false;
+        }
+
+        // A preset writes every catalog key, including the two Random Events
+        // overrides, so re-assert them or picking a card silently un-forces
+        // what the patch is going to force anyway.
+        ApplyRandomEventsForcing();
+    }
+
+    /// <summary>
+    /// Whether this session's Random Events roll is on. BioRand's EventModifier throws without
+    /// BOTH random-items and random-enemies, so ManifestBuilder turns them on at patch time no
+    /// matter which preset was picked. Until this landed, that override was invisible: pick "Full
+    /// BioRand Item Randomization" (no enemy randomization), get randomized enemies, with the
+    /// screen still showing Random Enemies off (Cam, live 2026-08-07).
+    ///
+    /// Read from the player's own settings draft, which is what the launcher knows at this point -
+    /// the room's authoritative answer does not arrive until the scout, several steps later. It is
+    /// therefore a strong hint, not a guarantee: the patch screen states what actually happened.
+    /// </summary>
+    public bool RandomEventsForced
+    {
+        get => _randomEventsForced;
+        set
+        {
+            if (SetProperty(ref _randomEventsForced, value))
+            {
+                OnPropertyChanged(nameof(HasRandomEventsNotice));
+                ApplyRandomEventsForcing();
+            }
+        }
+    }
+
+    public bool HasRandomEventsNotice => _randomEventsForced;
+
+    public string RandomEventsNotice =>
+        "Your settings have Random Events on. It cannot run without item and enemy randomization, "
+        + "so both are turned on when you patch, whichever mode you pick here.";
+
+    private void ApplyRandomEventsForcing()
+    {
+        const string reason = "On because your Random Events setting needs it.";
+        foreach (var key in new[] { BioRandOptionCatalog.RandomItemsKey, BioRandOptionCatalog.RandomEnemiesKey })
+        {
+            if (!_itemsByKey.TryGetValue(key, out var item))
+            {
+                continue;
+            }
+
+            if (_randomEventsForced)
+            {
+                // Suppressed: this is not the player tweaking the preset, so it
+                // must not flip the mode card to Custom.
+                item.LoadValue(System.Text.Json.Nodes.JsonValue.Create(true));
+                item.IsEnabled = false;
+                item.ForcedNotice = reason;
+            }
+            else
+            {
+                item.IsEnabled = true;
+                item.ForcedNotice = string.Empty;
+            }
         }
     }
 

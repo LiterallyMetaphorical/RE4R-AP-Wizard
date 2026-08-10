@@ -18,6 +18,7 @@ public sealed class BioRandOptionItemViewModel : ObservableObject
     private double _numberValue;
     private bool _isEnabled = true;
     private bool _isVisible = true;
+    private string _forcedNotice = string.Empty;
 
     public BioRandOptionItemViewModel(BioRandOptionDefinition definition)
     {
@@ -101,14 +102,35 @@ public sealed class BioRandOptionItemViewModel : ObservableObject
         : _numberValue.ToString(_numberValue is > -10 and < 10 ? "0.##" : "0", CultureInfo.CurrentCulture);
 
     /// <summary>
-    /// False where the option cannot take effect right now - currently only Random Events, which
-    /// makes BioRand throw unless Random Items AND Random Enemies are both on.
+    /// False where the player cannot decide this option, because something else has already
+    /// decided it. Currently only Random Items / Random Enemies under an AP-authored Random
+    /// Events roll, which BioRand throws without.
     /// </summary>
     public bool IsEnabled
     {
         get => _isEnabled;
         set => SetProperty(ref _isEnabled, value);
     }
+
+    /// <summary>
+    /// Why this option is showing a value the player did not choose. Empty for the normal case.
+    /// A greyed switch on its own reads as "broken" or "not available in this mode"; the row has
+    /// to say who took the decision, or the screen is lying by omission (Cam, 2026-08-07: picked
+    /// the no-enemy-randomization preset, got randomized enemies).
+    /// </summary>
+    public string ForcedNotice
+    {
+        get => _forcedNotice;
+        set
+        {
+            if (SetProperty(ref _forcedNotice, value))
+            {
+                OnPropertyChanged(nameof(HasForcedNotice));
+            }
+        }
+    }
+
+    public bool HasForcedNotice => !string.IsNullOrWhiteSpace(_forcedNotice);
 
     /// <summary>Hidden when this is one of BioRand's advanced options and Show Advanced is off.</summary>
     public bool IsVisible

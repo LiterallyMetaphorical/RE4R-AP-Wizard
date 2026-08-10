@@ -1300,8 +1300,24 @@
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
 
-                                <TextBlock FontWeight="SemiBold"
-                                           Text="World Randomization" />
+                                <StackPanel>
+                                    <TextBlock FontWeight="SemiBold"
+                                               Text="World Randomization" />
+
+                                    <!-- Random Events overrides the mode cards below, so it has
+                                         to be said BEFORE the player picks one. Same
+                                         informational blue as the other guidance panels. -->
+                                    <Border Margin="0,8,0,0"
+                                            Padding="12,8"
+                                            Background="#FFE3F2FD"
+                                            BorderBrush="#FF90CAF9"
+                                            BorderThickness="1"
+                                            CornerRadius="8"
+                                            Visibility="{Binding BioRandOptions.HasRandomEventsNotice, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <TextBlock TextWrapping="Wrap"
+                                                   Text="{Binding BioRandOptions.RandomEventsNotice}" />
+                                    </Border>
+                                </StackPanel>
 
                                 <!-- All modes visible at once as selectable cards;
                                      unavailable ones disabled with a badge (fix #3) -->
@@ -1467,12 +1483,16 @@
                                                                     </ItemsControl.ItemsPanel>
                                                                     <ItemsControl.ItemTemplate>
                                                                         <DataTemplate>
+                                                                            <!-- IsEnabled rides on the CONTROLS, not this panel: a
+                                                                                 forced row still has to explain itself at full
+                                                                                 contrast, and greying the whole panel would dim the
+                                                                                 explanation along with the switch. -->
                                                                             <StackPanel Width="320"
                                                                                         Margin="0,0,14,7"
-                                                                                        IsEnabled="{Binding IsEnabled}"
                                                                                         Visibility="{Binding IsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                                                                                 <CheckBox Content="{Binding Label}"
                                                                                           IsChecked="{Binding BoolValue, Mode=TwoWay}"
+                                                                                          IsEnabled="{Binding IsEnabled}"
                                                                                           ToolTip="{Binding Description}"
                                                                                           AutomationProperties.Name="{Binding Label}"
                                                                                           Visibility="{Binding IsSwitch, Converter={StaticResource BooleanToVisibilityConverter}}" />
@@ -1485,7 +1505,8 @@
                                                                                            Text="{Binding Label}"
                                                                                            Visibility="{Binding IsNote, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
-                                                                                <Grid Visibility="{Binding IsNumeric, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                                                <Grid IsEnabled="{Binding IsEnabled}"
+                                                                                      Visibility="{Binding IsNumeric, Converter={StaticResource BooleanToVisibilityConverter}}"
                                                                                       ToolTip="{Binding Description}">
                                                                                     <Grid.ColumnDefinitions>
                                                                                         <ColumnDefinition Width="*" />
@@ -1519,6 +1540,14 @@
                                                                                            TextWrapping="Wrap"
                                                                                            Text="{Binding Description}"
                                                                                            Visibility="{Binding ShowInlineDescription, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+                                                                                <TextBlock Margin="22,2,0,0"
+                                                                                           FontSize="11"
+                                                                                           FontWeight="SemiBold"
+                                                                                           Foreground="#FF1565C0"
+                                                                                           TextWrapping="Wrap"
+                                                                                           Text="{Binding ForcedNotice}"
+                                                                                           Visibility="{Binding HasForcedNotice, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                                                             </StackPanel>
                                                                         </DataTemplate>
                                                                     </ItemsControl.ItemTemplate>

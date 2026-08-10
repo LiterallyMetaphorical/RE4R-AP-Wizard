@@ -271,6 +271,18 @@ public sealed class LaunchWorkflowService
                     + "2. Start RE4R from Steam - it connects to the multiworld automatically.\n"
                     + "3. Press Insert in-game to open the Archipelago window.\n\n"
                     + "You can close this window now. Come back only to patch a new seed.";
+
+            // The options screen guesses this from the local settings draft, which can be
+            // absent (it is deleted on the first successful patch) or out of date. By here the
+            // scout has the room's real answer, so this is the one statement of the override
+            // that is always right - and enemy randomization is too big a change to leave in
+            // the log where nobody reads it.
+            if (scoutResult.RandomEvents.Enabled)
+            {
+                finalMessage += "\n\nYour room has Random Events on, so item and enemy "
+                    + "randomization were turned on with it - they are what it runs on.";
+            }
+
             Log(finalMessage);
 
             return new LaunchWorkflowResult
