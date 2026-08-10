@@ -9,6 +9,16 @@ The payload itself is a build artifact (git-ignored); rebuild it with:
 
 Source repo:    biorand-re4r-ap (fork; never upstream biorand/re4r)
 Source branch:  ap-manifest-input
+HISTORY SQUASHED 2026-08-10: the fork's branch was flattened to a single commit,
+                703e59a "Add Archipelago multiworld support", as part of making
+                the repo public. Every commit named below is now OFF-BRANCH -
+                still reachable by hash in a local clone, but NOT findable from
+                the public repo. The payload is unaffected: diffing the old tip
+                05f581e against 703e59a shows docs only (AGENTS.md and the two
+                AP_MODE audits removed, README expanded) and ZERO change to any
+                .cs/.csv/.json, so the SHA-256 below still describes the code
+                that is on the branch today. Keep the old ids for the reasoning
+                they carry; treat 703e59a as the citable source commit.
 Source commit:  05f581e (2026-08-06: FORCED EVENTS - BioRand takes its event
                 set from the multiworld. The apworld rolls the Village event
                 set at generation time and the launcher pins it in as
