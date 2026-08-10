@@ -61,16 +61,16 @@
       {
        "key": "allow-bonus-items",
        "label": "Allow Bonus Weapons",
-       "description": "Let Biorand include the unlockable weapons (Primal Knife, Chicago Sweeper, Handcannon, Infinite Rocket Launcher) in the pool. You must have all the weapons unlocked.",
+       "description": "Let Biorand include unlockable weapons in the pool. Your vanilla RE4 Remake profile must already have the Primal Knife, Chicago Sweeper, Handcannon, and Infinite Rocket Launcher unlocked; missing unlocks can cause these weapons to disappear after death or reload.",
        "type": "switch",
        "min": null,
        "max": null,
        "step": null,
        "advanced": false,
        "defaults": [
-        true,
-        true,
-        true
+        false,
+        false,
+        false
        ]
       },
       {
