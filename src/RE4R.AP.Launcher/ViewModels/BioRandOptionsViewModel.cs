@@ -25,6 +25,9 @@ public sealed class BioRandOptionsViewModel : ObservableObject
 
     private LaunchModeOption? _selectedMode;
     private EnemyConfigurationPreset _selectedEnemyPreset = EnemyConfigurationPresets.Custom;
+    // The Méndez ratios as they stood when the exclusion toggle last went on,
+    // so unchecking restores the player's own numbers. Session-scoped.
+    private Dictionary<string, double>? _mendezValuesBeforeExclusion;
     private bool _showAdvanced;
     private bool _isApplyingPreset;
     private bool _isPinnedToPreviousPatch;
@@ -73,9 +76,25 @@ public sealed class BioRandOptionsViewModel : ObservableObject
             _itemsByKey.TryGetValue(key, out var item) && Math.Abs(item.NumberValue) < .0001d);
         set
         {
+            if (value && !ExcludeDifficultMendezEncounters)
+            {
+                // Remember what the player actually had: unchecking must give
+                // their numbers back, not the preset/mode defaults, or a
+                // custom ratio silently dies the first time they toggle this.
+                _mendezValuesBeforeExclusion = ReadCurrentMendezPoolValues();
+            }
+
+            var restored = _mendezValuesBeforeExclusion;
             var values = value
                 ? EnemyConfigurationPresets.MendezPoolKeys.ToDictionary(key => key, _ => 0d, StringComparer.Ordinal)
-                : GetEnabledMendezPoolValues();
+                : restored is not null && restored.Values.Any(number => Math.Abs(number) >= .0001d)
+                    ? restored
+                    : GetEnabledMendezPoolValues();
+            if (!value)
+            {
+                _mendezValuesBeforeExclusion = null;
+            }
+
             var changed = false;
             foreach (var (key, number) in values)
             {
@@ -93,6 +112,14 @@ public sealed class BioRandOptionsViewModel : ObservableObject
                 OnPropertyChanged(nameof(ExcludeDifficultMendezEncounters));
             }
         }
+    }
+
+    private Dictionary<string, double> ReadCurrentMendezPoolValues()
+    {
+        return EnemyConfigurationPresets.MendezPoolKeys.ToDictionary(
+            key => key,
+            key => _itemsByKey.TryGetValue(key, out var item) ? item.NumberValue : 0d,
+            StringComparer.Ordinal);
     }
 
     /// <summary>Set by the shell: opts in to changing a config pinned to a previous patch.</summary>
