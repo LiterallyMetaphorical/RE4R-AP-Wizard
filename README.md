@@ -84,7 +84,7 @@ name and patch.
 
 ### Your settings file
 
-- **Difficulty** - the game's own difficulty.
+- **Difficulty** - the difficulty you'll actually play. Hardcore and Professional remove the few spots that can't be collected on those difficulties, so it needs to match your save.
 - **Death Link** - share deaths with the room.
 - **Progression Balancing** - how hard the multiworld works to keep your important items early. 50-70 suits RE4R's gated chapters; lower values mean longer waits on other players.
 - **Check Guidance** - the ceiling for in-game Markers.

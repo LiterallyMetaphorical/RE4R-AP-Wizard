@@ -520,7 +520,7 @@
                                       ItemsSource="{Binding DifficultyOptions}"
                                       SelectedItem="{Binding SelectedDifficulty, UpdateSourceTrigger=PropertyChanged}" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="The game's own difficulty setting. It does not change where checks are." />
+                                       Text="The difficulty you'll actually play. Hardcore and Professional remove the few spots that can't be collected there, so this needs to match your save." />
                         </StackPanel>
 
                         <StackPanel Style="{StaticResource OptionCardStyle}">
