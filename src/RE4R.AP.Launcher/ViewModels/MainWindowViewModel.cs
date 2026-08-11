@@ -1110,8 +1110,12 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
                 + Environment.NewLine + Environment.NewLine + $"Details: {raw}";
         }
 
+        // Matches both input classifications from DescribeGenerationFailure:
+        // explicit marker evidence ("recognized damaged or mismatched...") and
+        // the negative-exit-code crash class, which prints no evidence but has
+        // only ever meant this same repair path.
         if (step == WorkflowStep.RunBioRandGeneration
-            && raw.Contains("recognized damaged or mismatched game/cache input", StringComparison.OrdinalIgnoreCase))
+            && raw.Contains("damaged or mismatched game/cache input", StringComparison.OrdinalIgnoreCase))
         {
             return "BioRand found damaged or mismatched game/cache input while building your world."
                 + Environment.NewLine + Environment.NewLine

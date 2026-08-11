@@ -1095,9 +1095,17 @@ public sealed class BioRandProcessRunner
 
     /// <summary>
     /// Turns BioRand's exit code and captured output into something a player can
-    /// act on. Exit status alone cannot distinguish an internal BioRand error
-    /// from a bad game/cache input, so only explicit input evidence gets repair
-    /// guidance.
+    /// act on. Input evidence is checked FIRST: the fork's CLI runs with
+    /// PropagateExceptions and no top-level catch, so even a friendly
+    /// RandomizerUserException ("The cache is incomplete...") prints as
+    /// "Unhandled exception. ...Exception: ..." - generic exception text must
+    /// not outrank the specific input markers inside it, or exactly the
+    /// failures the repair steps were written for get told "internal error"
+    /// instead. A NEGATIVE exit code is a Windows crash status; every crash of
+    /// that class this project has diagnosed (access violations, the live
+    /// 2026-08-02 stack overflow) came from parsing damaged or leftover-pak
+    /// game/cache input, and a hard crash prints no evidence at all - so it is
+    /// classified as input on the exit code alone.
     /// </summary>
     private static string DescribeGenerationFailure(
         int exitCode,
@@ -1106,14 +1114,19 @@ public sealed class BioRandProcessRunner
     {
         var outputLines = stdoutLines.Concat(stderrLines);
 
-        if (ContainsInternalExceptionEvidence(outputLines))
-        {
-            return $"BioRand failed internally (exit code {exitCode}). The captured [BioRand] output is available in the launcher log; please provide that log when reporting this failure.";
-        }
-
         if (ContainsRecognizedInputEvidence(outputLines))
         {
             return $"BioRand found recognized damaged or mismatched game/cache input (exit code {exitCode}). The captured [BioRand] output is available in the launcher log; please provide that log if repair steps do not resolve this failure.";
+        }
+
+        if (exitCode < 0 && !ContainsInternalExceptionEvidence(outputLines))
+        {
+            return $"BioRand crashed (exit code {exitCode}), which in this project has always meant damaged or mismatched game/cache input rather than anything set wrong. The captured [BioRand] output is available in the launcher log; please provide that log if repair steps do not resolve this failure.";
+        }
+
+        if (ContainsInternalExceptionEvidence(outputLines))
+        {
+            return $"BioRand failed internally (exit code {exitCode}). The captured [BioRand] output is available in the launcher log; please provide that log when reporting this failure.";
         }
 
         return $"BioRand failed with exit code {exitCode}. No recognized game/cache input problem was identified. The captured [BioRand] output is available in the launcher log; please provide that log when reporting this failure.";
