@@ -21,8 +21,10 @@ public sealed class BioRandOptionsViewModel : ObservableObject
 
     private readonly Dictionary<string, BioRandOptionItemViewModel> _itemsByKey =
         new(StringComparer.Ordinal);
+    private readonly HashSet<string> _enemyOptionKeys = new(StringComparer.Ordinal);
 
     private LaunchModeOption? _selectedMode;
+    private EnemyConfigurationPreset _selectedEnemyPreset = EnemyConfigurationPresets.Custom;
     private bool _showAdvanced;
     private bool _isApplyingPreset;
     private bool _isPinnedToPreviousPatch;
@@ -39,6 +41,59 @@ public sealed class BioRandOptionsViewModel : ObservableObject
     }
 
     public ObservableCollection<LaunchModeOption> AvailableModes { get; } = new();
+
+    public IReadOnlyList<EnemyConfigurationPreset> EnemyPresets => EnemyConfigurationPresets.All;
+
+    public EnemyConfigurationPreset SelectedEnemyPreset
+    {
+        get => _selectedEnemyPreset;
+        set
+        {
+            if (!SetProperty(ref _selectedEnemyPreset, value))
+            {
+                return;
+            }
+
+            if (value.Key == EnemyConfigurationPresets.Custom.Key)
+            {
+                OnPropertyChanged(nameof(EnemyPresetDescription));
+                return;
+            }
+
+            ApplyEnemyPreset(value);
+        }
+    }
+
+    public string EnemyPresetDescription => $"{SelectedEnemyPreset.Intensity} intensity — {SelectedEnemyPreset.Description}";
+
+    /// <summary>Removes both Méndez classes from BioRand's random-enemy probability table.</summary>
+    public bool ExcludeDifficultMendezEncounters
+    {
+        get => EnemyConfigurationPresets.MendezPoolKeys.All(key =>
+            _itemsByKey.TryGetValue(key, out var item) && Math.Abs(item.NumberValue) < .0001d);
+        set
+        {
+            var values = value
+                ? EnemyConfigurationPresets.MendezPoolKeys.ToDictionary(key => key, _ => 0d, StringComparer.Ordinal)
+                : GetEnabledMendezPoolValues();
+            var changed = false;
+            foreach (var (key, number) in values)
+            {
+                if (_itemsByKey.TryGetValue(key, out var item) && Math.Abs(item.NumberValue - number) >= .0001d)
+                {
+                    item.LoadValue(JsonValue.Create(number));
+                    changed = true;
+                }
+            }
+
+            if (changed)
+            {
+                MarkEnemyPresetCustom();
+                MarkModeCustom();
+                OnPropertyChanged(nameof(ExcludeDifficultMendezEncounters));
+            }
+        }
+    }
 
     /// <summary>Set by the shell: opts in to changing a config pinned to a previous patch.</summary>
     public System.Windows.Input.ICommand? UnlockCommand { get; set; }
@@ -225,6 +280,8 @@ public sealed class BioRandOptionsViewModel : ObservableObject
         // stale values its own manifest is about to override.
         ApplyRandomEventsForcing();
 
+        UpdateEnemyPresetSelection();
+
         UpdateModeState();
     }
 
@@ -258,6 +315,10 @@ public sealed class BioRandOptionsViewModel : ObservableObject
                     var item = new BioRandOptionItemViewModel(definition);
                     item.ValueChangedByUser += OnOptionChangedByUser;
                     _itemsByKey[definition.Key] = item;
+                    if (pageVm.IsEnemiesPage)
+                    {
+                        _enemyOptionKeys.Add(definition.Key);
+                    }
                     groupVm.Options.Add(item);
                 }
 
@@ -328,6 +389,7 @@ public sealed class BioRandOptionsViewModel : ObservableObject
         // overrides, so re-assert them or picking a card silently un-forces
         // what the patch is going to force anyway.
         ApplyRandomEventsForcing();
+        UpdateEnemyPresetSelection();
     }
 
     /// <summary>
@@ -350,6 +412,7 @@ public sealed class BioRandOptionsViewModel : ObservableObject
             {
                 OnPropertyChanged(nameof(HasRandomEventsNotice));
                 ApplyRandomEventsForcing();
+                UpdateEnemyPresetSelection();
             }
         }
     }
@@ -394,6 +457,96 @@ public sealed class BioRandOptionsViewModel : ObservableObject
             return;
         }
 
+        if (!IsCustomSelected)
+        {
+            EnsureCustomModeVisible();
+            _selectedMode = CustomMode;
+            OnPropertyChanged(nameof(SelectedMode));
+            UpdateModeState();
+        }
+
+        if (_enemyOptionKeys.Contains(item.Key))
+        {
+            MarkEnemyPresetCustom();
+        }
+
+        if (EnemyConfigurationPresets.MendezPoolKeys.Contains(item.Key, StringComparer.Ordinal))
+        {
+            OnPropertyChanged(nameof(ExcludeDifficultMendezEncounters));
+        }
+    }
+
+    private void ApplyEnemyPreset(EnemyConfigurationPreset preset)
+    {
+        _isApplyingPreset = true;
+        try
+        {
+            foreach (var (key, value) in preset.Values)
+            {
+                if (_itemsByKey.TryGetValue(key, out var item))
+                {
+                    item.LoadValue(value);
+                }
+            }
+        }
+        finally
+        {
+            _isApplyingPreset = false;
+        }
+
+        OnPropertyChanged(nameof(ExcludeDifficultMendezEncounters));
+        MarkModeCustom();
+        OnPropertyChanged(nameof(EnemyPresetDescription));
+    }
+
+    private Dictionary<string, double> GetEnabledMendezPoolValues()
+    {
+        var source = _selectedEnemyPreset.Key == EnemyConfigurationPresets.Custom.Key
+            ? BioRandOptionCatalog.ResolveDefaults(BaseModeNumber)
+            : _selectedEnemyPreset.Values;
+        return EnemyConfigurationPresets.MendezPoolKeys.ToDictionary(
+            key => key,
+            key => source.TryGetValue(key, out var value)
+                && value is JsonValue jsonValue
+                && jsonValue.TryGetValue<double>(out var number)
+                ? number
+                : 0d,
+            StringComparer.Ordinal);
+    }
+
+    private void UpdateEnemyPresetSelection()
+    {
+        var preset = EnemyConfigurationPresets.Named.FirstOrDefault(candidate => candidate.Values.All(pair =>
+            _itemsByKey.TryGetValue(pair.Key, out var item) && ValuesMatch(item, pair.Value)))
+            ?? EnemyConfigurationPresets.Custom;
+
+        if (!ReferenceEquals(_selectedEnemyPreset, preset))
+        {
+            _selectedEnemyPreset = preset;
+            OnPropertyChanged(nameof(SelectedEnemyPreset));
+            OnPropertyChanged(nameof(EnemyPresetDescription));
+        }
+    }
+
+    private void MarkEnemyPresetCustom()
+    {
+        if (ReferenceEquals(_selectedEnemyPreset, EnemyConfigurationPresets.Custom))
+        {
+            return;
+        }
+
+        _selectedEnemyPreset = EnemyConfigurationPresets.Custom;
+        OnPropertyChanged(nameof(SelectedEnemyPreset));
+        OnPropertyChanged(nameof(EnemyPresetDescription));
+    }
+
+    private static bool ValuesMatch(BioRandOptionItemViewModel item, JsonNode? value) => value is JsonValue jsonValue
+        && (item.IsSwitch
+            ? jsonValue.TryGetValue<bool>(out var flag) && item.BoolValue == flag
+            : jsonValue.TryGetValue<double>(out var number) && Math.Abs(item.NumberValue - number) < .0001d);
+
+    private void MarkModeCustom()
+    {
         if (!IsCustomSelected)
         {
             EnsureCustomModeVisible();

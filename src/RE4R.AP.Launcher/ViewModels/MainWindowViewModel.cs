@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Net.Sockets;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using RE4R.AP.Launcher.Core.Exceptions;
 using RE4R.AP.Launcher.Core.Models;
 using RE4R.AP.Launcher.Core.Services;
@@ -1111,13 +1110,10 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
                 + Environment.NewLine + Environment.NewLine + $"Details: {raw}";
         }
 
-        // Any NEGATIVE exit code is a crash. This used to match only
-        // -532462766, the managed-exception code, so the first player to hit a
-        // stack overflow (-1073741571, live 2026-08-02) got the raw text and no
-        // guidance at all.
-        if (step == WorkflowStep.RunBioRandGeneration && ContainsCrashExitCode(raw))
+        if (step == WorkflowStep.RunBioRandGeneration
+            && raw.Contains("recognized damaged or mismatched game/cache input", StringComparison.OrdinalIgnoreCase))
         {
-            return "BioRand crashed while building your world. That is almost always a damaged game file rather than anything you set wrong."
+            return "BioRand found damaged or mismatched game/cache input while building your world."
                 + Environment.NewLine + Environment.NewLine
                 + "1. Verify your game files in Steam: right click Resident Evil 4, Properties, Installed Files, Verify integrity of game files."
                 + Environment.NewLine
@@ -1127,21 +1123,14 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
                 + Environment.NewLine + Environment.NewLine + $"Details: {raw}";
         }
 
-        return raw;
-    }
+        if (step == WorkflowStep.RunBioRandGeneration
+            && raw.Contains("BioRand failed internally", StringComparison.OrdinalIgnoreCase))
+        {
+            return "BioRand failed internally while building your world. No game-file repair is assumed. The captured [BioRand] output remains available in the launcher log; please provide that log."
+                + Environment.NewLine + Environment.NewLine + $"Details: {raw}";
+        }
 
-    /// <summary>
-    /// True when the message carries a negative "exit code N", which on Windows
-    /// is a crash status rather than a code the program chose to return. Matching
-    /// the whole class beats listing individual codes, which is how the stack
-    /// overflow slipped through with no guidance attached.
-    /// </summary>
-    private static bool ContainsCrashExitCode(string raw)
-    {
-        var match = Regex.Match(raw, @"exit code (-\d+)");
-        return match.Success
-            && int.TryParse(match.Groups[1].Value, out var code)
-            && code < 0;
+        return raw;
     }
 
     private void UpdateLandingBlockingState()

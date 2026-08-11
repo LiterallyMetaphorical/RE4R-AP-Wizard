@@ -37,11 +37,10 @@ Changing any single option flips you to a Custom configuration. Options that
 would change the set of checks, or create a softlock, are locked out.
 
 > [!WARNING]
-> **Leave Random Events off.** It reshapes the world - locked doors, removed
-> ladders and walls, relocated key items - and the logic is not yet equipped to
-> handle any of it. A seed may become unfinishable. It is off by default, and
-> turning it on asks you to confirm first, the full randomization preset
-> included.
+> **Random Events is experimental and multiworld-authored.** Enable its Boolean
+> YAML setting only when you want it: generation picks the event set, models its
+> room changes in logic, and the launcher applies that authoritative roll when
+> patching. It requires item and enemy randomization, so both are forced on.
 
 ## What You Need
 

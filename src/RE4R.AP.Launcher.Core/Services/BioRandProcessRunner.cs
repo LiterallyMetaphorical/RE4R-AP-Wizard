@@ -729,7 +729,7 @@ public sealed class BioRandProcessRunner
 
         if (exitCode != 0)
         {
-            var errorMessage = DescribeGenerationFailure(exitCode);
+            var errorMessage = DescribeGenerationFailure(exitCode, stdoutLines, stderrLines);
             Log(errorMessage);
             return new BioRandGenerationResult
             {
@@ -1094,34 +1094,54 @@ public sealed class BioRandProcessRunner
     }
 
     /// <summary>
-    /// Turns BioRand's exit code into something a player can act on.
-    /// A NEGATIVE exit code is a Windows crash status, not a message BioRand
-    /// chose to return, so telling the player to "check the log for the first
-    /// error" sends them into thousands of stack frames with no error in them.
-    /// Every crash we have seen came from parsing the cached copy of the game's
-    /// files, which is the one thing they can fix themselves.
+    /// Turns BioRand's exit code and captured output into something a player can
+    /// act on. Exit status alone cannot distinguish an internal BioRand error
+    /// from a bad game/cache input, so only explicit input evidence gets repair
+    /// guidance.
     /// </summary>
-    private static string DescribeGenerationFailure(int exitCode)
+    private static string DescribeGenerationFailure(
+        int exitCode,
+        IReadOnlyList<string> stdoutLines,
+        IReadOnlyList<string> stderrLines)
     {
-        if (exitCode >= 0)
+        var outputLines = stdoutLines.Concat(stderrLines);
+
+        if (ContainsInternalExceptionEvidence(outputLines))
         {
-            return $"BioRand generation failed with exit code {exitCode}. Check the [BioRand] log lines above for the first error and then try again.";
+            return $"BioRand failed internally (exit code {exitCode}). The captured [BioRand] output is available in the launcher log; please provide that log when reporting this failure.";
         }
 
-        // Name the crash and stop. The player-facing advice lives one layer up,
-        // in the shell's message mapping, so this stays a factual detail line.
-        var crash = exitCode switch
+        if (ContainsRecognizedInputEvidence(outputLines))
         {
-            -1073741571 => "ran out of stack space",
-            -1073741819 => "hit an access violation",
-            -1073740791 => "detected corrupted memory",
-            -1073740940 => "detected a corrupted heap",
-            -532462766 => "threw an unhandled error",
-            _ => "crashed",
+            return $"BioRand found recognized damaged or mismatched game/cache input (exit code {exitCode}). The captured [BioRand] output is available in the launcher log; please provide that log if repair steps do not resolve this failure.";
+        }
+
+        return $"BioRand failed with exit code {exitCode}. No recognized game/cache input problem was identified. The captured [BioRand] output is available in the launcher log; please provide that log when reporting this failure.";
+    }
+
+    private static bool ContainsInternalExceptionEvidence(IEnumerable<string> outputLines)
+    {
+        return outputLines.Any(line =>
+            line.Contains("Unhandled exception", StringComparison.OrdinalIgnoreCase)
+            || Regex.IsMatch(line, @"\b(?:System\.)?[A-Za-z_][\w.]*Exception\b", RegexOptions.IgnoreCase));
+    }
+
+    private static bool ContainsRecognizedInputEvidence(IEnumerable<string> outputLines)
+    {
+        var markers = new[]
+        {
+            "Unable to find lights scene",
+            "Unable to find door to replace",
+            "cache is incomplete",
+            "cache was built from a MODIFIED game",
+            "does not match the real game",
+            "checksum mismatch",
+            "corrupt game file",
+            "corrupted game file",
         };
 
-        return $"BioRand {crash} (exit code {exitCode}). The [BioRand] lines above carry the stack, "
-            + "which names the game file it was reading.";
+        return outputLines.Any(line => markers.Any(marker =>
+            line.Contains(marker, StringComparison.OrdinalIgnoreCase)));
     }
 
     private static string FormatCommandLine(ProcessStartInfo startInfo)
