@@ -142,7 +142,6 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         {
             if (SetProperty(ref _isOrganizerContext, value))
             {
-                OnPropertyChanged(nameof(ShowContinue));
                 OnPropertyChanged(nameof(HeaderDescription));
                 OnPropertyChanged(nameof(ShowJoinerHandoff));
                 RebuildFooter();
@@ -424,14 +423,12 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         FooterButtons.Add(new FooterButtonViewModel("Back", BackToLandingCommand));
         FooterButtons.Add(new FooterButtonViewModel("Save to File...", SaveYamlCommand));
         FooterButtons.Add(new FooterButtonViewModel("Copy to Clipboard", CopyYamlCommand));
-        if (!IsOrganizerContext)
-        {
-            FooterButtons.Add(new FooterButtonViewModel("Continue", ContinueCommand, isPrimary: true));
-        }
+        // Both roles get Continue. The organizer's command (wired by the
+        // shell) returns to the guide and advances it, so the host no longer
+        // pays Back-then-Next for what a joiner does in one press
+        // (playtest round 2).
+        FooterButtons.Add(new FooterButtonViewModel("Continue", ContinueCommand, isPrimary: true));
     }
-
-    /// <summary>Organizers return to their guide instead; they have their own step.</summary>
-    public bool ShowContinue => !IsOrganizerContext;
 
     public ICommand SaveYamlCommand { get; }
 

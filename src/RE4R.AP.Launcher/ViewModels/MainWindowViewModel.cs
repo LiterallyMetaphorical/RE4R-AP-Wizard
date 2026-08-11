@@ -34,6 +34,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     private readonly RelayCommand _startJoinFlowCommand;
     private readonly RelayCommand _startConfigureYamlCommand;
     private readonly AsyncRelayCommand _continueFromConfigureYamlCommand;
+    private readonly AsyncRelayCommand _organizerContinueFromConfigureYamlCommand;
     private readonly RelayCommand _returnToLandingCommand;
     private readonly RelayCommand _openSetupCommand;
     private readonly RelayCommand _openRoomPageCommand;
@@ -213,11 +214,18 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         _continueFromConfigureYamlCommand = new AsyncRelayCommand(
             ContinueFromConfigureYamlAsync,
             () => ConfigureYaml.CanContinue);
+        // The organizer's Continue: one press for what used to be
+        // Back-then-Next (the host paid two presses for what a joiner did in
+        // one). Same slot-name gate as the joiner path.
+        _organizerContinueFromConfigureYamlCommand = new AsyncRelayCommand(
+            ContinueOrganizerFromConfigureYamlAsync,
+            () => ConfigureYaml.CanContinue);
         ConfigureYaml.PropertyChanged += (_, args) =>
         {
             if (args.PropertyName is nameof(ConfigureYamlViewModel.CanContinue))
             {
                 _continueFromConfigureYamlCommand.NotifyCanExecuteChanged();
+                _organizerContinueFromConfigureYamlCommand.NotifyCanExecuteChanged();
             }
         };
         _returnToLandingCommand = new RelayCommand(NavigateToLanding);
@@ -451,16 +459,43 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     {
         // Configure opened from the organizer wizard's own-YAML step: Back
         // returns to the guide (not the landing) and re-enters it so the
-        // step's Done state reflects the fresh draft.
+        // step's Done state reflects the fresh draft. Continue does the same
+        // and then advances the wizard - both restore the landing-context
+        // commands so a later joiner visit gets joiner behavior.
         ConfigureYaml.BackToLandingCommand = new RelayCommand(() =>
         {
-            ConfigureYaml.BackToLandingCommand = _returnToLandingCommand;
+            RestoreConfigureYamlLandingCommands();
             CurrentScreen = GenerationGuidance;
             _ = GenerationGuidance.EnterAsync();
         });
+        ConfigureYaml.ContinueCommand = _organizerContinueFromConfigureYamlCommand;
         ConfigureYaml.IsOrganizerContext = true;
         CurrentScreen = ConfigureYaml;
         Action.AppendLog("Opening Configure Your YAML from the organizer guide.");
+    }
+
+    private void RestoreConfigureYamlLandingCommands()
+    {
+        ConfigureYaml.BackToLandingCommand = _returnToLandingCommand;
+        ConfigureYaml.ContinueCommand = _continueFromConfigureYamlCommand;
+    }
+
+    private async Task ContinueOrganizerFromConfigureYamlAsync()
+    {
+        // Flush before advancing: OwnYamlReady is computed from the stored
+        // draft, so the wizard cannot pass its own-YAML step on an unsaved
+        // edit. The reload keeps the cached copy current for the join-room
+        // prefill later in the guide.
+        await ConfigureYaml.FlushDraftAsync();
+        _pendingDraft = await _draftStore.TryLoadAsync();
+
+        RestoreConfigureYamlLandingCommands();
+        CurrentScreen = GenerationGuidance;
+        await GenerationGuidance.EnterAsync();
+        if (GenerationGuidance.NextStepCommand.CanExecute(null))
+        {
+            GenerationGuidance.NextStepCommand.Execute(null);
+        }
     }
 
     private void OnGuidanceJoinRoomRequested()
