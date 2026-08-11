@@ -239,6 +239,22 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         _retireSessionCommand = new AsyncRelayCommand(RetireBannerSessionAsync, () => !Action.IsBusy);
         _unlockBioRandOptionsCommand = new AsyncRelayCommand(UnlockBioRandOptionsAsync, () => !Action.IsBusy);
         BioRandOptions.UnlockCommand = _unlockBioRandOptionsCommand;
+        // Switching bonus weapons on force-unlocks them on the player's RE4R
+        // profile at connect (the game otherwise deletes un-bought bonus
+        // weapons from the inventory on death or reload), so it asks first.
+        BioRandOptions.ConfirmBonusWeaponsUnlockAsync = () => _dialogService.ConfirmProceedWithWarningAsync(
+            "Bonus Weapons Get Force-Unlocked",
+            "This lets the merchant stock the four bonus weapons: Primal Knife, Chicago Sweeper, "
+            + "Handcannon and Infinite Rocket Launcher."
+            + Environment.NewLine + Environment.NewLine
+            + "If your RE4R profile does not have them all unlocked, connecting in-game will "
+            + "force-unlock them on your profile - permanently, exactly as if you had bought them "
+            + "in the Extra Content Shop. Only those four weapons are touched. Without the unlock, "
+            + "the game deletes these weapons from your inventory on death or reload."
+            + Environment.NewLine + Environment.NewLine
+            + "Are you sure?",
+            proceedLabel: "Force Unlock Them",
+            cancelLabel: "Turn It Back Off");
 
         // Pin the options to the previous patch of this room whenever the player reaches the
         // options step, so a re-patch can't silently discard what they pick.

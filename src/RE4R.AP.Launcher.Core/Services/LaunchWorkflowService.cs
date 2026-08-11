@@ -254,6 +254,7 @@ public sealed class LaunchWorkflowService
                 request,
                 scoutResult.NormalizedServer,
                 scoutResult,
+                sessionRecord.BioRandOptions,
                 cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -1171,10 +1172,17 @@ public sealed class LaunchWorkflowService
         }
     }
 
+    private static bool AllowsBonusItems(BioRandOptions options) =>
+        options.Values.TryGetValue("allow-bonus-items", out var node)
+        && node is System.Text.Json.Nodes.JsonValue value
+        && value.TryGetValue<bool>(out var flag)
+        && flag;
+
     private async Task<ConnectionInfoWriteResult> WriteConnectionInfoAsync(
         LaunchWorkflowRequest request,
         string normalizedServer,
         ArchipelagoScoutSessionResult scoutResult,
+        BioRandOptions recordedOptions,
         CancellationToken cancellationToken)
     {
         try
@@ -1247,11 +1255,16 @@ public sealed class LaunchWorkflowService
                     }
                     Array.Sort(sortedIds);
                     var roomLocationsPath = Path.Combine(gameDataDirectoryPath, "ap_room_locations.json");
+                    // allow_bonus_items comes from the session record's options
+                    // (the options actually patched, replayed on re-patch), so
+                    // the in-game mod knows to force-unlock the four bonus
+                    // weapons before a save/load can strip them.
                     var roomJson = JsonSerializer.Serialize(new
                     {
                         seed_name = scoutResult.SeedName,
                         slot_name = request.SlotName,
                         location_ids = sortedIds,
+                        allow_bonus_items = AllowsBonusItems(recordedOptions),
                     }, new JsonSerializerOptions { WriteIndented = true });
                     await File.WriteAllTextAsync(roomLocationsPath, roomJson, cancellationToken);
                     Log($"Wrote this room's {sortedIds.Length} location id(s) to {roomLocationsPath} for the in-game Lua mod.");
