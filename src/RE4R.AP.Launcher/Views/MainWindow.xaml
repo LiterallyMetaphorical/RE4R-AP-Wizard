@@ -1882,11 +1882,18 @@
                     <Run Text="BioRand" />
                 </Hyperlink>
             </TextBlock>
-            <Button Grid.Column="2"
-                    HorizontalAlignment="Right"
-                    Padding="10,2"
-                    Command="{Binding OpenLogFolderCommand}"
-                    Content="Open Log Folder" />
+            <StackPanel Grid.Column="2"
+                        HorizontalAlignment="Right"
+                        Orientation="Horizontal">
+                <Button Padding="10,2"
+                        Margin="0,0,6,0"
+                        Command="{Binding GenerateBugReportCommand}"
+                        ToolTip="Zip your session record, logs, drop audit and any crash dump to attach in Discord."
+                        Content="Generate Bug Report" />
+                <Button Padding="10,2"
+                        Command="{Binding OpenLogFolderCommand}"
+                        Content="Open Log Folder" />
+            </StackPanel>
         </Grid>
     </Grid>
 </Window>

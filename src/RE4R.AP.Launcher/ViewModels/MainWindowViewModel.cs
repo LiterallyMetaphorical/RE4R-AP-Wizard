@@ -19,6 +19,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     private readonly IUiDialogService _dialogService;
     private readonly SettingsStore _settingsStore;
     private readonly SessionRecordStore _sessionRecordStore;
+    private readonly BugReportService _bugReportService;
     private readonly StaticGameDataProvider _staticGameDataProvider;
     private readonly LaunchWorkflowService _workflowService;
     private readonly GameInstallationInspector _gameInstallationInspector;
@@ -36,6 +37,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     private readonly AsyncRelayCommand _continueFromConfigureYamlCommand;
     private readonly AsyncRelayCommand _organizerContinueFromConfigureYamlCommand;
     private readonly RelayCommand _returnToLandingCommand;
+    private readonly AsyncRelayCommand _generateBugReportCommand;
     private readonly RelayCommand _openSetupCommand;
     private readonly RelayCommand _openRoomPageCommand;
     private readonly RelayCommand _openUpdateReleaseCommand;
@@ -83,6 +85,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
         _settingsStore = settingsStore ?? new SettingsStore();
         _sessionRecordStore = sessionRecordStore ?? new SessionRecordStore(_settingsStore.AppDataRootPath);
+        _bugReportService = new BugReportService(_settingsStore.AppDataRootPath);
         _staticGameDataProvider = staticGameDataProvider ?? new StaticGameDataProvider();
         _workflowService = workflowService
             ?? new LaunchWorkflowService(
@@ -229,6 +232,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             }
         };
         _returnToLandingCommand = new RelayCommand(NavigateToLanding);
+        _generateBugReportCommand = new AsyncRelayCommand(GenerateBugReportAsync, () => !Action.IsBusy);
         _openSetupCommand = new RelayCommand(OpenSetupScreen);
         _openRoomPageCommand = new RelayCommand(OpenRoomPage);
         _updateService.LogMessage += OnWorkflowLogMessage;
@@ -334,6 +338,8 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     public PatchLaunchViewModel PatchLaunch { get; }
 
     public RelayCommand OpenLogFolderCommand => _openLogFolderCommand;
+
+    public AsyncRelayCommand GenerateBugReportCommand => _generateBugReportCommand;
 
     public object? CurrentScreen
     {
@@ -1050,6 +1056,11 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 
         await PersistSettingsAsync(trimmedServerAddress, trimmedSlotName);
 
+        // Patching precedes a game relaunch, which truncates the framework log.
+        // Preserve the last session's log now so a crash before this patch stays
+        // recoverable for a bug report (best-effort; no-ops if unchanged).
+        _bugReportService.RotateFrameworkLog(Setup.InstallPath.Trim());
+
         return new LaunchWorkflowRequest
         {
             Re4rInstallPath = Setup.InstallPath.Trim(),
@@ -1453,6 +1464,48 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             var message = $"Failed to open the log folder: {ex.Message}";
+            Action.AppendLog(message);
+            SetError(message);
+        }
+    }
+
+    /// <summary>
+    /// Bundle the session record, launcher log, framework log (+ preserved
+    /// backups), crash dump and drop audit into one zip to attach in Discord,
+    /// then open the folder holding it. Best-effort: a missing piece is noted in
+    /// the report's manifest rather than failing the whole thing.
+    /// </summary>
+    private async Task GenerateBugReportAsync()
+    {
+        try
+        {
+            var installPath = Setup.InstallPath?.Trim() ?? string.Empty;
+            var slotName = !string.IsNullOrWhiteSpace(Session.SlotName)
+                ? Session.SlotName.Trim()
+                : ConfigureYaml.SlotName?.Trim() ?? string.Empty;
+            var version = LauncherUpdateService.GetRunningVersion();
+
+            var zipPath = await Task.Run(
+                () => _bugReportService.CreateBugReport(installPath, slotName, version));
+
+            if (zipPath == null)
+            {
+                var failure = "Could not write the bug report. Check the log folder is writable.";
+                Action.AppendLog(failure);
+                SetError(failure);
+                return;
+            }
+
+            Action.AppendLog($"Bug report saved: {zipPath}");
+            var folder = Path.GetDirectoryName(zipPath);
+            if (!string.IsNullOrEmpty(folder))
+            {
+                _ = _dialogService.OpenFolderAsync(folder);
+            }
+        }
+        catch (Exception ex)
+        {
+            var message = $"Failed to generate the bug report: {ex.Message}";
             Action.AppendLog(message);
             SetError(message);
         }

@@ -80,9 +80,13 @@ internal sealed class MainWindow : Window
                     },
                 },
             });
-        var logs = CommandButton("Open Log Folder", _viewModel.OpenLogFolderCommand);
-        Grid.SetColumn(logs, 1);
-        panel.Children.Add(logs);
+        var footerButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        footerButtons.Children.Add(
+            CommandButton("Generate Bug Report", _viewModel.GenerateBugReportCommand));
+        footerButtons.Children.Add(
+            CommandButton("Open Log Folder", _viewModel.OpenLogFolderCommand));
+        Grid.SetColumn(footerButtons, 1);
+        panel.Children.Add(footerButtons);
         return panel;
     }
 
