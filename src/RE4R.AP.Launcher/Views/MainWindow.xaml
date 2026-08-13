@@ -520,7 +520,7 @@
                                       ItemsSource="{Binding DifficultyOptions}"
                                       SelectedItem="{Binding SelectedDifficulty, UpdateSourceTrigger=PropertyChanged}" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="The difficulty you'll actually play. Hardcore and Professional remove the few spots that can't be collected there, so this needs to match your save." />
+                                       Text="The difficulty you'll actually play. Hardcore and Professional remove the few spots that can't be collected there, so this needs to match your save. Don't change difficulty mid-run either: moving up to Hardcore can strand an item in a spot you're no longer able to pick up." />
                         </StackPanel>
 
                         <StackPanel Style="{StaticResource OptionCardStyle}">

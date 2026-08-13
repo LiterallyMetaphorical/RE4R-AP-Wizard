@@ -311,6 +311,13 @@ internal sealed class MainWindow : Window
         var left = new StackPanel { Spacing = 10 };
         left.Children.Add(Label("Difficulty"));
         left.Children.Add(Combo("DifficultyOptions", "SelectedDifficulty"));
+        left.Children.Add(new TextBlock
+        {
+            Text = "Match this to the save you will actually play. Do not change difficulty mid-run: "
+                + "moving up to Hardcore can strand an item in a spot you are no longer able to pick up.",
+            TextWrapping = TextWrapping.Wrap,
+            FontSize = 12,
+        });
         left.Children.Add(Label("Progression balancing"));
         left.Children.Add(Text("ProgressionBalancingLabel"));
         left.Children.Add(new Slider
