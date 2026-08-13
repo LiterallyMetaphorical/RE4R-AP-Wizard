@@ -25,6 +25,9 @@ UNPAINTED = {
     "ThemeBrushConverter", "Setter.Value", "Style.Triggers", "Grid.RowDefinitions",
     "Grid.ColumnDefinitions", "UniformGrid", "Path", "Ellipse", "Rectangle",
     "Viewbox", "Canvas", "Separator", "Image", "Line", "Polygon",
+    # Brush primitives, not controls: they ARE the colour, so there is nothing
+    # to theme them with.
+    "LinearGradientBrush", "RadialGradientBrush", "GradientStop", "SolidColorBrush",
     # Not a control: a column DESCRIPTOR. The cells it generates are
     # DataGridCell, which is styled, and the TextBlock inside inherits that
     # cell's Foreground. There is no element here to give a style to.

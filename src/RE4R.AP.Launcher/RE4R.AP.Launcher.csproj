@@ -1,5 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- The AP Wizard artwork (design by @alrightness), shown on the landing
+       screen. A Resource rather than Content: it is part of the UI, so it
+       belongs inside the exe and does not need to survive as a loose file the
+       way the payload in assets\ does. -->
+  <ItemGroup>
+    <Resource Include="Assets\wizard.png" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\RE4R.AP.Launcher.Core\RE4R.AP.Launcher.Core.csproj" />
   </ItemGroup>

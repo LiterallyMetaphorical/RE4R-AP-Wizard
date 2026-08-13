@@ -27,6 +27,20 @@
     <SolidColorBrush x:Key="AccentBrush" Color="#FF7A5D8F" />
     <SolidColorBrush x:Key="AccentForegroundBrush" Color="#FFFFFFFF" />
 
+    <!--
+        Backing glow for the wizard portrait on the landing screen. The artwork
+        is flat colour with heavy black outlines, drawn for a white page: on a
+        dark background the outlines that define his silhouette sit almost on
+        top of the page colour and the shape loses its edge. A soft halo tinted
+        towards the robe purple lifts him off it without putting him in a box,
+        and reads as deliberate rather than as a sticker dropped on the page.
+    -->
+    <RadialGradientBrush x:Key="PortraitGlowBrush">
+        <GradientStop Offset="0.0" Color="#FFEDE4F5" />
+        <GradientStop Offset="0.55" Color="#99EDE4F5" />
+        <GradientStop Offset="1.0" Color="#00EDE4F5" />
+    </RadialGradientBrush>
+
     <!-- Success / done -->
     <SolidColorBrush x:Key="SuccessTextBrush" Color="#FF11662D" />
     <SolidColorBrush x:Key="SuccessBackgroundBrush" Color="#FFF0FAF3" />

@@ -9,7 +9,7 @@
         Title="RE4R AP Wizard"
         Background="{DynamicResource AppBackgroundBrush}"
         Width="1360"
-        Height="860"
+        Height="940"
         MinWidth="1100"
         MinHeight="700">
     <Window.Resources>
@@ -438,6 +438,22 @@
                      the settings file: it has no prerequisites and every
                      joiner needs one, so asking "do you have an address yet?"
                      was a decision that bought nothing. -->
+                <!-- Two columns: the choice on the left, the AP Wizard on the
+                     right. The right of this screen was dead space, and the
+                     cards do not want to be any wider, so he fills it without
+                     pushing anything around. -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <!-- Cards take exactly what they need; the wizard's
+                             column takes the slack, so he centres in the span
+                             between the right edge of Host a Multiworld and the
+                             right edge of the page. Sizing it the other way
+                             round pinned him to the far edge and left a gap
+                             beside the cards. -->
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
                 <StackPanel>
                     <TextBlock FontSize="30"
                                FontWeight="SemiBold"
@@ -483,6 +499,58 @@
                         </Button>
                     </StackPanel>
                 </StackPanel>
+
+                    <StackPanel Grid.Column="1"
+                                Margin="20,0,4,0"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center">
+                        <Grid>
+                            <!-- Halo first, portrait over it. See
+                                 PortraitGlowBrush: the artwork is outlined for a
+                                 white page and needs something to sit against
+                                 once the page goes dark. The negative margin
+                                 spreads it past the portrait, and because the
+                                 cell is sized by the image the two scale
+                                 together. -->
+                            <Ellipse Margin="-28"
+                                     Fill="{DynamicResource PortraitGlowBrush}"
+                                     IsHitTestVisible="False" />
+                            <!-- Capped rather than fixed: the column is elastic,
+                                 so at the 1100px minimum window he gives way
+                                 instead of shoving the cards off the page. The
+                                 cap is set by HEIGHT, not taste - the default
+                                 860px window only has so much room between the
+                                 banner and the footer, and going bigger pushed
+                                 the hint and Setup Status off the page and put
+                                 a scrollbar on the landing screen. -->
+                            <Image MaxWidth="400"
+                                   MaxHeight="400"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   RenderOptions.BitmapScalingMode="HighQuality"
+                                   Source="/Assets/wizard.png"
+                                   Stretch="Uniform">
+                                <!-- The artwork is a bust, so its robe ends on a
+                                     flat outlined edge at the bottom of the
+                                     canvas. Left alone that reads as a sticker
+                                     someone sliced off; fading the last sliver
+                                     lets him rise out of the page instead. -->
+                                <Image.OpacityMask>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                        <GradientStop Offset="0.0" Color="#FF000000" />
+                                        <GradientStop Offset="0.86" Color="#FF000000" />
+                                        <GradientStop Offset="1.0" Color="#00000000" />
+                                    </LinearGradientBrush>
+                                </Image.OpacityMask>
+                            </Image>
+                        </Grid>
+                        <TextBlock Margin="0,14,0,0"
+                                   HorizontalAlignment="Center"
+                                   FontSize="13"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
+                                   Text="AP Wizard Design by @alrightness" />
+                    </StackPanel>
+                </Grid>
 
                 <TextBlock Margin="0,20,0,0"
                            Foreground="{DynamicResource SubtleTextBrush}"
