@@ -552,6 +552,18 @@
 
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Marker Detail" />
+                            <ComboBox Width="380"
+                                      HorizontalAlignment="Left"
+                                      ItemsSource="{Binding MarkerDetailOptions}"
+                                      DisplayMemberPath="Label"
+                                      SelectedItem="{Binding SelectedMarkerDetail, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="How much a marker is allowed to say. This is a ceiling, not a fixed setting: players pick their own level in the in-game Guidance tab, but never above what you choose here. Locate is the recommended default - it names the item as it appeared in vanilla, what it is sitting in, and how to reach it, without revealing what the multiworld actually placed. Identify does reveal that, and is what a bought hint always shows." />
+                        </StackPanel>
+
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="Death Link" />
                             <CheckBox IsChecked="{Binding DeathLink}"
                                       Content="Enable Death Link" />

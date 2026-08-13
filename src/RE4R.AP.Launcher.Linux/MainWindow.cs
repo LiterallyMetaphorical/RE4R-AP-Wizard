@@ -328,6 +328,8 @@ internal sealed class MainWindow : Window
         });
         left.Children.Add(Label("Check guidance"));
         left.Children.Add(Combo("CheckGuidanceOptions", "SelectedCheckGuidance", "Label"));
+        left.Children.Add(Label("Marker detail (ceiling)"));
+        left.Children.Add(Combo("MarkerDetailOptions", "SelectedMarkerDetail", "Label"));
 
         var right = new StackPanel { Spacing = 10, Margin = new Thickness(20, 0, 0, 0) };
         right.Children.Add(Label("Options"));

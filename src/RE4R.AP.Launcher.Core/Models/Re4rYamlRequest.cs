@@ -15,6 +15,11 @@ public sealed class Re4rYamlRequest
     // Permission ceiling for the in-game world markers.
     public string CheckGuidance { get; set; } = "markers";
 
+    // Custom apworld option: minimal / basic / locate / identify (default
+    // locate). Ceiling on how much the in-game markers may say; players still
+    // pick their own level below it.
+    public string MarkerDetail { get; set; } = "locate";
+
     public bool DeathLink { get; set; }
 
     public bool AllowMissableLocations { get; set; }

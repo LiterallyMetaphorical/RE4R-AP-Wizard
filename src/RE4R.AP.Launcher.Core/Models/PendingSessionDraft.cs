@@ -37,6 +37,11 @@ public sealed class PendingSessionDraft
     [JsonPropertyName("check_guidance")]
     public string CheckGuidance { get; set; } = "markers";
 
+    // Ceiling on marker detail. Defaults to the apworld's own default so
+    // drafts saved before this option existed generate the same seed.
+    [JsonPropertyName("marker_detail")]
+    public string MarkerDetail { get; set; } = "locate";
+
     [JsonPropertyName("death_link")]
     public bool DeathLink { get; set; }
 

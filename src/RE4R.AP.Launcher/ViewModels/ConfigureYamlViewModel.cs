@@ -31,6 +31,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     private string _selectedDifficulty = "Standard";
     private int _progressionBalancing = 70;
     private CheckGuidanceOption _selectedCheckGuidance = CheckGuidanceOptionList[0];
+    private MarkerDetailOption _selectedMarkerDetail = MarkerDetailOptionList[2];
     private bool _deathLink;
     private bool _allowMissableLocations;
     private bool _shuffleKeycards;
@@ -83,6 +84,34 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     ];
 
     public IReadOnlyList<CheckGuidanceOption> CheckGuidanceOptions => CheckGuidanceOptionList;
+
+    // Ceiling on how much a world marker may say. Players still choose their
+    // own level in game; this is the most the host allows. Ordered least to
+    // most revealing, defaulting to Locate: everything about finding the spot,
+    // nothing about what the multiworld put in it.
+    private static readonly IReadOnlyList<MarkerDetailOption> MarkerDetailOptionList =
+    [
+        new("Minimal - distance and height", "minimal"),
+        new("Basic - + chapter and area", "basic"),
+        new("Locate - + item, container, how to reach it (recommended)", "locate"),
+        new("Identify - + the real item and its owner (spoiler)", "identify"),
+    ];
+
+    public IReadOnlyList<MarkerDetailOption> MarkerDetailOptions => MarkerDetailOptionList;
+
+    public MarkerDetailOption SelectedMarkerDetail
+    {
+        get => _selectedMarkerDetail;
+        set
+        {
+            // The ComboBox can push a transient null while its items rebuild.
+            if (value is not null && SetProperty(ref _selectedMarkerDetail, value))
+            {
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
 
     // Landmarks the progression-balancing slider soft-snaps to. Any 0-99 value
     // is still selectable; the snap just makes the common picks easy to land on.
@@ -601,6 +630,13 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             SelectedCheckGuidance = guidance;
         }
 
+        var markerDetail = MarkerDetailOptions.FirstOrDefault(
+            option => string.Equals(option.Value, draft.MarkerDetail, StringComparison.OrdinalIgnoreCase));
+        if (markerDetail is not null)
+        {
+            SelectedMarkerDetail = markerDetail;
+        }
+
         DeathLink = draft.DeathLink;
         AllowMissableLocations = draft.AllowMissableLocations;
         ShuffleKeycards = draft.ShuffleKeycards;
@@ -641,6 +677,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
                 draft.Difficulty = SelectedDifficulty;
                 draft.ProgressionBalancing = ProgressionBalancing;
                 draft.CheckGuidance = SelectedCheckGuidance.Value;
+                draft.MarkerDetail = SelectedMarkerDetail.Value;
                 draft.DeathLink = DeathLink;
                 draft.AllowMissableLocations = AllowMissableLocations;
                 draft.ShuffleKeycards = ShuffleKeycards;
@@ -674,6 +711,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             Difficulty = SelectedDifficulty.Trim().ToLowerInvariant(),
             ProgressionBalancing = ProgressionBalancing,
             CheckGuidance = SelectedCheckGuidance.Value,
+            MarkerDetail = SelectedMarkerDetail.Value,
             DeathLink = DeathLink,
             AllowMissableLocations = AllowMissableLocations,
             ShuffleKeycards = ShuffleKeycards,
@@ -820,3 +858,5 @@ public sealed class ConfigureYamlViewModel : ObservableObject
 /// written into the YAML.
 /// </summary>
 public sealed record CheckGuidanceOption(string Label, string Value);
+
+public sealed record MarkerDetailOption(string Label, string Value);

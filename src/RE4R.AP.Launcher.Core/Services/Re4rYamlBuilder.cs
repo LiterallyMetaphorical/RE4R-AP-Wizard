@@ -39,6 +39,7 @@ public sealed class Re4rYamlBuilder
             { "difficulty", request.Difficulty.Trim().ToLowerInvariant() },
             { "progression_balancing", progressionBalancing.ToString(System.Globalization.CultureInfo.InvariantCulture) },
             { "check_guidance", checkGuidance },
+            { "marker_detail", NormalizeMarkerDetail(request.MarkerDetail) },
             { "death_link", request.DeathLink ? "true" : "false" },
             { "allow_missable_locations", request.AllowMissableLocations ? "true" : "false" },
             { "shuffle_keycards", request.ShuffleKeycards ? "true" : "false" },
@@ -66,6 +67,12 @@ public sealed class Re4rYamlBuilder
     {
         var normalized = (value ?? string.Empty).Trim().ToLowerInvariant();
         return normalized is "off" or "markers" or "markers_rarity" ? normalized : "markers";
+    }
+
+    private static string NormalizeMarkerDetail(string? value)
+    {
+        var normalized = (value ?? string.Empty).Trim().ToLowerInvariant();
+        return normalized is "minimal" or "basic" or "locate" or "identify" ? normalized : "locate";
     }
 
     private static YamlScalarNode SingleQuotedScalar(string value) =>
