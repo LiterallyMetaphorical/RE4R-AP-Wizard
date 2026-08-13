@@ -131,6 +131,49 @@ public sealed class StaticGameDataProvider
         }
     }
 
+    /// <summary>
+    /// Best-effort synchronous load for UI that can do without it.
+    /// </summary>
+    /// <remarks>
+    /// The YAML editor's item and location pickers need the bundled group and
+    /// name lists, but they are a convenience: a missing, old or malformed
+    /// bundle should leave the player with an editor that still writes a valid
+    /// YAML, not a launcher that will not open the screen. Every failure
+    /// returns null and the pickers render empty.
+    ///
+    /// Synchronous on purpose. This is a local file read on a user-initiated
+    /// screen, and threading it through async construction would buy nothing
+    /// but a race between the view appearing and its lists filling in.
+    /// </remarks>
+    public StaticGameData? TryLoad()
+    {
+        try
+        {
+            if (!File.Exists(StaticDataFilePath))
+            {
+                return null;
+            }
+
+            using var stream = File.OpenRead(StaticDataFilePath);
+            var staticData = JsonSerializer.Deserialize<StaticGameData>(stream, SerializerOptions);
+            if (staticData is null)
+            {
+                return null;
+            }
+
+            staticData.ItemGroups ??= new Dictionary<string, List<string>>();
+            staticData.LocationGroups ??= new Dictionary<string, List<string>>();
+            staticData.Locations ??= new Dictionary<long, StaticGameLocation>();
+            staticData.Items ??= new Dictionary<long, StaticGameItem>();
+            return staticData;
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
+        {
+            Log($"Could not read {StaticDataFilePath} for the YAML pickers: {ex.Message}");
+            return null;
+        }
+    }
+
     private void Log(string message)
     {
         LogMessage?.Invoke(message);

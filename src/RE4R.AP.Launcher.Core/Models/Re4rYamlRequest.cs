@@ -42,4 +42,20 @@ public sealed class Re4rYamlRequest
     public bool RandomEvents { get; set; }
 
     public IReadOnlyCollection<string> UnlockedTypewriterStageIds { get; set; } = Array.Empty<string>();
+
+    // Archipelago's per-game item/location options (Amondo's request, 2026-08).
+    // Each is emitted only when non-empty, so a player who touches none of them
+    // gets byte-identical YAML to before. Entries may be group names (Key
+    // Items, Chests, ...) or individual names; AP expands groups itself.
+    //
+    // The UI models these as two tri-state lists rather than four independent
+    // ones, which is why nothing here has to guard against the same name
+    // appearing in both directions - it cannot be expressed.
+    public IReadOnlyCollection<string> LocalItems { get; set; } = Array.Empty<string>();
+
+    public IReadOnlyCollection<string> NonLocalItems { get; set; } = Array.Empty<string>();
+
+    public IReadOnlyCollection<string> ExcludeLocations { get; set; } = Array.Empty<string>();
+
+    public IReadOnlyCollection<string> PriorityLocations { get; set; } = Array.Empty<string>();
 }

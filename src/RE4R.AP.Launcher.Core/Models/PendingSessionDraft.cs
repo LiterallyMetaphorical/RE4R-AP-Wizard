@@ -68,6 +68,18 @@ public sealed class PendingSessionDraft
     [JsonPropertyName("unlocked_typewriter_stage_ids")]
     public List<string> UnlockedTypewriterStageIds { get; set; } = new();
 
+    // The AP item/location picks, stored in their collapsed form (group names
+    // where a group is whole) so the draft reads the same as the YAML it
+    // produced. Restoring expands groups back to members, so a bundle whose
+    // groups changed between sessions still restores every name it can.
+    public List<string> LocalItems { get; set; } = new();
+
+    public List<string> NonLocalItems { get; set; } = new();
+
+    public List<string> ExcludeLocations { get; set; } = new();
+
+    public List<string> PriorityLocations { get; set; } = new();
+
     [JsonPropertyName("yaml_text")]
     public string YamlText { get; set; } = string.Empty;
 

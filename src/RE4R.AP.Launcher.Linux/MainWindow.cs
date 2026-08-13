@@ -6,7 +6,9 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Data;
 using Avalonia.Data.Converters;
 using Avalonia.Layout;
+using Avalonia.Controls.Templates;
 using Avalonia.Media;
+using RE4R.AP.Launcher.Models;
 using RE4R.AP.Launcher.ViewModels;
 
 internal sealed class MainWindow : Window
@@ -356,6 +358,12 @@ internal sealed class MainWindow : Window
         columns.Children.Add(right);
         body.Children.Add(columns);
 
+        // Item and location stances, the same two pickers the Windows pass
+        // shows. The view models are shared sources, so only this construction
+        // differs; anything decided about behaviour belongs there, not here.
+        body.Children.Add(SelectionPicker("Where your items go", vm.ItemSelection, vm.ItemSelectionHint));
+        body.Children.Add(SelectionPicker("What can appear where", vm.LocationSelection, vm.LocationSelectionHint));
+
         body.Children.Add(Label("YAML preview"));
         body.Children.Add(new TextBox
         {
@@ -640,6 +648,52 @@ internal sealed class MainWindow : Window
             combo.DisplayMemberBinding = Binding(displayMember);
         }
         return combo;
+    }
+
+    /// <summary>
+    /// An item or location picker: search box, then a stance combo per row.
+    /// </summary>
+    /// <remarks>
+    /// DataContext is set to the list view model so every binding inside is
+    /// relative to it, which keeps this construction the same shape as the WPF
+    /// template and means the two front ends read the same properties.
+    /// </remarks>
+    private static Control SelectionPicker(
+        string title,
+        YamlSelectionListViewModel selection,
+        string hint)
+    {
+        var panel = new StackPanel { Spacing = 6, DataContext = selection };
+        panel.Children.Add(Label(title));
+
+        var search = new TextBox { PlaceholderText = selection.SearchHint };
+        search.Bind(TextBox.TextProperty, Binding("SearchText", BindingMode.TwoWay));
+        panel.Children.Add(search);
+
+        var rows = new ItemsControl();
+        rows.Bind(ItemsControl.ItemsSourceProperty, Binding("VisibleEntries"));
+        rows.ItemTemplate = new FuncDataTemplate<YamlSelectionEntryViewModel>((entry, _) =>
+        {
+            var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+            var name = new TextBlock
+            {
+                Text = entry.DisplayName,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                FontWeight = entry.IsGroup ? FontWeight.SemiBold : FontWeight.Normal,
+            };
+            var stance = new ComboBox { ItemsSource = selection.StanceOptions, Width = 220 };
+            stance.Bind(SelectingItemsControl.SelectedIndexProperty, Binding("Stance", BindingMode.TwoWay));
+            Grid.SetColumn(stance, 1);
+            row.Children.Add(name);
+            row.Children.Add(stance);
+            return row;
+        });
+
+        panel.Children.Add(new ScrollViewer { MaxHeight = 220, Content = rows });
+        panel.Children.Add(Text("SummaryText", true, 12));
+        panel.Children.Add(new TextBlock { Text = hint, TextWrapping = TextWrapping.Wrap, FontSize = 12 });
+        return panel;
     }
 
     private static CheckBox Check(string label, string path) =>

@@ -55,6 +55,16 @@ public sealed class Re4rYamlBuilder
                 .Select(stageId => SingleQuotedScalar(stageId)));
 
         gameOptions.Add("unlocked_typewriters", unlockedTypewriters);
+
+        // Archipelago's per-game item/location lists. Emitted ONLY when a
+        // player actually picked something: an empty sequence here would be
+        // harmless to generation but would churn every existing YAML and make
+        // the file look configured when it is not.
+        AddNameList(gameOptions, "local_items", request.LocalItems);
+        AddNameList(gameOptions, "non_local_items", request.NonLocalItems);
+        AddNameList(gameOptions, "exclude_locations", request.ExcludeLocations);
+        AddNameList(gameOptions, "priority_locations", request.PriorityLocations);
+
         root.Add("Resident Evil 4 Remake", gameOptions);
 
         var yaml = new YamlStream(new YamlDocument(root));
@@ -73,6 +83,35 @@ public sealed class Re4rYamlBuilder
     {
         var normalized = (value ?? string.Empty).Trim().ToLowerInvariant();
         return normalized is "minimal" or "basic" or "locate" or "identify" ? normalized : "locate";
+    }
+
+    // Item and location names are single-quoted for the same reason slot names
+    // are: an unquoted name that looks numeric or bool-like re-types under
+    // PyYAML and then matches nothing in the apworld. Sorted and de-duplicated
+    // so the same selection always produces the same file.
+    private static void AddNameList(
+        YamlMappingNode gameOptions,
+        string key,
+        IReadOnlyCollection<string>? names)
+    {
+        if (names is null || names.Count == 0)
+        {
+            return;
+        }
+
+        var cleaned = names
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select(name => name.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToList();
+
+        if (cleaned.Count == 0)
+        {
+            return;
+        }
+
+        gameOptions.Add(key, new YamlSequenceNode(cleaned.Select(SingleQuotedScalar)));
     }
 
     private static YamlScalarNode SingleQuotedScalar(string value) =>

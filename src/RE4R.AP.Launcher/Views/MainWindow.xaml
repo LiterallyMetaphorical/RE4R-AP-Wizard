@@ -639,6 +639,110 @@
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="Save points you can warp to from the start of the run." />
                         </StackPanel>
+
+                        <!-- Item and location stances. One row per group (or per
+                             name once you search), each set to Default or one of
+                             two opposite ends of the same setting - so the same
+                             thing can never be pushed both ways at once. -->
+                        <StackPanel DataContext="{Binding ItemSelection}"
+                                    Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Where your items go" />
+                            <TextBox Margin="0,0,0,6"
+                                     Tag="{Binding SearchHint}"
+                                     Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
+                            <Border Padding="8"
+                                    BorderBrush="#FFE0E0E0"
+                                    BorderThickness="1"
+                                    CornerRadius="8">
+                                <ScrollViewer MaxHeight="220"
+                                              VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding VisibleEntries}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="0,0,0,4">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               Text="{Binding DisplayName}">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsGroup}" Value="True">
+                                                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                    <ComboBox Grid.Column="1"
+                                                              Width="210"
+                                                              SelectedIndex="{Binding Stance}"
+                                                              ItemsSource="{Binding DataContext.StanceOptions, RelativeSource={RelativeSource AncestorType=ItemsControl}}" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Border>
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="{Binding SummaryText}" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="{Binding DataContext.ItemSelectionHint, RelativeSource={RelativeSource AncestorType=Window}}" />
+                        </StackPanel>
+
+                        <StackPanel DataContext="{Binding LocationSelection}"
+                                    Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="What can appear where" />
+                            <TextBox Margin="0,0,0,6"
+                                     Tag="{Binding SearchHint}"
+                                     Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
+                            <Border Padding="8"
+                                    BorderBrush="#FFE0E0E0"
+                                    BorderThickness="1"
+                                    CornerRadius="8">
+                                <ScrollViewer MaxHeight="220"
+                                              VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding VisibleEntries}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="0,0,0,4">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               Text="{Binding DisplayName}">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsGroup}" Value="True">
+                                                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                    <ComboBox Grid.Column="1"
+                                                              Width="210"
+                                                              SelectedIndex="{Binding Stance}"
+                                                              ItemsSource="{Binding DataContext.StanceOptions, RelativeSource={RelativeSource AncestorType=ItemsControl}}" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Border>
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="{Binding SummaryText}" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="{Binding DataContext.LocationSelectionHint, RelativeSource={RelativeSource AncestorType=Window}}" />
+                        </StackPanel>
                     </WrapPanel>
 
                     <StackPanel Margin="0,20,0,0"

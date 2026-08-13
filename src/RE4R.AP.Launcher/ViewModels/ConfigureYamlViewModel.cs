@@ -67,8 +67,45 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             TypewriterOptions.Add(option);
         }
 
+        // Amondo's request: the AP item/location options, in the editor instead
+        // of hand-written. Each pair is two directions on one list, so it is one
+        // picker with a stance per row rather than two lists that could
+        // contradict each other.
+        var staticData = new StaticGameDataProvider().TryLoad();
+        ItemSelection = new YamlSelectionListViewModel(
+            "Items",
+            "Keep in my world",
+            "Send to another world",
+            "Search items...",
+            staticData?.ItemGroups ?? new Dictionary<string, List<string>>(),
+            staticData?.Items.Values.Select(item => item.Name) ?? Enumerable.Empty<string>());
+        LocationSelection = new YamlSelectionListViewModel(
+            "Locations",
+            "Never anything important",
+            "Always something important",
+            "Search locations...",
+            staticData?.LocationGroups ?? new Dictionary<string, List<string>>(),
+            staticData?.Locations.Values.Select(location => location.Name) ?? Enumerable.Empty<string>());
+        ItemSelection.SelectionChanged += OnSelectionChanged;
+        LocationSelection.SelectionChanged += OnSelectionChanged;
+
         RebuildYamlPreview();
     }
+
+    /// <summary>local_items / non_local_items, as one stance per item.</summary>
+    public YamlSelectionListViewModel ItemSelection { get; }
+
+    /// <summary>exclude_locations / priority_locations, as one stance per location.</summary>
+    public YamlSelectionListViewModel LocationSelection { get; }
+
+    // Archipelago drops local_items and non_local_items entirely when a seed
+    // has one player (Main.py clears them before fill), so a solo player who
+    // sets them gets silence. Say so rather than let them wonder.
+    public string ItemSelectionHint =>
+        "Only applies in a multiworld. A solo seed ignores these, because there is nowhere else for an item to go.";
+
+    public string LocationSelectionHint =>
+        "\"Never anything important\" keeps progression and useful items off a spot. \"Always something important\" reserves it for one. Marking a lot of spots as important can over-constrain generation, so use it sparingly.";
 
     public ObservableCollection<TypewriterOptionViewModel> TypewriterOptions { get; } = new();
 
@@ -649,6 +686,9 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             option.IsSelected = selected.Contains(option.StageId);
         }
 
+        ItemSelection.ApplySelection(draft.LocalItems, draft.NonLocalItems);
+        LocationSelection.ApplySelection(draft.ExcludeLocations, draft.PriorityLocations);
+
         StatusText = $"Restored your saved settings from {draft.SavedAtUtc.ToLocalTime():yyyy-MM-dd HH:mm}.";
     }
 
@@ -688,6 +728,10 @@ public sealed class ConfigureYamlViewModel : ObservableObject
                     .Where(option => option.IsSelected)
                     .Select(option => option.StageId)
                     .ToList();
+                draft.LocalItems = ItemSelection.BuildFirstList().ToList();
+                draft.NonLocalItems = ItemSelection.BuildSecondList().ToList();
+                draft.ExcludeLocations = LocationSelection.BuildFirstList().ToList();
+                draft.PriorityLocations = LocationSelection.BuildSecondList().ToList();
                 draft.YamlText = BuildYaml();
             });
             DraftSaved?.Invoke();
@@ -722,7 +766,22 @@ public sealed class ConfigureYamlViewModel : ObservableObject
                 .Where(option => option.IsSelected)
                 .Select(option => option.StageId)
                 .ToArray(),
+            LocalItems = ItemSelection.BuildFirstList(),
+            NonLocalItems = ItemSelection.BuildSecondList(),
+            ExcludeLocations = LocationSelection.BuildFirstList(),
+            PriorityLocations = LocationSelection.BuildSecondList(),
         };
+    }
+
+    private void OnSelectionChanged()
+    {
+        if (_isRestoring)
+        {
+            return;
+        }
+
+        RebuildYamlPreview();
+        QueueDraftSave();
     }
 
     private void RebuildYamlPreview()
