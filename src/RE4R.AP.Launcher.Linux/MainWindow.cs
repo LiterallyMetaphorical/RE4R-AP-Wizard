@@ -321,6 +321,16 @@ internal sealed class MainWindow : Window
         });
         left.Children.Add(Label("Check guidance"));
         left.Children.Add(Combo("CheckGuidanceOptions", "SelectedCheckGuidance", "Label"));
+        left.Children.Add(Label("Merchant shop checks"));
+        left.Children.Add(Text("ShopChecksLabel"));
+        left.Children.Add(new Slider
+        {
+            Minimum = 0,
+            Maximum = 24,
+            IsSnapToTickEnabled = true,
+            TickFrequency = 1,
+            [!RangeBase.ValueProperty] = Binding("ShopChecks", BindingMode.TwoWay),
+        });
 
         var right = new StackPanel { Spacing = 10, Margin = new Thickness(20, 0, 0, 0) };
         right.Children.Add(Label("Options"));

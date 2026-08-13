@@ -180,6 +180,12 @@ public sealed class ArchipelagoScoutClient
                     + $"{randomEvents.RemovedLocationCodes.Count} checks removed by events.");
             }
 
+            var merchantShop = ParseMerchantShopSlotData(connectedPacket);
+            if (merchantShop.Enabled)
+            {
+                Log($"The merchant sells {merchantShop.Slots.Count} Archipelago check(s) in this room.");
+            }
+
             // Since apworld 0.4.0 the room's location count varies with the
             // RandomizeGatedKeys option, so scout exactly what the room
             // declares (missing + checked from Connected) instead of the full
@@ -221,6 +227,7 @@ public sealed class ArchipelagoScoutClient
                 Locations = locations,
                 RoomLocationIds = roomLocationIds,
                 RandomEvents = randomEvents,
+                MerchantShop = merchantShop,
             };
         }
         catch (ArchipelagoScoutException)
@@ -722,6 +729,118 @@ public sealed class ArchipelagoScoutClient
             ChosenEvents = chosen,
             EventDataHash = eventDataHash,
             RemovedLocationCodes = removed,
+        };
+    }
+
+    /// <summary>
+    /// Reads slot_data.merchant_shop from the Connected packet (D4). The
+    /// apworld resolves slots after fill, so this block already names each
+    /// slot's item and owner. Absent or malformed reads as disabled - older
+    /// rooms have no block, and the merchant then behaves exactly as before.
+    /// A slot missing its price tier is dropped rather than guessed at: the
+    /// fork refuses a manifest whose slot has no tier, so a half-parsed block
+    /// must not reach it.
+    /// </summary>
+    private static MerchantShopSlotData ParseMerchantShopSlotData(JsonElement connectedPacket)
+    {
+        if (!TryGetProperty(connectedPacket, "slot_data", out var slotData)
+            || slotData.ValueKind != JsonValueKind.Object
+            || !slotData.TryGetProperty("merchant_shop", out var block)
+            || block.ValueKind != JsonValueKind.Object
+            || !block.TryGetProperty("enabled", out var enabled)
+            || enabled.ValueKind != JsonValueKind.True)
+        {
+            return MerchantShopSlotData.Disabled;
+        }
+
+        var tiers = new Dictionary<string, MerchantShopTier>(StringComparer.OrdinalIgnoreCase);
+        if (block.TryGetProperty("tiers", out var tiersElement)
+            && tiersElement.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var tierProperty in tiersElement.EnumerateObject())
+            {
+                var tier = tierProperty.Value;
+                if (tier.ValueKind != JsonValueKind.Object
+                    || !tier.TryGetProperty("price", out var priceElement)
+                    || !priceElement.TryGetInt32(out var price)
+                    || price < 1)
+                {
+                    continue;
+                }
+
+                var refundItemId = 0;
+                if (tier.TryGetProperty("refund_item_id", out var refundIdElement))
+                {
+                    refundIdElement.TryGetInt32(out refundItemId);
+                }
+
+                var refundItemName = string.Empty;
+                if (tier.TryGetProperty("refund_item_name", out var refundNameElement)
+                    && refundNameElement.ValueKind == JsonValueKind.String)
+                {
+                    refundItemName = refundNameElement.GetString() ?? string.Empty;
+                }
+
+                tiers[tierProperty.Name] = new MerchantShopTier(price, refundItemId, refundItemName);
+            }
+        }
+
+        var slots = new List<MerchantShopSlot>();
+        if (block.TryGetProperty("slots", out var slotsElement)
+            && slotsElement.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var element in slotsElement.EnumerateArray())
+            {
+                if (element.ValueKind != JsonValueKind.Object
+                    || !element.TryGetProperty("code", out var codeElement)
+                    || !codeElement.TryGetInt64(out var locationCode)
+                    || !element.TryGetProperty("index", out var indexElement)
+                    || !indexElement.TryGetInt32(out var index)
+                    || !element.TryGetProperty("unlock_chapter", out var chapterElement)
+                    || !chapterElement.TryGetInt32(out var unlockChapter))
+                {
+                    continue;
+                }
+
+                var classification = element.TryGetProperty("classification", out var classElement)
+                    && classElement.ValueKind == JsonValueKind.String
+                        ? classElement.GetString() ?? "FILLER"
+                        : "FILLER";
+                if (!tiers.ContainsKey(classification))
+                {
+                    continue;
+                }
+
+                slots.Add(new MerchantShopSlot
+                {
+                    LocationCode = locationCode,
+                    Index = index,
+                    UnlockChapter = unlockChapter,
+                    Classification = classification,
+                    DisplayName = element.TryGetProperty("display_name", out var nameElement)
+                        && nameElement.ValueKind == JsonValueKind.String
+                            ? nameElement.GetString() ?? string.Empty
+                            : string.Empty,
+                    PlayerName = element.TryGetProperty("player_name", out var playerElement)
+                        && playerElement.ValueKind == JsonValueKind.String
+                            ? playerElement.GetString() ?? string.Empty
+                            : string.Empty,
+                    Remote = element.TryGetProperty("remote", out var remoteElement)
+                        && remoteElement.ValueKind == JsonValueKind.True,
+                });
+            }
+        }
+
+        if (slots.Count == 0)
+        {
+            return MerchantShopSlotData.Disabled;
+        }
+
+        return new MerchantShopSlotData
+        {
+            Enabled = true,
+            Slots = slots,
+            Tiers = tiers,
         };
     }
 

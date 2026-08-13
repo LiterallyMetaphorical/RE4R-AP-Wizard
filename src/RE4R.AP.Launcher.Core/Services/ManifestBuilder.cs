@@ -109,7 +109,15 @@ public sealed class ManifestBuilder
             $"{skippedNoGuidCount} no-GUID locations skipped.");
         Log("AP manifest JSON is ready for BioRand generation.");
 
-        var configJson = BuildConfigJson(placements, normalizedOptions, gameVersion, scoutSession.RandomEvents);
+        var plannedShopSlots = MerchantShopPlanner.Plan(scoutSession.MerchantShop);
+        if (plannedShopSlots.Count > 0)
+        {
+            Log($"Merchant sells {plannedShopSlots.Count} AP check(s); "
+                + $"{MerchantShopPlanner.PoolUniqueBuyableItemIds.Count} pool item(s) barred from his stock.");
+        }
+
+        var configJson = BuildConfigJson(
+            placements, normalizedOptions, gameVersion, scoutSession.RandomEvents, plannedShopSlots);
 
         return new ManifestBuildResult
         {
@@ -154,7 +162,8 @@ public sealed class ManifestBuilder
         IReadOnlyDictionary<string, ManifestPlacement> placements,
         BioRandOptions options,
         string gameVersion,
-        RandomEventsSlotData randomEvents)
+        RandomEventsSlotData randomEvents,
+        IReadOnlyList<MerchantShopPlannedSlot> shopSlots)
     {
         var placementObject = new JsonObject();
         foreach (var placement in placements)
@@ -223,10 +232,72 @@ public sealed class ManifestBuilder
             root[BioRandOptionCatalog.RandomEventsKey] = false;
         }
 
+        // 4. The AP-aware merchant (D4). Present only when the room actually
+        //    has shop checks: the fork's post-pass no-ops without this section,
+        //    so rooms from older apworlds keep the shop they always had. The
+        //    exclusion list rides along with it because it is the same
+        //    conversation - the merchant stops selling what the multiworld
+        //    placed at the same moment he starts selling checks.
+        if (shopSlots.Count > 0)
+        {
+            var excluded = new JsonArray();
+            foreach (var itemId in MerchantShopPlanner.PoolUniqueBuyableItemIds)
+            {
+                excluded.Add(JsonValue.Create(itemId));
+            }
+
+            var tiers = new JsonObject();
+            var slotsArray = new JsonArray();
+            foreach (var planned in shopSlots)
+            {
+                tiers[planned.Slot.Classification] = new JsonObject
+                {
+                    ["price"] = planned.Tier.Price,
+                };
+                slotsArray.Add(new JsonObject
+                {
+                    ["index"] = planned.Slot.Index,
+                    ["location-code"] = planned.Slot.LocationCode,
+                    ["unlock-chapter"] = planned.Slot.UnlockChapter,
+                    ["standin-item-id"] = planned.StandinItemId,
+                    ["display-name"] = BuildShopRowName(planned.Slot),
+                    ["player-name"] = planned.Slot.PlayerName,
+                    ["classification"] = planned.Slot.Classification,
+                    ["remote"] = planned.Slot.Remote,
+                });
+            }
+
+            root["ap-merchant-shop"] = new JsonObject
+            {
+                ["excluded-item-ids"] = excluded,
+                ["tiers"] = tiers,
+                ["slots"] = slotsArray,
+            };
+        }
+
         return root.ToJsonString(new JsonSerializerOptions
         {
             WriteIndented = true,
         });
+    }
+
+    /// <summary>
+    /// What the shop row is called on the shelf. A remote item names its owner
+    /// (that is the whole point of seeing it there); your own reads plainly.
+    /// The name is baked into the game's message files at patch time, so it is
+    /// kept short enough to sit in a shop row.
+    /// </summary>
+    private static string BuildShopRowName(MerchantShopSlot slot)
+    {
+        var itemName = string.IsNullOrWhiteSpace(slot.DisplayName)
+            ? "Archipelago Item"
+            : slot.DisplayName.Trim();
+        if (!slot.Remote || string.IsNullOrWhiteSpace(slot.PlayerName))
+        {
+            return itemName;
+        }
+
+        return $"{slot.PlayerName.Trim()}'s {itemName}";
     }
 
     private void Log(string message)

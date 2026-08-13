@@ -1259,15 +1259,47 @@ public sealed class LaunchWorkflowService
                     // (the options actually patched, replayed on re-patch), so
                     // the in-game mod knows to force-unlock the four bonus
                     // weapons before a save/load can strip them.
+                    // [D4] The merchant's AP rows. The mod recognises a
+                    // purchase by its stand-in item id, so it needs the same
+                    // slot -> stand-in assignment the fork patched into the
+                    // catalog, plus the tier price and refund gem. Absent
+                    // when the room has no shop checks; the mod then leaves
+                    // the merchant alone.
+                    var plannedShopSlots = MerchantShopPlanner.Plan(scoutResult.MerchantShop);
+                    var merchantShop = plannedShopSlots.Count == 0
+                        ? null
+                        : new
+                        {
+                            slots = plannedShopSlots.Select(planned => new
+                            {
+                                index = planned.Slot.Index,
+                                standin_item_id = planned.StandinItemId,
+                                location_code = planned.Slot.LocationCode,
+                                unlock_chapter = planned.Slot.UnlockChapter,
+                                classification = planned.Slot.Classification,
+                                display_name = planned.Slot.DisplayName,
+                                player_name = planned.Slot.PlayerName,
+                                remote = planned.Slot.Remote,
+                                price = planned.Tier.Price,
+                                refund_item_id = planned.Tier.RefundItemId,
+                                refund_item_name = planned.Tier.RefundItemName,
+                            }).ToArray(),
+                        };
+
                     var roomJson = JsonSerializer.Serialize(new
                     {
                         seed_name = scoutResult.SeedName,
                         slot_name = request.SlotName,
                         location_ids = sortedIds,
                         allow_bonus_items = AllowsBonusItems(recordedOptions),
+                        merchant_shop = merchantShop,
                     }, new JsonSerializerOptions { WriteIndented = true });
                     await File.WriteAllTextAsync(roomLocationsPath, roomJson, cancellationToken);
                     Log($"Wrote this room's {sortedIds.Length} location id(s) to {roomLocationsPath} for the in-game Lua mod.");
+                    if (merchantShop is not null)
+                    {
+                        Log($"Merchant shop: {plannedShopSlots.Count} check slot(s) written for the in-game mod.");
+                    }
                 }
             }
             return new ConnectionInfoWriteResult

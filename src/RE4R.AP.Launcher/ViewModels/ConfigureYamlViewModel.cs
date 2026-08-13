@@ -36,6 +36,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     private bool _shuffleKeycards;
     private bool _minimizeBacktracking;
     private bool _randomEvents;
+    private int _shopChecks = 8;
     private bool _tutorial = true;
     private string _yamlPreview = "Enter your slot name to generate the YAML preview.";
     private string _statusText = "Choose your RE4R settings - they save automatically as you edit.";
@@ -309,6 +310,31 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             }
         }
     }
+
+    /// <summary>
+    /// How many merchant buy-tab rows are AP checks. Clamped to the apworld's
+    /// own range so a hand-edited draft cannot produce a YAML the world
+    /// rejects.
+    /// </summary>
+    public int ShopChecks
+    {
+        get => _shopChecks;
+        set
+        {
+            var clamped = Math.Clamp(value, 0, 24);
+            if (SetProperty(ref _shopChecks, clamped))
+            {
+                OnPropertyChanged(nameof(ShopChecksLabel));
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
+
+    /// <summary>Slider read-out, e.g. "8 shop checks" / "Off".</summary>
+    public string ShopChecksLabel => _shopChecks == 0
+        ? "Off - the merchant sells no checks"
+        : $"{_shopChecks} shop check{(_shopChecks == 1 ? string.Empty : "s")}";
 
     /// <summary>
     /// The old BioRand-page warning said the logic knows nothing about Random
@@ -606,6 +632,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         ShuffleKeycards = draft.ShuffleKeycards;
         MinimizeBacktracking = draft.MinimizeBacktracking;
         RandomEvents = draft.RandomEvents;
+        ShopChecks = draft.ShopChecks;
         Tutorial = draft.Tutorial;
         var selected = new HashSet<string>(draft.UnlockedTypewriterStageIds, StringComparer.Ordinal);
         foreach (var option in TypewriterOptions)
@@ -646,6 +673,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
                 draft.ShuffleKeycards = ShuffleKeycards;
                 draft.MinimizeBacktracking = MinimizeBacktracking;
                 draft.RandomEvents = RandomEvents;
+                draft.ShopChecks = ShopChecks;
                 draft.Tutorial = Tutorial;
                 draft.UnlockedTypewriterStageIds = TypewriterOptions
                     .Where(option => option.IsSelected)
@@ -679,6 +707,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             ShuffleKeycards = ShuffleKeycards,
             MinimizeBacktracking = MinimizeBacktracking,
             RandomEvents = RandomEvents,
+            ShopChecks = ShopChecks,
             Tutorial = Tutorial,
             UnlockedTypewriterStageIds = TypewriterOptions
                 .Where(option => option.IsSelected)
