@@ -2184,4 +2184,12 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             _ => step.ToString(),
         };
     }
+
+    /// <summary>Fan a theme switch out to the children that carry themed keys.</summary>
+    public void RefreshThemedBrushes()
+    {
+        Setup.RefreshThemedBrushes();
+        Action.RefreshThemedBrushes();
+        Landing.RefreshThemedBrushes();
+    }
 }

@@ -1,7 +1,9 @@
 using System.Windows;
 using System.Windows.Threading;
 using RE4R.AP.Launcher.Core.Utilities;
+using RE4R.AP.Launcher.Core.Services;
 using RE4R.AP.Launcher.Infrastructure;
+using RE4R.AP.Launcher.Services;
 
 namespace RE4R.AP.Launcher;
 
@@ -15,6 +17,23 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        // Apply the saved theme before the first window is built, so the
+        // launcher never flashes the wrong one on the way up.
+        //
+        // TryLoad, NOT LoadAsync().GetAwaiter().GetResult(): the dispatcher
+        // context exists by this point, so blocking on the async path queues
+        // its continuation onto the thread being blocked and the launcher hangs
+        // with a live process and no window. That is not theoretical - it is
+        // what the first version of this did.
+        try
+        {
+            ThemeService.Apply(new SettingsStore().TryLoad().Theme);
+        }
+        catch (Exception)
+        {
+            ThemeService.Apply(ThemeService.Dark);
+        }
 
         AsyncRelayCommand.UnhandledException += exception =>
             ReportUnhandledException(exception, "a launcher action");

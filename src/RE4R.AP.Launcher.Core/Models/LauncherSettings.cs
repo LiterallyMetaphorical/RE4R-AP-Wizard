@@ -7,6 +7,11 @@ public sealed class LauncherSettings
     [JsonPropertyName("re4r_install_path")]
     public string Re4rInstallPath { get; set; } = string.Empty;
 
+    // "dark" or "light". Dark is the default, so an absent or unreadable value
+    // lands on it without needing a migration.
+    [JsonPropertyName("theme")]
+    public string Theme { get; set; } = "dark";
+
     [JsonPropertyName("last_server_address")]
     public string LastServerAddress { get; set; } = string.Empty;
 
@@ -43,6 +48,11 @@ public sealed class LauncherSettings
         settings.LastSlotName ??= string.Empty;
         settings.SetupGameFingerprint ??= string.Empty;
         settings.SetupBioRandVersion ??= string.Empty;
+        // Anything that is not an explicit "light" is dark, so a hand-edited or
+        // truncated settings file cannot leave the launcher themeless.
+        settings.Theme = string.Equals(settings.Theme?.Trim(), "light", StringComparison.OrdinalIgnoreCase)
+            ? "light"
+            : "dark";
         return settings;
     }
 }

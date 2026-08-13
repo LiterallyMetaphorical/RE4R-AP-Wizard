@@ -227,15 +227,13 @@ internal sealed class MainWindow : Window
     private static Control LandingScreen(LandingViewModel vm)
     {
         var body = Screen("What would you like to do?", "Create or join a RE4R Archipelago multiworld.", vm);
-        // BannerBackground comes from the shared view-model as a light pastel,
-        // picked for the Windows light theme. Avalonia runs the dark theme, so
-        // its default near-white text on that background was close to unreadable
-        // - the banner has to pin its own dark foreground.
+        // BannerBackground is now a theme token the converter resolves to a DARK
+        // surface, so the default light text reads correctly and the old
+        // hardcoded dark foregrounds (needed when the view model handed out a
+        // light pastel) are gone.
         var bannerTitle = Text("BannerTitle", true, 18);
         var bannerBody = Text("BannerBody", true);
-        bannerTitle.Foreground = new SolidColorBrush(Color.Parse("#FF1A1A1A"));
         bannerTitle.FontWeight = FontWeight.SemiBold;
-        bannerBody.Foreground = new SolidColorBrush(Color.Parse("#FF33302A"));
         // The banner's own buttons need the same treatment as its text: the dark
         // theme styles them light-on-light against the pastel card.
         var bannerActions = Row(
@@ -591,11 +589,69 @@ internal sealed class MainWindow : Window
         var titleText = new TextBlock { Text = title, FontWeight = FontWeight.SemiBold };
         var labelText = Text(labelPath, true, 16);
         var statusText = Text(textPath, true);
-        titleText.Bind(TextBlock.ForegroundProperty, Binding(foregroundPath));
-        labelText.Bind(TextBlock.ForegroundProperty, Binding(foregroundPath));
-        statusText.Bind(TextBlock.ForegroundProperty, Binding(foregroundPath));
+        foreach (var text in new[] { titleText, labelText, statusText })
+        {
+            var fg = Binding(foregroundPath);
+            fg.Converter = ThemeTokenBrushConverter.Instance;
+            text.Bind(TextBlock.ForegroundProperty, fg);
+        }
         var card = Card(backgroundPath, titleText, labelText, statusText);
         return card;
+    }
+
+    /// <summary>
+    /// Resolves the theme resource keys the shared view models emit into this
+    /// front end's colours.
+    /// </summary>
+    /// <remarks>
+    /// The view models used to hand out light pastels picked for the Windows
+    /// light theme, which this window then had to fight with hardcoded dark
+    /// text to stay readable against Avalonia's dark Fluent theme. They now name
+    /// a token instead, so Linux answers with colours that suit it and the
+    /// workaround is gone.
+    /// </remarks>
+    private sealed class ThemeTokenBrushConverter : IValueConverter
+    {
+        private static readonly Dictionary<string, string> Palette = new(StringComparer.Ordinal)
+        {
+            ["SurfaceAltBrush"] = "#FF2B2F35",
+            ["SubtleBorderBrush"] = "#FF3A3F46",
+            ["SubtleTextBrush"] = "#FF9AA0A6",
+            ["TextBrush"] = "#FFE8EAED",
+            ["AccentBrush"] = "#FF2E9E5B",
+            ["AccentForegroundBrush"] = "#FFF2FFF7",
+            ["SuccessBackgroundBrush"] = "#FF1C2E22",
+            ["SuccessBorderBrush"] = "#FF3E6B4E",
+            ["SuccessTextBrush"] = "#FF7BD69B",
+            ["InfoBackgroundBrush"] = "#FF1B2836",
+            ["InfoBorderBrush"] = "#FF3C5A78",
+            ["InfoTextBrush"] = "#FF8FC4F5",
+            ["WarningBackgroundBrush"] = "#FF332A16",
+            ["WarningBorderBrush"] = "#FF6B5A2E",
+            ["WarningTextBrush"] = "#FFE8C26A",
+            ["DangerBackgroundBrush"] = "#FF34201F",
+            ["DangerBorderBrush"] = "#FF7A4444",
+            ["DangerTextBrush"] = "#FFF08A8A",
+        };
+
+        public static ThemeTokenBrushConverter Instance { get; } = new();
+
+        public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (value is not string key || key.Length == 0)
+            {
+                return AvaloniaProperty.UnsetValue;
+            }
+
+            // Tolerate a literal colour so a caller can still pass one directly.
+            var hex = Palette.TryGetValue(key, out var mapped) ? mapped : key;
+            return hex.StartsWith('#')
+                ? new SolidColorBrush(Color.Parse(hex))
+                : AvaloniaProperty.UnsetValue;
+        }
+
+        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+            throw new NotSupportedException();
     }
 
     private static Border Card(string background, params Control[] children)
@@ -617,7 +673,9 @@ internal sealed class MainWindow : Window
         }
         else
         {
-            border.Bind(Border.BackgroundProperty, Binding(background));
+            var binding = Binding(background);
+            binding.Converter = ThemeTokenBrushConverter.Instance;
+            border.Bind(Border.BackgroundProperty, binding);
         }
         return border;
     }

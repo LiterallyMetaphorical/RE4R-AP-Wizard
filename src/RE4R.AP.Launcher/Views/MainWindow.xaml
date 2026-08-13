@@ -7,6 +7,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="RE4R AP Wizard"
+        Background="{DynamicResource AppBackgroundBrush}"
         Width="1360"
         Height="860"
         MinWidth="1100"
@@ -14,6 +15,68 @@
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter" />
+        <!-- View models name a theme resource key; this turns it into that
+             theme's brush. See ThemeBrushConverter. -->
+        <converters:ThemeBrushConverter x:Key="ThemeBrushConverter" />
+        <!-- Option dropdowns render their Label. An explicit ItemTemplate rather
+             than DisplayMemberPath, because DisplayMemberPath fills the list but
+             leaves the CLOSED box without a template, which showed the option
+             record's ToString once the ComboBox was re-templated for theming. -->
+        <DataTemplate x:Key="OptionLabelTemplate">
+            <TextBlock Text="{Binding Label}" />
+        </DataTemplate>
+
+        <!-- Theme switch: a pill track with a sliding knob, and the knob carries
+             the icon for the theme you are CURRENTLY in - sun for light, moon
+             for dark - so it reads as a state rather than a command. Checked
+             means light. Glyphs come from the Windows icon font (Fluent first,
+             MDL2 as the fallback for Windows 10), which keeps them monochrome
+             and crisp instead of the colour emoji a literal sun character
+             would render as. -->
+        <Style x:Key="ThemeSwitchStyle" TargetType="ToggleButton">
+            <Setter Property="Width" Value="52" />
+            <Setter Property="Height" Value="26" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Focusable" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Track"
+                                Background="{DynamicResource SurfaceAltBrush}"
+                                BorderBrush="{DynamicResource SubtleBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="13">
+                            <Border x:Name="Knob"
+                                    Width="20"
+                                    Height="20"
+                                    Margin="2,0,0,0"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Center"
+                                    Background="{DynamicResource AccentBrush}"
+                                    CornerRadius="10">
+                                <TextBlock x:Name="Glyph"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource AccentForegroundBrush}"
+                                           Text="&#xE708;" />
+                            </Border>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Knob" Property="HorizontalAlignment" Value="Right" />
+                                <Setter TargetName="Knob" Property="Margin" Value="0,0,2,0" />
+                                <Setter TargetName="Glyph" Property="Text" Value="&#xE706;" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
         <Style x:Key="StatusChipBorderStyle" TargetType="Border">
             <Setter Property="CornerRadius" Value="12" />
@@ -21,7 +84,7 @@
             <Setter Property="Margin" Value="0,0,8,0" />
         </Style>
 
-        <Style x:Key="LandingButtonStyle" TargetType="Button">
+        <Style x:Key="LandingButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="FontSize" Value="18" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Padding" Value="18,12" />
@@ -36,19 +99,19 @@
             <Setter Property="Margin" Value="0,0,20,18" />
         </Style>
 
-        <Style x:Key="OptionCardTitleStyle" TargetType="TextBlock">
+        <Style x:Key="OptionCardTitleStyle" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Margin" Value="0,0,0,6" />
         </Style>
 
-        <Style x:Key="OptionCardHintStyle" TargetType="TextBlock">
+        <Style x:Key="OptionCardHintStyle" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
             <Setter Property="Margin" Value="0,6,0,0" />
-            <Setter Property="Foreground" Value="DimGray" />
+            <Setter Property="Foreground" Value="{DynamicResource SubtleTextBrush}" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
 
         <!-- The two landing doors: equal size, equal weight, icon + one line. -->
-        <Style x:Key="LandingCardStyle" TargetType="Button">
+        <Style x:Key="LandingCardStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Padding" Value="18,16" />
             <Setter Property="Margin" Value="0,0,14,0" />
             <Setter Property="Width" Value="320" />
@@ -57,21 +120,21 @@
             <Setter Property="VerticalContentAlignment" Value="Top" />
         </Style>
 
-        <Style x:Key="BannerButtonStyle" TargetType="Button">
+        <Style x:Key="BannerButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Padding" Value="14,6" />
             <Setter Property="Margin" Value="0,0,10,0" />
         </Style>
 
         <Style x:Key="GuidanceCardStyle" TargetType="Border">
-            <Setter Property="Background" Value="White" />
-            <Setter Property="BorderBrush" Value="#FFE0E0E0" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SubtleBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="10" />
             <Setter Property="Padding" Value="14" />
             <Setter Property="Margin" Value="0,0,0,12" />
         </Style>
 
-        <Style x:Key="GuidanceButtonStyle" TargetType="Button">
+        <Style x:Key="GuidanceButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Padding" Value="12,6" />
             <Setter Property="Margin" Value="0,0,10,6" />
         </Style>
@@ -80,12 +143,12 @@
             <Setter Property="Width" Value="28" />
             <Setter Property="Height" Value="28" />
             <Setter Property="CornerRadius" Value="14" />
-            <Setter Property="Background" Value="#FFE7E7E7" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceAltBrush}" />
             <Setter Property="VerticalAlignment" Value="Top" />
             <Setter Property="Margin" Value="0,0,10,0" />
         </Style>
 
-        <Style x:Key="GuidanceStepTitleStyle" TargetType="TextBlock">
+        <Style x:Key="GuidanceStepTitleStyle" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
             <Setter Property="FontSize" Value="17" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="VerticalAlignment" Value="Center" />
@@ -103,7 +166,7 @@
                            FontWeight="SemiBold"
                            Text="Setup Status" />
                 <TextBlock Margin="0,8,0,0"
-                           Foreground="DimGray"
+                           Foreground="{DynamicResource SubtleTextBrush}"
                            TextWrapping="Wrap"
                            Text="Your RE4R install, REFramework (the mod loader that runs the Archipelago scripts), and the Archipelago mod itself are checked here. Everything green means you're ready to patch and play." />
 
@@ -153,7 +216,7 @@
                         <TextBlock FontWeight="SemiBold"
                                    Text="{Binding DetectedGameVersionText}" />
                         <TextBlock Margin="0,4,0,0"
-                                   Foreground="DimGray"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
                                    TextWrapping="Wrap"
                                    Text="{Binding FingerprintSummaryText}" />
                     </StackPanel>
@@ -169,7 +232,7 @@
                                   ItemsSource="{Binding SupportedGameVersions}"
                                   SelectedItem="{Binding SelectedGameVersion, UpdateSourceTrigger=PropertyChanged}" />
                         <TextBlock Margin="0,6,0,0"
-                                   Foreground="DimGray"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
                                    TextWrapping="Wrap"
                                    Text="Which RE4R update the world patch is built for. This is detected for you - only change it if patching fails and you know your game is on a different update." />
                     </StackPanel>
@@ -180,7 +243,7 @@
                     <TextBlock Grid.Row="6"
                                Grid.Column="1"
                                Grid.ColumnSpan="2"
-                               Foreground="DimGray"
+                               Foreground="{DynamicResource SubtleTextBrush}"
                                TextWrapping="Wrap"
                                Text="{Binding SetupStatusText}" />
 
@@ -197,10 +260,10 @@
                         <StackPanel>
                             <Border Padding="8,2"
                                     HorizontalAlignment="Left"
-                                    Background="{Binding ReFrameworkStatusBackground}"
+                                    Background="{Binding ReFrameworkStatusBackground, Converter={StaticResource ThemeBrushConverter}}"
                                     CornerRadius="10">
                                 <TextBlock FontWeight="SemiBold"
-                                           Foreground="{Binding ReFrameworkStatusForeground}"
+                                           Foreground="{Binding ReFrameworkStatusForeground, Converter={StaticResource ThemeBrushConverter}}"
                                            Text="{Binding ReFrameworkStatusLabel}" />
                             </Border>
                             <TextBlock Margin="0,6,0,0"
@@ -228,10 +291,10 @@
                         <StackPanel>
                             <Border Padding="8,2"
                                     HorizontalAlignment="Left"
-                                    Background="{Binding ArchipelagoLuaModStatusBackground}"
+                                    Background="{Binding ArchipelagoLuaModStatusBackground, Converter={StaticResource ThemeBrushConverter}}"
                                     CornerRadius="10">
                                 <TextBlock FontWeight="SemiBold"
-                                           Foreground="{Binding ArchipelagoLuaModStatusForeground}"
+                                           Foreground="{Binding ArchipelagoLuaModStatusForeground, Converter={StaticResource ThemeBrushConverter}}"
                                            Text="{Binding ArchipelagoLuaModStatusLabel}" />
                             </Border>
                             <TextBlock Margin="0,6,0,0"
@@ -254,17 +317,17 @@
                                 Grid.ColumnSpan="2">
                         <Border Padding="8,2"
                                 HorizontalAlignment="Left"
-                                Background="{Binding SeparateWaysStatusBackground}"
+                                Background="{Binding SeparateWaysStatusBackground, Converter={StaticResource ThemeBrushConverter}}"
                                 CornerRadius="10">
                             <TextBlock FontWeight="SemiBold"
-                                       Foreground="{Binding SeparateWaysStatusForeground}"
+                                       Foreground="{Binding SeparateWaysStatusForeground, Converter={StaticResource ThemeBrushConverter}}"
                                        Text="{Binding SeparateWaysStatusLabel}" />
                         </Border>
                         <TextBlock Margin="0,6,0,0"
                                    TextWrapping="Wrap"
                                    Text="{Binding SeparateWaysStatusText}" />
                         <TextBlock Margin="0,4,0,0"
-                                   Foreground="DimGray"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
                                    TextWrapping="Wrap"
                                    Text="Separate Ways supplies the model other players' items appear as. Treasure Map: Expansion adds treasures that 36 of your checks sit on." />
                     </StackPanel>
@@ -293,7 +356,7 @@
                 </Grid>
 
                 <TextBlock Margin="0,26,0,0"
-                           Foreground="DimGray"
+                           Foreground="{DynamicResource SubtleTextBrush}"
                            TextWrapping="Wrap"
                            Text="You can continue even while a check is failing - building your settings file and organizing a multiworld don't need the game install. Joining a session stays locked until the checks pass. Reopen this screen any time with the Setup Status button on the landing screen." />
             </StackPanel>
@@ -304,8 +367,8 @@
                 <!-- Auto-surfaced session banner: reachable / asleep / unfinished patch -->
                 <Border Padding="16"
                         Margin="0,0,0,18"
-                        Background="{Binding BannerBackground}"
-                        BorderBrush="{Binding BannerBorder}"
+                        Background="{Binding BannerBackground, Converter={StaticResource ThemeBrushConverter}}"
+                        BorderBrush="{Binding BannerBorder, Converter={StaticResource ThemeBrushConverter}}"
                         BorderThickness="1"
                         CornerRadius="10"
                         Visibility="{Binding IsBannerVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -350,8 +413,8 @@
                 <!-- Waiting-for-room-details draft strip -->
                 <Border Padding="14"
                         Margin="0,0,0,18"
-                        Background="#FFEFF6FD"
-                        BorderBrush="#FFB7D4EE"
+                        Background="{DynamicResource InfoBackgroundBrush}"
+                        BorderBrush="{DynamicResource InfoBorderBrush}"
                         BorderThickness="1"
                         CornerRadius="10"
                         Visibility="{Binding IsDraftVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -387,7 +450,7 @@
                             <StackPanel>
                                 <TextBlock FontSize="26"
                                            FontFamily="Segoe MDL2 Assets"
-                                           Foreground="#FF2E7D46"
+                                           Foreground="{DynamicResource SuccessTextBrush}"
                                            Text="&#xE704;" />
                                 <TextBlock Margin="0,8,0,0"
                                            FontSize="19"
@@ -395,7 +458,7 @@
                                            Text="Join a Multiworld" />
                                 <TextBlock Margin="0,4,0,0"
                                            FontSize="13"
-                                           Foreground="DimGray"
+                                           Foreground="{DynamicResource SubtleTextBrush}"
                                            TextWrapping="Wrap"
                                            Text="Someone else is hosting. Play your RE4R as part of their multiworld." />
                             </StackPanel>
@@ -405,7 +468,7 @@
                             <StackPanel>
                                 <TextBlock FontSize="26"
                                            FontFamily="Segoe MDL2 Assets"
-                                           Foreground="#FF31506F"
+                                           Foreground="{DynamicResource InfoTextBrush}"
                                            Text="&#xE902;" />
                                 <TextBlock Margin="0,8,0,0"
                                            FontSize="19"
@@ -413,7 +476,7 @@
                                            Text="Host a Multiworld" />
                                 <TextBlock Margin="0,4,0,0"
                                            FontSize="13"
-                                           Foreground="DimGray"
+                                           Foreground="{DynamicResource SubtleTextBrush}"
                                            TextWrapping="Wrap"
                                            Text="Collect everyone's settings, generate the multiworld, and share the room." />
                             </StackPanel>
@@ -422,14 +485,14 @@
                 </StackPanel>
 
                 <TextBlock Margin="0,20,0,0"
-                           Foreground="DimGray"
+                           Foreground="{DynamicResource SubtleTextBrush}"
                            TextWrapping="Wrap"
                            Text="For a solo randomized run, use BioRand directly instead - this is for multiplayer Archipelago sessions." />
 
                 <Border Margin="0,12,0,0"
                         Padding="12"
-                        Background="#FFF8E7E7"
-                        BorderBrush="#FFD9A8A8"
+                        Background="{DynamicResource DangerBackgroundBrush}"
+                        BorderBrush="{DynamicResource DangerBorderBrush}"
                         BorderThickness="1"
                         CornerRadius="10"
                         Visibility="{Binding HasBlockingIssues, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -473,11 +536,11 @@
                            FontWeight="SemiBold"
                            Text="Configure Archipelago Settings" />
                 <StackPanel Grid.Row="2">
-                    <TextBlock Foreground="DimGray"
+                    <TextBlock Foreground="{DynamicResource SubtleTextBrush}"
                                TextWrapping="Wrap"
                                Text="{Binding FileExplainer}" />
                     <TextBlock Margin="0,8,0,0"
-                               Foreground="DimGray"
+                               Foreground="{DynamicResource SubtleTextBrush}"
                                TextWrapping="Wrap"
                                Text="{Binding HeaderDescription}" />
                 </StackPanel>
@@ -504,7 +567,7 @@
                             <TextBox Text="{Binding SlotName, UpdateSourceTrigger=PropertyChanged}"
                                      MaxLength="32" />
                             <TextBlock Margin="0,4,0,0"
-                                       Foreground="#FFB71C1C"
+                                       Foreground="{DynamicResource DangerTextBrush}"
                                        TextWrapping="Wrap"
                                        Visibility="{Binding HasSlotNameError, Converter={StaticResource BooleanToVisibilityConverter}}"
                                        Text="{Binding SlotNameError}" />
@@ -544,7 +607,7 @@
                             <ComboBox Width="260"
                                       HorizontalAlignment="Left"
                                       ItemsSource="{Binding CheckGuidanceOptions}"
-                                      DisplayMemberPath="Label"
+                                      ItemTemplate="{StaticResource OptionLabelTemplate}"
                                       SelectedItem="{Binding SelectedCheckGuidance, UpdateSourceTrigger=PropertyChanged}" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="Controls the in-game world markers that point to your unchecked locations. Markers shows neutral [AP] markers you can toggle and tune in-game. Markers + rarity colours also unlocks optional colours that reveal each check's item importance (hint-level information). Off disables the markers entirely. The on-screen area header and check counts are always shown." />
@@ -556,7 +619,7 @@
                             <ComboBox Width="380"
                                       HorizontalAlignment="Left"
                                       ItemsSource="{Binding MarkerDetailOptions}"
-                                      DisplayMemberPath="Label"
+                                      ItemTemplate="{StaticResource OptionLabelTemplate}"
                                       SelectedItem="{Binding SelectedMarkerDetail, UpdateSourceTrigger=PropertyChanged}" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="How much a marker is allowed to say. This is a ceiling, not a fixed setting: players pick their own level in the in-game Guidance tab, but never above what you choose here. Locate is the recommended default - it names the item as it appeared in vanilla, what it is sitting in, and how to reach it, without revealing what the multiworld actually placed. Identify does reveal that, and is what a bought hint always shows." />
@@ -620,7 +683,7 @@
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="Unlocked Typewriters" />
                             <Border Padding="8"
-                                    BorderBrush="#FFE0E0E0"
+                                    BorderBrush="{DynamicResource SubtleBorderBrush}"
                                     BorderThickness="1"
                                     CornerRadius="8">
                                 <ScrollViewer MaxHeight="200"
@@ -652,7 +715,7 @@
                                      Tag="{Binding SearchHint}"
                                      Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
                             <Border Padding="8"
-                                    BorderBrush="#FFE0E0E0"
+                                    BorderBrush="{DynamicResource SubtleBorderBrush}"
                                     BorderThickness="1"
                                     CornerRadius="8">
                                 <ScrollViewer MaxHeight="220"
@@ -669,7 +732,7 @@
                                                                TextTrimming="CharacterEllipsis"
                                                                Text="{Binding DisplayName}">
                                                         <TextBlock.Style>
-                                                            <Style TargetType="TextBlock">
+                                                            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
                                                                 <Style.Triggers>
                                                                     <DataTrigger Binding="{Binding IsGroup}" Value="True">
                                                                         <Setter Property="FontWeight" Value="SemiBold" />
@@ -702,7 +765,7 @@
                                      Tag="{Binding SearchHint}"
                                      Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
                             <Border Padding="8"
-                                    BorderBrush="#FFE0E0E0"
+                                    BorderBrush="{DynamicResource SubtleBorderBrush}"
                                     BorderThickness="1"
                                     CornerRadius="8">
                                 <ScrollViewer MaxHeight="220"
@@ -719,7 +782,7 @@
                                                                TextTrimming="CharacterEllipsis"
                                                                Text="{Binding DisplayName}">
                                                         <TextBlock.Style>
-                                                            <Style TargetType="TextBlock">
+                                                            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
                                                                 <Style.Triggers>
                                                                     <DataTrigger Binding="{Binding IsGroup}" Value="True">
                                                                         <Setter Property="FontWeight" Value="SemiBold" />
@@ -751,13 +814,13 @@
                         <TextBlock FontWeight="SemiBold"
                                    Text="YAML Preview" />
                         <TextBlock Margin="0,4,0,0"
-                                   Foreground="DimGray"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
                                    TextWrapping="Wrap"
                                    Text="This updates automatically from the settings above. Save or copy it to send the file to your host - your settings are remembered here either way." />
                         <Border Margin="0,8,0,0"
                                 Padding="12"
-                                Background="#FFF8F8F8"
-                                BorderBrush="#FFE0E0E0"
+                                Background="{DynamicResource SurfaceAltBrush}"
+                                BorderBrush="{DynamicResource SubtleBorderBrush}"
                                 BorderThickness="1"
                                 CornerRadius="8">
                             <TextBox Background="Transparent"
@@ -769,7 +832,7 @@
                                      AcceptsReturn="True" />
                         </Border>
                         <TextBlock Margin="0,10,0,0"
-                                   Foreground="DimGray"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
                                    TextWrapping="Wrap"
                                    Text="{Binding StatusText}" />
 
@@ -781,8 +844,8 @@
                              organizer is not sending anything to anyone. -->
                         <Border Margin="0,16,0,0"
                                 Padding="12,10"
-                                Background="#FFE3F2FD"
-                                BorderBrush="#FF90CAF9"
+                                Background="{DynamicResource InfoBackgroundBrush}"
+                                BorderBrush="{DynamicResource InfoBorderBrush}"
                                 BorderThickness="1"
                                 CornerRadius="8"
                                 Visibility="{Binding ShowJoinerHandoff, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -830,7 +893,7 @@
                            FontWeight="SemiBold"
                            Text="Host a Multiworld" />
                 <TextBlock Margin="0,8,0,6"
-                           Foreground="DimGray"
+                           Foreground="{DynamicResource SubtleTextBrush}"
                            TextWrapping="Wrap"
                            Text="Generating a multiworld happens on your own Archipelago install - this guide walks you through it one step at a time. Your progress is saved, so you can close this window and come back anytime." />
                 <TextBlock Margin="0,0,0,12"
@@ -852,7 +915,7 @@
                                        Margin="10,0,0,0"
                                        VerticalAlignment="Center"
                                        FontWeight="SemiBold"
-                                       Foreground="#FF11662D"
+                                       Foreground="{DynamicResource SuccessTextBrush}"
                                        Text="✓ Done"
                                        Visibility="{Binding Step1Done, Converter={StaticResource BooleanToVisibilityConverter}}" />
                             <TextBlock Style="{StaticResource GuidanceStepTitleStyle}">
@@ -860,7 +923,7 @@
                             </TextBlock>
                         </DockPanel>
                         <TextBlock Margin="38,6,0,0"
-                                   Foreground="DimGray"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
                                    TextWrapping="Wrap">
                             <Run Text="RE4R needs Archipelago " /><Run Text="{Binding ApVersionPin, Mode=OneWay}" /><Run Text=" exactly - newer versions may not work with RE4R. If it's already installed, the launcher finds it below; otherwise install it first (a normal Windows installer), then come back." />
                         </TextBlock>
@@ -883,12 +946,12 @@
                                    Text="{Binding ApInstallStatusText}" />
                         <Border Margin="38,8,0,0"
                                 Padding="10,6"
-                                Background="#FFFFF8E1"
-                                BorderBrush="#FFFFCC80"
+                                Background="{DynamicResource WarningBackgroundBrush}"
+                                BorderBrush="{DynamicResource WarningBorderBrush}"
                                 BorderThickness="1"
                                 CornerRadius="8"
                                 Visibility="{Binding HasApVersionNote, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <TextBlock Foreground="#FF8D6E00"
+                            <TextBlock Foreground="{DynamicResource WarningTextBrush}"
                                        TextWrapping="Wrap"
                                        Text="{Binding ApVersionNoteText}" />
                         </Border>
@@ -916,14 +979,14 @@
                                        Margin="10,0,0,0"
                                        VerticalAlignment="Center"
                                        FontWeight="SemiBold"
-                                       Foreground="#FF11662D"
+                                       Foreground="{DynamicResource SuccessTextBrush}"
                                        Text="✓ Done"
                                        Visibility="{Binding Step2Done, Converter={StaticResource BooleanToVisibilityConverter}}" />
                             <TextBlock Style="{StaticResource GuidanceStepTitleStyle}"
                                        Text="Add the RE4R world to Archipelago" />
                         </DockPanel>
                         <TextBlock Margin="38,6,0,0"
-                                   Foreground="DimGray"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
                                    TextWrapping="Wrap">
                             <Run Text="Archipelago doesn't know Resident Evil 4 Remake out of the box - an apworld is the file that teaches it a game. " /><Run Text="{Binding ApworldVersionText, Mode=OneWay}" />
                         </TextBlock>
@@ -958,14 +1021,14 @@
                                        Margin="10,0,0,0"
                                        VerticalAlignment="Center"
                                        FontWeight="SemiBold"
-                                       Foreground="#FF11662D"
+                                       Foreground="{DynamicResource SuccessTextBrush}"
                                        Text="✓ Done"
                                        Visibility="{Binding OwnYamlReady, Converter={StaticResource BooleanToVisibilityConverter}}" />
                             <TextBlock Style="{StaticResource GuidanceStepTitleStyle}"
                                        Text="Set up your own settings file" />
                         </DockPanel>
                         <TextBlock Margin="38,6,0,0"
-                                   Foreground="DimGray"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
                                    TextWrapping="Wrap"
                                    Text="You play too - these settings decide how YOUR RE4R plays and which slot name is yours. Your file joins everyone else's in the next step." />
                         <StackPanel Margin="38,10,0,0"
@@ -995,14 +1058,14 @@
                                        Margin="10,0,0,0"
                                        VerticalAlignment="Center"
                                        FontWeight="SemiBold"
-                                       Foreground="#FF11662D"
+                                       Foreground="{DynamicResource SuccessTextBrush}"
                                        Text="✓ Done"
                                        Visibility="{Binding Step3Done, Converter={StaticResource BooleanToVisibilityConverter}}" />
                             <TextBlock Style="{StaticResource GuidanceStepTitleStyle}"
                                        Text="Collect everyone's settings files" />
                         </DockPanel>
                         <TextBlock Margin="38,6,0,0"
-                                   Foreground="DimGray"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
                                    TextWrapping="Wrap"
                                    Text="Every player sends you their settings file (YAML) - any Archipelago game, not just RE4R. Add them all here, including your own from the previous step." />
                         <StackPanel Margin="38,10,0,0"
@@ -1021,8 +1084,8 @@
                                 <DataTemplate>
                                     <Border Margin="0,0,0,6"
                                             Padding="10,6"
-                                            Background="#FFF8F8F8"
-                                            BorderBrush="#FFE6E6E6"
+                                            Background="{DynamicResource SurfaceAltBrush}"
+                                            BorderBrush="{DynamicResource SubtleBorderBrush}"
                                             BorderThickness="1"
                                             CornerRadius="8">
                                         <Grid>
@@ -1034,11 +1097,11 @@
                                                 <TextBlock FontWeight="SemiBold"
                                                            TextWrapping="Wrap"
                                                            Text="{Binding DisplayTitle}" />
-                                                <TextBlock Foreground="DimGray"
+                                                <TextBlock Foreground="{DynamicResource SubtleTextBrush}"
                                                            TextWrapping="Wrap"
                                                            Text="{Binding FileNameDetail}"
                                                            Visibility="{Binding IsParsed, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                                                <TextBlock Foreground="#FF8D6E00"
+                                                <TextBlock Foreground="{DynamicResource WarningTextBrush}"
                                                            TextWrapping="Wrap"
                                                            Text="{Binding IssueText}"
                                                            Visibility="{Binding HasIssue, Converter={StaticResource BooleanToVisibilityConverter}}" />
@@ -1068,12 +1131,12 @@
                                    Text="{Binding YamlPanelStatusText}" />
                         <Border Margin="38,8,0,0"
                                 Padding="10,6"
-                                Background="#FFFFF8E1"
-                                BorderBrush="#FFFFCC80"
+                                Background="{DynamicResource WarningBackgroundBrush}"
+                                BorderBrush="{DynamicResource WarningBorderBrush}"
                                 BorderThickness="1"
                                 CornerRadius="8"
                                 Visibility="{Binding HasPlayersFolderWarning, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <TextBlock Foreground="#FF8D6E00"
+                            <TextBlock Foreground="{DynamicResource WarningTextBrush}"
                                        TextWrapping="Wrap"
                                        Text="{Binding PlayersFolderWarningText}" />
                         </Border>
@@ -1095,14 +1158,14 @@
                                        Margin="10,0,0,0"
                                        VerticalAlignment="Center"
                                        FontWeight="SemiBold"
-                                       Foreground="#FF11662D"
+                                       Foreground="{DynamicResource SuccessTextBrush}"
                                        Text="✓ Done"
                                        Visibility="{Binding Step4Done, Converter={StaticResource BooleanToVisibilityConverter}}" />
                             <TextBlock Style="{StaticResource GuidanceStepTitleStyle}"
                                        Text="Generate the multiworld" />
                         </DockPanel>
                         <TextBlock Margin="38,6,0,0"
-                                   Foreground="DimGray"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
                                    TextWrapping="Wrap"
                                    Text="Open your Archipelago folder and double-click ArchipelagoGenerate.exe (on Linux, the provided generator). It reads every settings file in Players and writes an AP_*.zip into the output folder. If it fails, the error names the settings file or game that broke - fix that player's file or add the missing world; this app can't diagnose other games' errors." />
                         <StackPanel Margin="38,10,0,0"
@@ -1138,14 +1201,14 @@
                                        Margin="10,0,0,0"
                                        VerticalAlignment="Center"
                                        FontWeight="SemiBold"
-                                       Foreground="#FF11662D"
+                                       Foreground="{DynamicResource SuccessTextBrush}"
                                        Text="✓ Done"
                                        Visibility="{Binding Step6Done, Converter={StaticResource BooleanToVisibilityConverter}}" />
                             <TextBlock Style="{StaticResource GuidanceStepTitleStyle}"
                                        Text="Upload it, create the room, paste the details here" />
                         </DockPanel>
                         <TextBlock Margin="38,6,0,0"
-                                   Foreground="DimGray"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
                                    TextWrapping="Wrap"
                                    Text="On the uploads page, upload the AP_*.zip from your output folder (the zip itself - NOT the spoiler log), then click Create New Room. The room page that opens shows the room address - grab it and the page link below while you're there." />
                         <StackPanel Margin="38,10,0,0"
@@ -1174,7 +1237,7 @@
                                 <TextBox AutomationProperties.Name="Room address"
                                          Text="{Binding RoomAddress, UpdateSourceTrigger=PropertyChanged}" />
                                 <TextBlock Margin="0,4,0,0"
-                                           Foreground="DimGray"
+                                           Foreground="{DynamicResource SubtleTextBrush}"
                                            TextWrapping="Wrap"
                                            Text="Looks like archipelago.gg:38281 - it's shown on the room page." />
                             </StackPanel>
@@ -1187,7 +1250,7 @@
                                 <TextBox AutomationProperties.Name="Room page link"
                                          Text="{Binding RoomUrl, UpdateSourceTrigger=PropertyChanged}" />
                                 <TextBlock Margin="0,4,0,0"
-                                           Foreground="DimGray"
+                                           Foreground="{DynamicResource SubtleTextBrush}"
                                            TextWrapping="Wrap"
                                            Text="The archipelago.gg/room/... link from your browser. Rooms fall asleep after inactivity - opening this link wakes yours." />
                             </StackPanel>
@@ -1210,14 +1273,14 @@
                                        Margin="10,0,0,0"
                                        VerticalAlignment="Center"
                                        FontWeight="SemiBold"
-                                       Foreground="#FF11662D"
+                                       Foreground="{DynamicResource SuccessTextBrush}"
                                        Text="✓ Done"
                                        Visibility="{Binding Step7Done, Converter={StaticResource BooleanToVisibilityConverter}}" />
                             <TextBlock Style="{StaticResource GuidanceStepTitleStyle}"
                                        Text="Send each friend the address and their slot name" />
                         </DockPanel>
                         <TextBlock Margin="38,6,0,0"
-                                   Foreground="DimGray"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
                                    TextWrapping="Wrap"
                                    Text="Each player types the room address plus their own slot name into Join a Session - the slot name must match their settings file exactly, including capitals." />
                         <TextBlock Margin="38,8,0,0"
@@ -1233,7 +1296,7 @@
                                     Content="Continue to Join - I'm Playing Too" />
                         </StackPanel>
                         <TextBlock Margin="38,8,0,0"
-                                   Foreground="DimGray"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
                                    TextWrapping="Wrap"
                                    Text="Continue to Join patches YOUR RE4R against the new room. Everyone else uses Join a Session in their own launcher with the details you send them." />
                     </StackPanel>
@@ -1243,7 +1306,7 @@
                      always free and Next unlocks when the step auto-detects
                      as done. -->
                 <TextBlock Margin="0,4,0,0"
-                           Foreground="DimGray"
+                           Foreground="{DynamicResource SubtleTextBrush}"
                            Text="{Binding StepProgressText}" />
             </StackPanel>
         </DataTemplate>
@@ -1286,8 +1349,8 @@
                             <Border Grid.Row="2"
                                     Margin="0,0,0,16"
                                     Padding="12,8"
-                                    Background="#FFE3F2FD"
-                                    BorderBrush="#FF90CAF9"
+                                    Background="{DynamicResource InfoBackgroundBrush}"
+                                    BorderBrush="{DynamicResource InfoBorderBrush}"
                                     BorderThickness="1"
                                     CornerRadius="8"
                                     Visibility="{Binding ShowJoinerHandoff, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -1334,11 +1397,11 @@
                                 <StackPanel Grid.Column="1">
                                     <TextBox Text="{Binding Session.ServerAddress, UpdateSourceTrigger=PropertyChanged}" />
                                     <TextBlock Margin="0,4,0,0"
-                                               Foreground="DimGray"
+                                               Foreground="{DynamicResource SubtleTextBrush}"
                                                TextWrapping="Wrap"
                                                Text="Looks like archipelago.gg:38281 - your host sends it to you. Just the port number on its own works too." />
                                     <TextBlock Margin="0,3,0,0"
-                                               Foreground="DimGray"
+                                               Foreground="{DynamicResource SubtleTextBrush}"
                                                TextWrapping="Wrap"
                                                Text="Rooms hosted elsewhere, including one you run yourself, should also work - that path is largely untested, so treat it as use at your own risk." />
                                 </StackPanel>
@@ -1351,7 +1414,7 @@
                                             Grid.Column="1">
                                     <TextBox Text="{Binding Session.SlotName, UpdateSourceTrigger=PropertyChanged}" />
                                     <TextBlock Margin="0,4,0,0"
-                                               Foreground="DimGray"
+                                               Foreground="{DynamicResource SubtleTextBrush}"
                                                TextWrapping="Wrap"
                                                Text="Your name inside the multiworld. It must match the settings file you sent exactly, including capitalization." />
                                 </StackPanel>
@@ -1364,7 +1427,7 @@
                                             Grid.Column="1">
                                     <TextBox Text="{Binding Session.RoomUrl, UpdateSourceTrigger=PropertyChanged}" />
                                     <TextBlock Margin="0,4,0,0"
-                                               Foreground="DimGray"
+                                               Foreground="{DynamicResource SubtleTextBrush}"
                                                TextWrapping="Wrap"
                                                Text="The archipelago.gg/room/... link, if you have it. Rooms sleep after inactivity - the launcher uses this to help you wake yours later." />
                                 </StackPanel>
@@ -1378,7 +1441,7 @@
 
                                 <TextBlock Grid.Row="8"
                                            Grid.ColumnSpan="2"
-                                           Foreground="DimGray"
+                                           Foreground="{DynamicResource SubtleTextBrush}"
                                            TextWrapping="Wrap"
                                            Text="Your host will give you these details." />
                             </Grid>
@@ -1402,7 +1465,7 @@
                                            FontWeight="SemiBold"
                                            Text="BioRand Options" />
                                 <TextBlock Margin="0,6,0,0"
-                                           Foreground="DimGray"
+                                           Foreground="{DynamicResource SubtleTextBrush}"
                                            TextWrapping="Wrap"
                                            Text="BioRand is the randomizer that rebuilds your copy of the game world. These settings change only YOUR game - they cannot move multiworld items or affect other players. The defaults are fine if you just want to play." />
                             </StackPanel>
@@ -1425,8 +1488,8 @@
                                          informational blue as the other guidance panels. -->
                                     <Border Margin="0,8,0,0"
                                             Padding="12,8"
-                                            Background="#FFE3F2FD"
-                                            BorderBrush="#FF90CAF9"
+                                            Background="{DynamicResource InfoBackgroundBrush}"
+                                            BorderBrush="{DynamicResource InfoBorderBrush}"
                                             BorderThickness="1"
                                             CornerRadius="8"
                                             Visibility="{Binding BioRandOptions.HasRandomEventsNotice, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -1460,17 +1523,17 @@
                                                         <Border x:Name="CardBorder"
                                                                 Width="250"
                                                                 Padding="12"
-                                                                Background="White"
-                                                                BorderBrush="#FFD4D4D4"
+                                                                Background="{DynamicResource SurfaceBrush}"
+                                                                BorderBrush="{DynamicResource SubtleBorderBrush}"
                                                                 BorderThickness="1"
                                                                 CornerRadius="8">
                                                             <ContentPresenter />
                                                         </Border>
                                                         <ControlTemplate.Triggers>
                                                             <Trigger Property="IsSelected" Value="True">
-                                                                <Setter TargetName="CardBorder" Property="BorderBrush" Value="#FF2E7D46" />
+                                                                <Setter TargetName="CardBorder" Property="BorderBrush" Value="{DynamicResource SuccessTextBrush}" />
                                                                 <Setter TargetName="CardBorder" Property="BorderThickness" Value="2" />
-                                                                <Setter TargetName="CardBorder" Property="Background" Value="#FFF0FAF3" />
+                                                                <Setter TargetName="CardBorder" Property="Background" Value="{DynamicResource SuccessBackgroundBrush}" />
                                                             </Trigger>
                                                             <Trigger Property="IsEnabled" Value="False">
                                                                 <Setter TargetName="CardBorder" Property="Opacity" Value="0.55" />
@@ -1490,16 +1553,16 @@
                                                                Text="{Binding DisplayName}" />
                                                     <Border Margin="8,0,0,0"
                                                             Padding="6,1"
-                                                            Background="#FFEFEFEF"
+                                                            Background="{DynamicResource SurfaceAltBrush}"
                                                             CornerRadius="8"
                                                             Visibility="{Binding IsAvailable, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
                                                         <TextBlock FontSize="11"
-                                                                   Foreground="#FF555555"
+                                                                   Foreground="{DynamicResource SubtleTextBrush}"
                                                                    Text="COMING SOON" />
                                                     </Border>
                                                 </StackPanel>
                                                 <TextBlock Margin="0,4,0,0"
-                                                           Foreground="DimGray"
+                                                           Foreground="{DynamicResource SubtleTextBrush}"
                                                            TextWrapping="Wrap"
                                                            Text="{Binding Description}" />
                                             </StackPanel>
@@ -1508,7 +1571,7 @@
                                 </ListBox>
 
                                 <TextBlock Grid.Row="4"
-                                           Foreground="DimGray"
+                                           Foreground="{DynamicResource SubtleTextBrush}"
                                            TextWrapping="Wrap"
                                            Text="{Binding BioRandOptions.ModeStatusText}" />
                             </Grid>
@@ -1547,8 +1610,8 @@
                                 <Border Grid.Row="1"
                                         Margin="0,0,0,8"
                                         Padding="10,8"
-                                        Background="#FFEFF4FB"
-                                        BorderBrush="#FFB8CDE4"
+                                        Background="{DynamicResource InfoBackgroundBrush}"
+                                        BorderBrush="{DynamicResource InfoBorderBrush}"
                                         BorderThickness="1"
                                         CornerRadius="4"
                                         Visibility="{Binding BioRandOptions.IsLocked, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -1560,7 +1623,7 @@
                                                 Command="{Binding BioRandOptions.UnlockCommand}"
                                                 Content="Change Options" />
                                         <TextBlock VerticalAlignment="Center"
-                                                   Foreground="#FF31506F"
+                                                   Foreground="{DynamicResource InfoTextBrush}"
                                                    TextWrapping="Wrap"
                                                    Text="{Binding BioRandOptions.PinnedNotice}" />
                                     </DockPanel>
@@ -1587,7 +1650,7 @@
                                                             <StackPanel Margin="0,0,0,10">
                                                                 <TextBlock Margin="0,6,0,5"
                                                                            FontWeight="SemiBold"
-                                                                           Foreground="DimGray"
+                                                                           Foreground="{DynamicResource SubtleTextBrush}"
                                                                            Text="{Binding Title}"
                                                                            Visibility="{Binding HasTitle, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
@@ -1616,7 +1679,7 @@
                                                                                 <!-- Display-only rows (currently just the Random Events pointer:
                                                                                      AP authors the event set now, so the choice lives in the YAML). -->
                                                                                 <TextBlock FontWeight="SemiBold"
-                                                                                           Foreground="DimGray"
+                                                                                           Foreground="{DynamicResource SubtleTextBrush}"
                                                                                            TextWrapping="Wrap"
                                                                                            Text="{Binding Label}"
                                                                                            Visibility="{Binding IsNote, Converter={StaticResource BooleanToVisibilityConverter}}" />
@@ -1645,14 +1708,14 @@
                                                                                                    MinWidth="42"
                                                                                                    VerticalAlignment="Center"
                                                                                                    TextAlignment="Right"
-                                                                                                   Foreground="DimGray"
+                                                                                                   Foreground="{DynamicResource SubtleTextBrush}"
                                                                                                    Text="{Binding ValueText}" />
                                                                                     </StackPanel>
                                                                                 </Grid>
 
                                                                                 <TextBlock Margin="22,1,0,0"
                                                                                            FontSize="11"
-                                                                                           Foreground="#FF8A8A8A"
+                                                                                           Foreground="{DynamicResource SubtleTextBrush}"
                                                                                            TextWrapping="Wrap"
                                                                                            Text="{Binding Description}"
                                                                                            Visibility="{Binding ShowInlineDescription, Converter={StaticResource BooleanToVisibilityConverter}}" />
@@ -1660,7 +1723,7 @@
                                                                                 <TextBlock Margin="22,2,0,0"
                                                                                            FontSize="11"
                                                                                            FontWeight="SemiBold"
-                                                                                           Foreground="#FF1565C0"
+                                                                                           Foreground="{DynamicResource InfoTextBrush}"
                                                                                            TextWrapping="Wrap"
                                                                                            Text="{Binding ForcedNotice}"
                                                                                            Visibility="{Binding HasForcedNotice, Converter={StaticResource BooleanToVisibilityConverter}}" />
@@ -1679,7 +1742,7 @@
                             </Grid>
 
                             <TextBlock Grid.Row="6"
-                                       Foreground="DimGray"
+                                       Foreground="{DynamicResource SubtleTextBrush}"
                                        TextWrapping="Wrap"
                                        Text="Patching rebuilds your copy of the game world for this multiworld. It takes a few minutes." />
                         </Grid>
@@ -1705,7 +1768,7 @@
                            FontWeight="SemiBold"
                            Text="{Binding Title}" />
                 <TextBlock Margin="0,8,0,0"
-                           Foreground="DimGray"
+                           Foreground="{DynamicResource SubtleTextBrush}"
                            TextWrapping="Wrap"
                            Text="{Binding Description}" />
 
@@ -1718,8 +1781,8 @@
                      of progress; errors are shown ONCE, in the global banner) -->
                 <Border Margin="0,14,0,0"
                         Padding="14"
-                        Background="#FFF8F8F8"
-                        BorderBrush="#FFE0E0E0"
+                        Background="{DynamicResource SurfaceAltBrush}"
+                        BorderBrush="{DynamicResource SubtleBorderBrush}"
                         BorderThickness="1"
                         CornerRadius="10">
                     <StackPanel>
@@ -1733,18 +1796,18 @@
                                         <TextBlock TextWrapping="Wrap"
                                                    Text="{Binding Label}">
                                             <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="Gray" />
+                                                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                                    <Setter Property="Foreground" Value="{DynamicResource SubtleTextBrush}" />
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding IsRunning}" Value="True">
-                                                            <Setter Property="Foreground" Value="Black" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
                                                             <Setter Property="FontWeight" Value="SemiBold" />
                                                         </DataTrigger>
                                                         <DataTrigger Binding="{Binding IsDone}" Value="True">
-                                                            <Setter Property="Foreground" Value="#FF11662D" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource SuccessTextBrush}" />
                                                         </DataTrigger>
                                                         <DataTrigger Binding="{Binding IsFailed}" Value="True">
-                                                            <Setter Property="Foreground" Value="#FFB71C1C" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource DangerTextBrush}" />
                                                             <Setter Property="FontWeight" Value="SemiBold" />
                                                         </DataTrigger>
                                                     </Style.Triggers>
@@ -1756,7 +1819,7 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                         <TextBlock Margin="22,8,0,0"
-                                   Foreground="DimGray"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
                                    TextWrapping="Wrap"
                                    Text="{Binding Action.StatusText}" />
                     </StackPanel>
@@ -1767,15 +1830,15 @@
                      it gets its own panel rather than another gray paragraph. -->
                 <Border Margin="0,16,0,0"
                         Padding="14"
-                        Background="#FFEFF8F1"
-                        BorderBrush="#FF9CCBAA"
+                        Background="{DynamicResource SuccessBackgroundBrush}"
+                        BorderBrush="{DynamicResource SuccessBorderBrush}"
                         BorderThickness="1"
                         CornerRadius="10"
                         Visibility="{Binding HasCompletionText, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <StackPanel>
                         <TextBlock FontSize="17"
                                    FontWeight="SemiBold"
-                                   Foreground="#FF11662D"
+                                   Foreground="{DynamicResource SuccessTextBrush}"
                                    Text="Ready to play" />
                         <TextBlock Margin="0,8,0,0"
                                    TextWrapping="Wrap"
@@ -1820,8 +1883,8 @@
         <StackPanel Grid.Row="0">
             <Border Margin="0,0,0,12"
                     Padding="12,8"
-                    Background="#FFFDECEC"
-                    BorderBrush="#FFE57373"
+                    Background="{DynamicResource DangerBackgroundBrush}"
+                    BorderBrush="{DynamicResource DangerBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
                     Visibility="{Binding Action.HasError, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -1832,7 +1895,7 @@
                     </Grid.ColumnDefinitions>
                     <TextBlock VerticalAlignment="Center"
                                FontWeight="SemiBold"
-                               Foreground="#FFB71C1C"
+                               Foreground="{DynamicResource DangerTextBrush}"
                                TextWrapping="Wrap"
                                Text="{Binding Action.ErrorMessage}" />
                     <Button Grid.Column="1"
@@ -1845,12 +1908,12 @@
             </Border>
             <Border Margin="0,0,0,12"
                     Padding="12,8"
-                    Background="#FFFFF8E1"
-                    BorderBrush="#FFFFCC80"
+                    Background="{DynamicResource WarningBackgroundBrush}"
+                    BorderBrush="{DynamicResource WarningBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
                     Visibility="{Binding Session.HasWarning, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <TextBlock Foreground="#FF8D6E00"
+                <TextBlock Foreground="{DynamicResource WarningTextBrush}"
                            TextWrapping="Wrap"
                            Text="{Binding Session.WarningText}" />
             </Border>
@@ -1859,8 +1922,8 @@
                  blocks anything the player was about to do. -->
             <Border Margin="0,0,0,12"
                     Padding="12,8"
-                    Background="#FFE3F2FD"
-                    BorderBrush="#FF90CAF9"
+                    Background="{DynamicResource InfoBackgroundBrush}"
+                    BorderBrush="{DynamicResource InfoBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
                     Visibility="{Binding HasUpdate, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -1871,7 +1934,7 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <TextBlock VerticalAlignment="Center"
-                               Foreground="#FF0D47A1"
+                               Foreground="{DynamicResource InfoTextBrush}"
                                TextWrapping="Wrap"
                                Text="{Binding UpdateBannerText}" />
                     <Button Grid.Column="1"
@@ -1892,8 +1955,8 @@
 
         <Border Grid.Row="1"
                 Padding="0"
-                Background="#FFF9F9F9"
-                BorderBrush="#FFE3E3E3"
+                Background="{DynamicResource SurfaceAltBrush}"
+                BorderBrush="{DynamicResource SubtleBorderBrush}"
                 BorderThickness="1"
                 CornerRadius="14">
             <!-- Page-level scroll is a property of the shell so EVERY screen
@@ -1928,7 +1991,10 @@
                             Content="{Binding Label}"
                             Visibility="{Binding IsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <Button.Style>
-                            <Style TargetType="Button">
+                            <!-- BasedOn matters here: an inline style with none
+                                 drops back to WPF's default light chrome, which
+                                 is how these stayed pale in the dark theme. -->
+                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsPrimary}" Value="True">
                                         <Setter Property="FontWeight" Value="SemiBold" />
@@ -1947,8 +2013,8 @@
              that is the part players act on. -->
         <Border Grid.Row="3"
                 Padding="12,8"
-                Background="#FFF8F8F8"
-                BorderBrush="#FFE0E0E0"
+                Background="{DynamicResource SurfaceAltBrush}"
+                BorderBrush="{DynamicResource SubtleBorderBrush}"
                 BorderThickness="1"
                 CornerRadius="10">
             <!-- ExpandDirection=Up: the drawer opens upward, so the chevron
@@ -1958,7 +2024,7 @@
                 <Expander.Header>
                     <TextBlock Margin="4,0,0,0"
                                FontWeight="SemiBold"
-                               Foreground="#FF555555"
+                               Foreground="{DynamicResource SubtleTextBrush}"
                                TextTrimming="CharacterEllipsis"
                                Text="{Binding Action.StatusText}" />
                 </Expander.Header>
@@ -1987,12 +2053,12 @@
             </Grid.ColumnDefinitions>
             <TextBlock VerticalAlignment="Center"
                        HorizontalAlignment="Left"
-                       Foreground="DimGray"
+                       Foreground="{DynamicResource SubtleTextBrush}"
                        TextTrimming="CharacterEllipsis"><Run Text="{Binding Session.CurrentSessionText, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding Session.LastPatchedText, Mode=OneWay}" /></TextBlock>
             <TextBlock Grid.Column="1"
                        HorizontalAlignment="Center"
                        VerticalAlignment="Center"
-                       Foreground="DimGray">
+                       Foreground="{DynamicResource SubtleTextBrush}">
                 <Run Text="Powered by " />
                 <Hyperlink Click="BioRandLink_OnClick">
                     <Run Text="BioRand" />
@@ -2001,6 +2067,18 @@
             <StackPanel Grid.Column="2"
                         HorizontalAlignment="Right"
                         Orientation="Horizontal">
+                <!-- Theme switcher. Bottom-right corner with the other utility
+                     buttons; handled in code-behind because the theme is a
+                     WPF-only concern and the view models here are shared
+                     sources compiled by the Linux front end too. -->
+                <ToggleButton x:Name="ThemeToggleButton"
+                              Margin="0,0,10,0"
+                              VerticalAlignment="Center"
+                              AutomationProperties.Name="Theme"
+                              Checked="ThemeToggle_OnChanged"
+                              Unchecked="ThemeToggle_OnChanged"
+                              Style="{StaticResource ThemeSwitchStyle}"
+                              ToolTip="Switch between the dark and light look." />
                 <Button Padding="10,2"
                         Margin="0,0,6,0"
                         Command="{Binding GenerateBugReportCommand}"
