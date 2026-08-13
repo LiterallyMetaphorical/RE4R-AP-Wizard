@@ -23,6 +23,7 @@ UNPAINTED = {
     "ItemsControl", "ContentPresenter", "ContentControl", "Window",
     "BooleanToVisibilityConverter", "InverseBooleanToVisibilityConverter",
     "ThemeBrushConverter", "Setter.Value", "Style.Triggers", "Grid.RowDefinitions",
+    "ItemsPresenter",
     "Grid.ColumnDefinitions", "UniformGrid", "Path", "Ellipse", "Rectangle",
     "Viewbox", "Canvas", "Separator", "Image", "Line", "Polygon",
     # Brush primitives, not controls: they ARE the colour, so there is nothing

@@ -8,8 +8,8 @@
         mc:Ignorable="d"
         Title="RE4R AP Wizard"
         Background="{DynamicResource AppBackgroundBrush}"
-        Width="1360"
-        Height="940"
+        Width="1500"
+        Height="920"
         MinWidth="1100"
         MinHeight="700">
     <Window.Resources>
@@ -76,6 +76,105 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+        </Style>
+
+        <!-- Short label for a segmented bar. The full Label spells the option
+             out and is far too long to sit in a segment; the card's hint text
+             underneath still explains every choice. -->
+        <DataTemplate x:Key="OptionShortLabelTemplate">
+            <TextBlock Text="{Binding Short}" />
+        </DataTemplate>
+
+        <!-- Segmented picker: one bar, one segment per choice, the current one
+             filled. Replaces a dropdown wherever the list is short enough to
+             show at once, which turns "open it, read it, pick" into a single
+             glance and a single click. A ListBox rather than a row of buttons,
+             so selection and keyboard behaviour come for free. -->
+        <Style x:Key="SegmentedPickerStyle" TargetType="ListBox">
+            <Setter Property="Background" Value="{DynamicResource ControlBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SubtleBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Disabled" />
+            <Setter Property="ItemsPanel">
+                <Setter.Value>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBox">
+                        <!-- 2px of padding so a square segment never has to
+                             paint into the container's rounded corner: WPF does
+                             not clip children to a CornerRadius. -->
+                        <Border Padding="2"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="7"
+                                SnapsToDevicePixels="True">
+                            <ItemsPresenter />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="ItemContainerStyle">
+                <Setter.Value>
+                    <Style TargetType="ListBoxItem">
+                        <Setter Property="Cursor" Value="Hand" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ListBoxItem">
+                                    <Border x:Name="Seg"
+                                            Padding="15,7"
+                                            Background="Transparent"
+                                            CornerRadius="5"
+                                            SnapsToDevicePixels="True"
+                                            TextElement.Foreground="{DynamicResource SubtleTextBrush}">
+                                        <ContentPresenter HorizontalAlignment="Center"
+                                                          VerticalAlignment="Center" />
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Seg" Property="Background" Value="{DynamicResource SurfaceAltBrush}" />
+                                            <Setter TargetName="Seg" Property="TextElement.Foreground" Value="{DynamicResource TextBrush}" />
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="Seg" Property="Background" Value="{DynamicResource AccentBrush}" />
+                                            <Setter TargetName="Seg" Property="TextElement.Foreground" Value="{DynamicResource AccentForegroundBrush}" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Mini header that opens each group of settings. -->
+        <Style x:Key="SettingsSectionHeaderStyle" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource SubtleTextBrush}" />
+        </Style>
+
+        <!-- The header plus a rule across the card width. Without the rule it
+             sat close enough to the first card's own title to read as part of
+             that card rather than as the start of a group. -->
+        <Style x:Key="SettingsSectionRuleStyle" TargetType="Border">
+            <Setter Property="Margin" Value="4,26,14,12" />
+            <Setter Property="Padding" Value="0,0,0,6" />
+            <!-- Stretch, and no MaxWidth: a rule only as wide as its own label
+                 reads as an underline, not as a divider. MaxWidth here would
+                 also centre it, since WPF centres a stretched element that is
+                 capped below the space available. -->
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SubtleBorderBrush}" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
         </Style>
 
         <Style x:Key="StatusChipBorderStyle" TargetType="Border">
@@ -628,7 +727,11 @@
                          options page. Each card owns its label, control and
                          explanation, so the eye reads one setting at a time
                          instead of scanning a tall label column. -->
-                    <WrapPanel MaxWidth="1120">
+                    <Border Style="{StaticResource SettingsSectionRuleStyle}">
+                        <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
+                                   Text="YOUR SLOT" />
+                    </Border>
+                    <WrapPanel MaxWidth="1240">
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="Slot Name" />
@@ -642,18 +745,21 @@
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="Your in-game player name (16 characters max). You'll type this exact name when joining - capitalization matters." />
                         </StackPanel>
-
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="Difficulty" />
-                            <ComboBox Width="220"
-                                      HorizontalAlignment="Left"
-                                      ItemsSource="{Binding DifficultyOptions}"
-                                      SelectedItem="{Binding SelectedDifficulty, UpdateSourceTrigger=PropertyChanged}" />
+                            <ListBox ItemsSource="{Binding DifficultyOptions}"
+                                     SelectedItem="{Binding SelectedDifficulty, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource SegmentedPickerStyle}" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="The difficulty you'll actually play. Hardcore and Professional remove the few spots that can't be collected there, so this needs to match your save. Don't change difficulty mid-run either: moving up to Hardcore can strand an item in a spot you're no longer able to pick up." />
                         </StackPanel>
-
+                    </WrapPanel>
+                    <Border Style="{StaticResource SettingsSectionRuleStyle}">
+                        <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
+                                   Text="WHERE THINGS END UP" />
+                    </Border>
+                    <WrapPanel MaxWidth="1240">
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="Progression Balancing" />
@@ -668,40 +774,6 @@
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="How aggressively Archipelago front-loads your own useful and progression items so you spend less time stuck waiting on other worlds. Disabled (0) turns it off, Normal (50) is the Archipelago default, Recommended (70) suits RE4R's long gated chapters, Aggressive (99) pushes the hardest." />
                         </StackPanel>
-
-                        <StackPanel Style="{StaticResource OptionCardStyle}">
-                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
-                                       Text="Check Guidance" />
-                            <ComboBox Width="260"
-                                      HorizontalAlignment="Left"
-                                      ItemsSource="{Binding CheckGuidanceOptions}"
-                                      ItemTemplate="{StaticResource OptionLabelTemplate}"
-                                      SelectedItem="{Binding SelectedCheckGuidance, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="Controls the in-game world markers that point to your unchecked locations. Markers shows neutral [AP] markers you can toggle and tune in-game. Markers + rarity colours also unlocks optional colours that reveal each check's item importance (hint-level information). Off disables the markers entirely. The on-screen area header and check counts are always shown." />
-                        </StackPanel>
-
-                        <StackPanel Style="{StaticResource OptionCardStyle}">
-                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
-                                       Text="Marker Detail" />
-                            <ComboBox Width="380"
-                                      HorizontalAlignment="Left"
-                                      ItemsSource="{Binding MarkerDetailOptions}"
-                                      ItemTemplate="{StaticResource OptionLabelTemplate}"
-                                      SelectedItem="{Binding SelectedMarkerDetail, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="How much a marker is allowed to say. This is a ceiling, not a fixed setting: players pick their own level in the in-game Guidance tab, but never above what you choose here. Locate is the recommended default - it names the item as it appeared in vanilla, what it is sitting in, and how to reach it, without revealing what the multiworld actually placed. Identify does reveal that, and is what a bought hint always shows." />
-                        </StackPanel>
-
-                        <StackPanel Style="{StaticResource OptionCardStyle}">
-                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
-                                       Text="Death Link" />
-                            <CheckBox IsChecked="{Binding DeathLink}"
-                                      Content="Enable Death Link" />
-                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="Dying sends a death to all Death Link players, and theirs kill you." />
-                        </StackPanel>
-
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="Allow Missable Locations" />
@@ -710,7 +782,6 @@
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="Off by default, which keeps progression items away from spots you can permanently lose: ones you can walk past for good, and small-key drawers (a discarded Small Key can seal one). On allows them in both - riskier seeds." />
                         </StackPanel>
-
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="Shuffle Keycards" />
@@ -719,7 +790,6 @@
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="Off by default: each keycard sits at its native facility spot (still a check), so the island door sequence plays like vanilla. On: the keycards join the shuffle like any other key item - logic guarantees each card is obtainable before the first door that needs it, but it may come from anywhere in the multiworld." />
                         </StackPanel>
-
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="Minimize Backtracking" />
@@ -728,53 +798,6 @@
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="Off by default. On: keeps the important checks along the main path - all three Hexagon pieces are guaranteed before leaving the Fish Farm so the lake altar solves in one boat pass, and the optional excursions (Forest Altar, the chapter 12 Throne Room revisit, the lake's egg-nest islet) only ever hold plain filler." />
                         </StackPanel>
-
-                        <StackPanel Style="{StaticResource OptionCardStyle}">
-                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
-                                       Text="Random Events (Experimental)" />
-                            <CheckBox IsChecked="{Binding RandomEvents}"
-                                      Content="Let the multiworld author BioRand's Random Events" />
-                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="Off by default. On: the Village chapters gain scripted set-pieces that the multiworld itself picks when the room generates, so the logic reacts to them - a couple of checks can trade places, and one event can replace the Hexagonal Emblem pickup with a guardian enemy who drops the emblem. Experimental and lightly tested; the launcher's bundled BioRand applies your room's roll automatically at patch time." />
-                        </StackPanel>
-
-                        <StackPanel Style="{StaticResource OptionCardStyle}">
-                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
-                                       Text="In-Game Tutorial" />
-                            <CheckBox IsChecked="{Binding Tutorial}"
-                                      Content="Show the getting-started guide" />
-                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="On by default: a short guide appears in game on your first chapter, explaining checks, markers and how to get unstuck. You can reopen or skip it any time. Turn it off if you already know how this works." />
-                        </StackPanel>
-
-                        <StackPanel Style="{StaticResource OptionCardStyle}">
-                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
-                                       Text="Unlocked Typewriters" />
-                            <Border Padding="8"
-                                    BorderBrush="{DynamicResource SubtleBorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="8">
-                                <ScrollViewer MaxHeight="200"
-                                              VerticalScrollBarVisibility="Auto">
-                                    <ItemsControl ItemsSource="{Binding TypewriterOptions}">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <CheckBox Margin="0,0,0,6"
-                                                          IsChecked="{Binding IsSelected}"
-                                                          Content="{Binding DisplayName}" />
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </ScrollViewer>
-                            </Border>
-                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="Save points you can warp to from the start of the run." />
-                        </StackPanel>
-
-                        <!-- Item and location stances. One row per group (or per
-                             name once you search), each set to Default or one of
-                             two opposite ends of the same setting - so the same
-                             thing can never be pushed both ways at once. -->
                         <StackPanel DataContext="{Binding ItemSelection}"
                                     Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
@@ -824,7 +847,6 @@
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="{Binding DataContext.ItemSelectionHint, RelativeSource={RelativeSource AncestorType=Window}}" />
                         </StackPanel>
-
                         <StackPanel DataContext="{Binding LocationSelection}"
                                     Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
@@ -873,6 +895,85 @@
                                        Text="{Binding SummaryText}" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="{Binding DataContext.LocationSelectionHint, RelativeSource={RelativeSource AncestorType=Window}}" />
+                        </StackPanel>
+                    </WrapPanel>
+                    <Border Style="{StaticResource SettingsSectionRuleStyle}">
+                        <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
+                                   Text="HELP WHILE YOU PLAY" />
+                    </Border>
+                    <WrapPanel MaxWidth="1240">
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Check Guidance" />
+                            <ListBox ItemsSource="{Binding CheckGuidanceOptions}"
+                                     ItemTemplate="{StaticResource OptionShortLabelTemplate}"
+                                     SelectedItem="{Binding SelectedCheckGuidance, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource SegmentedPickerStyle}" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Controls the in-game world markers that point to your unchecked locations. Markers shows neutral [AP] markers you can toggle and tune in-game. Markers + rarity colours also unlocks optional colours that reveal each check's item importance (hint-level information). Off disables the markers entirely. The on-screen area header and check counts are always shown." />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Marker Detail" />
+                            <ListBox ItemsSource="{Binding MarkerDetailOptions}"
+                                     ItemTemplate="{StaticResource OptionShortLabelTemplate}"
+                                     SelectedItem="{Binding SelectedMarkerDetail, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource SegmentedPickerStyle}" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="How much a marker is allowed to say. This is a ceiling, not a fixed setting: players pick their own level in the in-game Guidance tab, but never above what you choose here. Locate is the recommended default - it names the item as it appeared in vanilla, what it is sitting in, and how to reach it, without revealing what the multiworld actually placed. Identify does reveal that, and is what a bought hint always shows." />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="In-Game Tutorial" />
+                            <CheckBox IsChecked="{Binding Tutorial}"
+                                      Content="Show the getting-started guide" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="On by default: a short guide appears in game on your first chapter, explaining checks, markers and how to get unstuck. You can reopen or skip it any time. Turn it off if you already know how this works." />
+                        </StackPanel>
+                    </WrapPanel>
+                    <Border Style="{StaticResource SettingsSectionRuleStyle}">
+                        <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
+                                   Text="EXTRAS" />
+                    </Border>
+                    <WrapPanel MaxWidth="1240">
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Death Link" />
+                            <CheckBox IsChecked="{Binding DeathLink}"
+                                      Content="Enable Death Link" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Dying sends a death to all Death Link players, and theirs kill you." />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Random Events (Experimental)" />
+                            <CheckBox IsChecked="{Binding RandomEvents}"
+                                      Content="Let the multiworld author BioRand's Random Events" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Off by default. On: the Village chapters gain scripted set-pieces that the multiworld itself picks when the room generates, so the logic reacts to them - a couple of checks can trade places, and one event can replace the Hexagonal Emblem pickup with a guardian enemy who drops the emblem. Experimental and lightly tested; the launcher's bundled BioRand applies your room's roll automatically at patch time." />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Unlocked Typewriters" />
+                            <Border Padding="8"
+                                    BorderBrush="{DynamicResource SubtleBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="8">
+                                <ScrollViewer MaxHeight="200"
+                                              VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding TypewriterOptions}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <CheckBox Margin="0,0,0,6"
+                                                          IsChecked="{Binding IsSelected}"
+                                                          Content="{Binding DisplayName}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Border>
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Save points you can warp to from the start of the run." />
                         </StackPanel>
                     </WrapPanel>
 

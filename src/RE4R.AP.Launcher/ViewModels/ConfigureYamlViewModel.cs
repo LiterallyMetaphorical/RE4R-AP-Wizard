@@ -115,9 +115,9 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     // The friendly label is shown in the dropdown; Value is written to the YAML.
     private static readonly IReadOnlyList<CheckGuidanceOption> CheckGuidanceOptionList =
     [
-        new("Markers (recommended)", "markers"),
-        new("Markers + rarity colours", "markers_rarity"),
-        new("Off (no markers)", "off"),
+        new("Markers (recommended)", "markers", "Markers"),
+        new("Markers + rarity colours", "markers_rarity", "+ Rarity"),
+        new("Off (no markers)", "off", "Off"),
     ];
 
     public IReadOnlyList<CheckGuidanceOption> CheckGuidanceOptions => CheckGuidanceOptionList;
@@ -128,10 +128,10 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     // nothing about what the multiworld put in it.
     private static readonly IReadOnlyList<MarkerDetailOption> MarkerDetailOptionList =
     [
-        new("Minimal - distance and height", "minimal"),
-        new("Basic - + chapter and area", "basic"),
-        new("Locate - + item, container, how to reach it (recommended)", "locate"),
-        new("Identify - + the real item and its owner (spoiler)", "identify"),
+        new("Minimal - distance and height", "minimal", "Minimal"),
+        new("Basic - + chapter and area", "basic", "Basic"),
+        new("Locate - + item, container, how to reach it (recommended)", "locate", "Locate"),
+        new("Identify - + the real item and its owner (spoiler)", "identify", "Identify"),
     ];
 
     public IReadOnlyList<MarkerDetailOption> MarkerDetailOptions => MarkerDetailOptionList;
@@ -916,6 +916,6 @@ public sealed class ConfigureYamlViewModel : ObservableObject
 /// player and the underlying apworld option key (off / markers / markers_rarity)
 /// written into the YAML.
 /// </summary>
-public sealed record CheckGuidanceOption(string Label, string Value);
+public sealed record CheckGuidanceOption(string Label, string Value, string Short);
 
-public sealed record MarkerDetailOption(string Label, string Value);
+public sealed record MarkerDetailOption(string Label, string Value, string Short);
