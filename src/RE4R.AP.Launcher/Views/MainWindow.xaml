@@ -1465,7 +1465,32 @@
                                             <ScrollViewer Padding="10,8"
                                                           VerticalScrollBarVisibility="Auto"
                                                           HorizontalScrollBarVisibility="Disabled">
-                                                <ItemsControl ItemsSource="{Binding Groups}">
+                                                <StackPanel>
+                                                    <StackPanel Margin="0,0,0,12"
+                                                                Visibility="{Binding IsEnemiesPage, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                        <TextBlock FontWeight="SemiBold"
+                                                                   Text="Enemy configuration" />
+                                                        <ComboBox Margin="0,5,0,0"
+                                                                  Width="300"
+                                                                  DisplayMemberPath="DisplayName"
+                                                                  IsEnabled="{Binding DataContext.BioRandOptions.AreOptionsEditable, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
+                                                                  ItemsSource="{Binding DataContext.BioRandOptions.EnemyPresets, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
+                                                                  SelectedItem="{Binding DataContext.BioRandOptions.SelectedEnemyPreset, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}, Mode=TwoWay}" />
+                                                        <TextBlock Margin="0,4,0,0"
+                                                                   Foreground="DimGray"
+                                                                   TextWrapping="Wrap"
+                                                                   Text="{Binding DataContext.BioRandOptions.EnemyPresetDescription, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}" />
+                                                        <CheckBox Margin="0,8,0,0"
+                                                                  IsEnabled="{Binding DataContext.BioRandOptions.AreOptionsEditable, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
+                                                                  IsChecked="{Binding DataContext.BioRandOptions.ExcludeDifficultMendezEncounters, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}, Mode=TwoWay}"
+                                                                  Content="Exclude Méndez from enemy randomization" />
+                                                        <TextBlock Margin="22,2,0,0"
+                                                                   FontSize="11"
+                                                                   Foreground="#FF8A8A8A"
+                                                                   TextWrapping="Wrap"
+                                                                   Text="Developer tip: Méndez is especially annoying. Recommended: exclude him from enemy randomization. Safer Méndez Hill / Krauser Fight remains available under Constraints." />
+                                                    </StackPanel>
+                                                    <ItemsControl ItemsSource="{Binding Groups}">
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
                                                             <StackPanel Margin="0,0,0,10">
@@ -1555,7 +1580,8 @@
                                                             </StackPanel>
                                                         </DataTemplate>
                                                     </ItemsControl.ItemTemplate>
-                                                </ItemsControl>
+                                                    </ItemsControl>
+                                                </StackPanel>
                                             </ScrollViewer>
                                         </DataTemplate>
                                     </TabControl.ContentTemplate>
