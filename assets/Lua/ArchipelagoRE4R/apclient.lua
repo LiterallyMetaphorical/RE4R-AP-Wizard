@@ -1507,6 +1507,17 @@ return function(ctx)
                     if ctx.bridge then
                         ctx.bridge.allow_bonus_items = (payload.allow_bonus_items == true)
                     end
+                    -- [D4] Merchant shop checks: slot records (stand-in item
+                    -- id, location code, tier refund) come from the same
+                    -- room file. Absent in older rooms -> the merchant
+                    -- behaves exactly as it always did.
+                    local configure_merchant = ctx.merchant_configure or _G.merchant_configure
+                    if type(configure_merchant) == "function" then
+                        local ok_merchant, merchant_err = pcall(configure_merchant, payload.merchant_shop)
+                        if not ok_merchant then
+                            warn("merchant shop configure failed: " .. tostring(merchant_err))
+                        end
+                    end
                 else
                     warn(string.format(
                         "%s is for seed '%s' slot '%s' but this session is seed '%s' slot '%s' -- ignoring it (re-patch via the launcher)",
@@ -1569,6 +1580,16 @@ return function(ctx)
                 if not ok_unlock then
                     warn("bonus-weapon unlock failed: " .. tostring(unlock_err))
                 end
+            end
+        end
+        -- [D4] Shop stock rolls back with the save, the server's checked list
+        -- does not: force every already-bought slot back to sold out now that
+        -- the per-seed ack set is loaded.
+        local merchant_connected = ctx.merchant_on_connected or _G.merchant_on_connected
+        if type(merchant_connected) == "function" then
+            local ok_merchant, merchant_err = pcall(merchant_connected)
+            if not ok_merchant then
+                warn("merchant shop reconcile failed: " .. tostring(merchant_err))
             end
         end
     end

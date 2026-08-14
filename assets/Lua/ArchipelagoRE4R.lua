@@ -20,6 +20,9 @@ dofile("reframework\\autorun\\ArchipelagoRE4R\\warp.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\door_recovery.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\bridge.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\native_log.lua")(ctx)
+-- [D4] AP-aware merchant runtime. After native_log (it pushes the refund
+-- toast) and before apclient, which drives it from the room file on connect.
+dofile("reframework\\autorun\\ArchipelagoRE4R\\merchant.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_overlay.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_world_markers.lua")(ctx)
 -- [D9 spike] Temporary dev probe for the boat-follows-the-player work. Delete

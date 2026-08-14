@@ -1,11 +1,13 @@
 RE4R.apworld provenance
 =======================
-Rebuilt:     2026-08-13, from ArchipelagoRE4R fix/playtest-round-2 @ 46ef89e. Location pool
+Rebuilt:     2026-08-13, from ArchipelagoRE4R fix/playtest-round-2 @ e946cd7. Location pool
              is 460 (was 467): the runtime-inert five, the birdcage and the
              Gallery egg left, and Lithographic Stone D is excluded on Hardcore
              and Professional. Ships the round-2 chapter and section
              corrections, the T.DLC location group, and the new Key Items and
-             Small Keys item groups. Mod is MOD_VERSION 2026.08.13-7.
+             Small Keys item groups. Mod is MOD_VERSION 2026.08.13-8.
+             Also ships the AP merchant (shop_checks), OFF by default this
+             release: raise Merchant Shop Checks to try it.
              Staged by tools/stage_payload.py; see assets/PAYLOAD_STAMP.json
              for the exact source commits and hashes.
 
