@@ -210,6 +210,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             {
                 OnPropertyChanged(nameof(HeaderDescription));
                 OnPropertyChanged(nameof(ShowJoinerHandoff));
+                OnPropertyChanged(nameof(YamlPreviewHint));
                 RebuildFooter();
             }
         }
@@ -505,6 +506,14 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     /// not sending anything to anybody.
     /// </summary>
     public bool ShowJoinerHandoff => !IsOrganizerContext;
+
+    // An organizer reaches this screen too, and telling them to send their file
+    // "to your host" is telling them to post it to themselves. The panels either
+    // side of this already switch on context; this line was loose text and got
+    // missed when they did (fafa8cb).
+    public string YamlPreviewHint => IsOrganizerContext
+        ? "This updates automatically from the settings above. Save it into your Players folder alongside everyone else's, or copy it if you would rather paste it in yourself."
+        : "This updates automatically from the settings above. Save or copy it to send the file to your host - your settings are remembered here either way.";
 
     /// <summary>Opens the folder holding the bundled RE4R.apworld.</summary>
     public System.Windows.Input.ICommand? OpenApworldFolderCommand { get; set; }

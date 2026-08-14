@@ -145,8 +145,27 @@ public sealed class JoinFlowViewModel : ObservableObject
     public bool ShowJoinerHandoff
     {
         get => _showJoinerHandoff;
-        set => SetProperty(ref _showJoinerHandoff, value);
+        set
+        {
+            if (SetProperty(ref _showJoinerHandoff, value))
+            {
+                OnPropertyChanged(nameof(ServerAddressHint));
+                OnPropertyChanged(nameof(SessionDetailsHint));
+            }
+        }
     }
+
+    // An organizer arrives here from their own generated room, with the address
+    // already filled in, so the joiner phrasing is not just off-tone - it points
+    // them at a host who does not exist. Same flag the "Waiting on your host?"
+    // panel uses; these two were loose text outside it.
+    public string ServerAddressHint => ShowJoinerHandoff
+        ? "Looks like archipelago.gg:38281 - your host sends it to you. Just the port number on its own works too."
+        : "Looks like archipelago.gg:38281 - this is the room you just generated, filled in for you. Just the port number on its own works too.";
+
+    public string SessionDetailsHint => ShowJoinerHandoff
+        ? "Your host will give you these details."
+        : "These come from the room you generated.";
 
     public bool IsBioRandOptionsStep => CurrentStep == JoinFlowStep.BioRandOptions;
 

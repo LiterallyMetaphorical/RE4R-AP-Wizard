@@ -985,7 +985,7 @@
                         <TextBlock Margin="0,4,0,0"
                                    Foreground="{DynamicResource SubtleTextBrush}"
                                    TextWrapping="Wrap"
-                                   Text="This updates automatically from the settings above. Save or copy it to send the file to your host - your settings are remembered here either way." />
+                                   Text="{Binding YamlPreviewHint}" />
                         <Border Margin="0,8,0,0"
                                 Padding="12"
                                 Background="{DynamicResource SurfaceAltBrush}"
@@ -1568,7 +1568,7 @@
                                     <TextBlock Margin="0,4,0,0"
                                                Foreground="{DynamicResource SubtleTextBrush}"
                                                TextWrapping="Wrap"
-                                               Text="Looks like archipelago.gg:38281 - your host sends it to you. Just the port number on its own works too." />
+                                               Text="{Binding ServerAddressHint}" />
                                     <TextBlock Margin="0,3,0,0"
                                                Foreground="{DynamicResource SubtleTextBrush}"
                                                TextWrapping="Wrap"
@@ -1612,7 +1612,7 @@
                                            Grid.ColumnSpan="2"
                                            Foreground="{DynamicResource SubtleTextBrush}"
                                            TextWrapping="Wrap"
-                                           Text="Your host will give you these details." />
+                                           Text="{Binding SessionDetailsHint}" />
                             </Grid>
                         </Grid>
                     </Border>
