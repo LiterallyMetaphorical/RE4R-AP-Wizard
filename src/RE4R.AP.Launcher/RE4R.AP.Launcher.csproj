@@ -65,6 +65,13 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </Content>
+    <!-- What this payload was built from, written by tools/stage_payload.py.
+         Ships with the build so a copy of the launcher can say which commits
+         it came from; the Linux project globs assets\**\* and already had it. -->
+    <Content Include="..\..\assets\PAYLOAD_STAMP.json" Link="assets\PAYLOAD_STAMP.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </Content>
     <!-- Same gap for the apworld's provenance record, which sits in Data. -->
     <Content Include="..\..\assets\Data\*.txt">
       <Link>assets\Data\%(Filename)%(Extension)</Link>
