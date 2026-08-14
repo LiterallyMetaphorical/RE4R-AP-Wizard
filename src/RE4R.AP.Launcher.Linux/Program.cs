@@ -1,18 +1,30 @@
 using Avalonia;
 using RE4R.AP.Launcher.Core.Models;
 using RE4R.AP.Launcher.Core.Services;
+using RE4R.AP.Launcher.Core.Utilities;
 
 internal static class Program
 {
     [STAThread]
     public static int Main(string[] args)
     {
-        if (args.Length == 0)
+        try
         {
-            return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
-        }
+            if (args.Length == 0)
+            {
+                return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+            }
 
-        return LinuxLauncher.RunAsync(args).GetAwaiter().GetResult();
+            return LinuxLauncher.RunAsync(args).GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            var message = $"[crash-guard] launcher startup failed:{Environment.NewLine}{ex}";
+            Console.Error.WriteLine(message);
+            LauncherFileLog.Append(message);
+            LauncherFileLog.Flush();
+            return 1;
+        }
     }
 
     public static AppBuilder BuildAvaloniaApp() =>

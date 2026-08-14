@@ -347,7 +347,14 @@ internal sealed class MainWindow : Window
         right.Children.Add(Check("Allow missable locations", "AllowMissableLocations"));
         right.Children.Add(Check("Shuffle keycards", "ShuffleKeycards"));
         right.Children.Add(Check("Minimize backtracking + side areas", "MinimizeBacktracking"));
-        right.Children.Add(Check("Random Events (experimental, multiworld-authored)", "RandomEvents"));
+        right.Children.Add(Label("Random Events (Experimental)"));
+        right.Children.Add(Check("Let the multiworld author BioRand's Random Events", "RandomEvents"));
+        right.Children.Add(new TextBlock
+        {
+            Text = "Off by default. On: the Village chapters gain scripted set-pieces that the multiworld itself picks when the room generates, so the logic reacts to them - a couple of checks can trade places, and one event can replace the Hexagonal Emblem pickup with a guardian enemy who drops the emblem. Experimental and lightly tested; the launcher's bundled BioRand applies your room's roll automatically at patch time.",
+            TextWrapping = TextWrapping.Wrap,
+            Opacity = .72,
+        });
         right.Children.Add(Check("Show the in-game getting-started guide", "Tutorial"));
         right.Children.Add(Label("Typewriter locations"));
         foreach (var option in vm.TypewriterOptions)
@@ -439,6 +446,14 @@ internal sealed class MainWindow : Window
         body.Children.Add(Label("Launch mode"));
         body.Children.Add(Combo("BioRandOptions.AvailableModes", "BioRandOptions.SelectedMode", "DisplayName"));
         body.Children.Add(Text("BioRandOptions.ModeStatusText", true));
+        var randomEventsNotice = Card("#1E3A5F", Text("BioRandOptions.RandomEventsNotice", true));
+        randomEventsNotice.Bind(IsVisibleProperty, Binding("BioRandOptions.HasRandomEventsNotice"));
+        body.Children.Add(randomEventsNotice);
+        var pinnedNotice = Card("#252A31",
+            Text("BioRandOptions.PinnedNotice", true),
+            Button("Change Options", "BioRandOptions.UnlockCommand"));
+        pinnedNotice.Bind(IsVisibleProperty, Binding("BioRandOptions.IsLocked"));
+        body.Children.Add(pinnedNotice);
         body.Children.Add(Check("Show advanced BioRand options", "BioRandOptions.ShowAdvanced"));
         body.Children.Add(BioRandOptions(vm.BioRandOptions));
         body.Children.Add(Text("StatusText", true));
@@ -455,10 +470,15 @@ internal sealed class MainWindow : Window
 
     private static Control BioRandOptions(BioRandOptionsViewModel vm)
     {
-        var tabs = new TabControl();
+        var tabs = new TabControl { DataContext = vm };
+        tabs.Bind(IsEnabledProperty, Binding(nameof(BioRandOptionsViewModel.AreOptionsEditable)));
         foreach (var page in vm.Pages)
         {
             var panel = new StackPanel { Margin = new Thickness(12), Spacing = 8 };
+            if (page.IsEnemiesPage)
+            {
+                panel.Children.Add(EnemyPresetControls(vm));
+            }
             foreach (var group in page.Groups)
             {
                 if (group.HasTitle)
@@ -467,16 +487,39 @@ internal sealed class MainWindow : Window
                 }
                 foreach (var option in group.Options)
                 {
-                    Control editor = option.IsSwitch
-                        ? new CheckBox
+                    Control editor;
+                    if (option.IsNote)
+                    {
+                        editor = new TextBlock
                         {
-                            Content = option.Label,
                             DataContext = option,
-                            [!ToggleButton.IsCheckedProperty] = Binding("BoolValue", BindingMode.TwoWay),
-                            [!IsEnabledProperty] = Binding("IsEnabled"),
+                            FontWeight = FontWeight.SemiBold,
+                            TextWrapping = TextWrapping.Wrap,
+                            [!TextBlock.TextProperty] = Binding("Label"),
                             [!IsVisibleProperty] = Binding("IsVisible"),
-                        }
-                        : new StackPanel
+                        };
+                    }
+                    else if (option.IsSwitch)
+                    {
+                        editor = new StackPanel
+                        {
+                            DataContext = option,
+                            Spacing = 2,
+                            Children =
+                            {
+                                new CheckBox
+                                {
+                                    Content = option.Label,
+                                    [!ToggleButton.IsCheckedProperty] = Binding("BoolValue", BindingMode.TwoWay),
+                                    [!IsEnabledProperty] = Binding("IsEnabled"),
+                                },
+                            },
+                            [!IsVisibleProperty] = Binding("IsVisible"),
+                        };
+                    }
+                    else
+                    {
+                        editor = new StackPanel
                         {
                             DataContext = option,
                             Orientation = Orientation.Horizontal,
@@ -491,13 +534,22 @@ internal sealed class MainWindow : Window
                                     Maximum = (decimal)option.Max,
                                     Increment = (decimal)option.Step,
                                     [!NumericUpDown.ValueProperty] = Binding("NumberValue", BindingMode.TwoWay),
+                                    [!IsEnabledProperty] = Binding("IsEnabled"),
                                 },
+                                new TextBlock { Width = 52, VerticalAlignment = VerticalAlignment.Center, [!TextBlock.TextProperty] = Binding("ValueText") },
                             },
-                            [!IsEnabledProperty] = Binding("IsEnabled"),
                             [!IsVisibleProperty] = Binding("IsVisible"),
                         };
+                    }
                     ToolTip.SetTip(editor, option.Description);
-                    panel.Children.Add(editor);
+                    var optionRow = new StackPanel { DataContext = option, Spacing = 2, Children = { editor } };
+                    var description = new TextBlock { TextWrapping = TextWrapping.Wrap, Opacity = .72, [!TextBlock.TextProperty] = Binding("Description") };
+                    description.Bind(IsVisibleProperty, Binding("ShowInlineDescription"));
+                    optionRow.Children.Add(description);
+                    var forcedNotice = new TextBlock { TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DodgerBlue, [!TextBlock.TextProperty] = Binding("ForcedNotice") };
+                    forcedNotice.Bind(IsVisibleProperty, Binding("HasForcedNotice"));
+                    optionRow.Children.Add(forcedNotice);
+                    panel.Children.Add(optionRow);
                 }
             }
             tabs.Items.Add(new TabItem
@@ -507,6 +559,22 @@ internal sealed class MainWindow : Window
             });
         }
         return tabs;
+    }
+
+    private static Control EnemyPresetControls(BioRandOptionsViewModel vm)
+    {
+        var panel = new StackPanel { DataContext = vm, Spacing = 4, Margin = new Thickness(0, 0, 0, 8) };
+        panel.Children.Add(Label("Enemy configuration"));
+        panel.Children.Add(Combo(nameof(BioRandOptionsViewModel.EnemyPresets), nameof(BioRandOptionsViewModel.SelectedEnemyPreset), "DisplayName"));
+        panel.Children.Add(Text(nameof(BioRandOptionsViewModel.EnemyPresetDescription), true));
+        panel.Children.Add(Check("Exclude Méndez from enemy randomization", nameof(BioRandOptionsViewModel.ExcludeDifficultMendezEncounters)));
+        panel.Children.Add(new TextBlock
+        {
+            Text = "Developer tip: Méndez is especially annoying. Recommended: exclude him from enemy randomization. Safer Méndez Hill / Krauser Fight remains available under Constraints.",
+            TextWrapping = TextWrapping.Wrap,
+            Opacity = .65,
+        });
+        return Card("#252A31", panel);
     }
 
     private static Control PatchScreen(PatchLaunchViewModel vm)

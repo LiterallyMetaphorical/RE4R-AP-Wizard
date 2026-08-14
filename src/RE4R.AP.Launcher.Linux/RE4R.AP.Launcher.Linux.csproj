@@ -54,6 +54,7 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
+    <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
     <DebugType>none</DebugType>
     <!-- Mirrors the Windows project: without this the referenced Core project's

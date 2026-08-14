@@ -191,5 +191,7 @@ public sealed class BioRandOptionPageViewModel
 {
     public required string Title { get; init; }
 
+    public bool IsEnemiesPage => string.Equals(Title, "Enemies", StringComparison.Ordinal);
+
     public ObservableCollection<BioRandOptionGroupViewModel> Groups { get; } = new();
 }
