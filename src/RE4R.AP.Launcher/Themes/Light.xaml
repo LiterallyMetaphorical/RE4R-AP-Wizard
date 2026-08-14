@@ -114,6 +114,56 @@
         </ControlTemplate.Triggers>
     </ControlTemplate>
 
+    <!--
+        Search box for the item/location pickers. WPF has no placeholder, so an
+        empty search field was an unlabelled rectangle that said nothing about
+        what it did. Keyed rather than applied to every TextBox: this template
+        centres a single line, which would wreck the multi-line YAML preview.
+        The prompt text comes from Tag.
+    -->
+    <Style x:Key="SearchBoxStyle" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border Background="{DynamicResource ControlBackgroundBrush}"
+                            BorderBrush="{DynamicResource SubtleBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Margin="8,0,6,0"
+                                       VerticalAlignment="Center"
+                                       FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource SubtleTextBrush}"
+                                       Text="&#xE721;" />
+                            <Grid Grid.Column="1">
+                                <TextBlock x:Name="Placeholder"
+                                           Margin="0,0,8,0"
+                                           VerticalAlignment="Center"
+                                           Foreground="{DynamicResource SubtleTextBrush}"
+                                           IsHitTestVisible="False"
+                                           Text="{TemplateBinding Tag}"
+                                           Visibility="Collapsed" />
+                                <ScrollViewer x:Name="PART_ContentHost"
+                                              Margin="0,0,8,0"
+                                              VerticalAlignment="Center" />
+                            </Grid>
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <DataTrigger Binding="{Binding Text, RelativeSource={RelativeSource Self}}" Value="">
+                            <Setter TargetName="Placeholder" Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style TargetType="ComboBox">
         <Setter Property="Background" Value="{DynamicResource ControlBackgroundBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />

@@ -41,6 +41,7 @@ public sealed class YamlSelectionListViewModel : ObservableObject
 
     public YamlSelectionListViewModel(
         string title,
+        string defaultStanceLabel,
         string firstStanceLabel,
         string secondStanceLabel,
         string searchHint,
@@ -51,7 +52,10 @@ public sealed class YamlSelectionListViewModel : ObservableObject
         FirstStanceLabel = firstStanceLabel;
         SecondStanceLabel = secondStanceLabel;
         SearchHint = searchHint;
-        StanceOptions = new[] { "Default", firstStanceLabel, secondStanceLabel };
+        // The neutral stance is named for what it DOES, not called "Default":
+        // a row reading "Default" tells the reader nothing about the behaviour
+        // they are choosing between.
+        StanceOptions = new[] { defaultStanceLabel, firstStanceLabel, secondStanceLabel };
         _groupMembers = groups.ToDictionary(
             entry => entry.Key,
             entry => entry.Value.ToList(),

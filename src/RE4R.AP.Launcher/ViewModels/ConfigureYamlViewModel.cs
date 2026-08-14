@@ -37,7 +37,8 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     private bool _shuffleKeycards;
     private bool _minimizeBacktracking;
     private bool _randomEvents;
-    private int _shopChecks;
+    private int _shopChecks = 16;
+    private bool _shopChecksEnabled = true;
     private bool _tutorial = true;
     private string _yamlPreview = "Enter your slot name to generate the YAML preview.";
     private string _statusText = "Choose your RE4R settings - they save automatically as you edit.";
@@ -75,6 +76,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         var staticData = new StaticGameDataProvider().TryLoad();
         ItemSelection = new YamlSelectionListViewModel(
             "Items",
+            "Anywhere",
             "Keep in my world",
             "Send to another world",
             "Search items...",
@@ -82,6 +84,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             staticData?.Items.Values.Select(item => item.Name) ?? Enumerable.Empty<string>());
         LocationSelection = new YamlSelectionListViewModel(
             "Locations",
+            "Anything",
             "Never anything important",
             "Always something important",
             "Search locations...",
@@ -398,8 +401,27 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         }
     }
 
-    /// <summary>Slider read-out, e.g. "8 shop checks" / "Off".</summary>
-    public string ShopChecksLabel => _shopChecks == 0
+    /// <summary>
+    /// On/off for the merchant. The count lives behind it, so turning the
+    /// feature off does not mean hunting for zero on a slider, and turning it
+    /// back on remembers the number you had.
+    /// </summary>
+    public bool ShopChecksEnabled
+    {
+        get => _shopChecksEnabled;
+        set
+        {
+            if (SetProperty(ref _shopChecksEnabled, value))
+            {
+                OnPropertyChanged(nameof(ShopChecksLabel));
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
+
+    /// <summary>Slider read-out, e.g. "16 shop checks".</summary>
+    public string ShopChecksLabel => !_shopChecksEnabled
         ? "Off - the merchant sells no checks"
         : $"{_shopChecks} shop check{(_shopChecks == 1 ? string.Empty : "s")}";
 
@@ -714,7 +736,10 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         ShuffleKeycards = draft.ShuffleKeycards;
         MinimizeBacktracking = draft.MinimizeBacktracking;
         RandomEvents = draft.RandomEvents;
-        ShopChecks = draft.ShopChecks;
+        // A saved 0 means it was switched off; keep the slider on a sensible
+        // number so switching it back on is not a fresh decision.
+        ShopChecksEnabled = draft.ShopChecks > 0;
+        ShopChecks = draft.ShopChecks > 0 ? draft.ShopChecks : 16;
         Tutorial = draft.Tutorial;
         var selected = new HashSet<string>(draft.UnlockedTypewriterStageIds, StringComparer.Ordinal);
         foreach (var option in TypewriterOptions)
@@ -759,7 +784,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
                 draft.ShuffleKeycards = ShuffleKeycards;
                 draft.MinimizeBacktracking = MinimizeBacktracking;
                 draft.RandomEvents = RandomEvents;
-                draft.ShopChecks = ShopChecks;
+                draft.ShopChecks = ShopChecksEnabled ? ShopChecks : 0;
                 draft.Tutorial = Tutorial;
                 draft.UnlockedTypewriterStageIds = TypewriterOptions
                     .Where(option => option.IsSelected)
@@ -798,7 +823,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             ShuffleKeycards = ShuffleKeycards,
             MinimizeBacktracking = MinimizeBacktracking,
             RandomEvents = RandomEvents,
-            ShopChecks = ShopChecks,
+            ShopChecks = ShopChecksEnabled ? ShopChecks : 0,
             Tutorial = Tutorial,
             UnlockedTypewriterStageIds = TypewriterOptions
                 .Where(option => option.IsSelected)

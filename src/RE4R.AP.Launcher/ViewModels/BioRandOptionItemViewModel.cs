@@ -187,11 +187,30 @@ public sealed class BioRandOptionGroupViewModel
 }
 
 /// <summary>A tab: General, Merchant, Inventory, Valuables, Items, Enemies, Health.</summary>
-public sealed class BioRandOptionPageViewModel
+public sealed class BioRandOptionPageViewModel : ObservableObject
 {
+    private bool _showAdvanced;
+
     public required string Title { get; init; }
 
     public bool IsEnemiesPage => string.Equals(Title, "Enemies", StringComparison.Ordinal);
+
+    /// <summary>
+    /// Enemies leads with a preset and keeps the individual knobs behind this.
+    /// Every other tab has no preset to lead with, so it shows its options
+    /// outright and this stays true.
+    /// </summary>
+    public bool ShowAdvanced
+    {
+        get => _showAdvanced || !IsEnemiesPage;
+        set
+        {
+            if (SetProperty(ref _showAdvanced, value))
+            {
+                OnPropertyChanged(nameof(ShowAdvanced));
+            }
+        }
+    }
 
     public ObservableCollection<BioRandOptionGroupViewModel> Groups { get; } = new();
 }

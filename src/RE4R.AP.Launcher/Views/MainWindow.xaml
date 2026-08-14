@@ -802,7 +802,8 @@
                                     Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="Where your items go" />
-                            <TextBox Margin="0,0,0,6"
+                            <TextBox Style="{StaticResource SearchBoxStyle}"
+                                     Margin="0,0,0,6"
                                      Tag="{Binding SearchHint}"
                                      Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
                             <Border Padding="8"
@@ -851,7 +852,8 @@
                                     Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="What can appear where" />
-                            <TextBox Margin="0,0,0,6"
+                            <TextBox Style="{StaticResource SearchBoxStyle}"
+                                     Margin="0,0,0,6"
                                      Tag="{Binding SearchHint}"
                                      Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
                             <Border Padding="8"
@@ -899,19 +901,24 @@
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="Merchant Shop Checks" />
-                            <StackPanel Orientation="Horizontal">
+                            <CheckBox IsChecked="{Binding ShopChecksEnabled}"
+                                      Content="Let the merchant sell multiworld checks" />
+                            <StackPanel Margin="0,6,0,0"
+                                        Orientation="Horizontal"
+                                        IsEnabled="{Binding ShopChecksEnabled}">
                                 <Slider Width="220"
+                                        VerticalAlignment="Center"
                                         IsSnapToTickEnabled="True"
                                         Maximum="24"
-                                        Minimum="0"
+                                        Minimum="1"
                                         TickFrequency="1"
                                         Value="{Binding ShopChecks}" />
                                 <TextBlock Margin="10,0,0,0"
                                            VerticalAlignment="Center"
-                                           Text="{Binding ShopChecks}" />
+                                           Text="{Binding ShopChecksLabel}" />
                             </StackPanel>
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="Off by default. Turned up, the merchant sells this many Archipelago checks in his buy tab, spread across the campaign. Each row shows what it really is and who it belongs to, stays on the shelf until you buy it, then reads SOLD OUT. Prices are fixed by tier - 5,000 filler / 7,000 useful / 9,000 progression - and buying another player's item hands you back a gemstone worth exactly what you paid, so you need the money but never lose it." />
+                                       Text="On by default, at 16 - one per chapter. The merchant sells this many Archipelago checks in his buy tab, spread across the campaign. Each row shows what it really is and who it belongs to, stays on the shelf until you buy it, then reads SOLD OUT. Prices are fixed by tier - 5,000 filler / 7,000 useful / 9,000 progression - and buying another player's item hands you back a gemstone worth exactly what you paid, so you need the money but never lose it." />
                         </StackPanel>
                     </WrapPanel>
                     <Border Style="{StaticResource SettingsSectionRuleStyle}">
@@ -1843,7 +1850,7 @@
                                                                   ItemsSource="{Binding DataContext.BioRandOptions.EnemyPresets, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
                                                                   SelectedItem="{Binding DataContext.BioRandOptions.SelectedEnemyPreset, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}, Mode=TwoWay}" />
                                                         <TextBlock Margin="0,4,0,0"
-                                                                   Foreground="DimGray"
+                                                                   Foreground="{DynamicResource SubtleTextBrush}"
                                                                    TextWrapping="Wrap"
                                                                    Text="{Binding DataContext.BioRandOptions.EnemyPresetDescription, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}" />
                                                         <CheckBox Margin="0,8,0,0"
@@ -1852,11 +1859,20 @@
                                                                   Content="Exclude Méndez from enemy randomization" />
                                                         <TextBlock Margin="22,2,0,0"
                                                                    FontSize="11"
-                                                                   Foreground="#FF8A8A8A"
+                                                                   Foreground="{DynamicResource SubtleTextBrush}"
                                                                    TextWrapping="Wrap"
                                                                    Text="Developer tip: Méndez is especially annoying. Recommended: exclude him from enemy randomization. Safer Méndez Hill / Krauser Fight remains available under Constraints." />
+                                                        <CheckBox Margin="0,10,0,0"
+                                                                  IsChecked="{Binding ShowAdvanced, Mode=TwoWay}"
+                                                                  Content="Advanced: set the enemy options individually" />
+                                                        <TextBlock Margin="22,2,0,0"
+                                                                   FontSize="11"
+                                                                   Foreground="{DynamicResource SubtleTextBrush}"
+                                                                   TextWrapping="Wrap"
+                                                                   Text="The preset already sets all of these. Change any one of them and the preset above becomes Custom." />
                                                     </StackPanel>
-                                                    <ItemsControl ItemsSource="{Binding Groups}">
+                                                    <ItemsControl ItemsSource="{Binding Groups}"
+                                                                  Visibility="{Binding ShowAdvanced, Converter={StaticResource BooleanToVisibilityConverter}}">
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
                                                             <StackPanel Margin="0,0,0,10">

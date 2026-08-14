@@ -30,8 +30,11 @@ public partial class App : Application
         {
             ThemeService.Apply(new SettingsStore().TryLoad().Theme);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            // Worth recording: a theme that fails to load leaves the window
+            // painted in system defaults, which is confusing without a reason.
+            LauncherFileLog.Append($"[theme] could not apply the saved theme: {ex.Message}");
             ThemeService.Apply(ThemeService.Dark);
         }
 

@@ -17,8 +17,14 @@ public static class ThemeService
     public const string Dark = "dark";
     public const string Light = "light";
 
-    private const string DarkSource = "Themes/Dark.xaml";
-    private const string LightSource = "Themes/Light.xaml";
+    // Absolute pack URIs, not relative ones. A relative URI only resolves
+    // against an ambient base, and when it fails it throws INSIDE Apply -
+    // after the old dictionary has already been removed - leaving the app with
+    // no palette at all. That paints a blank white window with invisible text
+    // and a perfectly healthy control tree, which is a miserable thing to
+    // diagnose. The pack form has no ambient dependency.
+    private const string DarkSource = "pack://application:,,,/RE4R.AP.Launcher;component/Themes/Dark.xaml";
+    private const string LightSource = "pack://application:,,,/RE4R.AP.Launcher;component/Themes/Light.xaml";
 
     /// <summary>The theme currently applied. Dark is the launcher's default.</summary>
     public static string Current { get; private set; } = Dark;
@@ -40,25 +46,30 @@ public static class ThemeService
         }
 
         var merged = application.Resources.MergedDictionaries;
+
+        // Build and ADD first, remove second. If constructing the replacement
+        // throws, the app keeps the palette it already had; the other order
+        // leaves it with none, which paints a blank window with invisible text.
         var replacement = new ResourceDictionary
         {
-            Source = new Uri(resolved == Light ? LightSource : DarkSource, UriKind.Relative),
+            Source = new Uri(resolved == Light ? LightSource : DarkSource, UriKind.Absolute),
         };
+        merged.Add(replacement);
 
-        // Drop the previous theme before adding the new one. Leaving both merged
-        // would let the older dictionary keep answering for keys the new one
-        // happens not to override, which is how a half-switched window happens.
-        for (var index = merged.Count - 1; index >= 0; index--)
+        // Match on the file name: App.xaml authors its entry as a relative
+        // "Themes/Dark.xaml" while this builds an absolute pack URI, so
+        // comparing whole strings would never find the one to drop and both
+        // would stay merged.
+        for (var index = merged.Count - 2; index >= 0; index--)
         {
             var source = merged[index].Source?.OriginalString ?? string.Empty;
-            if (source.EndsWith(DarkSource, StringComparison.OrdinalIgnoreCase)
-                || source.EndsWith(LightSource, StringComparison.OrdinalIgnoreCase))
+            if (source.EndsWith("Dark.xaml", StringComparison.OrdinalIgnoreCase)
+                || source.EndsWith("Light.xaml", StringComparison.OrdinalIgnoreCase))
             {
                 merged.RemoveAt(index);
             }
         }
 
-        merged.Add(replacement);
         Current = resolved;
     }
 
