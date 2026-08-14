@@ -41,6 +41,12 @@ public sealed class Re4rYamlRequest
     // default; the launcher pins the rolled set into BioRand at patch time.
     public bool RandomEvents { get; set; }
 
+    // How many Archipelago checks the merchant sells in his buy tab (apworld
+    // 0.8.0, D4). 0 turns the feature off entirely; each slot adds one filler
+    // to the pool, so this also grows the item count.
+    // Off unless asked for, matching the apworld's own default.
+    public int ShopChecks { get; set; }
+
     public IReadOnlyCollection<string> UnlockedTypewriterStageIds { get; set; } = Array.Empty<string>();
 
     // Archipelago's per-game item/location options (Amondo's request, 2026-08).

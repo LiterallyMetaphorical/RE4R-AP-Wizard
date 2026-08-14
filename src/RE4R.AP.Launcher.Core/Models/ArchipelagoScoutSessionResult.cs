@@ -24,4 +24,11 @@ public sealed class ArchipelagoScoutSessionResult
     /// rooms whose apworld predates the option.
     /// </summary>
     public RandomEventsSlotData RandomEvents { get; init; } = RandomEventsSlotData.Disabled;
+
+    /// <summary>
+    /// The apworld's merchant shop checks (D4), already resolved to what fill
+    /// put in each slot. Disabled for rooms whose apworld predates the option
+    /// or whose shop_checks is 0.
+    /// </summary>
+    public MerchantShopSlotData MerchantShop { get; init; } = MerchantShopSlotData.Disabled;
 }

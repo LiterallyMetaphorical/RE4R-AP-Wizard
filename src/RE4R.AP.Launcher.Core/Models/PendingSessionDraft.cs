@@ -60,6 +60,12 @@ public sealed class PendingSessionDraft
     [JsonPropertyName("random_events")]
     public bool RandomEvents { get; set; }
 
+    // How many merchant buy-tab slots are AP checks (apworld 0.8.0). Defaults
+    // to the apworld's own default so drafts saved before this option existed
+    // generate the same seed shape they would today.
+    [JsonPropertyName("shop_checks")]
+    public int ShopChecks { get; set; }
+
     // Default TRUE so drafts saved before this option existed keep the guide
     // on, matching the apworld default.
     [JsonPropertyName("tutorial")]

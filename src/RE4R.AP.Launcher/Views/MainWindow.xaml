@@ -896,6 +896,23 @@
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="{Binding DataContext.LocationSelectionHint, RelativeSource={RelativeSource AncestorType=Window}}" />
                         </StackPanel>
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Merchant Shop Checks" />
+                            <StackPanel Orientation="Horizontal">
+                                <Slider Width="220"
+                                        IsSnapToTickEnabled="True"
+                                        Maximum="24"
+                                        Minimum="0"
+                                        TickFrequency="1"
+                                        Value="{Binding ShopChecks}" />
+                                <TextBlock Margin="10,0,0,0"
+                                           VerticalAlignment="Center"
+                                           Text="{Binding ShopChecks}" />
+                            </StackPanel>
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Off by default. Turned up, the merchant sells this many Archipelago checks in his buy tab, spread across the campaign. Each row shows what it really is and who it belongs to, stays on the shelf until you buy it, then reads SOLD OUT. Prices are fixed by tier - 5,000 filler / 7,000 useful / 9,000 progression - and buying another player's item hands you back a gemstone worth exactly what you paid, so you need the money but never lose it." />
+                        </StackPanel>
                     </WrapPanel>
                     <Border Style="{StaticResource SettingsSectionRuleStyle}">
                         <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
@@ -922,6 +939,7 @@
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="How much a marker is allowed to say. This is a ceiling, not a fixed setting: players pick their own level in the in-game Guidance tab, but never above what you choose here. Locate is the recommended default - it names the item as it appeared in vanilla, what it is sitting in, and how to reach it, without revealing what the multiworld actually placed. Identify does reveal that, and is what a bought hint always shows." />
                         </StackPanel>
+
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="In-Game Tutorial" />
