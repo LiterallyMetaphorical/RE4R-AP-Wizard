@@ -69,11 +69,20 @@ public sealed class YamlSelectionListViewModel : ObservableObject
             entry => entry.Value.ToList(),
             StringComparer.Ordinal);
 
-        foreach (var (groupName, members) in _groupMembers.OrderBy(e => e.Key, StringComparer.Ordinal))
+        // Largest first: a group that contains others reads better above them
+        // than alphabetically among them.
+        foreach (var (groupName, members) in _groupMembers
+                     .OrderByDescending(e => e.Value.Count)
+                     .ThenBy(e => e.Key, StringComparer.Ordinal))
         {
+            var label = DisplayNames.TryGetValue(groupName, out var friendly) ? friendly : groupName;
             var entry = new YamlSelectionEntryViewModel
             {
-                DisplayName = DisplayNames.TryGetValue(groupName, out var friendly) ? friendly : groupName,
+                // The count is the thing that makes these groups legible next to
+                // each other: Progression reading 30 beside Key Items reading 28
+                // says "one contains the other" at a glance, which the names alone
+                // never did.
+                DisplayName = $"{label}  ({members.Count})",
                 IsGroup = true,
                 Members = members,
             };

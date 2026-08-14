@@ -329,6 +329,36 @@ public sealed class BioRandOptionsViewModel : ObservableObject
         return options;
     }
 
+    // BioRand ships the Enemies page as ten groups, three of them with no
+    // title at all - including the 36 drop-ratio sliders. Keyed on the group's
+    // first option, which is stabler than an index and readable in a diff.
+    // Titles fill the blanks; blurbs are only where the label alone leaves a
+    // real question.
+    private static readonly Dictionary<string, (string Title, string Blurb)> EnemyGroupHeadings =
+        new(StringComparer.Ordinal)
+        {
+            ["random-enemies"] = ("Placement",
+                "Whether BioRand re-rolls who appears where, and how many spawns it adds on top of the originals - including in areas that were quiet and in boss arenas."),
+            ["enemy-multiplier"] = ("Crowd size and variety",
+                "Multiplier duplicates the enemies a fight already has. Variety and pack size decide how many different types can share an area."),
+            ["enemy-waves-probability"] = ("Waves",
+                "Some fights send follow-up groups once the first is down."),
+            ["enemy-scale-probability"] = ("Size",
+                "Chance an enemy spawns unusually large or small."),
+            ["balanced-enemies"] = ("Safety rails",
+                "Keep these on for a first run or permadeath. They hold the nastiest types out of the spots that punish them most."),
+            ["enemy-strong-mini-boss"] = ("Individual behaviour", ""),
+            ["enemy-ratio-villager"] = ("Which enemies appear",
+                "Relative weight per type. Higher means it turns up more often; zero takes it out of the pool entirely."),
+            ["parasite-ratio-none"] = ("Parasites",
+                "Which Plaga bursts out when you stagger or finish a host. None is the weight for no parasite at all."),
+            ["random-enemy-drops"] = ("Drops",
+                "Whether enemies drop randomized loot, and how much."),
+            ["enemy-drop-ratio-none"] = ("What they drop",
+                "Relative weight per item. These are shares of the drop table, not percentages, so raising one lowers everything else."),
+            ["enemy-drop-valuable-weapon"] = ("Valuable drops",
+                "Chance an enemy carries something worth more than ammo."),
+        };
     private void BuildPages()
     {
         foreach (var page in BioRandOptionCatalog.Pages)
@@ -336,7 +366,15 @@ public sealed class BioRandOptionsViewModel : ObservableObject
             var pageVm = new BioRandOptionPageViewModel { Title = page.Title };
             foreach (var group in page.Groups)
             {
-                var groupVm = new BioRandOptionGroupViewModel { Title = group.Title };
+                var firstKey = group.Items.Count > 0 ? group.Items[0].Key : string.Empty;
+                var heading = pageVm.IsEnemiesPage && EnemyGroupHeadings.TryGetValue(firstKey, out var found)
+                    ? found
+                    : (Title: group.Title, Blurb: string.Empty);
+                var groupVm = new BioRandOptionGroupViewModel
+                {
+                    Title = string.IsNullOrWhiteSpace(group.Title) ? heading.Title : group.Title,
+                    Description = heading.Blurb,
+                };
                 foreach (var definition in group.Items)
                 {
                     var item = new BioRandOptionItemViewModel(definition);

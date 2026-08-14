@@ -18,6 +18,8 @@
         <!-- View models name a theme resource key; this turns it into that
              theme's brush. See ThemeBrushConverter. -->
         <converters:ThemeBrushConverter x:Key="ThemeBrushConverter" />
+        <!-- Snaps a wrap panel to a whole number of 550px card columns. -->
+        <converters:ColumnSnapConverter x:Key="ColumnSnapConverter" />
         <!-- Option dropdowns render their Label. An explicit ItemTemplate rather
              than DisplayMemberPath, because DisplayMemberPath fills the list but
              leaves the CLOSED box without a template, which showed the option
@@ -731,7 +733,7 @@
                         <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
                                    Text="YOUR SLOT" />
                     </Border>
-                    <WrapPanel MaxWidth="1240">
+                    <WrapPanel MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}, Converter={StaticResource ColumnSnapConverter}, ConverterParameter=550}">
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="Slot Name" />
@@ -759,7 +761,7 @@
                         <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
                                    Text="WHERE THINGS END UP" />
                     </Border>
-                    <WrapPanel MaxWidth="1240">
+                    <WrapPanel MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}, Converter={StaticResource ColumnSnapConverter}, ConverterParameter=550}">
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="Allow Missable Locations" />
@@ -806,7 +808,7 @@
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="On by default, at 16 - one per chapter. The merchant sells this many Archipelago checks in his buy tab, spread across the campaign. Each row shows what it really is and who it belongs to, stays on the shelf until you buy it, then reads SOLD OUT. Prices are fixed by tier - 5,000 filler / 7,000 useful / 9,000 progression - and buying another player's item hands you back a gemstone worth exactly what you paid, so you need the money but never lose it." />
                         </StackPanel>
-                        <StackPanel Width="1080" Style="{StaticResource OptionCardStyle}">
+                        <StackPanel Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=WrapPanel}, Converter={StaticResource ColumnSnapConverter}, ConverterParameter=550}" Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="Progression Balancing" />
                             <Slider Minimum="0"
@@ -925,7 +927,7 @@
                         <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
                                    Text="HELP WHILE YOU PLAY" />
                     </Border>
-                    <WrapPanel MaxWidth="1240">
+                    <WrapPanel MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}, Converter={StaticResource ColumnSnapConverter}, ConverterParameter=550}">
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="Check Guidance" />
@@ -960,7 +962,7 @@
                         <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
                                    Text="EXTRAS" />
                     </Border>
-                    <WrapPanel MaxWidth="1240">
+                    <WrapPanel MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}, Converter={StaticResource ColumnSnapConverter}, ConverterParameter=550}">
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="Death Link" />
@@ -1881,11 +1883,19 @@
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
                                                             <StackPanel Margin="0,0,0,10">
-                                                                <TextBlock Margin="0,6,0,5"
+                                                                <TextBlock Margin="0,10,0,2"
                                                                            FontWeight="SemiBold"
-                                                                           Foreground="{DynamicResource SubtleTextBrush}"
+                                                                           Foreground="{DynamicResource TextBrush}"
                                                                            Text="{Binding Title}"
                                                                            Visibility="{Binding HasTitle, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                                                <TextBlock Margin="0,0,0,7"
+                                                                           MaxWidth="900"
+                                                                           HorizontalAlignment="Left"
+                                                                           FontSize="12"
+                                                                           Foreground="{DynamicResource SubtleTextBrush}"
+                                                                           TextWrapping="Wrap"
+                                                                           Text="{Binding Description}"
+                                                                           Visibility="{Binding HasDescription, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
                                                                 <ItemsControl ItemsSource="{Binding Options}">
                                                                     <ItemsControl.ItemsPanel>

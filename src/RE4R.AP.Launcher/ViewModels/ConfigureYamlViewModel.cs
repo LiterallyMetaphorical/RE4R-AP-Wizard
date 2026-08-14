@@ -106,7 +106,9 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     // has one player (Main.py clears them before fill), so a solo player who
     // sets them gets silence. Say so rather than let them wonder.
     public string ItemSelectionHint =>
-        "Only applies in a multiworld. A solo seed ignores these, because there is nowhere else for an item to go.";
+        "Only applies in a multiworld. A solo seed ignores these, because there is nowhere else for an item to go. "
+        + "Progression is everything the logic can require, and it contains the other two: the 28 Key Items, the Small Key, "
+        + "and the Biosensor Scope. Choose Key Items for the doors and quest items alone, or search for one item by name.";
 
     public string LocationSelectionHint =>
         "\"Never anything important\" keeps progression and useful items off a spot. \"Always something important\" reserves it for one. Marking a lot of spots as important can over-constrain generation, so use it sparingly.";

@@ -181,7 +181,12 @@ public sealed class BioRandOptionGroupViewModel
 {
     public required string Title { get; init; }
 
+    /// <summary>One or two lines under the header. Blank for most groups.</summary>
+    public string Description { get; init; } = string.Empty;
+
     public bool HasTitle => !string.IsNullOrWhiteSpace(Title);
+
+    public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
 
     public ObservableCollection<BioRandOptionItemViewModel> Options { get; } = new();
 }
