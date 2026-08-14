@@ -16,10 +16,15 @@ ctx.now_unix_ms = now_unix_ms
 _G.now_unix_ms = now_unix_ms
 
 dofile("reframework\\autorun\\ArchipelagoRE4R\\warp.lua")(ctx)
+-- [A2 recovery] After injection, so inject_read_key_item_ids is on ctx.
+dofile("reframework\\autorun\\ArchipelagoRE4R\\door_recovery.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\bridge.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\native_log.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_overlay.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_world_markers.lua")(ctx)
+-- [D9 spike] Temporary dev probe for the boat-follows-the-player work. Delete
+-- this line with the module once D9 is built.
+dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_boat_spike.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_warning.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_windows.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_checks.lua")(ctx)
@@ -81,6 +86,9 @@ local draw_check_notification_overlays_polished = ctx.draw_check_notification_ov
 local draw_check_progress_overlay = ctx.draw_check_progress_overlay
 local draw_ap_status_menu_overlay = ctx.draw_ap_status_menu_overlay
 local draw_world_check_markers = ctx.draw_world_check_markers
+local draw_marker_position_editor = ctx.draw_marker_position_editor
+local draw_boat_spike = ctx.draw_boat_spike
+local poll_door_recovery = ctx.poll_door_recovery
 local draw_main_window = ctx.draw_main_window
 local maybe_show_tutorial = ctx.maybe_show_tutorial
 local draw_tutorial_dialog = ctx.draw_tutorial_dialog
@@ -247,6 +255,167 @@ local function install_save_watermark_hook()
     )
 end
 
+-- [A2] Vanilla writes SellableKeyItemUserData's strata against vanilla
+-- progression: a key counts as "spent" (so, sellable) once the chapter that
+-- uses it is behind you. Under AP the player holds keys across chapters, the
+-- rule fires anyway, and the merchant will happily buy progression the seed
+-- still needs (live 2026-08: Insignia Key obtained in ch1, sold, ch3 gate
+-- permanently shut). checkSellable is the single decision point - ItemManager
+-- registers the userdata and the merchant surface rolls up through
+-- KeyItemInventoryController.existsSellableKeyItem - so veto it at the
+-- source: no key item is ever considered spent. Costs the vanilla nicety of
+-- selling truly finished keys; keys you cannot lose are worth the clutter.
+local function install_sellable_key_veto_hook()
+    local sellable_type = sdk.find_type_definition("chainsaw.SellableKeyItemUserData")
+    if sellable_type == nil then
+        log.info("[RE4R AP] SellableKeyItemUserData type not found -- sellable-key veto disabled")
+        return
+    end
+    local check_method = sellable_type:get_method("checkSellable")
+    if check_method == nil then
+        log.info("[RE4R AP] SellableKeyItemUserData.checkSellable not found -- sellable-key veto disabled")
+        return
+    end
+    local veto_logged = false
+    sdk.hook(
+        check_method,
+        function(args)
+            return sdk.PreHookResult.CALL_ORIGINAL
+        end,
+        function(retval)
+            -- Log the first genuine veto (original said sellable) so a live
+            -- session leaves evidence the hook is earning its keep, then stay
+            -- quiet: the merchant UI can poll this per frame.
+            if not veto_logged then
+                local ok, was_sellable = pcall(function()
+                    return (sdk.to_int64(retval) or 0) ~= 0
+                end)
+                if ok and was_sellable then
+                    veto_logged = true
+                    log.info("[RE4R AP] sellable-key veto engaged: the game marked a held key item sellable; forced false")
+                end
+            end
+            return sdk.to_ptr(false)
+        end
+    )
+    log.info("[RE4R AP] sellable-key veto hook installed (checkSellable -> always false)")
+end
+
+-- [D2] Storage takes anything the player hands it, while they are at a
+-- typewriter.
+--
+-- Vanilla only offers the send-to-storage command for weapons, so a case full
+-- of herbs and ammo has no relief valve - even though Storage itself has never
+-- cared: ArmouryManager.addArmouryItem takes a plain chainsaw.Item with no type
+-- predicate, which is exactly why AP's own overflow deliveries already land
+-- there and come back out fine (Cam, 2026-08-13). The restriction is
+-- permission, not structure.
+--
+-- InventoryManager.getItemCommandMenu is the single decision point: it hands
+-- back a Dictionary<ItemCommandType, bool> of which commands to offer for the
+-- item being inspected, and chainsaw.ItemCommandType already carries a
+-- first-class SendToArmoury (15). So this post-hook flips that one entry to
+-- true and the game does the rest - its own menu row, its own label, its own
+-- execution path into ArmouryManager. Nothing here reimplements the move.
+--
+-- Two things keep the scope honest without any explicit filtering:
+--   * The armoury-opened gate. Storage is only reachable from a typewriter, so
+--     isArmouryOpened() IS "at a typewriter" (Cam's constraint: anywhere would
+--     be too much).
+--   * Key items and treasures live in their own controllers, not the attache
+--     case, so they never come through this path to begin with.
+--
+-- UNPROVEN LIVE: whether the returned Dictionary is mutable from a post-hook.
+-- If it is not, this degrades to doing nothing - the command simply does not
+-- appear - so it is safe to ship while that is still open. The mutation is
+-- attempted several ways and the FIRST SUCCESS IS LOGGED BY NAME, so one live
+-- session at a typewriter tells us which accessor works (or that none does).
+local ITEM_COMMAND_SEND_TO_ARMOURY = 15
+
+local function install_storage_accepts_anything_hook()
+    local inventory_type = sdk.find_type_definition("chainsaw.InventoryManager")
+    if inventory_type == nil then
+        log.info("[RE4R AP] InventoryManager type not found -- storage-accepts-anything disabled")
+        return
+    end
+    local menu_method = inventory_type:get_method("getItemCommandMenu")
+    if menu_method == nil then
+        log.info("[RE4R AP] InventoryManager.getItemCommandMenu not found -- storage-accepts-anything disabled")
+        return
+    end
+
+    -- Generic Dictionary accessors are the fiddly part of this from Lua, so try
+    -- the plausible shapes in order rather than betting on one. Whichever lands
+    -- gets remembered and reused, so the cost is one-time.
+    local setter_attempts = {
+        { name = "set_Item", invoke = function(menu)
+            menu:call("set_Item", ITEM_COMMAND_SEND_TO_ARMOURY, true)
+        end },
+        { name = "set_Item(sig)", invoke = function(menu)
+            menu:call("set_Item(chainsaw.ItemCommandType, System.Boolean)",
+                ITEM_COMMAND_SEND_TO_ARMOURY, true)
+        end },
+        { name = "Add", invoke = function(menu)
+            menu:call("Add", ITEM_COMMAND_SEND_TO_ARMOURY, true)
+        end },
+    }
+    local working_setter = nil
+    local widened_logged = false
+    local failure_logged = false
+
+    sdk.hook(
+        menu_method,
+        function(args)
+            return sdk.PreHookResult.CALL_ORIGINAL
+        end,
+        function(retval)
+            local ok = pcall(function()
+                local armoury = sdk.get_managed_singleton("chainsaw.ArmouryManager")
+                if armoury == nil then
+                    return
+                end
+                -- Typewriter gate. Anything else (mid-fight case juggling) is
+                -- deliberately out of scope.
+                local opened = armoury:call("isArmouryOpened")
+                if opened ~= true then
+                    return
+                end
+                local menu = sdk.to_managed_object(retval)
+                if menu == nil then
+                    return
+                end
+
+                if working_setter ~= nil then
+                    working_setter.invoke(menu)
+                    return
+                end
+                for _, attempt in ipairs(setter_attempts) do
+                    if pcall(attempt.invoke, menu) then
+                        working_setter = attempt
+                        log.info(string.format(
+                            "[RE4R AP] storage-accepts-anything engaged: SendToArmoury offered via %s",
+                            attempt.name))
+                        widened_logged = true
+                        return
+                    end
+                end
+                error("no working Dictionary setter")
+            end)
+            if not ok and not failure_logged then
+                failure_logged = true
+                log.info(
+                    "[RE4R AP] storage-accepts-anything could NOT widen the command menu " ..
+                    "(the returned Dictionary refused every setter) -- the command will not appear")
+            end
+            if ok and widened_logged == false then
+                widened_logged = true
+            end
+            return retval
+        end
+    )
+    log.info("[RE4R AP] storage-accepts-anything hook installed (SendToArmoury at typewriters)")
+end
+
 local function build_state(runtime_state)
     runtime_state = runtime_state or get_runtime_state()
 
@@ -319,6 +488,9 @@ install_pickup_commit_hook()
 install_chapter_switch_hook()
 install_save_watermark_hook()
 install_interact_holder_hit_hook()
+install_sellable_key_veto_hook()
+install_storage_sale_reconciler_hook()
+install_storage_accepts_anything_hook()
 
 re.on_pre_application_entry("UpdateBehavior", function()
     local ok, err = pcall(function()
@@ -349,6 +521,10 @@ re.on_pre_application_entry("UpdateBehavior", function()
         end
         if runtime_state ~= nil and runtime_state.is_in_game and type(runtime_state.current_stage) == "number" then
             sync_typewriter_warp_unlock_for_stage(runtime_state.current_stage)
+        end
+        -- [A2 recovery] Self-gated on its own 4s interval and on possession.
+        if type(poll_door_recovery) == "function" then
+            poll_door_recovery(runtime_state)
         end
         if type(refresh_launcher_bridge_files) == "function" then
             refresh_launcher_bridge_files()
@@ -403,7 +579,19 @@ re.on_frame(function()
     dispatch_native_toasts()
     -- World-space check markers first; the HUD windows layer over them.
     draw_world_check_markers()
+    if type(draw_marker_position_editor) == "function" then
+        draw_marker_position_editor()
+    end
+    -- [D9 spike] Dev-gated boat probe; no-ops unless both toggles are on.
+    if type(draw_boat_spike) == "function" then
+        draw_boat_spike()
+    end
     draw_check_progress_overlay()
+    -- Pinned under the header: hints bought for the player's OWN items that
+    -- turned out to live in someone else's world, where no marker can help.
+    if type(draw_multiworld_hints_overlay) == "function" then
+        draw_multiworld_hints_overlay()
+    end
     -- Outside gameplay the header draws nothing, so the AP connection
     -- status gets its own line at the menus and during loads.
     draw_ap_status_menu_overlay()
@@ -434,6 +622,22 @@ re.on_draw_ui(function()
         bridge.developer_tools_enabled = dev_value
         if dev_value and type(sync_warp_inputs_to_current_state) == "function" then
             sync_warp_inputs_to_current_state()
+        end
+    end
+
+    -- Marker position editor: dev-only, so only surface the toggle once
+    -- Developer Tools is on.
+    if bridge.developer_tools_enabled then
+        local changed_editor, editor_value = imgui.checkbox(
+            "Marker Position Editor", bridge.marker_editor_window_enabled)
+        if changed_editor then
+            bridge.marker_editor_window_enabled = editor_value
+        end
+        -- [D9 spike] Remove with the module once the boat work is built.
+        local changed_boat, boat_value = imgui.checkbox(
+            "Boat Spike (D9)", bridge.boat_spike_window_enabled)
+        if changed_boat then
+            bridge.boat_spike_window_enabled = boat_value
         end
     end
 

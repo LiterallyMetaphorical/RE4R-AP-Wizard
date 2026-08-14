@@ -3,7 +3,7 @@ local function install(ctx)
         -- Logged at boot next to the launcher's install stamp so a player's
         -- re2_framework_log.txt identifies the exact deployed build. Bump on
         -- every Lua change that ships (date.rev).
-        MOD_VERSION = "2026.08.06-3",
+        MOD_VERSION = "2026.08.13-7",
         DATA_DIR = "ArchipelagoRE4R",
         WRITE_INTERVAL_SECONDS = 0.25,
         SCAN_INTERVAL_SECONDS = 1 / 30,
@@ -167,6 +167,11 @@ local function install(ctx)
         CHECK_OVERLAY_TOAST_HEIGHT = 58,
         CHECK_OVERLAY_HEADER_MAIN_Y_OFFSET = 18,
         CHECK_OVERLAY_HEADER_MIN_WIDTH = 320,
+        -- [Multiworld hints] Where the pinned hint panel sits, as a fraction of
+        -- screen height measured from the TOP. 0.34 puts it roughly two thirds
+        -- up the LEFT edge (Cam's pick): away from the header and toasts on the
+        -- right, and above the health/ammo readouts at the bottom.
+        MULTIWORLD_HINTS_ANCHOR_Y = 0.34,
         CHECK_OVERLAY_HEADER_PADDING_X = 20,
         CHECK_OVERLAY_TOAST_MIN_WIDTH = 260,
         CHECK_OVERLAY_TOAST_PADDING_X = 18,

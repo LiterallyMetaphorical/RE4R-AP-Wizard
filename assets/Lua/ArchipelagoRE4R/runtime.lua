@@ -567,6 +567,7 @@ local function install(ctx)
         set_scenario_flag = set_scenario_flag,
         get_scene_object = get_scene_object,
         get_components = get_components,
+        each_engine_array_entry = each_engine_array_entry,
         get_game_object_guid = get_game_object_guid,
         get_component = get_component,
         get_parent_game_object = get_parent_game_object,

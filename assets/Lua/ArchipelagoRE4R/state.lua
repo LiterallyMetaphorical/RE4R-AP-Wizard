@@ -110,16 +110,33 @@ local function install(ctx)
         visible_guid_sample = {},
         warp_window_enabled = false,
         warp_editor_window_enabled = false,
+        -- [Marker position editor] Developer tool: nudge a marker onto the real
+        -- item and log a _POSITION_OVERRIDES line. Gated by developer_tools too.
+        marker_editor_window_enabled = false,
+        -- [D9 spike] Developer tool: probe GmBoat / PierDataSet / ReturnPortInfo
+        -- at the lake so the boat-follows-the-player design can be settled.
+        -- Temporary; goes away with ui_boat_spike.lua when D9 is built.
+        boat_spike_window_enabled = false,
         -- [World markers] floating "[AP]" tags over unchecked locations in the
         -- current stage (ui_world_markers.lua). Importance colours reveal scouted
         -- classification, so they are opt-in (guidance says where, never what).
         world_markers_enabled = true,
-        world_markers_max_distance = 40.0,
+        -- 15m, down from 40m (Cam, 2026-08-13): a shorter leash trades a
+        -- screenful of distant tags for markers you meet by exploring, and it
+        -- pays for the richer text the tiers now carry. The Guidance slider
+        -- still spans 10-100m for anyone who wants the old reach back.
+        world_markers_max_distance = 15.0,
         world_markers_show_distance = true,
         world_markers_importance_colors = false,
-        -- Marker detail tier the player picks (basic | locate | identify); capped
-        -- by the YAML host ceiling and, for identify, by Developer Tools.
+        -- [D5] True when the launcher's room file says this world was patched
+        -- with allow-bonus-items; drives the bonus-weapon force-unlock.
+        allow_bonus_items = false,
+        -- Marker detail tier the player picks (minimal | basic | locate |
+        -- identify | developer); capped by the YAML host ceiling
+        -- (marker_detail_ceiling) and, for developer only, by Developer Tools.
         world_markers_detail = "basic",
+        -- Host ceiling from slot_data.marker_detail; absent = permissive.
+        marker_detail_ceiling = nil,
         -- Markers whose chapter differs from the current one are muted + tagged;
         -- this toggle hides those off-chapter markers outright instead.
         world_markers_hide_offchapter = false,

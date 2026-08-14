@@ -19,7 +19,8 @@ HISTORY SQUASHED 2026-08-10: the fork's branch was flattened to a single commit,
                 .cs/.csv/.json, so the SHA-256 below still describes the code
                 that is on the branch today. Keep the old ids for the reasoning
                 they carry; treat 703e59a as the citable source commit.
-Source commit:  05f581e (2026-08-06: FORCED EVENTS - BioRand takes its event
+Source commit:  c945627 (2026-08-13 rebuild; see the REBUILD entry below)
+Previous:       05f581e (2026-08-06: FORCED EVENTS - BioRand takes its event
                 set from the multiworld. The apworld rolls the Village event
                 set at generation time and the launcher pins it in as
                 ap-forced-events, with an event-data hash so a drifted
@@ -150,11 +151,25 @@ Source commit:  05f581e (2026-08-06: FORCED EVENTS - BioRand takes its event
                 DLC entitlement needed). Includes b27f7ac (drop-catalog fix)
                 and 90140f0 (purity gates).)
 Publish:        -c Release -r win-x64 --self-contained -p:PublishSingleFile=true (net10.0)
-biorand-re4r.exe SHA-256: 9c1699d0034e082d3ef028ce079f525b371e98a05b6c442e23b40735f9d64b1c
+biorand-re4r.exe SHA-256: cc0114e366d0ca80f71527c4eaaf6eb6608e63a4227d20cda957cc434040d637
 ProductVersion: 1.0.0+05f581e7cdf1c912869903a760539cdebb1c7bac (the launcher
                 writes this into version_stamp.json, and a change here is what
                 triggers the one-time setup cache re-harvest)
 Built with:     .NET SDK 10.0.301
+
+REBUILD 2026-08-13 (c945627)
+    Staged by tools/stage_payload.py, which is now the only supported way to
+    build this payload. It refuses to run against uncommitted tracked changes
+    and checks every staged file against its source afterwards.
+    Contents new since the 2026-08-06 exe:
+      * snow's weapon-modifier crash fix (PR #1), merged, plus the follow-up
+        that stops a missing upgrade template killing every seed.
+      * The in-game welcome file is an Archipelago getting-started guide, in
+        every AP preset.
+      * Blasphemer's Head corrected to stage 46110 in items.csv.
+    Gate: 15 seeds generated clean on the config that reproduced the crash.
+    NOTE: generation is not byte-reproducible for a fixed seed, so pak size is
+    no use as a regression signal.
 
 DOOR LOCKS ARE BANNED IN AP MODE - DO NOT "FIX" THIS
     LockDoor/LockShutter CREATE a lock component vanilla does not have, keyed to

@@ -835,6 +835,74 @@ local function install(ctx)
         return results
     end
 
+    -- [D8] Locations this SAVE has not collected, but the SEED has: the death
+    -- rollback case. World pickups roll back with the save; our acknowledged
+    -- set is per-seed and never does, so after dying without saving the
+    -- pickup is physically back in the world with no marker on it.
+    --
+    -- Deliberately NOT folded into collect_open_family_locations: the check
+    -- really was sent and the header counts must keep saying so. This is a
+    -- separate class of marker, not a reopened location.
+    --
+    -- Only OUR OWN items qualify. Another player's item was already delivered
+    -- to them, so re-grabbing the placeholder achieves nothing and a marker
+    -- would just be noise (Cam, 2026-08-13).
+    --
+    -- Fails closed everywhere: no drop map (not dispatched yet), no scout data
+    -- (we cannot tell whose item it was), or a drop the game reports consumed,
+    -- and the location simply does not appear.
+    local function collect_regrab_family_locations(stage)
+        local results = {}
+        if type(stage) ~= "number" then
+            return results
+        end
+        local collect_counts = ctx.collect_drop_save_counts or _G.collect_drop_save_counts
+        if type(collect_counts) ~= "function" then
+            return results
+        end
+        local counts = collect_counts()
+        if type(counts) ~= "table" then
+            return results
+        end
+        local me = tonumber(ctx.bridge.ap_numeric_slot)
+        local scout_owner = ctx.bridge.location_scout_player
+        if me == nil or type(scout_owner) ~= "table" then
+            return results
+        end
+
+        for _, family_stage in ipairs(get_stage_family_stages(stage)) do
+            local stage_entry = get_stage_watch_entry(family_stage)
+            if stage_entry ~= nil and type(stage_entry.guids) == "table" then
+                for guid in pairs(stage_entry.guids) do
+                    local key = make_stage_guid_key(family_stage, guid)
+                    -- Acknowledged (the seed checked it) but the CURRENT save
+                    -- still has the drop sitting there.
+                    if key ~= nil
+                        and ctx.bridge.acknowledged_guid_keys[key]
+                        and not ctx.bridge.pending_check_keys[key] then
+                        local save_count = counts[guid]
+                        if type(save_count) == "number" and save_count > 0 then
+                            local display_entry = get_location_display_entry(family_stage, guid)
+                            local location_id = display_entry and tonumber(display_entry.location_id)
+                            local owner = location_id ~= nil
+                                and tonumber(scout_owner[tostring(math.floor(location_id))]) or nil
+                            if owner ~= nil and owner == me then
+                                results[#results + 1] = {
+                                    stage = family_stage,
+                                    guid = guid,
+                                    key = key,
+                                    entry = display_entry,
+                                    regrab = true,
+                                }
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        return results
+    end
+
     local function get_stage_progress(stage)
         local stage_entry = get_stage_watch_entry(stage)
         if stage_entry == nil or type(stage_entry.guids) ~= "table" then
@@ -1179,6 +1247,7 @@ local function install(ctx)
         is_guid_acknowledged = is_guid_acknowledged,
         is_location_key_open = is_location_key_open,
         collect_open_family_locations = collect_open_family_locations,
+        collect_regrab_family_locations = collect_regrab_family_locations,
         push_info_toast = push_info_toast,
         load_stage_chapter_map = load_stage_chapter_map,
         load_location_guid_map = load_location_guid_map,

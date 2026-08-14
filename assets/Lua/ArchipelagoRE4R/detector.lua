@@ -440,6 +440,94 @@ local function install(ctx)
         return nil, "not_found"
     end
 
+    -- [D8] The same per-save consumption state, for every dispatched drop in
+    -- ONE pass. resolve_drop_save_count_by_guid walks collectAllItem per guid,
+    -- which is fine for a single probe but O(markers x drops) per frame if the
+    -- marker layer asked it per marker. This sweeps once and hands back a
+    -- guid -> count map, cached briefly since the answer only moves when a
+    -- pickup is collected or a save is loaded.
+    --
+    -- Reading: consumption writes Count = 0, so count > 0 means THIS save
+    -- still has the drop sitting there. A guid absent from the map is
+    -- unknowable right now (not dispatched) - callers must fail closed rather
+    -- than assume either way.
+    local drop_save_count_cache = { built_at = -math.huge, counts = nil }
+    local DROP_SAVE_COUNT_TTL = 1.0
+
+    local function collect_drop_save_counts(force)
+        local now = os.clock()
+        if not force
+            and drop_save_count_cache.counts ~= nil
+            and (now - drop_save_count_cache.built_at) < DROP_SAVE_COUNT_TTL then
+            return drop_save_count_cache.counts
+        end
+
+        local drop_item_manager = sdk.get_managed_singleton("chainsaw.DropItemManager")
+        if drop_item_manager == nil then
+            return nil
+        end
+        local drop_list = safe_call(drop_item_manager, "collectAllItem")
+        if drop_list == nil then
+            drop_list = safe_call(drop_item_manager, "collectAllItem()")
+        end
+        if drop_list == nil then
+            return nil
+        end
+        local list_count = safe_call(drop_list, "get_Count")
+        if type(list_count) ~= "number" then
+            list_count = safe_call(drop_list, "get_size")
+        end
+        if type(list_count) ~= "number" then
+            return nil
+        end
+
+        local counts = {}
+        for index = 0, list_count - 1 do
+            local drop_item = safe_call(drop_list, "get_Item", index)
+            if drop_item == nil then
+                drop_item = safe_call(drop_list, "get_element", index)
+            end
+            if drop_item ~= nil then
+                local ok_game_object, game_object = pcall(function()
+                    return drop_item:get_GameObject()
+                end)
+                if ok_game_object and game_object ~= nil then
+                    local guid = normalize_guid(tostring(get_game_object_guid(game_object)))
+                    if guid ~= nil then
+                        local context_object = get_drop_item_context(drop_item)
+                        if context_object ~= nil then
+                            local save_cur = safe_call(context_object, "get_SaveCur")
+                            if save_cur == nil then
+                                local ok_field, field_value = pcall(function()
+                                    return context_object:get_field("_SaveCur")
+                                end)
+                                if ok_field then save_cur = field_value end
+                            end
+                            if save_cur ~= nil then
+                                local item_count = safe_call(save_cur, "get_Count")
+                                if type(item_count) ~= "number" then
+                                    local ok_field, field_value = pcall(function()
+                                        return save_cur:get_field("Count")
+                                    end)
+                                    if ok_field and type(field_value) == "number" then
+                                        item_count = field_value
+                                    end
+                                end
+                                if type(item_count) == "number" then
+                                    counts[guid] = item_count
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
+        drop_save_count_cache.counts = counts
+        drop_save_count_cache.built_at = now
+        return counts
+    end
+
     -- Per-save memo state for the pickup-event-flag machinery (declared here
     -- so the load-clear below can reset them; populated further down).
     local fired_event_flag_keys = {}
@@ -1485,6 +1573,7 @@ local function install(ctx)
         end
     end)
 
+    export("collect_drop_save_counts", collect_drop_save_counts)
     export("clear_pending_pickup_accepts", clear_pending_pickup_accepts)
     export("prune_pending_pickup_accepts", prune_pending_pickup_accepts)
     export("scan_stage_pickups", scan_stage_pickups)

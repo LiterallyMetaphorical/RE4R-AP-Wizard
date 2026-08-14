@@ -57,6 +57,10 @@ local function install(ctx)
                 "visited it.",
                 "",
                 "The Hints tab spends hint points to reveal where an item is.",
+                "A hint inside your own world lights up that spot; a hint for one",
+                "of your items in someone else's world is pinned on screen under",
+                "\"Multiworld Hints\", naming the player who has it.",
+                "",
                 "Something's Wrong has the recovery tools if a check refuses to",
                 "send. Waiting on another player is normal in a multiworld: your",
                 "next key item may be in someone else's game.",
@@ -96,6 +100,16 @@ local function install(ctx)
         if not bridge.tutorial_dialog_open then
             return
         end
+        -- Only draw while REFramework's menu is open (Insert), where there is a
+        -- free cursor and imgui receives the clicks. During gameplay the game
+        -- captures the mouse for camera-look, so buttons fell through to it -
+        -- that was the "mouse falls through" bug. The native in-world book is
+        -- the first-run tutorial now; this popup is the reopen-from-Guidance
+        -- version, which is always opened from inside the menu anyway.
+        local ok_ui, drawing_ui = pcall(function() return reframework:is_drawing_ui() end)
+        if not ok_ui or not drawing_ui then
+            return
+        end
         local state = bridge.last_state or {}
         if not state.is_in_game then
             return
@@ -105,7 +119,10 @@ local function install(ctx)
         local page = PAGES[page_index]
 
         local dialog_width = 720
-        local dialog_height = 330
+        -- Tall enough that the longest page plus the nav buttons and footer
+        -- never clip (the old 330 cut the buttons off - the other half of the
+        -- report).
+        local dialog_height = 460
         local pos_x, pos_y = 80, 80
         local ok_display, display_size = pcall(function()
             return imgui.get_display_size()

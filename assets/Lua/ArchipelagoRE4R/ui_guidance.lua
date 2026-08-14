@@ -39,18 +39,20 @@ local function install(ctx)
                 bridge.world_markers_max_distance = distance_value
             end
 
-            -- Detail ladder, capped by the host's YAML ceiling; identify and
-            -- developer tiers are spoilers, so they also need Developer Tools.
-            local detail_tier_index = { basic = 1, locate = 2, identify = 3, developer = 4 }
-            local detail_names = { "basic", "locate", "identify", "developer" }
+            -- Detail tiers, capped by the host's YAML ceiling. Only the
+            -- developer tier needs Developer Tools now; identify is a spoiler
+            -- the HOST decides on, not a debug feature.
+            local detail_tier_index = { minimal = 1, basic = 2, locate = 3, identify = 4, developer = 5 }
+            local detail_names = { "minimal", "basic", "locate", "identify", "developer" }
             local detail_labels = {
-                "Basic - distance, height, area",
-                "Locate - + what the item looked like in vanilla",
+                "Minimal - distance and height only",
+                "Basic - + the chapter and area",
+                "Locate - + the vanilla item, its container, and how to reach it",
                 "Identify - + the real item and who it belongs to (spoiler)",
                 "Developer - + the location code from the spoiler log",
             }
-            local ceiling_tier = detail_tier_index[bridge.marker_detail_ceiling or "developer"] or 4
-            local max_tier = math.min(ceiling_tier, bridge.developer_tools_enabled and 4 or 2)
+            local ceiling_tier = detail_tier_index[bridge.marker_detail_ceiling or "developer"] or 5
+            local max_tier = math.min(ceiling_tier, bridge.developer_tools_enabled and 5 or 4)
             local detail_options = {}
             for i = 1, max_tier do detail_options[i] = detail_labels[i] end
             local cur_name = bridge.world_markers_detail
@@ -64,9 +66,13 @@ local function install(ctx)
             elseif detail_names[cur_tier] ~= cur_name then
                 bridge.world_markers_detail = detail_names[cur_tier]
             end
-            if ceiling_tier >= 3 and not bridge.developer_tools_enabled then
-                imgui.text("    Identify reveals real placements, so it needs Developer Tools.")
+            if ceiling_tier < 4 then
+                imgui.text("    This room's host capped how much markers may say.")
             end
+
+            imgui.text("    A green [RE-GRAB] marker means you died before saving and one")
+            imgui.text("    of your own items is lying back in the world. The check already")
+            imgui.text("    sent; this is just your item waiting to be picked up again.")
 
             local changed_hide_oc, hide_oc_value =
                 imgui.checkbox("Hide markers from other chapters", bridge.world_markers_hide_offchapter == true)
@@ -94,6 +100,10 @@ local function install(ctx)
             bridge.world_markers_show_hints = hint_markers_value
         end
         imgui.text("    Locations you bought a hint for, visible anywhere in the area.")
+        imgui.text("    A hint for one of your items in ANOTHER player's world has no spot")
+        imgui.text("    here to mark, so it is pinned under the on-screen header instead,")
+        imgui.text("    as \"Multiworld Hints\". Hints you paid for always show, whatever")
+        imgui.text("    the marker settings above say.")
 
         imgui.text("")
         if imgui.button("Show the getting-started guide again") then

@@ -118,6 +118,9 @@ return function(ctx)
         dl_last_dead = false,       -- previous IsDead sample, for rising-edge detection
         dl_pending_incoming = nil,  -- {source, cause} queued kill, applied on a safe tick
         dl_amnesty_until = 0,       -- os.clock() until which death traffic is suppressed
+        -- [Difficulty] slot_data.difficulty: the difficulty this room's pool was
+        -- built for. nil for rooms whose apworld predates the key.
+        slot_difficulty = nil,
     }
 
     -- AP item id (number) -> { re4r_item_id = <engine id>, count = <delivery count> }
@@ -463,6 +466,77 @@ return function(ctx)
     end
     ctx.ap_force_check = ap_force_check
 
+    -- [Multiworld hints] The mirror image of the marker hints below: OUR items
+    -- sitting in SOMEONE ELSE'S world. There is no place in RE4R to point a
+    -- marker at, so before this the hint simply vanished from the player's
+    -- view - they paid points and the game showed nothing (the answer only
+    -- ever reached the Archipelago client's text). These feed the overlay's
+    -- "Multiworld Hints" panel instead: one bullet per hint, and the panel
+    -- only exists while there is something to say.
+    --
+    -- Location names come from the FINDING player's datapackage (their world
+    -- owns the spot), item names from ours. Both resolve through
+    -- get_player_game like ap_item_name does, since apclientpp's name lookups
+    -- take a game name rather than a slot.
+    local function ap_location_name(location_id, player)
+        if ap == nil or type(location_id) ~= "number" then return nil end
+        local function usable(name)
+            return type(name) == "string" and name ~= "" and name ~= "Unknown"
+        end
+        local attempts = {}
+        if type(player) == "number" then
+            local ok_game, game = pcall(function() return ap:get_player_game(player) end)
+            if ok_game and type(game) == "string" and game ~= "" then
+                attempts[#attempts + 1] = function() return ap:get_location_name(location_id, game) end
+            end
+            attempts[#attempts + 1] = function() return ap:get_location_name(location_id, player) end
+        end
+        attempts[#attempts + 1] = function() return ap:get_location_name(location_id) end
+        for _, attempt in ipairs(attempts) do
+            local ok, name = pcall(attempt)
+            if ok and usable(name) then return name end
+        end
+        return nil
+    end
+    ctx.ap_location_name = ap_location_name
+
+    local function rebuild_multiworld_hints(value)
+        if ctx.bridge == nil then return end
+        local ours = tonumber(st.numeric_slot)
+        local result = {}
+        if type(value) == "table" and ours ~= nil then
+            for _, hint in ipairs(value) do
+                if type(hint) == "table" and hint.found ~= true then
+                    local receiving_player = tonumber(hint.receiving_player)
+                    local finding_player = tonumber(hint.finding_player)
+                    -- ours to receive, someone else's world to find it in
+                    if receiving_player == ours and finding_player ~= nil and finding_player ~= ours then
+                        local item_id = tonumber(hint.item)
+                        local location_id = tonumber(hint.location)
+                        result[#result + 1] = {
+                            item_id = item_id,
+                            item_name = ap_item_name(item_id, receiving_player) or "Unknown item",
+                            finding_player = finding_player,
+                            finding_player_name = ap_player_name(finding_player)
+                                or ("Player " .. tostring(finding_player)),
+                            location_id = location_id,
+                            location_name = location_id ~= nil
+                                and ap_location_name(location_id, finding_player) or nil,
+                        }
+                    end
+                end
+            end
+        end
+        table.sort(result, function(a, b)
+            if a.finding_player_name ~= b.finding_player_name then
+                return tostring(a.finding_player_name) < tostring(b.finding_player_name)
+            end
+            return tostring(a.item_name) < tostring(b.item_name)
+        end)
+        ctx.bridge.multiworld_hints = result
+        info(string.format("Multiworld hints (our items, other worlds): %d unfound", #result))
+    end
+
     -- [Hints] Rebuild bridge.hints_on_my_world from the server's _read_hints
     -- list: keep only UNFOUND hints where WE are the finding player (checks in
     -- our world someone is waiting on), keyed by location_id string. Names are
@@ -495,6 +569,7 @@ return function(ctx)
         end
         ctx.bridge.hints_on_my_world = result
         info(string.format("Hints on our world: %d unfound (storage sync)", kept))
+        rebuild_multiworld_hints(value)
     end
 
     -- DataStorage replies. Retrieved answers our initial Get; SetReply arrives on
@@ -788,8 +863,16 @@ return function(ctx)
                         do
                             local nm = (type(mapping.name) == "string" and mapping.name ~= "")
                                 and mapping.name or ("item " .. mapping.re4r_item_id)
+                            -- Dataset item names usually carry their own count
+                            -- ("Shotgun Shells x3"), so only append one when
+                            -- the name lacks it - unguarded this read
+                            -- "Shotgun Shells x3 x3" (playtest round 2). Same
+                            -- guard as the overlay history line.
                             local item_label = nm
-                                .. ((mapping.count > 1) and (" x" .. mapping.count) or "")
+                            if mapping.count > 1
+                                and not string.find(string.lower(nm), " x" .. tostring(mapping.count), 1, true) then
+                                item_label = string.format("%s x%d", nm, mapping.count)
+                            end
                             local is_self_find = (entry.player == st.numeric_slot)
                             local from = (not is_self_find) and ap_player_name(entry.player) or nil
                             -- [F8] A re-delivery after a save rollback (reconcile) reads as a
@@ -905,6 +988,71 @@ return function(ctx)
         end
 
         if need_flush then persist() end -- flush lazy own-find skip advances
+    end
+
+    -- [Difficulty mismatch] The YAML says which difficulty the room was built
+    -- for; the save is the only thing that knows what is actually being
+    -- played. Hardcore and Professional rooms drop the Bindery Lithographic
+    -- Stone D spot because the game refuses that pickup there, so a player on
+    -- the wrong difficulty either has a location nothing can collect (worst
+    -- case: raising to Hardcore mid-run) or one extra spot that is simply not
+    -- a check (harmless). We only ever WARN - never block a send - because
+    -- the save may be legitimately mid-change and a check the player CAN
+    -- collect must always count.
+    local DIFFICULTY_RANKS = {
+        [10] = "assisted",
+        [20] = "standard",
+        [30] = "hardcore",
+        [40] = "professional",
+    }
+    local difficulty_warned_for = nil
+    local difficulty_next_poll = 0
+
+    local function current_game_difficulty()
+        local manager = sdk.get_managed_singleton("chainsaw.CampaignManager")
+        if manager == nil then return nil end
+        local has_set = nil
+        pcall(function() has_set = manager:call("get_HasSetCurrentDifficulty") end)
+        if has_set == false then return nil end
+        local rank = nil
+        pcall(function() rank = manager:call("get_CurrentDifficulty") end)
+        rank = tonumber(rank)
+        if rank == nil then return nil end
+        return DIFFICULTY_RANKS[math.floor(rank)]
+    end
+
+    local function poll_difficulty_match()
+        local bridge = ctx.bridge
+        if bridge == nil then return end
+        local expected = st.slot_difficulty
+        if expected == nil then return end
+        local now = os.clock()
+        if now < difficulty_next_poll then return end
+        difficulty_next_poll = now + 5.0
+
+        local actual = current_game_difficulty()
+        if actual == nil then
+            return
+        end
+        bridge.game_difficulty = actual
+        local mismatch = (actual ~= expected)
+        bridge.difficulty_mismatch = mismatch and expected or nil
+
+        -- Edge-triggered on the pairing, so switching difficulty mid-run
+        -- warns again rather than staying quiet after the first notice.
+        local signature = mismatch and (expected .. "/" .. actual) or nil
+        if signature == difficulty_warned_for then return end
+        difficulty_warned_for = signature
+        if not mismatch then return end
+
+        local message = string.format(
+            "Difficulty mismatch: this seed was generated for %s, you are playing %s.",
+            expected, actual)
+        warn(message)
+        local push = ctx.push_native_text or _G.push_native_text
+        if type(push) == "function" then
+            pcall(push, message .. " Some checks may not be collectable.")
+        end
     end
 
     -- [Phase 3 Group 1] Submit detected location checks to the AP server. The
@@ -1210,11 +1358,40 @@ return function(ctx)
             end
             if ctx.bridge then
                 ctx.bridge.check_guidance_ceiling = cg
-                if cg ~= "markers_rarity" then
-                    ctx.bridge.world_markers_importance_colors = false
-                end
+                -- The ceiling is also the DEFAULT. Before this, markers_rarity
+                -- only permitted colours while the actual switch was a script-UI
+                -- checkbox defaulting off, so the launcher's rarity option
+                -- changed nothing anyone could see (Cam, 2026-08-10). A rarity
+                -- slot now connects with colours on; the in-game toggle keeps
+                -- the last word for the session.
+                ctx.bridge.world_markers_importance_colors = (cg == "markers_rarity")
             end
             info("CheckGuidance ceiling: " .. cg .. " (from slot_data)")
+        end
+        -- [MarkerDetail] How much a marker may say in this room, chosen by the
+        -- host. The player still picks their own tier in Guidance; this is the
+        -- cap. Absent (older rooms) = permissive, matching how it behaved when
+        -- nothing ever wrote this value.
+        do
+            local md = (type(slot_data) == "table") and slot_data.marker_detail or nil
+            if md ~= "minimal" and md ~= "basic" and md ~= "locate" and md ~= "identify" then
+                md = nil
+            end
+            if ctx.bridge then
+                ctx.bridge.marker_detail_ceiling = md
+            end
+            info("Marker detail ceiling: " .. tostring(md or "(unset - permissive)") .. " (from slot_data)")
+        end
+        -- [Difficulty] The room was generated for ONE difficulty, and on the
+        -- hard ones the pool drops the spots that cannot be collected there.
+        -- Generation cannot see the save, so a player who picks the wrong
+        -- difficulty - or raises it part-way through - ends up with a
+        -- location in their multiworld the game will not hand over. Remember
+        -- what the room expects; poll_difficulty_match does the comparing.
+        do
+            local d = (type(slot_data) == "table") and slot_data.difficulty or nil
+            st.slot_difficulty = (type(d) == "string" and d ~= "") and d or nil
+            info("Slot difficulty: " .. tostring(st.slot_difficulty or "(not in slot_data)"))
         end
         -- [Tutorial] The first-run guide, on unless the slot turned it off.
         -- Older seeds without the key keep it on.
@@ -1324,6 +1501,12 @@ return function(ctx)
                             end
                         end
                     end
+                    -- [D5] The launcher stamps whether this room was patched
+                    -- with allow-bonus-items; older room files lack the key
+                    -- and read as false.
+                    if ctx.bridge then
+                        ctx.bridge.allow_bonus_items = (payload.allow_bonus_items == true)
+                    end
                 else
                     warn(string.format(
                         "%s is for seed '%s' slot '%s' but this session is seed '%s' slot '%s' -- ignoring it (re-patch via the launcher)",
@@ -1375,6 +1558,19 @@ return function(ctx)
         resend_checked_locations()
         -- [Phase 4] Refresh seed-aware location classifications for the progression UI.
         scout_all_locations()
+        -- [D5] Rooms patched with allow-bonus-items: make the four bonus
+        -- weapons legal on this profile now, before any save/load can strip
+        -- them from the inventory. Idempotent (already-bought skipped).
+        if ctx.bridge and ctx.bridge.allow_bonus_items == true then
+            local ensure = ctx.inject_ensure_bonus_weapons_unlocked
+                or _G.inject_ensure_bonus_weapons_unlocked
+            if type(ensure) == "function" then
+                local ok_unlock, unlock_err = pcall(ensure)
+                if not ok_unlock then
+                    warn("bonus-weapon unlock failed: " .. tostring(unlock_err))
+                end
+            end
+        end
     end
 
     local function on_slot_refused(reasons)
@@ -1982,6 +2178,7 @@ return function(ctx)
                 ap:poll()
                 drain_received_items()
                 drain_location_checks()
+                poll_difficulty_match()
                 maybe_send_victory()
                 poll_deathlink()
                 poll_port_recovery()

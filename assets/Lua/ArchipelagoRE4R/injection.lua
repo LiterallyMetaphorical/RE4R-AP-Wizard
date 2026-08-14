@@ -1233,12 +1233,14 @@ local function install(ctx)
     -- Candidate accessors for "what key items are held". The class is not
     -- documented anywhere in this repo, so probe the plausible names and dump the
     -- real member list once if every guess misses.
-    -- The real names, read off a live member dump (2026-08-06): the controller
-    -- exposes getItems/getInventoryItems, NOT the get_Items/getItemList shapes
-    -- guessed here originally - so this probe always missed and the boot
-    -- snapshot was silently empty every run.
+    -- The working accessor (il2cpp dump): getInventoryItems() -> List<
+    -- KeyItemInventoryItem>, zero-arg. getItems() is NOT usable here - it takes
+    -- a Predicate<ItemID> (getItems304253), so the old zero-arg call threw
+    -- "Invalid number of arguments" on EVERY 2s poll, spamming the log before
+    -- falling through to the accessor that works (live: 1.7k-4.7k warnings per
+    -- session). Dropped outright.
     local KEY_ITEM_LIST_ACCESSORS = {
-        "getItems", "getInventoryItems",
+        "getInventoryItems",
         "get_ItemList", "getItemList", "get_Items", "get_KeyItemList", "get_ItemDataList",
     }
     local KEY_ITEM_LIST_FIELDS = {
@@ -2211,6 +2213,436 @@ local function install(ctx)
         return inject_write_main_inventory(controller_table, item, normalized_item_id, normalized_count, route_label)
     end
 
+    -- [A3] The merchant's sell flow classifies each sellable row by source
+    -- inventory (chainsaw.gui.shop.SellerType) and removes sold items from
+    -- that source. Storage (the Armoury) holds only weapon-class items in
+    -- vanilla, so the sale's removal never learned to take a Main-Inventory
+    -- class item OUT of it - and AP overflow parks exactly those items there
+    -- (inject_write_storage). Live 2026-08: selling such an item from
+    -- Storage pays out and leaves the item in place, repeatably. Infinite
+    -- money. The money is granted deep inside the game's own transaction,
+    -- so the fix is a reconciler around the transaction instead: snapshot
+    -- case+storage counts for foreign-class storage residents when the sell
+    -- confirm starts, capture what the transaction reports sold
+    -- (InGameShopManager.notifySellItems), and afterwards take from Storage
+    -- exactly the sold count the game's own removal did not take. It only
+    -- ever acts on shortfalls, only on item ids whose designed route is not
+    -- Storage (vanilla cannot put those there), and caps at what Storage
+    -- still holds - so every vanilla-reachable sale is untouched by
+    -- construction.
+    local sale_reconciler = {
+        armed = false,
+        snapshot = {},   -- item_id -> { storage = n, case = n }
+        sold = {},       -- item_id -> count the transaction reported sold
+    }
+
+    local function inject_resolve_case_inventory()
+        local inventory_manager = sdk.get_managed_singleton("chainsaw.InventoryManager")
+        if inventory_manager == nil then
+            return nil
+        end
+        inventory_manager = inject_try_add_ref(inventory_manager)
+        local controller_table = inject_safe_call(function()
+            return inject_get_managed(inventory_manager):get_field("_ControllerTable")
+        end)
+        if controller_table == nil then
+            return nil
+        end
+        local controller = inject_find_controller_by_type(
+            controller_table, { "chainsaw.CsInventoryController" })
+        if controller == nil then
+            return nil
+        end
+        return inject_safe_call(function()
+            return inject_get_managed(controller):get_field("<_CsInventory>k__BackingField")
+        end)
+    end
+
+    -- Case copies of the given ids, counted by stack size, in one walk.
+    -- Ids absent from the case count as zero.
+    local function inject_count_case_items(id_set)
+        local counts = {}
+        for id in pairs(id_set) do
+            counts[id] = 0
+        end
+        local cs_inventory = inject_resolve_case_inventory()
+        if cs_inventory == nil then
+            return counts
+        end
+        local managed = inject_get_managed(cs_inventory)
+        if managed == nil then
+            return counts
+        end
+        local items_list = inject_safe_call(function()
+            return managed:get_field("_InventoryItems")
+        end)
+        local total = inject_get_collection_count(items_list)
+        if type(total) ~= "number" then
+            return counts
+        end
+        for index = 0, math.min(total, 200) - 1 do
+            local wrapper_managed = inject_get_managed(inject_get_collection_item(items_list, index))
+            if wrapper_managed ~= nil then
+                local wrapped_managed = inject_get_managed(inject_safe_call(function()
+                    return wrapper_managed:get_field("<Item>k__BackingField")
+                end))
+                if wrapped_managed ~= nil then
+                    local wrapped_id = tonumber(inject_safe_call(function()
+                        return wrapped_managed:get_field("_ItemId")
+                    end))
+                    if wrapped_id ~= nil and counts[math.floor(wrapped_id)] ~= nil then
+                        local stack = tonumber(inject_safe_call(function()
+                            return wrapped_managed:get_field("_CurrentItemCount")
+                        end)) or 1
+                        wrapped_id = math.floor(wrapped_id)
+                        counts[wrapped_id] = counts[wrapped_id] + math.max(1, math.floor(stack))
+                    end
+                end
+            end
+        end
+        return counts
+    end
+
+    local function inject_resolve_armoury_manager()
+        local armoury_manager = sdk.get_managed_singleton("chainsaw.ArmouryManager")
+        if armoury_manager == nil then
+            return nil
+        end
+        return inject_get_managed(inject_try_add_ref(armoury_manager))
+    end
+
+    local function inject_get_storage_item_count(armoury_managed, item_id)
+        local count = inject_safe_call(function()
+            return armoury_managed:call("getItemCountSum", item_id)
+        end)
+        return math.max(0, math.floor(tonumber(count) or 0))
+    end
+
+    -- Storage residents whose designed route is NOT Storage: only AP overflow
+    -- puts those there, so they are the only ids the reconciler may touch.
+    local function inject_collect_foreign_storage_ids(armoury_managed)
+        local ids = {}
+        local list = inject_safe_call(function()
+            return armoury_managed:call("getArmouryItemList")
+        end)
+        local total = inject_get_collection_count(list)
+        if type(total) ~= "number" then
+            return ids
+        end
+        for index = 0, math.min(total, 400) - 1 do
+            local entry = inject_get_managed(inject_get_collection_item(list, index))
+            if entry ~= nil then
+                local inner = inject_get_managed(inject_safe_call(function()
+                    return entry:get_field("_Item")
+                end))
+                if inner ~= nil then
+                    local item_id = tonumber(inject_safe_call(function()
+                        return inner:get_field("_ItemId")
+                    end))
+                    if item_id ~= nil and item_id > 0 then
+                        item_id = math.floor(item_id)
+                        local kind = inject_get_item_kind(item_id)
+                        if inject_get_route_label(kind, item_id) ~= "Storage" then
+                            ids[item_id] = true
+                        end
+                    end
+                end
+            end
+        end
+        return ids
+    end
+
+    -- Take up to `wanted` of item_id out of Storage through the game's own
+    -- reduceArmouryItem, feeding it the stored Item instances. Progress is
+    -- measured by the authoritative count so stack semantics cannot loop us;
+    -- bounded passes, stop on any pass that makes no progress.
+    local function inject_reduce_storage_item(armoury_managed, item_id, wanted)
+        local removed_total = 0
+        for _ = 1, 8 do
+            if removed_total >= wanted then
+                break
+            end
+            local before = inject_get_storage_item_count(armoury_managed, item_id)
+            if before <= 0 then
+                break
+            end
+            local target_inner = nil
+            local target_stack = 1
+            local list = inject_safe_call(function()
+                return armoury_managed:call("getArmouryItemList")
+            end)
+            local total = inject_get_collection_count(list)
+            if type(total) ~= "number" then
+                break
+            end
+            for index = 0, math.min(total, 400) - 1 do
+                local entry = inject_get_managed(inject_get_collection_item(list, index))
+                if entry ~= nil then
+                    local inner = inject_get_managed(inject_safe_call(function()
+                        return entry:get_field("_Item")
+                    end))
+                    if inner ~= nil then
+                        local entry_id = tonumber(inject_safe_call(function()
+                            return inner:get_field("_ItemId")
+                        end))
+                        if entry_id ~= nil and math.floor(entry_id) == item_id then
+                            target_inner = inner
+                            target_stack = math.max(1, math.floor(tonumber(inject_safe_call(function()
+                                return inner:get_field("_CurrentItemCount")
+                            end)) or 1))
+                            break
+                        end
+                    end
+                end
+            end
+            if target_inner == nil then
+                break
+            end
+            local take = math.min(wanted - removed_total, target_stack, before)
+            local ok = pcall(function()
+                armoury_managed:call("reduceArmouryItem", target_inner, take)
+            end)
+            if not ok then
+                break
+            end
+            local after = inject_get_storage_item_count(armoury_managed, item_id)
+            if after >= before then
+                break
+            end
+            removed_total = removed_total + (before - after)
+        end
+        return removed_total
+    end
+
+    local function sale_reconciler_arm()
+        sale_reconciler.armed = false
+        sale_reconciler.snapshot = {}
+        sale_reconciler.sold = {}
+        local armoury_managed = inject_resolve_armoury_manager()
+        if armoury_managed == nil then
+            return
+        end
+        local foreign_ids = inject_collect_foreign_storage_ids(armoury_managed)
+        if next(foreign_ids) ~= nil then
+            local case_counts = inject_count_case_items(foreign_ids)
+            for id in pairs(foreign_ids) do
+                sale_reconciler.snapshot[id] = {
+                    storage = inject_get_storage_item_count(armoury_managed, id),
+                    case = case_counts[id] or 0,
+                }
+            end
+        end
+        -- Armed with an empty snapshot is fine: the settle pass no-ops.
+        sale_reconciler.armed = true
+    end
+
+    local function sale_reconciler_capture(sell_list)
+        if not sale_reconciler.armed then
+            -- A confirm path we did not wrap reached the transaction. Stand
+            -- down (guessing mid-transaction risks over-removal) but say so
+            -- loudly - this log line is how we learn the path exists.
+            log.info("[RE4R AP] storage-sale: transaction with no armed snapshot; reconciler stands down for this sale")
+            return
+        end
+        local total = inject_get_collection_count(sell_list)
+        if type(total) ~= "number" then
+            return
+        end
+        for index = 0, total - 1 do
+            local entry = inject_get_managed(inject_get_collection_item(sell_list, index))
+            if entry ~= nil then
+                local inner = inject_get_managed(inject_safe_call(function()
+                    return entry:get_field("SellItem")
+                end))
+                local sold_count = tonumber(inject_safe_call(function()
+                    return entry:get_field("SellCount")
+                end)) or 0
+                local item_id = nil
+                if inner ~= nil then
+                    item_id = tonumber(inject_safe_call(function()
+                        return inner:get_field("_ItemId")
+                    end))
+                end
+                if item_id ~= nil and item_id > 0 and sold_count > 0 then
+                    item_id = math.floor(item_id)
+                    sale_reconciler.sold[item_id] =
+                        (sale_reconciler.sold[item_id] or 0) + math.floor(sold_count)
+                end
+            end
+        end
+    end
+
+    local function sale_reconciler_settle()
+        if not sale_reconciler.armed then
+            return
+        end
+        sale_reconciler.armed = false
+        local sold = sale_reconciler.sold
+        local snapshot = sale_reconciler.snapshot
+        sale_reconciler.sold = {}
+        sale_reconciler.snapshot = {}
+        if next(sold) == nil or next(snapshot) == nil then
+            return
+        end
+        local armoury_managed = inject_resolve_armoury_manager()
+        if armoury_managed == nil then
+            return
+        end
+        local case_ids = {}
+        for id in pairs(snapshot) do
+            case_ids[id] = true
+        end
+        local case_now = inject_count_case_items(case_ids)
+        for id, sold_count in pairs(sold) do
+            local snap = snapshot[id]
+            if snap ~= nil then
+                local storage_now = inject_get_storage_item_count(armoury_managed, id)
+                local removed = (snap.storage - storage_now) + (snap.case - (case_now[id] or 0))
+                local shortfall = sold_count - removed
+                if shortfall > 0 then
+                    local can_take = math.min(shortfall, storage_now)
+                    if can_take > 0 then
+                        local took = inject_reduce_storage_item(armoury_managed, id, can_take)
+                        log.info(string.format(
+                            "[RE4R AP] storage-sale reconciled: item %d sold x%d, game removed %d, took %d from Storage (%d -> %d)",
+                            id, sold_count, removed, took, storage_now,
+                            inject_get_storage_item_count(armoury_managed, id)))
+                    else
+                        log.info(string.format(
+                            "[RE4R AP] storage-sale shortfall for item %d (sold %d, game removed %d) but Storage holds none",
+                            id, sold_count, removed))
+                    end
+                end
+            end
+        end
+    end
+
+    local function install_storage_sale_reconciler_hook()
+        local state_type = sdk.find_type_definition("chainsaw.gui.shop.InGameShopGuiState_SellDefault")
+        local shop_manager_type = sdk.find_type_definition("chainsaw.InGameShopManager")
+        if state_type == nil or shop_manager_type == nil then
+            log.info("[RE4R AP] shop sell types not found -- storage-sale reconciler disabled")
+            return
+        end
+        local gauge_method = state_type:get_method("onHoldGaugeCompleted")
+        local notify_method = shop_manager_type:get_method("notifySellItems")
+        if gauge_method == nil or notify_method == nil then
+            log.info("[RE4R AP] shop sell methods not found -- storage-sale reconciler disabled")
+            return
+        end
+        sdk.hook(
+            gauge_method,
+            function(args)
+                local ok, err = pcall(sale_reconciler_arm)
+                if not ok then
+                    log.info("[RE4R AP] storage-sale arm error: " .. tostring(err))
+                end
+                return sdk.PreHookResult.CALL_ORIGINAL
+            end,
+            function(retval)
+                local ok, err = pcall(sale_reconciler_settle)
+                if not ok then
+                    log.info("[RE4R AP] storage-sale settle error: " .. tostring(err))
+                end
+                return retval
+            end
+        )
+        sdk.hook(
+            notify_method,
+            function(args)
+                local ok, err = pcall(function()
+                    sale_reconciler_capture(sdk.to_managed_object(args[4]))
+                end)
+                if not ok then
+                    log.info("[RE4R AP] storage-sale capture error: " .. tostring(err))
+                end
+                return sdk.PreHookResult.CALL_ORIGINAL
+            end,
+            function(retval)
+                return retval
+            end
+        )
+        log.info("[RE4R AP] storage-sale reconciler installed (sell shortfalls leave Storage)")
+    end
+
+    -- [D5] Bonus weapons. RE4R validates Extra Content Shop purchases when a
+    -- save loads and DELETES un-bought bonus weapons from the inventory -
+    -- which is what "bonus weapons disappear after death or reload" was. In
+    -- allow-bonus-items rooms the merchant can stock them, so Cam's call
+    -- (playtest round 2): force the persistent unlock instead of warning
+    -- players away. Per-item on purpose - only the four weapons the BioRand
+    -- option can stock are touched, never enableAllBonus, so the rest of the
+    -- player's Extra Content stays exactly as they earned it. The recipe per
+    -- weapon: ItemID -> ExShopBonusID (getItemIdToBonus), then mark it
+    -- unlocked AND bought (the reload validation checks bought), then ask
+    -- share.SaveDataManager for a system save so the records persist even if
+    -- the player never touches a typewriter. Idempotent: already-bought
+    -- weapons are skipped, so this can run on every connect.
+    local BONUS_WEAPON_ITEM_IDS = {
+        { id = 276445056, name = "Primal Knife" },
+        { id = 275157056, name = "Chicago Sweeper" },
+        { id = 275638656, name = "Handcannon" },
+        { id = 276278656, name = "Infinite Rocket Launcher" },
+    }
+
+    local function inject_ensure_bonus_weapons_unlocked()
+        local record_manager = sdk.get_managed_singleton("chainsaw.GameRecordManager")
+        if record_manager == nil then
+            return false, "GameRecordManager singleton missing"
+        end
+        record_manager = inject_try_add_ref(record_manager)
+
+        local ok_cat, category_weapon = pcall(function()
+            return sdk.find_type_definition("chainsaw.ExShopCategory"):get_field("Weapon"):get_data(nil)
+        end)
+        if not ok_cat or category_weapon == nil then
+            return false, "ExShopCategory.Weapon unresolved"
+        end
+
+        local unlocked = 0
+        for _, weapon in ipairs(BONUS_WEAPON_ITEM_IDS) do
+            local ok, err = pcall(function()
+                local manager = inject_get_managed(record_manager)
+                local bonus_id = manager:call("getItemIdToBonus", weapon.id)
+                if type(bonus_id) ~= "number" then
+                    return
+                end
+                if manager:call("checkBuyBonus", bonus_id) ~= true then
+                    manager:call("setUnlockBonus", bonus_id)
+                    manager:call("setBuyBonus", bonus_id, category_weapon)
+                    unlocked = unlocked + 1
+                    log.info(string.format(
+                        "[RE4R AP] force-unlocked bonus weapon: %s (bonus id %s)",
+                        weapon.name, tostring(bonus_id)))
+                end
+            end)
+            if not ok then
+                log.info(string.format(
+                    "[RE4R AP] bonus-weapon unlock failed for %s: %s",
+                    weapon.name, tostring(err)))
+            end
+        end
+
+        if unlocked > 0 then
+            local ok_save, err_save = pcall(function()
+                local save_manager = sdk.get_managed_singleton("share.SaveDataManager")
+                if save_manager ~= nil then
+                    save_manager:call("requestSystemSave", true)
+                end
+            end)
+            if ok_save then
+                log.info(string.format(
+                    "[RE4R AP] %d bonus weapon(s) force-unlocked; system save requested",
+                    unlocked))
+            else
+                log.info("[RE4R AP] bonus unlocks applied but system save request failed: "
+                    .. tostring(err_save))
+            end
+        end
+
+        return true, unlocked
+    end
+
     injection.items = injectable_items
     injection.item_names = injectable_item_names
     injection.item_kind_by_id = injectable_item_kind_by_id
@@ -2252,6 +2684,8 @@ local function install(ctx)
     export("inject_get_expected_commit_count", inject_get_expected_commit_count)
     export("inject_get_route_hint", inject_get_route_hint)
     export("inject_read_key_item_ids", inject_read_key_item_ids)
+    export("inject_ensure_bonus_weapons_unlocked", inject_ensure_bonus_weapons_unlocked)
+    export("install_storage_sale_reconciler_hook", install_storage_sale_reconciler_hook)
 
     -- Reads the campaign lead's key-item ids out of InventoryManager's
     -- per-context save-data table. The live controller unregisters while
@@ -2325,6 +2759,11 @@ local function install(ctx)
     local key_mirror_pending = {}
     local key_mirror_attempts = 0
     local key_mirror_delivered = 0
+    local key_mirror_gave_up = false
+    -- The takeover race the retry loop covers resolves in seconds; this is a
+    -- backstop against an item that will NEVER land (a torn-down section, a
+    -- route that cannot place it) turning into a forever 2s retry storm.
+    local KEY_MIRROR_MAX_ATTEMPTS = 60
 
     re.on_frame(function()
         local now = os.clock()
@@ -2332,6 +2771,27 @@ local function install(ctx)
             return
         end
         key_mirror_last_clock = now
+
+        -- Gate on the same playability compound the injection path uses. The
+        -- mirror must never run at the title screen, mid-load, or - the crash
+        -- that motivated this - during end-of-run teardown, when the key
+        -- controllers unregister but this loop kept calling into the
+        -- torn-down _ControllerTable every 2s until it faulted (Amondo's
+        -- ending crash, 2026-08-11). Victory in = nothing left to mirror and
+        -- the world is coming down, so stop outright.
+        if bridge ~= nil and (bridge.victory_sent == true or bridge.victory_pending == true) then
+            return
+        end
+        local rs_fn = ctx.get_runtime_state or _G.get_runtime_state
+        local rs = (type(rs_fn) == "function") and rs_fn() or nil
+        if not (rs ~= nil
+            and rs.is_in_game
+            and rs.player_present
+            and rs.is_playable
+            and not rs.is_loading
+            and not rs.is_cutscene) then
+            return
+        end
 
         local ok, err = pcall(function()
             local default_active = inject_is_default_character_active()
@@ -2350,6 +2810,7 @@ local function install(ctx)
                 key_mirror_pending = {}
                 key_mirror_attempts = 0
                 key_mirror_delivered = 0
+                key_mirror_gave_up = false
                 return
             end
 
@@ -2360,6 +2821,7 @@ local function install(ctx)
                 key_mirror_was_default = false
                 key_mirror_attempts = 0
                 key_mirror_delivered = 0
+                key_mirror_gave_up = false
                 key_mirror_pending = {}
                 local source = key_item_snapshot
                 local origin = "boot snapshot"
@@ -2383,6 +2845,18 @@ local function install(ctx)
             -- before the new character's controllers finish registering, and
             -- the old fire-once version lost the whole mirror to that race.
             if #key_mirror_pending > 0 then
+                if key_mirror_attempts >= KEY_MIRROR_MAX_ATTEMPTS then
+                    -- Give up loudly, once, rather than hammer a controller
+                    -- that is never going to accept these. Resets on the next
+                    -- takeover (was_default block above).
+                    if not key_mirror_gave_up then
+                        key_mirror_gave_up = true
+                        log.info(string.format(
+                            "[RE4R AP] key-item mirror: giving up on %d item(s) after %d attempts",
+                            #key_mirror_pending, key_mirror_attempts))
+                    end
+                    return
+                end
                 key_mirror_attempts = key_mirror_attempts + 1
                 local still_pending = {}
                 for _, item_id in ipairs(key_mirror_pending) do

@@ -1,5 +1,14 @@
 RE4R.apworld provenance
 =======================
+Rebuilt:     2026-08-13, from ArchipelagoRE4R fix/playtest-round-2 @ 46ef89e. Location pool
+             is 460 (was 467): the runtime-inert five, the birdcage and the
+             Gallery egg left, and Lithographic Stone D is excluded on Hardcore
+             and Professional. Ships the round-2 chapter and section
+             corrections, the T.DLC location group, and the new Key Items and
+             Small Keys item groups. Mod is MOD_VERSION 2026.08.13-7.
+             Staged by tools/stage_payload.py; see assets/PAYLOAD_STAMP.json
+             for the exact source commits and hashes.
+
 Relocated:   2026-07-11, redesign step 1b-prep (from assets/Archipelago/RE4R.apworld,
              which is deleted with the hosting/generation cut - see
              UI_REDESIGN_REVIEW_2026-07-11.md, finding apworld-orphaned).

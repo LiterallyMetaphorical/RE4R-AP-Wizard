@@ -653,6 +653,88 @@ local function install(ctx)
         pop_overlay_window_transparent_style(overlay_style_count)
     end
 
+    -- [Multiworld hints] Hints you bought for YOUR items that live in someone
+    -- else's world. A marker cannot help - there is nowhere in RE4R to point -
+    -- so they get a pinned panel instead, one bullet each:
+    -- "<Item> lives in <Player>'s World - <Location>".
+    --
+    -- Pinned to the LEFT edge, about two thirds up the screen (Cam's pick):
+    -- clear of the header and toasts on the right, and clear of the health
+    -- and ammo readouts along the bottom. Left-aligned text, because a
+    -- bullet list hugging the left edge reads wrong centred.
+    --
+    -- The panel exists only while there is something in it: the first such
+    -- hint spawns it, later ones extend the list, and it disappears once the
+    -- last one is found. Deliberately NOT gated on check_guidance - the
+    -- player paid points for this and it is theirs regardless of the world's
+    -- marker permissions (Cam, 2026-08-13).
+    local function draw_multiworld_hints_overlay()
+        local state = bridge.last_state or {}
+        if not state.is_playable or type(state.current_stage) ~= "number" then
+            return
+        end
+        local hints = bridge.multiworld_hints
+        if type(hints) ~= "table" or #hints == 0 then
+            return
+        end
+
+        local title = "Multiworld Hints"
+        local lines = {}
+        for _, hint in ipairs(hints) do
+            local where = hint.location_name
+            local text
+            if where ~= nil and where ~= "" then
+                text = string.format("%s lives in %s's World - %s",
+                    tostring(hint.item_name), tostring(hint.finding_player_name), tostring(where))
+            else
+                -- No datapackage entry for that game's location: still name the
+                -- world, which is the part the player can act on.
+                text = string.format("%s lives in %s's World",
+                    tostring(hint.item_name), tostring(hint.finding_player_name))
+            end
+            lines[#lines + 1] = "- " .. text
+        end
+
+        local window_width = math.max(
+            CHECK_OVERLAY_HEADER_MIN_WIDTH,
+            get_imgui_text_width(title) + (CHECK_OVERLAY_HEADER_PADDING_X * 2))
+        for _, line in ipairs(lines) do
+            window_width = math.max(
+                window_width,
+                get_imgui_text_width(line) + (CHECK_OVERLAY_HEADER_PADDING_X * 2))
+        end
+        local window_height = CHECK_OVERLAY_HEADER_MAIN_Y_OFFSET
+            + ((#lines + 1) * CHECK_OVERLAY_HEADER_MAIN_Y_OFFSET)
+
+        -- Left edge; vertically at MULTIWORLD_HINTS_ANCHOR_Y (fraction of the
+        -- screen measured from the TOP, so 0.34 sits roughly two thirds up).
+        -- Clamped so a long list can never run off the bottom.
+        local top = CHECK_OVERLAY_MARGIN_Y
+        local ok_display, display_size = pcall(function() return imgui.get_display_size() end)
+        if ok_display and display_size ~= nil then
+            local screen_height = tonumber(display_size.y or 0) or 0
+            if screen_height > 0 then
+                top = math.floor(screen_height * MULTIWORLD_HINTS_ANCHOR_Y)
+                local lowest = screen_height - window_height - CHECK_OVERLAY_MARGIN_Y
+                if top > lowest then top = math.max(CHECK_OVERLAY_MARGIN_Y, lowest) end
+            end
+        end
+        imgui.set_next_window_pos(
+            Vector2f.new(CHECK_OVERLAY_MARGIN_X, top), 1)
+        imgui.set_next_window_size(Vector2f.new(window_width, window_height), 1)
+        set_next_overlay_window_bg_alpha(0.0)
+        local overlay_style_count = push_overlay_window_transparent_style()
+        imgui.begin_window("##re4r_multiworld_hints_overlay", true, CHECK_OVERLAY_WINDOW_FLAGS)
+
+        draw_overlay_text(title, CHECK_OVERLAY_TEXT_COLOR_PROGRESS)
+        for _, line in ipairs(lines) do
+            draw_overlay_text(line, CHECK_OVERLAY_TEXT_COLOR_DETAIL)
+        end
+
+        imgui.end_window()
+        pop_overlay_window_transparent_style(overlay_style_count)
+    end
+
     -- [Menu status] The full header needs a loaded stage (chapter, area, check
     -- counts), so outside gameplay it draws nothing - which left the menus with
     -- no sign of whether Archipelago was even connected. This is the same
@@ -926,6 +1008,7 @@ local function install(ctx)
     export("get_active_check_notifications", get_active_check_notifications)
     export("get_check_overlay_header_display_height", get_check_overlay_header_display_height)
     export("draw_check_progress_overlay", draw_check_progress_overlay)
+    export("draw_multiworld_hints_overlay", draw_multiworld_hints_overlay)
     export("draw_ap_status_menu_overlay", draw_ap_status_menu_overlay)
     export("draw_check_notification_overlays_polished", draw_check_notification_overlays_polished)
     export("trigger_celebration", trigger_celebration)
