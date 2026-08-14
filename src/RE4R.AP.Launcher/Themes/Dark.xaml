@@ -339,16 +339,47 @@
         <Setter Property="BorderBrush" Value="{DynamicResource SubtleBorderBrush}" />
     </Style>
 
+    <!--
+        TabItem needs its own template for the same reason ComboBox did: the
+        stock one paints the selected tab from brushes baked into itself and
+        ignores Background, so the current tab stayed pale while its text went
+        light - the one tab you could not read.
+    -->
     <Style TargetType="TabItem">
-        <Setter Property="Background" Value="{DynamicResource SurfaceAltBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource SubtleBorderBrush}" />
-        <Setter Property="Padding" Value="10,5" />
-        <Style.Triggers>
-            <Trigger Property="IsSelected" Value="True">
-                <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
-            </Trigger>
-        </Style.Triggers>
+        <Setter Property="Padding" Value="12,6" />
+        <Setter Property="Margin" Value="0,0,2,0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TabItem">
+                    <Border x:Name="Tab"
+                            Padding="{TemplateBinding Padding}"
+                            Background="{DynamicResource SurfaceAltBrush}"
+                            BorderBrush="{DynamicResource SubtleBorderBrush}"
+                            BorderThickness="1,1,1,0"
+                            CornerRadius="6,6,0,0"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter x:Name="Header"
+                                          ContentSource="Header"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          TextElement.Foreground="{DynamicResource SubtleTextBrush}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Header" Property="TextElement.Foreground" Value="{DynamicResource TextBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Tab" Property="Background" Value="{DynamicResource AccentBrush}" />
+                            <Setter TargetName="Tab" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                            <Setter TargetName="Header" Property="TextElement.Foreground" Value="{DynamicResource AccentForegroundBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Header" Property="TextElement.Foreground" Value="{DynamicResource SubtleTextBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <Style TargetType="Expander">

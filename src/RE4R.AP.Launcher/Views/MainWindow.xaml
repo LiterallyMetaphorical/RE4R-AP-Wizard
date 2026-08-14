@@ -762,25 +762,19 @@
                     <WrapPanel MaxWidth="1240">
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
-                                       Text="Progression Balancing" />
-                            <Slider Minimum="0"
-                                    Maximum="99"
-                                    TickFrequency="1"
-                                    IsSnapToTickEnabled="True"
-                                    Value="{Binding ProgressionBalancing, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Margin="0,4,0,0"
-                                       FontWeight="SemiBold"
-                                       Text="{Binding ProgressionBalancingLabel}" />
-                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="How aggressively Archipelago front-loads your own useful and progression items so you spend less time stuck waiting on other worlds. Disabled (0) turns it off, Normal (50) is the Archipelago default, Recommended (70) suits RE4R's long gated chapters, Aggressive (99) pushes the hardest." />
-                        </StackPanel>
-                        <StackPanel Style="{StaticResource OptionCardStyle}">
-                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="Allow Missable Locations" />
                             <CheckBox IsChecked="{Binding AllowMissableLocations}"
                                       Content="Allow missable locations" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="Off by default, which keeps progression items away from spots you can permanently lose: ones you can walk past for good, and small-key drawers (a discarded Small Key can seal one). On allows them in both - riskier seeds." />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Minimize Backtracking" />
+                            <CheckBox IsChecked="{Binding MinimizeBacktracking}"
+                                      Content="Minimize backtracking + side areas" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Off by default. On: keeps the important checks along the main path - all three Hexagon pieces are guaranteed before leaving the Fish Farm so the lake altar solves in one boat pass, and the optional excursions (Forest Altar, the chapter 12 Throne Room revisit, the lake's egg-nest islet) only ever hold plain filler." />
                         </StackPanel>
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
@@ -792,11 +786,39 @@
                         </StackPanel>
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
-                                       Text="Minimize Backtracking" />
-                            <CheckBox IsChecked="{Binding MinimizeBacktracking}"
-                                      Content="Minimize backtracking + side areas" />
+                                       Text="Merchant Shop Checks" />
+                            <CheckBox IsChecked="{Binding ShopChecksEnabled}"
+                                      Content="Let the merchant sell multiworld checks" />
+                            <StackPanel Margin="0,6,0,0"
+                                        Orientation="Horizontal"
+                                        IsEnabled="{Binding ShopChecksEnabled}">
+                                <Slider Width="220"
+                                        VerticalAlignment="Center"
+                                        IsSnapToTickEnabled="True"
+                                        Maximum="24"
+                                        Minimum="1"
+                                        TickFrequency="1"
+                                        Value="{Binding ShopChecks}" />
+                                <TextBlock Margin="10,0,0,0"
+                                           VerticalAlignment="Center"
+                                           Text="{Binding ShopChecksLabel}" />
+                            </StackPanel>
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="Off by default. On: keeps the important checks along the main path - all three Hexagon pieces are guaranteed before leaving the Fish Farm so the lake altar solves in one boat pass, and the optional excursions (Forest Altar, the chapter 12 Throne Room revisit, the lake's egg-nest islet) only ever hold plain filler." />
+                                       Text="On by default, at 16 - one per chapter. The merchant sells this many Archipelago checks in his buy tab, spread across the campaign. Each row shows what it really is and who it belongs to, stays on the shelf until you buy it, then reads SOLD OUT. Prices are fixed by tier - 5,000 filler / 7,000 useful / 9,000 progression - and buying another player's item hands you back a gemstone worth exactly what you paid, so you need the money but never lose it." />
+                        </StackPanel>
+                        <StackPanel Width="1080" Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Progression Balancing" />
+                            <Slider Minimum="0"
+                                    Maximum="99"
+                                    TickFrequency="1"
+                                    IsSnapToTickEnabled="True"
+                                    Value="{Binding ProgressionBalancing, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock Margin="0,4,0,0"
+                                       FontWeight="SemiBold"
+                                       Text="{Binding ProgressionBalancingLabel}" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="How aggressively Archipelago front-loads your own useful and progression items so you spend less time stuck waiting on other worlds. Disabled (0) turns it off, Normal (50) is the Archipelago default, Recommended (70) suits RE4R's long gated chapters, Aggressive (99) pushes the hardest." />
                         </StackPanel>
                         <StackPanel DataContext="{Binding ItemSelection}"
                                     Style="{StaticResource OptionCardStyle}">
@@ -897,28 +919,6 @@
                                        Text="{Binding SummaryText}" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="{Binding DataContext.LocationSelectionHint, RelativeSource={RelativeSource AncestorType=Window}}" />
-                        </StackPanel>
-                        <StackPanel Style="{StaticResource OptionCardStyle}">
-                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
-                                       Text="Merchant Shop Checks" />
-                            <CheckBox IsChecked="{Binding ShopChecksEnabled}"
-                                      Content="Let the merchant sell multiworld checks" />
-                            <StackPanel Margin="0,6,0,0"
-                                        Orientation="Horizontal"
-                                        IsEnabled="{Binding ShopChecksEnabled}">
-                                <Slider Width="220"
-                                        VerticalAlignment="Center"
-                                        IsSnapToTickEnabled="True"
-                                        Maximum="24"
-                                        Minimum="1"
-                                        TickFrequency="1"
-                                        Value="{Binding ShopChecks}" />
-                                <TextBlock Margin="10,0,0,0"
-                                           VerticalAlignment="Center"
-                                           Text="{Binding ShopChecksLabel}" />
-                            </StackPanel>
-                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="On by default, at 16 - one per chapter. The merchant sells this many Archipelago checks in his buy tab, spread across the campaign. Each row shows what it really is and who it belongs to, stays on the shelf until you buy it, then reads SOLD OUT. Prices are fixed by tier - 5,000 filler / 7,000 useful / 9,000 progression - and buying another player's item hands you back a gemstone worth exactly what you paid, so you need the money but never lose it." />
                         </StackPanel>
                     </WrapPanel>
                     <Border Style="{StaticResource SettingsSectionRuleStyle}">
@@ -1824,7 +1824,6 @@
                                 </Border>
 
                                 <TabControl Grid.Row="3"
-                                            MaxHeight="430"
                                             BorderThickness="1"
                                             IsEnabled="{Binding BioRandOptions.AreOptionsEditable}"
                                             ItemsSource="{Binding BioRandOptions.Pages}">
@@ -1843,12 +1842,18 @@
                                                                 Visibility="{Binding IsEnemiesPage, Converter={StaticResource BooleanToVisibilityConverter}}">
                                                         <TextBlock FontWeight="SemiBold"
                                                                    Text="Enemy configuration" />
-                                                        <ComboBox Margin="0,5,0,0"
-                                                                  Width="300"
-                                                                  DisplayMemberPath="DisplayName"
-                                                                  IsEnabled="{Binding DataContext.BioRandOptions.AreOptionsEditable, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
-                                                                  ItemsSource="{Binding DataContext.BioRandOptions.EnemyPresets, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
-                                                                  SelectedItem="{Binding DataContext.BioRandOptions.SelectedEnemyPreset, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}, Mode=TwoWay}" />
+                                                        <ListBox Margin="0,5,0,0"
+                                                                 HorizontalAlignment="Left"
+                                                                 Style="{StaticResource SegmentedPickerStyle}"
+                                                                 IsEnabled="{Binding DataContext.BioRandOptions.AreOptionsEditable, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
+                                                                 ItemsSource="{Binding DataContext.BioRandOptions.EnemyPresets, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
+                                                                 SelectedItem="{Binding DataContext.BioRandOptions.SelectedEnemyPreset, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}, Mode=TwoWay}">
+                                                            <ListBox.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <TextBlock Text="{Binding DisplayName}" />
+                                                                </DataTemplate>
+                                                            </ListBox.ItemTemplate>
+                                                        </ListBox>
                                                         <TextBlock Margin="0,4,0,0"
                                                                    Foreground="{DynamicResource SubtleTextBrush}"
                                                                    TextWrapping="Wrap"
@@ -1864,12 +1869,12 @@
                                                                    Text="Developer tip: Méndez is especially annoying. Recommended: exclude him from enemy randomization. Safer Méndez Hill / Krauser Fight remains available under Constraints." />
                                                         <CheckBox Margin="0,10,0,0"
                                                                   IsChecked="{Binding ShowAdvanced, Mode=TwoWay}"
-                                                                  Content="Advanced: set the enemy options individually" />
+                                                                  Content="Set the enemy options individually" />
                                                         <TextBlock Margin="22,2,0,0"
                                                                    FontSize="11"
                                                                    Foreground="{DynamicResource SubtleTextBrush}"
                                                                    TextWrapping="Wrap"
-                                                                   Text="The preset already sets all of these. Change any one of them and the preset above becomes Custom." />
+                                                                   Text="The preset already sets these. Change any one and the preset above becomes Custom. Two of them, Enemy Variety and Enemy Max. Pack Size, are BioRand advanced options and need Show Advanced up in the corner as well." />
                                                     </StackPanel>
                                                     <ItemsControl ItemsSource="{Binding Groups}"
                                                                   Visibility="{Binding ShowAdvanced, Converter={StaticResource BooleanToVisibilityConverter}}">

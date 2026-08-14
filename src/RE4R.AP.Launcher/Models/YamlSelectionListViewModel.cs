@@ -35,6 +35,14 @@ public sealed class YamlSelectionListViewModel : ObservableObject
     private readonly List<YamlSelectionEntryViewModel> _groups = new();
     private readonly List<YamlSelectionEntryViewModel> _individuals = new();
     private readonly Dictionary<string, List<string>> _groupMembers;
+
+    // The picker shows these instead of the apworld's group name. The YAML is
+    // unaffected: the collapser writes group names out of _groupMembers, which
+    // is keyed by the real name, so this is a label and nothing more.
+    private static readonly Dictionary<string, string> DisplayNames = new(StringComparer.Ordinal)
+    {
+        ["T.DLC"] = "Expanded Treasure DLC",
+    };
     private bool _suppressPropagation;
     private string _searchText = string.Empty;
     private string _summaryText = string.Empty;
@@ -65,7 +73,7 @@ public sealed class YamlSelectionListViewModel : ObservableObject
         {
             var entry = new YamlSelectionEntryViewModel
             {
-                DisplayName = groupName,
+                DisplayName = DisplayNames.TryGetValue(groupName, out var friendly) ? friendly : groupName,
                 IsGroup = true,
                 Members = members,
             };

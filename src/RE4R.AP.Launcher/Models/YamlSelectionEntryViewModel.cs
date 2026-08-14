@@ -30,6 +30,7 @@ public sealed class YamlSelectionEntryViewModel : ObservableObject
 
     public string DisplayName { get; init; } = string.Empty;
 
+
     /// <summary>True for a group row; <see cref="Members"/> is then populated.</summary>
     public bool IsGroup { get; init; }
 

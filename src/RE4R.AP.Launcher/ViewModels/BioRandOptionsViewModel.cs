@@ -67,7 +67,7 @@ public sealed class BioRandOptionsViewModel : ObservableObject
         }
     }
 
-    public string EnemyPresetDescription => $"{SelectedEnemyPreset.Intensity} intensity — {SelectedEnemyPreset.Description}";
+    public string EnemyPresetDescription => $"{SelectedEnemyPreset.Intensity} intensity. {SelectedEnemyPreset.Description}";
 
     /// <summary>Removes both Méndez classes from BioRand's random-enemy probability table.</summary>
     public bool ExcludeDifficultMendezEncounters
