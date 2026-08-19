@@ -60,8 +60,15 @@ public sealed class PendingSessionDraft
     [JsonPropertyName("tutorial")]
     public bool Tutorial { get; set; } = true;
 
+    [JsonPropertyName("game_mode")]
+    public string GameMode { get; set; } = "Campaign";
+
+    [JsonPropertyName("mercenaries_score_checks")]
+    public string MercenariesScoreChecks { get; set; } = "Standard";
+
     [JsonPropertyName("unlocked_typewriter_stage_ids")]
     public List<string> UnlockedTypewriterStageIds { get; set; } = new();
+
 
     [JsonPropertyName("yaml_text")]
     public string YamlText { get; set; } = string.Empty;

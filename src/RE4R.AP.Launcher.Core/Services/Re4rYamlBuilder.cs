@@ -33,9 +33,13 @@ public sealed class Re4rYamlBuilder
         // fixed set of keys - an unknown value falls back to the safe default.
         var progressionBalancing = Math.Clamp(request.ProgressionBalancing, 0, 99);
         var checkGuidance = NormalizeCheckGuidance(request.CheckGuidance);
+        var gameMode = NormalizeGameMode(request.GameMode);
+        var scoreChecks = NormalizeMercenariesScoreChecks(request.MercenariesScoreChecks);
 
         var gameOptions = new YamlMappingNode
         {
+            { "game_mode", gameMode },
+            { "mercenaries_score_checks", scoreChecks },
             { "difficulty", request.Difficulty.Trim().ToLowerInvariant() },
             { "progression_balancing", progressionBalancing.ToString(System.Globalization.CultureInfo.InvariantCulture) },
             { "check_guidance", checkGuidance },
@@ -62,6 +66,28 @@ public sealed class Re4rYamlBuilder
         return writer.ToString();
     }
 
+    private static string NormalizeGameMode(string? value)
+    {
+        var normalized = (value ?? string.Empty).Trim().ToLowerInvariant().Replace(" ", "_").Replace("+", "and");
+        return normalized switch
+        {
+            "campaign_and_mercenaries" or "campaignandmercenaries" => "campaign_and_mercenaries",
+            "mercenaries_only" or "mercenariesonly" or "mercenaries" => "mercenaries_only",
+            _ => "campaign"
+        };
+    }
+
+    private static string NormalizeMercenariesScoreChecks(string? value)
+    {
+        var normalized = (value ?? string.Empty).Trim().ToLowerInvariant().Replace(" ", "_");
+        return normalized switch
+        {
+            "a_only" or "aonly" => "a_only",
+            "full" => "full",
+            _ => "standard"
+        };
+    }
+
     private static string NormalizeCheckGuidance(string? value)
     {
         var normalized = (value ?? string.Empty).Trim().ToLowerInvariant();
@@ -71,3 +97,4 @@ public sealed class Re4rYamlBuilder
     private static YamlScalarNode SingleQuotedScalar(string value) =>
         new(value) { Style = ScalarStyle.SingleQuoted };
 }
+

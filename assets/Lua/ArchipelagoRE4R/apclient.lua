@@ -244,8 +244,10 @@ return function(ctx)
                     re4r_item_id = engine_id,
                     count = math.max(1, count),
                     name = (type(value.name) == "string" and value.name ~= "") and value.name or nil,
+                    kind = (type(value.kind) == "string" and value.kind ~= "") and value.kind or nil,
                 }
                 n = n + 1
+
             end
         end
         st.item_map_loaded = n > 0
@@ -711,6 +713,11 @@ return function(ctx)
         end
 
         local injected, processed, need_flush = 0, 0, false
+        local runtime_domain = "CAMPAIGN"
+        if type(ctx.get_runtime_domain) == "function" then
+            runtime_domain = ctx.get_runtime_domain()
+        end
+
         while #pending > 0 and injected < MAX_INJECTS_PER_TICK and processed < MAX_ITEMS_PER_TICK do
             local entry = pending[1]
             local idx = entry.index
@@ -724,34 +731,53 @@ return function(ctx)
                 processed = processed + 1
             elseif idx ~= bridge.last_received_index + 1 then
                 break -- gap: wait for the missing index (flush any lazy advances)
-            elseif entry.player == st.numeric_slot
-                and type(entry.location) == "number" and entry.location > 0
-                -- ...unless a non-lead character made that pickup: the item
-                -- went into an inventory the game then threw away, so it owes
-                -- delivery to the lead exactly like a foreign gift would.
-                and bridge.non_lead_checked_locations[entry.location] ~= true then
-                -- own-world physical pickup: BioRand already granted it in-game.
-                info(string.format("own-find skip idx=%d ap=%s location=%d",
-                    idx, tostring(entry.item), entry.location))
-                bridge.last_received_index = idx
-                need_flush = true -- re-processing a skip is harmless; flush lazily
-                pop_head(idx)
-                processed = processed + 1
             else
                 local mapping = ap_item_map[entry.item]
-                if mapping == nil or type(mapping.re4r_item_id) ~= "number" or mapping.re4r_item_id <= 0 then
-                    -- Map is confirmed loaded (gated above), so this id is genuinely
-                    -- unknown -> skip it (loud) so it can't block later items forever.
-                    err(string.format(
-                        "POISON: AP item id %s (idx %d) not in ap_item_map -> SKIPPING (item lost)",
-                        tostring(entry.item), idx))
+                local is_merc_item = (mapping ~= nil and (mapping.kind == "merc_character" or mapping.kind == "merc_stage" or mapping.kind == "merc_filler"))
+                    or (type(entry.item) == "number" and entry.item >= 440000001 and entry.item <= 440000099)
+                local is_merc_location = (type(entry.location) == "number" and entry.location >= 440001000 and entry.location <= 440001127)
+
+                if is_merc_item then
+                    -- Mercenaries unlock item: update ownership immediately, never inject into campaign inventory
+                    if type(ctx.handle_merc_item_received) == "function" then
+                        ctx.handle_merc_item_received(mapping and mapping.name or "")
+                    end
                     bridge.last_received_index = idx
-                    inject_failure_counts[idx] = nil
+                    need_flush = true
                     pop_head(idx)
                     processed = processed + 1
-                    need_flush = false
-                    if not persist() then break end
+                    info(string.format("merc item received idx=%d ap=%s [%s]",
+                        idx, tostring(entry.item), mapping and mapping.name or "merc_item"))
+                elseif runtime_domain == "MERCENARIES" then
+                    -- In Mercenaries mode: defer campaign physical items until returned to campaign
+                    break
+                elseif entry.player == st.numeric_slot
+                    and type(entry.location) == "number" and entry.location > 0
+                    and not is_merc_location
+                    and bridge.non_lead_checked_locations[entry.location] ~= true then
+                    -- own-world physical pickup: BioRand already granted it in campaign
+                    info(string.format("own-find skip idx=%d ap=%s location=%d",
+                        idx, tostring(entry.item), entry.location))
+                    bridge.last_received_index = idx
+                    need_flush = true -- re-processing a skip is harmless; flush lazily
+                    pop_head(idx)
+                    processed = processed + 1
                 else
+                    -- Campaign physical item delivery
+                    if mapping == nil or type(mapping.re4r_item_id) ~= "number" or mapping.re4r_item_id <= 0 then
+                        -- Map is confirmed loaded (gated above), so this id is genuinely
+                        -- unknown -> skip it (loud) so it can't block later items forever.
+                        err(string.format(
+                            "POISON: AP item id %s (idx %d) not in ap_item_map -> SKIPPING (item lost)",
+                            tostring(entry.item), idx))
+                        bridge.last_received_index = idx
+                        inject_failure_counts[idx] = nil
+                        pop_head(idx)
+                        processed = processed + 1
+                        need_flush = false
+                        if not persist() then break end
+                    else
+
                     local status = tostring(inject_item_to_inventory(mapping.re4r_item_id, mapping.count))
                     if inject_command_succeeded(status) then
                         if type(inject_get_expected_commit_count) == "function"
@@ -1051,7 +1077,32 @@ return function(ctx)
     local function maybe_send_victory()
         local bridge = ctx.bridge
         if ap == nil or bridge == nil then return end
+
+        local is_merc_only = false
+        local slot_data = ctx.slot_data or bridge.slot_data
+        if type(slot_data) == "table" and slot_data.game_mode == "mercenaries_only" then
+            is_merc_only = true
+        end
+
+        if is_merc_only and bridge.victory_sent ~= true and type(bridge.checked_locations) == "table" then
+            local all_done = true
+            for char_idx = 0, 7 do
+                for stage_idx = 0, 3 do
+                    local loc_id = 440001000 + char_idx * 16 + stage_idx * 4
+                    if bridge.checked_locations[loc_id] ~= true then
+                        all_done = false
+                        break
+                    end
+                end
+                if not all_done then break end
+            end
+            if all_done then
+                bridge.victory_pending = true
+            end
+        end
+
         if bridge.victory_pending ~= true or bridge.victory_sent == true then return end
+
         -- Fully connected only; otherwise leave the latch to re-fire on reconnect.
         local ok_state, state = pcall(function() return ap:get_state() end)
         if not ok_state or state ~= AP.State.SLOT_CONNECTED then return end
@@ -1074,15 +1125,32 @@ return function(ctx)
         -- latched + persisted above) -- so it gets the centre-screen celebration with no
         -- risk of ever becoming noise. The toast stays as well: it's what the Message Log
         -- captures from, so the goal is still recoverable after the banner fades.
-        local trigger_celebration = ctx.trigger_celebration or _G.trigger_celebration
-        if type(trigger_celebration) == "function" then
-            trigger_celebration("GOAL COMPLETE", {
-                "Saddler's dead. Ashley's safe.",
-                "Reported to Archipelago.",
-            })
+        local is_merc_only = false
+        local slot_data = ctx.slot_data or bridge.slot_data
+        if type(slot_data) == "table" and slot_data.game_mode == "mercenaries_only" then
+            is_merc_only = true
         end
-        enqueue_toast("Goal Complete!", "Saddler's dead. Ashley's safe.", "PROGRESSION", "goal")
+
+        local trigger_celebration = ctx.trigger_celebration or _G.trigger_celebration
+        if is_merc_only then
+            if type(trigger_celebration) == "function" then
+                trigger_celebration("MERCENARIES COMPLETE", {
+                    "Rank A achieved on all 32 loadouts.",
+                    "Reported to Archipelago.",
+                })
+            end
+            enqueue_toast("Goal Complete!", "Rank A achieved on all 32 loadouts.", "PROGRESSION", "goal")
+        else
+            if type(trigger_celebration) == "function" then
+                trigger_celebration("GOAL COMPLETE", {
+                    "Saddler's dead. Ashley's safe.",
+                    "Reported to Archipelago.",
+                })
+            end
+            enqueue_toast("Goal Complete!", "Saddler's dead. Ashley's safe.", "PROGRESSION", "goal")
+        end
     end
+
 
     -- [Phase 4] Scout every location once on connect so the progression-warning UI gets
     -- seed-aware AP ItemFlags. Mirrors the Python client's _refresh_location_classifications:
@@ -1247,7 +1315,33 @@ return function(ctx)
                 end
             end
         end
+        -- [Mercenaries] Initialize Mercenaries runtime slot data and virtual gating
+        do
+            ctx.slot_data = slot_data
+            if ctx.bridge then ctx.bridge.slot_data = slot_data end
+            local init_merc = ctx.init_merc_ownership or _G.init_merc_ownership
+            if type(init_merc) == "function" then
+                init_merc(slot_data)
+            end
+            local install_hooks = ctx.install_merc_virtual_gating_hooks or _G.install_merc_virtual_gating_hooks
+            if type(install_hooks) == "function" then
+                install_hooks()
+            end
+            -- Replay received ledger for Mercenaries unlocks
+            local handle_item = ctx.handle_merc_item_received or _G.handle_merc_item_received
+            if type(handle_item) == "function" and type(received_ledger) == "table" then
+                for _, rec in pairs(received_ledger) do
+                    if type(rec) == "table" and rec.item ~= nil then
+                        local mapping = ap_item_map[rec.item]
+                        if mapping and mapping.name then
+                            handle_item(mapping.name)
+                        end
+                    end
+                end
+            end
+        end
         -- Capture our NUMERIC slot + seed and establish the per-seed session
+
         -- identity so the durable watermark keys to session_<seed>__<slot>.json
         -- and loads on connect. Clear any stale queue from a prior connection.
         local ok_num, num = pcall(function() return ap:get_player_number() end)

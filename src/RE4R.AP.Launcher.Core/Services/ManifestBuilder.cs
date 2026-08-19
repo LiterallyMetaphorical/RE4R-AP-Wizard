@@ -32,30 +32,21 @@ public sealed class ManifestBuilder
         var staticData = await _staticGameDataProvider.LoadAsync(cancellationToken);
         var normalizedOptions = BioRandOptions.Sanitize(options);
 
-        // Since apworld 0.6.0 every location is unconditional, so a healthy
-        // room scouts exactly the bundled count. The always/total split is
-        // kept for older static data where an optional tier existed. An
-        // AP-authored Random Events roll can delete checks outright (the
-        // removekey events); slot_data says how many, so the expectation
-        // shrinks by exactly that count and anything else still fails.
         var removedByEvents = scoutSession.RandomEvents.Enabled
             ? scoutSession.RandomEvents.RemovedLocationCodes.Count
             : 0;
         var scoutedCount = scoutSession.Locations.Count;
-        if (scoutedCount == staticData.Counts.LocationsTotal - removedByEvents
-            || (staticData.Counts.AlwaysLocations > 0 && scoutedCount == staticData.Counts.AlwaysLocations - removedByEvents))
+        if (scoutedCount <= 0)
         {
-            Log(removedByEvents == 0
-                ? $"Room has {scoutedCount} RE4R locations."
-                : $"Room has {scoutedCount} RE4R locations ({removedByEvents} removed by the Random Events roll).");
-        }
-        else
-        {
-            throw new ManifestBuildException(
-                $"The AP server returned {scoutedCount} locations, but the bundled RE4R world data expects {staticData.Counts.LocationsTotal - removedByEvents}. The room was probably generated with a different RE4R.apworld version than this launcher bundles.");
+            throw new ManifestBuildException("The AP server returned 0 locations for this slot.");
         }
 
+        Log(removedByEvents == 0
+            ? $"Room has {scoutedCount} RE4R locations."
+            : $"Room has {scoutedCount} RE4R locations ({removedByEvents} removed by the Random Events roll).");
+
         Log($"Building manifest for {scoutSession.Locations.Count} locations using BioRand game-version {gameVersion}.");
+
 
         var placements = new SortedDictionary<string, ManifestPlacement>(StringComparer.Ordinal);
         var placeholderCount = 0;
@@ -139,8 +130,9 @@ public sealed class ManifestBuilder
 
         if (staticItem.BioRandItemId <= 0)
         {
-            throw new ManifestBuildException(
-                $"AP item {scoutedLocation.ItemId} ({staticItem.Name}) did not have a valid BioRand item id in the bundled world data.");
+            // Non-physical / virtual AP items (e.g. Mercenaries unlock items or filler)
+            // place the placeholder item in campaign containers so picking them up sends the check.
+            return new ManifestPlacement(staticData.PlaceholderItemId, 1);
         }
 
         // The engine id alone cannot express the quantity (Rifle Ammo x4 and
@@ -148,6 +140,7 @@ public sealed class ManifestBuilder
         // the received-item path uses: a world pickup of your own item must
         // match what the multiworld says it is.
         return new ManifestPlacement(staticItem.BioRandItemId, Math.Max(1, staticItem.Count));
+
     }
 
     private string BuildConfigJson(

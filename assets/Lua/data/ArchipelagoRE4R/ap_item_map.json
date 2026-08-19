@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "item_count": 127,
+  "item_count": 140,
   "items": {
     "42736575": {
       "name": "Insignia Key x1",
@@ -636,6 +636,84 @@
       "name": "Handgun Ammo x25",
       "re4r_item_id": 112800000,
       "count": 25
+    },
+    "440000001": {
+      "name": "Mercenaries Character: Leon",
+      "re4r_item_id": -1,
+      "count": 1,
+      "kind": "merc_character"
+    },
+    "440000002": {
+      "name": "Mercenaries Character: Leon (Pinstripe)",
+      "re4r_item_id": -1,
+      "count": 1,
+      "kind": "merc_character"
+    },
+    "440000003": {
+      "name": "Mercenaries Character: Luis",
+      "re4r_item_id": -1,
+      "count": 1,
+      "kind": "merc_character"
+    },
+    "440000004": {
+      "name": "Mercenaries Character: Krauser",
+      "re4r_item_id": -1,
+      "count": 1,
+      "kind": "merc_character"
+    },
+    "440000005": {
+      "name": "Mercenaries Character: HUNK",
+      "re4r_item_id": -1,
+      "count": 1,
+      "kind": "merc_character"
+    },
+    "440000006": {
+      "name": "Mercenaries Character: Ada",
+      "re4r_item_id": -1,
+      "count": 1,
+      "kind": "merc_character"
+    },
+    "440000007": {
+      "name": "Mercenaries Character: Ada (Dress)",
+      "re4r_item_id": -1,
+      "count": 1,
+      "kind": "merc_character"
+    },
+    "440000008": {
+      "name": "Mercenaries Character: Wesker",
+      "re4r_item_id": -1,
+      "count": 1,
+      "kind": "merc_character"
+    },
+    "440000021": {
+      "name": "Mercenaries Stage: Village",
+      "re4r_item_id": -1,
+      "count": 1,
+      "kind": "merc_stage"
+    },
+    "440000022": {
+      "name": "Mercenaries Stage: Castle",
+      "re4r_item_id": -1,
+      "count": 1,
+      "kind": "merc_stage"
+    },
+    "440000023": {
+      "name": "Mercenaries Stage: Island",
+      "re4r_item_id": -1,
+      "count": 1,
+      "kind": "merc_stage"
+    },
+    "440000024": {
+      "name": "Mercenaries Stage: Docks",
+      "re4r_item_id": -1,
+      "count": 1,
+      "kind": "merc_stage"
+    },
+    "440000099": {
+      "name": "Mercenaries Filler: Nothing",
+      "re4r_item_id": -1,
+      "count": 1,
+      "kind": "merc_filler"
     }
   }
 }

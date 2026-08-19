@@ -305,9 +305,18 @@ internal sealed class MainWindow : Window
         // narrow column wasted the whole right-hand side and pushed the YAML
         // preview off the bottom of the window.
         var left = new StackPanel { Spacing = 10 };
+        left.Children.Add(Label("Game mode"));
+        left.Children.Add(Combo("GameModeOptions", "SelectedGameMode"));
+        var mercChecksLabel = Label("Mercenaries score checks");
+        mercChecksLabel.Bind(IsVisibleProperty, Binding("IsMercenariesEnabled"));
+        left.Children.Add(mercChecksLabel);
+        var mercChecksCombo = Combo("MercenariesScoreChecksOptions", "SelectedMercenariesScoreChecks");
+        mercChecksCombo.Bind(IsVisibleProperty, Binding("IsMercenariesEnabled"));
+        left.Children.Add(mercChecksCombo);
         left.Children.Add(Label("Difficulty"));
         left.Children.Add(Combo("DifficultyOptions", "SelectedDifficulty"));
         left.Children.Add(Label("Progression balancing"));
+
         left.Children.Add(Text("ProgressionBalancingLabel"));
         left.Children.Add(new Slider
         {

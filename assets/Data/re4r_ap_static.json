@@ -2,16 +2,17 @@
   "schema_version": 1,
   "generated_at_utc": "2026-08-07T02:08:29Z",
   "game": "Resident Evil 4 Remake",
-  "world_version": "0.7.0",
+  "world_version": "0.8.0",
   "placeholder_item_id": 120486400,
   "counts": {
-    "locations_total": 467,
+    "locations_total": 595,
     "guid_locations": 467,
-    "noguid_locations": 0,
-    "items_total": 127,
+    "noguid_locations": 128,
+    "items_total": 140,
     "always_locations": 467,
     "optional_key_locations": 0
   },
+
   "location_codes": [
     3286922255,
     3431684013,
@@ -479,7 +480,135 @@
     2123776652,
     3326878643,
     4121907333,
-    2476682491
+    2476682491,
+    440001000,
+    440001001,
+    440001002,
+    440001003,
+    440001004,
+    440001005,
+    440001006,
+    440001007,
+    440001008,
+    440001009,
+    440001010,
+    440001011,
+    440001012,
+    440001013,
+    440001014,
+    440001015,
+    440001016,
+    440001017,
+    440001018,
+    440001019,
+    440001020,
+    440001021,
+    440001022,
+    440001023,
+    440001024,
+    440001025,
+    440001026,
+    440001027,
+    440001028,
+    440001029,
+    440001030,
+    440001031,
+    440001032,
+    440001033,
+    440001034,
+    440001035,
+    440001036,
+    440001037,
+    440001038,
+    440001039,
+    440001040,
+    440001041,
+    440001042,
+    440001043,
+    440001044,
+    440001045,
+    440001046,
+    440001047,
+    440001048,
+    440001049,
+    440001050,
+    440001051,
+    440001052,
+    440001053,
+    440001054,
+    440001055,
+    440001056,
+    440001057,
+    440001058,
+    440001059,
+    440001060,
+    440001061,
+    440001062,
+    440001063,
+    440001064,
+    440001065,
+    440001066,
+    440001067,
+    440001068,
+    440001069,
+    440001070,
+    440001071,
+    440001072,
+    440001073,
+    440001074,
+    440001075,
+    440001076,
+    440001077,
+    440001078,
+    440001079,
+    440001080,
+    440001081,
+    440001082,
+    440001083,
+    440001084,
+    440001085,
+    440001086,
+    440001087,
+    440001088,
+    440001089,
+    440001090,
+    440001091,
+    440001092,
+    440001093,
+    440001094,
+    440001095,
+    440001096,
+    440001097,
+    440001098,
+    440001099,
+    440001100,
+    440001101,
+    440001102,
+    440001103,
+    440001104,
+    440001105,
+    440001106,
+    440001107,
+    440001108,
+    440001109,
+    440001110,
+    440001111,
+    440001112,
+    440001113,
+    440001114,
+    440001115,
+    440001116,
+    440001117,
+    440001118,
+    440001119,
+    440001120,
+    440001121,
+    440001122,
+    440001123,
+    440001124,
+    440001125,
+    440001126,
+    440001127
   ],
   "locations": {
     "3286922255": {
@@ -3043,13 +3172,13 @@
       "note": ""
     },
     "1350438299": {
-      "name": "Chapter 6 - Slaughterhouse - Méndez's False Eye x1 (boss drop) [02676d58]",
+      "name": "Chapter 6 - Slaughterhouse - M\u00e9ndez's False Eye x1 (boss drop) [02676d58]",
       "guid": "02676d58-d55e-4c45-b120-9ff848d60bf5",
       "identity_kind": "guid",
       "chapter": 6,
       "stage": 47410,
       "region": "Church",
-      "source_item_name": "Méndez's False Eye x1",
+      "source_item_name": "M\u00e9ndez's False Eye x1",
       "ap_eligibility": "always",
       "section_name": "Slaughterhouse",
       "x": 286.33,
@@ -7953,6 +8082,1158 @@
       "z": -175.61,
       "container": "",
       "note": ""
+    },
+    "440001000": {
+      "name": "Mercenaries - Leon - Village - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001001": {
+      "name": "Mercenaries - Leon - Village - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001002": {
+      "name": "Mercenaries - Leon - Village - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001003": {
+      "name": "Mercenaries - Leon - Village - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001004": {
+      "name": "Mercenaries - Leon - Castle - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001005": {
+      "name": "Mercenaries - Leon - Castle - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001006": {
+      "name": "Mercenaries - Leon - Castle - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001007": {
+      "name": "Mercenaries - Leon - Castle - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001008": {
+      "name": "Mercenaries - Leon - Island - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001009": {
+      "name": "Mercenaries - Leon - Island - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001010": {
+      "name": "Mercenaries - Leon - Island - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001011": {
+      "name": "Mercenaries - Leon - Island - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001012": {
+      "name": "Mercenaries - Leon - Docks - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001013": {
+      "name": "Mercenaries - Leon - Docks - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001014": {
+      "name": "Mercenaries - Leon - Docks - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001015": {
+      "name": "Mercenaries - Leon - Docks - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001016": {
+      "name": "Mercenaries - Leon (Pinstripe) - Village - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001017": {
+      "name": "Mercenaries - Leon (Pinstripe) - Village - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001018": {
+      "name": "Mercenaries - Leon (Pinstripe) - Village - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001019": {
+      "name": "Mercenaries - Leon (Pinstripe) - Village - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001020": {
+      "name": "Mercenaries - Leon (Pinstripe) - Castle - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001021": {
+      "name": "Mercenaries - Leon (Pinstripe) - Castle - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001022": {
+      "name": "Mercenaries - Leon (Pinstripe) - Castle - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001023": {
+      "name": "Mercenaries - Leon (Pinstripe) - Castle - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001024": {
+      "name": "Mercenaries - Leon (Pinstripe) - Island - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001025": {
+      "name": "Mercenaries - Leon (Pinstripe) - Island - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001026": {
+      "name": "Mercenaries - Leon (Pinstripe) - Island - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001027": {
+      "name": "Mercenaries - Leon (Pinstripe) - Island - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001028": {
+      "name": "Mercenaries - Leon (Pinstripe) - Docks - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001029": {
+      "name": "Mercenaries - Leon (Pinstripe) - Docks - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001030": {
+      "name": "Mercenaries - Leon (Pinstripe) - Docks - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001031": {
+      "name": "Mercenaries - Leon (Pinstripe) - Docks - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001032": {
+      "name": "Mercenaries - Luis - Village - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001033": {
+      "name": "Mercenaries - Luis - Village - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001034": {
+      "name": "Mercenaries - Luis - Village - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001035": {
+      "name": "Mercenaries - Luis - Village - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001036": {
+      "name": "Mercenaries - Luis - Castle - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001037": {
+      "name": "Mercenaries - Luis - Castle - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001038": {
+      "name": "Mercenaries - Luis - Castle - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001039": {
+      "name": "Mercenaries - Luis - Castle - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001040": {
+      "name": "Mercenaries - Luis - Island - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001041": {
+      "name": "Mercenaries - Luis - Island - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001042": {
+      "name": "Mercenaries - Luis - Island - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001043": {
+      "name": "Mercenaries - Luis - Island - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001044": {
+      "name": "Mercenaries - Luis - Docks - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001045": {
+      "name": "Mercenaries - Luis - Docks - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001046": {
+      "name": "Mercenaries - Luis - Docks - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001047": {
+      "name": "Mercenaries - Luis - Docks - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001048": {
+      "name": "Mercenaries - Krauser - Village - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001049": {
+      "name": "Mercenaries - Krauser - Village - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001050": {
+      "name": "Mercenaries - Krauser - Village - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001051": {
+      "name": "Mercenaries - Krauser - Village - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001052": {
+      "name": "Mercenaries - Krauser - Castle - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001053": {
+      "name": "Mercenaries - Krauser - Castle - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001054": {
+      "name": "Mercenaries - Krauser - Castle - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001055": {
+      "name": "Mercenaries - Krauser - Castle - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001056": {
+      "name": "Mercenaries - Krauser - Island - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001057": {
+      "name": "Mercenaries - Krauser - Island - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001058": {
+      "name": "Mercenaries - Krauser - Island - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001059": {
+      "name": "Mercenaries - Krauser - Island - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001060": {
+      "name": "Mercenaries - Krauser - Docks - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001061": {
+      "name": "Mercenaries - Krauser - Docks - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001062": {
+      "name": "Mercenaries - Krauser - Docks - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001063": {
+      "name": "Mercenaries - Krauser - Docks - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001064": {
+      "name": "Mercenaries - HUNK - Village - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001065": {
+      "name": "Mercenaries - HUNK - Village - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001066": {
+      "name": "Mercenaries - HUNK - Village - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001067": {
+      "name": "Mercenaries - HUNK - Village - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001068": {
+      "name": "Mercenaries - HUNK - Castle - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001069": {
+      "name": "Mercenaries - HUNK - Castle - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001070": {
+      "name": "Mercenaries - HUNK - Castle - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001071": {
+      "name": "Mercenaries - HUNK - Castle - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001072": {
+      "name": "Mercenaries - HUNK - Island - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001073": {
+      "name": "Mercenaries - HUNK - Island - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001074": {
+      "name": "Mercenaries - HUNK - Island - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001075": {
+      "name": "Mercenaries - HUNK - Island - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001076": {
+      "name": "Mercenaries - HUNK - Docks - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001077": {
+      "name": "Mercenaries - HUNK - Docks - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001078": {
+      "name": "Mercenaries - HUNK - Docks - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001079": {
+      "name": "Mercenaries - HUNK - Docks - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001080": {
+      "name": "Mercenaries - Ada - Village - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001081": {
+      "name": "Mercenaries - Ada - Village - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001082": {
+      "name": "Mercenaries - Ada - Village - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001083": {
+      "name": "Mercenaries - Ada - Village - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001084": {
+      "name": "Mercenaries - Ada - Castle - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001085": {
+      "name": "Mercenaries - Ada - Castle - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001086": {
+      "name": "Mercenaries - Ada - Castle - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001087": {
+      "name": "Mercenaries - Ada - Castle - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001088": {
+      "name": "Mercenaries - Ada - Island - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001089": {
+      "name": "Mercenaries - Ada - Island - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001090": {
+      "name": "Mercenaries - Ada - Island - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001091": {
+      "name": "Mercenaries - Ada - Island - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001092": {
+      "name": "Mercenaries - Ada - Docks - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001093": {
+      "name": "Mercenaries - Ada - Docks - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001094": {
+      "name": "Mercenaries - Ada - Docks - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001095": {
+      "name": "Mercenaries - Ada - Docks - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001096": {
+      "name": "Mercenaries - Ada (Dress) - Village - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001097": {
+      "name": "Mercenaries - Ada (Dress) - Village - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001098": {
+      "name": "Mercenaries - Ada (Dress) - Village - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001099": {
+      "name": "Mercenaries - Ada (Dress) - Village - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001100": {
+      "name": "Mercenaries - Ada (Dress) - Castle - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001101": {
+      "name": "Mercenaries - Ada (Dress) - Castle - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001102": {
+      "name": "Mercenaries - Ada (Dress) - Castle - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001103": {
+      "name": "Mercenaries - Ada (Dress) - Castle - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001104": {
+      "name": "Mercenaries - Ada (Dress) - Island - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001105": {
+      "name": "Mercenaries - Ada (Dress) - Island - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001106": {
+      "name": "Mercenaries - Ada (Dress) - Island - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001107": {
+      "name": "Mercenaries - Ada (Dress) - Island - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001108": {
+      "name": "Mercenaries - Ada (Dress) - Docks - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001109": {
+      "name": "Mercenaries - Ada (Dress) - Docks - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001110": {
+      "name": "Mercenaries - Ada (Dress) - Docks - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001111": {
+      "name": "Mercenaries - Ada (Dress) - Docks - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001112": {
+      "name": "Mercenaries - Wesker - Village - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001113": {
+      "name": "Mercenaries - Wesker - Village - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001114": {
+      "name": "Mercenaries - Wesker - Village - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001115": {
+      "name": "Mercenaries - Wesker - Village - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 40200,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001116": {
+      "name": "Mercenaries - Wesker - Castle - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001117": {
+      "name": "Mercenaries - Wesker - Castle - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001118": {
+      "name": "Mercenaries - Wesker - Castle - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001119": {
+      "name": "Mercenaries - Wesker - Castle - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 50300,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001120": {
+      "name": "Mercenaries - Wesker - Island - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001121": {
+      "name": "Mercenaries - Wesker - Island - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001122": {
+      "name": "Mercenaries - Wesker - Island - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001123": {
+      "name": "Mercenaries - Wesker - Island - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 66102,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001124": {
+      "name": "Mercenaries - Wesker - Docks - Rank A",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001125": {
+      "name": "Mercenaries - Wesker - Docks - Rank S",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001126": {
+      "name": "Mercenaries - Wesker - Docks - Rank S+",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
+    },
+    "440001127": {
+      "name": "Mercenaries - Wesker - Docks - Rank S++",
+      "guid": "",
+      "identity_kind": "mercenaries",
+      "chapter": 0,
+      "stage": 69900,
+      "region": "Mercenaries",
+      "source_item_name": ""
     }
   },
   "items": {
@@ -8433,9 +9714,9 @@
       "count": 1
     },
     "2310309362": {
-      "name": "Méndez's False Eye x1",
+      "name": "M\u00e9ndez's False Eye x1",
       "biorand_item_id": 120852800,
-      "biorand_name": "Méndez's False Eye",
+      "biorand_name": "M\u00e9ndez's False Eye",
       "classification": "FILLER",
       "count": 1
     },
@@ -8844,6 +10125,97 @@
       "biorand_name": "Handgun Ammo",
       "classification": "FILLER",
       "count": 25
+    },
+    "440000001": {
+      "name": "Mercenaries Character: Leon",
+      "biorand_item_id": -1,
+      "count": 1,
+      "biorand_name": "Mercenaries Character: Leon",
+      "classification": "PROGRESSION"
+    },
+    "440000002": {
+      "name": "Mercenaries Character: Leon (Pinstripe)",
+      "biorand_item_id": -1,
+      "count": 1,
+      "biorand_name": "Mercenaries Character: Leon (Pinstripe)",
+      "classification": "PROGRESSION"
+    },
+    "440000003": {
+      "name": "Mercenaries Character: Luis",
+      "biorand_item_id": -1,
+      "count": 1,
+      "biorand_name": "Mercenaries Character: Luis",
+      "classification": "PROGRESSION"
+    },
+    "440000004": {
+      "name": "Mercenaries Character: Krauser",
+      "biorand_item_id": -1,
+      "count": 1,
+      "biorand_name": "Mercenaries Character: Krauser",
+      "classification": "PROGRESSION"
+    },
+    "440000005": {
+      "name": "Mercenaries Character: HUNK",
+      "biorand_item_id": -1,
+      "count": 1,
+      "biorand_name": "Mercenaries Character: HUNK",
+      "classification": "PROGRESSION"
+    },
+    "440000006": {
+      "name": "Mercenaries Character: Ada",
+      "biorand_item_id": -1,
+      "count": 1,
+      "biorand_name": "Mercenaries Character: Ada",
+      "classification": "PROGRESSION"
+    },
+    "440000007": {
+      "name": "Mercenaries Character: Ada (Dress)",
+      "biorand_item_id": -1,
+      "count": 1,
+      "biorand_name": "Mercenaries Character: Ada (Dress)",
+      "classification": "PROGRESSION"
+    },
+    "440000008": {
+      "name": "Mercenaries Character: Wesker",
+      "biorand_item_id": -1,
+      "count": 1,
+      "biorand_name": "Mercenaries Character: Wesker",
+      "classification": "PROGRESSION"
+    },
+    "440000021": {
+      "name": "Mercenaries Stage: Village",
+      "biorand_item_id": -1,
+      "count": 1,
+      "biorand_name": "Mercenaries Stage: Village",
+      "classification": "PROGRESSION"
+    },
+    "440000022": {
+      "name": "Mercenaries Stage: Castle",
+      "biorand_item_id": -1,
+      "count": 1,
+      "biorand_name": "Mercenaries Stage: Castle",
+      "classification": "PROGRESSION"
+    },
+    "440000023": {
+      "name": "Mercenaries Stage: Island",
+      "biorand_item_id": -1,
+      "count": 1,
+      "biorand_name": "Mercenaries Stage: Island",
+      "classification": "PROGRESSION"
+    },
+    "440000024": {
+      "name": "Mercenaries Stage: Docks",
+      "biorand_item_id": -1,
+      "count": 1,
+      "biorand_name": "Mercenaries Stage: Docks",
+      "classification": "PROGRESSION"
+    },
+    "440000099": {
+      "name": "Mercenaries Filler: Nothing",
+      "biorand_item_id": -1,
+      "count": 1,
+      "biorand_name": "Mercenaries Filler: Nothing",
+      "classification": "FILLER"
     }
   }
 }

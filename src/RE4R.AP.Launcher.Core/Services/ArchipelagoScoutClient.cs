@@ -180,6 +180,9 @@ public sealed class ArchipelagoScoutClient
                     + $"{randomEvents.RemovedLocationCodes.Count} checks removed by events.");
             }
 
+            var gameMode = ParseGameModeSlotData(connectedPacket);
+            Log($"Room game mode: {gameMode}");
+
             // Since apworld 0.4.0 the room's location count varies with the
             // RandomizeGatedKeys option, so scout exactly what the room
             // declares (missing + checked from Connected) instead of the full
@@ -221,6 +224,7 @@ public sealed class ArchipelagoScoutClient
                 Locations = locations,
                 RoomLocationIds = roomLocationIds,
                 RandomEvents = randomEvents,
+                GameMode = gameMode,
             };
         }
         catch (ArchipelagoScoutException)
@@ -725,7 +729,33 @@ public sealed class ArchipelagoScoutClient
         };
     }
 
+    private static string ParseGameModeSlotData(JsonElement connectedPacket)
+    {
+        if (TryGetProperty(connectedPacket, "slot_data", out var slotData)
+            && slotData.ValueKind == JsonValueKind.Object
+            && slotData.TryGetProperty("game_mode", out var gameModeElement))
+        {
+            if (gameModeElement.ValueKind == JsonValueKind.String)
+            {
+                return gameModeElement.GetString() ?? "campaign";
+            }
+
+            if (gameModeElement.ValueKind == JsonValueKind.Number && gameModeElement.TryGetInt32(out var modeInt))
+            {
+                return modeInt switch
+                {
+                    1 => "campaign_and_mercenaries",
+                    2 => "mercenaries_only",
+                    _ => "campaign"
+                };
+            }
+        }
+
+        return "campaign";
+    }
+
     private static long[] GetRoomLocationIds(JsonElement connectedPacket, long[] knownLocationIds)
+
     {
         var roomIds = new SortedSet<long>();
         foreach (var propertyName in new[] { "missing_locations", "checked_locations" })

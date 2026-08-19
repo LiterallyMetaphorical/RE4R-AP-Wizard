@@ -5,8 +5,10 @@ dofile("reframework\\autorun\\ArchipelagoRE4R\\data.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\runtime.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\injection.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\detector.lua")(ctx)
+dofile("reframework\\autorun\\ArchipelagoRE4R\\mercenaries.lua")(ctx)
 
 local bridge = ctx.bridge
+
 
 local function now_unix_ms()
     return os.time() * 1000
@@ -325,7 +327,12 @@ re.on_pre_application_entry("UpdateBehavior", function()
         local now_clock = os.clock()
         local runtime_state = nil
 
+        if type(ctx.update_mercenaries_state) == "function" then
+            ctx.update_mercenaries_state()
+        end
+
         if now_clock - bridge.last_scan_clock >= SCAN_INTERVAL_SECONDS then
+
             bridge.last_scan_clock = now_clock
             runtime_state = get_runtime_state()
             process_pending_warp(runtime_state)

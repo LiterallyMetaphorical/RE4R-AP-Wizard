@@ -138,104 +138,178 @@ public sealed class LaunchWorkflowService
                     Log("Re-patching with the NEW options you selected: your multiworld checks stay identical, but the rest of the world is re-rolled. Start a new game.");
                 }
 
-                NotifyStepStarting(request, WorkflowStep.BuildManifest);
-                manifestResult = await BuildManifestAsync(request, scoutResult, effectiveOptions, cancellationToken);
-                cancellationToken.ThrowIfCancellationRequested();
-
-                // Replaying: reuse the recorded seed verbatim -> identical world.
-                // Overriding: re-derive from the NEW manifest, so the world stays a pure function of
-                // (room, slot, options). That keeps the change reversible - going back to the old
-                // options re-derives the old seed and restores the original world exactly.
-                var bioRandSeed = replayRecordedOptions && priorRecord!.BioRandSeed is { } recordedSeed
-                    ? recordedSeed
-                    : ComputeDeterministicSeed(scoutResult.SeedName, request.SlotName, manifestResult.ConfigJson);
-                if (replayRecordedOptions)
+                var isMercOnly = IsMercenariesOnly(scoutResult);
+                if (isMercOnly)
                 {
-                    Log("Re-patching an existing session: reusing the recorded BioRand seed and the options from the original patch so the world is reproduced identically.");
-                }
-
-                NotifyStepStarting(request, WorkflowStep.RunBioRandGeneration);
-                generationResult = await GenerateBioRandAsync(request, manifestResult, bioRandSeed, cancellationToken);
-                cancellationToken.ThrowIfCancellationRequested();
-
-                // Breadcrumb BEFORE any game file is touched: a crash or power
-                // loss mid-install leaves a patch_in_progress record instead
-                // of launcher amnesia over a half-modified install (review:
-                // interrupted-patch-recovery). Removed/restored below if the
-                // player cancels at the confirm dialog.
-                var breadcrumb = BuildInProgressRecord(request, scoutResult, prerequisites, effectiveOptions, bioRandSeed, priorRecord);
-                await _sessionRecordStore.SaveAsync(breadcrumb, cancellationToken);
-
-                NotifyStepStarting(request, WorkflowStep.InstallPatchFiles);
-                patchInstallResult = await InstallPatchFilesAsync(request, generationResult, cancellationToken);
-                if (patchInstallResult.Cancelled)
-                {
-                    await RestoreRecordAfterCancelledInstallAsync(priorRecord, breadcrumb.SessionKey, cancellationToken);
-                    return new LaunchWorkflowResult
+                    Log("Mercenaries Only mode active: skipping BioRand generation and campaign patch files.");
+                    manifestResult = new ManifestBuildResult
                     {
-                        Success = false,
-                        Cancelled = true,
-                        CancelledAtStep = WorkflowStep.InstallPatchFiles,
-                        NormalizedServer = scoutResult.NormalizedServer,
-                        SeedName = scoutResult.SeedName,
-                        SetupResult = setupResult,
-                        ScoutResult = scoutResult,
-                        ManifestResult = manifestResult,
-                        GenerationResult = generationResult,
-                        PatchInstallResult = patchInstallResult,
+                        ConfigJson = "{}",
+                        GuidPlacementCount = 0,
+                        PlaceholderItemCount = 0,
+                        RealRe4rItemCount = 0,
+                        SkippedNoGuidLocationCount = scoutResult.Locations.Count,
                     };
-                }
-
-                if (!patchInstallResult.Success)
-                {
-                    throw new WorkflowException(
-                        WorkflowStep.InstallPatchFiles,
-                        BuildInstallVerificationFailureMessage("BioRand patch install", patchInstallResult));
-                }
-
-                cancellationToken.ThrowIfCancellationRequested();
-
-                NotifyStepStarting(request, WorkflowStep.InstallLuaModFiles);
-                luaInstallResult = await InstallLuaModFilesAsync(request, cancellationToken);
-                if (luaInstallResult.Cancelled)
-                {
-                    return new LaunchWorkflowResult
+                    generationResult = new BioRandGenerationResult
                     {
-                        Success = false,
-                        Cancelled = true,
-                        CancelledAtStep = WorkflowStep.InstallLuaModFiles,
-                        NormalizedServer = scoutResult.NormalizedServer,
-                        SeedName = scoutResult.SeedName,
-                        SetupResult = setupResult,
-                        ScoutResult = scoutResult,
-                        ManifestResult = manifestResult,
-                        GenerationResult = generationResult,
-                        PatchInstallResult = patchInstallResult,
-                        LuaInstallResult = luaInstallResult,
+                        Success = true,
+                        BioRandVersionDescriptor = "N/A (Mercenaries Only)",
+                        StagedFiles = Array.Empty<StagedFileEntry>(),
                     };
-                }
+                    patchInstallResult = new InstallResult
+                    {
+                        Success = true,
+                        FilesCopiedCount = 0,
+                    };
 
-                if (!luaInstallResult.Success)
+                    var bioRandSeed = 0;
+
+                    var breadcrumb = BuildInProgressRecord(request, scoutResult, prerequisites, effectiveOptions, bioRandSeed, priorRecord);
+                    await _sessionRecordStore.SaveAsync(breadcrumb, cancellationToken);
+
+                    NotifyStepStarting(request, WorkflowStep.InstallLuaModFiles);
+                    luaInstallResult = await InstallLuaModFilesAsync(request, cancellationToken);
+                    if (luaInstallResult.Cancelled)
+                    {
+                        return new LaunchWorkflowResult
+                        {
+                            Success = false,
+                            Cancelled = true,
+                            CancelledAtStep = WorkflowStep.InstallLuaModFiles,
+                            NormalizedServer = scoutResult.NormalizedServer,
+                            SeedName = scoutResult.SeedName,
+                            SetupResult = setupResult,
+                            ScoutResult = scoutResult,
+                            ManifestResult = manifestResult,
+                            GenerationResult = generationResult,
+                            PatchInstallResult = patchInstallResult,
+                            LuaInstallResult = luaInstallResult,
+                        };
+                    }
+
+                    if (!luaInstallResult.Success)
+                    {
+                        throw new WorkflowException(
+                            WorkflowStep.InstallLuaModFiles,
+                            BuildInstallVerificationFailureMessage("Lua mod install", luaInstallResult));
+                    }
+
+                    sessionRecord = await BuildSessionRecordAsync(
+                        request,
+                        scoutResult,
+                        prerequisites,
+                        manifestResult,
+                        generationResult,
+                        patchInstallResult,
+                        luaInstallResult,
+                        settings,
+                        effectiveOptions,
+                        bioRandSeed,
+                        priorRecord,
+                        cancellationToken);
+                }
+                else
                 {
-                    throw new WorkflowException(
-                        WorkflowStep.InstallLuaModFiles,
-                        BuildInstallVerificationFailureMessage("Lua mod install", luaInstallResult));
-                }
+                    NotifyStepStarting(request, WorkflowStep.BuildManifest);
+                    manifestResult = await BuildManifestAsync(request, scoutResult, effectiveOptions, cancellationToken);
+                    cancellationToken.ThrowIfCancellationRequested();
 
-                sessionRecord = await BuildSessionRecordAsync(
-                    request,
-                    scoutResult,
-                    prerequisites,
-                    manifestResult,
-                    generationResult,
-                    patchInstallResult,
-                    luaInstallResult,
-                    settings,
-                    effectiveOptions,
-                    bioRandSeed,
-                    priorRecord,
-                    cancellationToken);
+                    // Replaying: reuse the recorded seed verbatim -> identical world.
+                    // Overriding: re-derive from the NEW manifest, so the world stays a pure function of
+                    // (room, slot, options). That keeps the change reversible - going back to the old
+                    // options re-derives the old seed and restores the original world exactly.
+                    var bioRandSeed = replayRecordedOptions && priorRecord!.BioRandSeed is { } recordedSeed
+                        ? recordedSeed
+                        : ComputeDeterministicSeed(scoutResult.SeedName, request.SlotName, manifestResult.ConfigJson);
+                    if (replayRecordedOptions)
+                    {
+                        Log("Re-patching an existing session: reusing the recorded BioRand seed and the options from the original patch so the world is reproduced identically.");
+                    }
+
+                    NotifyStepStarting(request, WorkflowStep.RunBioRandGeneration);
+                    generationResult = await GenerateBioRandAsync(request, manifestResult, bioRandSeed, cancellationToken);
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    // Breadcrumb BEFORE any game file is touched: a crash or power
+                    // loss mid-install leaves a patch_in_progress record instead
+                    // of launcher amnesia over a half-modified install (review:
+                    // interrupted-patch-recovery). Removed/restored below if the
+                    // player cancels at the confirm dialog.
+                    var breadcrumb = BuildInProgressRecord(request, scoutResult, prerequisites, effectiveOptions, bioRandSeed, priorRecord);
+                    await _sessionRecordStore.SaveAsync(breadcrumb, cancellationToken);
+
+                    NotifyStepStarting(request, WorkflowStep.InstallPatchFiles);
+                    patchInstallResult = await InstallPatchFilesAsync(request, generationResult, cancellationToken);
+                    if (patchInstallResult.Cancelled)
+                    {
+                        await RestoreRecordAfterCancelledInstallAsync(priorRecord, breadcrumb.SessionKey, cancellationToken);
+                        return new LaunchWorkflowResult
+                        {
+                            Success = false,
+                            Cancelled = true,
+                            CancelledAtStep = WorkflowStep.InstallPatchFiles,
+                            NormalizedServer = scoutResult.NormalizedServer,
+                            SeedName = scoutResult.SeedName,
+                            SetupResult = setupResult,
+                            ScoutResult = scoutResult,
+                            ManifestResult = manifestResult,
+                            GenerationResult = generationResult,
+                            PatchInstallResult = patchInstallResult,
+                        };
+                    }
+
+                    if (!patchInstallResult.Success)
+                    {
+                        throw new WorkflowException(
+                            WorkflowStep.InstallPatchFiles,
+                            BuildInstallVerificationFailureMessage("BioRand patch install", patchInstallResult));
+                    }
+
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    NotifyStepStarting(request, WorkflowStep.InstallLuaModFiles);
+                    luaInstallResult = await InstallLuaModFilesAsync(request, cancellationToken);
+                    if (luaInstallResult.Cancelled)
+                    {
+                        return new LaunchWorkflowResult
+                        {
+                            Success = false,
+                            Cancelled = true,
+                            CancelledAtStep = WorkflowStep.InstallLuaModFiles,
+                            NormalizedServer = scoutResult.NormalizedServer,
+                            SeedName = scoutResult.SeedName,
+                            SetupResult = setupResult,
+                            ScoutResult = scoutResult,
+                            ManifestResult = manifestResult,
+                            GenerationResult = generationResult,
+                            PatchInstallResult = patchInstallResult,
+                            LuaInstallResult = luaInstallResult,
+                        };
+                    }
+
+                    if (!luaInstallResult.Success)
+                    {
+                        throw new WorkflowException(
+                            WorkflowStep.InstallLuaModFiles,
+                            BuildInstallVerificationFailureMessage("Lua mod install", luaInstallResult));
+                    }
+
+                    sessionRecord = await BuildSessionRecordAsync(
+                        request,
+                        scoutResult,
+                        prerequisites,
+                        manifestResult,
+                        generationResult,
+                        patchInstallResult,
+                        luaInstallResult,
+                        settings,
+                        effectiveOptions,
+                        bioRandSeed,
+                        priorRecord,
+                        cancellationToken);
+                }
             }
+
 
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -1361,6 +1435,14 @@ public sealed class LaunchWorkflowService
 
         return uri.IsDefaultPort ? null : uri.Port;
     }
+
+    private static bool IsMercenariesOnly(ArchipelagoScoutSessionResult scoutResult)
+    {
+        return scoutResult is not null
+            && string.Equals(scoutResult.GameMode, "mercenaries_only", StringComparison.OrdinalIgnoreCase);
+    }
+
+
 
     private async Task NotifyAsync(
         LaunchWorkflowRequest request,
