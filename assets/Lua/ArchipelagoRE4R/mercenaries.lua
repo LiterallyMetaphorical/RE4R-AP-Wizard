@@ -86,7 +86,8 @@ local function install(ctx)
     local ownership = {
         characters = {}, -- [0..7] = true
         stages = {},     -- [0..3] = true
-        initialized = false,
+        enabled = false, -- True iff slot is connected and Mercenaries is enabled
+        ready = false,   -- True iff starting/received ownership inventory is populated
     }
 
     local function get_safe_int(obj, method_name, fallback)
@@ -225,35 +226,45 @@ local function install(ctx)
     local function init_merc_ownership(slot_data)
         ownership.characters = {}
         ownership.stages = {}
-        ownership.initialized = true
+        ownership.enabled = false
+        ownership.ready = false
 
         if type(slot_data) ~= "table" then return end
+        local is_merc_mode = (slot_data.game_mode == "mercenaries_only" or slot_data.game_mode == "campaign_and_mercenaries")
         local merc_data = slot_data.mercenaries
-        if type(merc_data) ~= "table" or merc_data.enabled ~= true then return end
+        local is_merc_enabled = is_merc_mode or (type(merc_data) == "table" and merc_data.enabled == true)
 
-        local start_char = merc_data.starting_character
+        if not is_merc_enabled then return end
+
+        ownership.enabled = true
+
+        local start_char = type(merc_data) == "table" and merc_data.starting_character or nil
         if type(start_char) == "string" then
             for key, roster in pairs(CHAR_COSTUME_TO_ROSTER) do
                 if roster.item_name == start_char or roster.name == start_char then
                     ownership.characters[roster.index] = true
-                    log.info(string.format("[Merc AP] granted starting character: %s (index %d)", roster.name, roster.index))
+                    log.info(string.format("[Merc AP Gating] granted starting character: %s (index %d)", roster.name, roster.index))
                     break
                 end
             end
         end
 
-        local start_stage = merc_data.starting_stage
+        local start_stage = type(merc_data) == "table" and merc_data.starting_stage or nil
         if type(start_stage) == "string" then
             for stage_name, stage_kind in pairs(STAGE_NAME_TO_KIND) do
                 if start_stage == ("Mercenaries Stage: " .. stage_name) or start_stage == stage_name then
                     ownership.stages[stage_kind] = true
-                    log.info(string.format("[Merc AP] granted starting stage: %s (kind %d)", stage_name, stage_kind))
+                    log.info(string.format("[Merc AP Gating] granted starting stage: %s (kind %d)", stage_name, stage_kind))
                     break
                 end
             end
         end
+
+        ownership.ready = true
+        log.info("[Merc AP Gating] ownership ready: starting inventory established")
     end
     export("init_merc_ownership", init_merc_ownership)
+
 
     local function handle_merc_item_received(item_name)
         if type(item_name) ~= "string" then return false end
@@ -631,441 +642,354 @@ local function install(ctx)
     end
     export("update_mercenaries_state", update_mercenaries_state)
 
-    -- Virtual Selection Gating (Hooks)
+    -- Virtual Selection Gating (Unified Multi-Tier Architecture)
     local hooks_installed = false
 
     local function install_merc_virtual_gating_hooks()
         if hooks_installed then return end
 
         local function should_enforce_gating()
-            local slot_data = ctx.slot_data or bridge.slot_data
-            if type(slot_data) == "table" then
-                if slot_data.game_mode == "mercenaries_only" or slot_data.game_mode == "campaign_and_mercenaries" then
-                    return ownership.initialized == true
-                end
-                if type(slot_data.mercenaries) == "table" and slot_data.mercenaries.enabled == true then
-                    return ownership.initialized == true
-                end
-            end
-            if ownership.initialized then
-                return true
-            end
-            return false
+            return ownership.enabled == true and ownership.ready == true
         end
 
-        local function safe_hook(method, pre, post)
-            if method == nil then return end
-            pcall(function()
-                sdk.hook(method, pre, post)
-            end)
-        end
-
-        -- 0. Hook Cp1021UnlockSettingsUserData.StageSetting.isUnlock (Authoritative Stage Unlock)
-        local stage_setting_type = sdk.find_type_definition("chainsaw.Cp1021UnlockSettingsUserData.StageSetting")
-        if stage_setting_type ~= nil then
-            local is_unlock = stage_setting_type:get_method("isUnlock")
-            if is_unlock ~= nil then
-                log.info("[Merc AP] Hooking Cp1021UnlockSettingsUserData.StageSetting.isUnlock")
-                local last_stage_setting = nil
-                safe_hook(is_unlock, function(args)
-                    local this_ptr = sdk.to_managed_object(args[2])
-                    last_stage_setting = this_ptr
-                end, function(retval)
-                    local this_ptr = last_stage_setting
-                    last_stage_setting = nil
-                    if not should_enforce_gating() or this_ptr == nil then return retval end
-
-                    local kind = get_safe_field_int(this_ptr, "KindId", -1)
-                    if kind >= 0 and kind <= 3 then
-                        local owned = is_stage_owned(kind)
-                        log.info(string.format("[Merc AP Gating] StageSetting.isUnlock(stage=%d) -> %s", kind, tostring(owned)))
-                        return sdk.to_ptr(owned and 1 or 0)
-                    end
-                    return retval
-                end)
-            end
-        end
-
-        -- 0. Hook Cp1021UnlockSettingsUserData.CharacterSetting.isUnlock (Authoritative Character Unlock)
-        local char_setting_type = sdk.find_type_definition("chainsaw.Cp1021UnlockSettingsUserData.CharacterSetting")
-        if char_setting_type ~= nil then
-            local is_unlock = char_setting_type:get_method("isUnlock")
-            if is_unlock ~= nil then
-                log.info("[Merc AP] Hooking Cp1021UnlockSettingsUserData.CharacterSetting.isUnlock")
-                local last_char_setting = nil
-                safe_hook(is_unlock, function(args)
-                    local this_ptr = sdk.to_managed_object(args[2])
-                    last_char_setting = this_ptr
-                end, function(retval)
-                    local this_ptr = last_char_setting
-                    last_char_setting = nil
-                    if not should_enforce_gating() or this_ptr == nil then return retval end
-
-                    local kind = get_safe_field_int(this_ptr, "KindId", -1)
-                    if kind >= 0 and kind <= 7 then
-                        local owned = is_character_owned(kind)
-                        log.info(string.format("[Merc AP Gating] CharacterSetting.isUnlock(char=%d) -> %s", kind, tostring(owned)))
-                        return sdk.to_ptr(owned and 1 or 0)
-                    end
-                    return retval
-                end)
-            end
-        end
-
-        -- 1. Hook all isUnlock overloads on Cp1021StageSelectGuiBehavior
-        local stage_select_type = sdk.find_type_definition("chainsaw.Cp1021StageSelectGuiBehavior")
-
-        if stage_select_type ~= nil then
-            for _, method in ipairs(stage_select_type:get_methods() or {}) do
-                if method:get_name() == "isUnlock" then
-                    local pcount = method:get_num_params()
-                    log.info(string.format("[Merc AP] Hooking Cp1021StageSelectGuiBehavior.isUnlock (%d params)", pcount))
-                    
-                    local last_query = nil
-                    safe_hook(method, function(args)
-                        local this_ptr = sdk.to_managed_object(args[2])
-                        local raw_arg = -1
-                        if args[3] ~= nil then
-                            local parsed = sdk.to_int64(args[3])
-                            if parsed ~= nil then raw_arg = tonumber(parsed) end
-                        end
-                        last_query = { this = this_ptr, arg = raw_arg }
-                    end, function(retval)
-                        local query = last_query
-                        last_query = nil
-                        if not should_enforce_gating() then return retval end
-
-                        if query ~= nil and query.arg >= 0 then
-                            local stage_kind = query.arg
-                            if query.this ~= nil then
-                                local ok_k, k = pcall(function() return query.this:call("getKindId", query.arg) end)
-                                if ok_k and type(k) == "number" and k >= 0 and k <= 3 then
-                                    stage_kind = k
-                                end
-                            end
-
-                            if stage_kind >= 0 and stage_kind <= 3 then
-                                local owned = is_stage_owned(stage_kind)
-                                log.info(string.format("[Merc AP Gating] StageSelect.isUnlock(stage=%d, raw=%d) -> %s", stage_kind, query.arg, tostring(owned)))
-                                return sdk.to_ptr(owned and 1 or 0)
-                            end
-                        end
-                        return retval
-                    end)
+        local function get_obj_type_name(obj)
+            if obj == nil then return "" end
+            local ok, td = pcall(function() return obj:get_type_definition() end)
+            if ok and td ~= nil then
+                local ok_n, name = pcall(function() return td:get_full_name() end)
+                if ok_n and type(name) == "string" then
+                    return name
                 end
             end
+            return ""
         end
 
-        -- 2. Hook all isUnlock overloads on Cp1021CharacterSelectGuiBehavior
-        local char_select_type = sdk.find_type_definition("chainsaw.Cp1021CharacterSelectGuiBehavior")
-        if char_select_type ~= nil then
-            for _, method in ipairs(char_select_type:get_methods() or {}) do
-                if method:get_name() == "isUnlock" then
-                    local pcount = method:get_num_params()
-                    log.info(string.format("[Merc AP] Hooking Cp1021CharacterSelectGuiBehavior.isUnlock (%d params)", pcount))
-
-                    local last_query = nil
-                    safe_hook(method, function(args)
-                        local this_ptr = sdk.to_managed_object(args[2])
-                        local raw_arg = -1
-                        if args[3] ~= nil then
-                            local parsed = sdk.to_int64(args[3])
-                            if parsed ~= nil then raw_arg = tonumber(parsed) end
-                        end
-                        last_query = { this = this_ptr, arg = raw_arg }
-                    end, function(retval)
-                        local query = last_query
-                        last_query = nil
-                        if not should_enforce_gating() then return retval end
-
-                        if query ~= nil and query.arg >= 0 then
-                            local char_kind = query.arg
-                            if query.this ~= nil then
-                                local ok_k, k = pcall(function() return query.this:call("getCharacterKind", query.arg) end)
-                                if ok_k and type(k) == "number" and k >= 0 and k <= 7 then
-                                    char_kind = k
-                                end
-                            end
-
-                            if char_kind >= 0 and char_kind <= 7 then
-                                local owned = is_character_owned(char_kind)
-                                log.info(string.format("[Merc AP Gating] CharacterSelect.isUnlock(char=%d, raw=%d) -> %s", char_kind, query.arg, tostring(owned)))
-                                return sdk.to_ptr(owned and 1 or 0)
-                            end
-                        end
-                        return retval
-                    end)
-                end
-            end
-        end
-
-        -- 3. Hook Cp1021CharacterSelectGuiBehavior.updateSelectCharacterList
-        if char_select_type ~= nil then
-            local update_list = char_select_type:get_method("updateSelectCharacterList")
-            if update_list ~= nil then
-                log.info("[Merc AP] Hooking Cp1021CharacterSelectGuiBehavior.updateSelectCharacterList")
-                safe_hook(update_list, function(args)
-                    log.info("[Merc AP Gating] CharacterSelect.updateSelectCharacterList PRE")
-                end, function(retval)
-                    log.info("[Merc AP Gating] CharacterSelect.updateSelectCharacterList POST")
-                    return retval
-                end)
-            end
-
-            local setup_m = char_select_type:get_method("setup")
-            if setup_m ~= nil then
-                log.info("[Merc AP] Hooking Cp1021CharacterSelectGuiBehavior.setup")
-                safe_hook(setup_m, function(args)
-                    log.info("[Merc AP Gating] CharacterSelect.setup PRE")
-                end, function(retval)
-                    log.info("[Merc AP Gating] CharacterSelect.setup POST")
-                    return retval
-                end)
-            end
-        end
-
-        -- 4. Hook Cp1021StageSelectGuiBehavior.setup and updateViewStage
-        if stage_select_type ~= nil then
-            local setup_m = stage_select_type:get_method("setup")
-            if setup_m ~= nil then
-                log.info("[Merc AP] Hooking Cp1021StageSelectGuiBehavior.setup")
-                safe_hook(setup_m, function(args)
-                    log.info("[Merc AP Gating] StageSelect.setup PRE")
-                end, function(retval)
-                    log.info("[Merc AP Gating] StageSelect.setup POST")
-                    return retval
-                end)
-            end
-
-            local update_view = stage_select_type:get_method("updateViewStage")
-            if update_view ~= nil then
-                log.info("[Merc AP] Hooking Cp1021StageSelectGuiBehavior.updateViewStage")
-                safe_hook(update_view, function(args)
-                    log.info("[Merc AP Gating] StageSelect.updateViewStage PRE")
-                end, function(retval)
-                    log.info("[Merc AP Gating] StageSelect.updateViewStage POST")
-                    return retval
-                end)
-            end
-        end
-
-        -- 5. Hook ResultSaveData1021.getHighScore
-        local result_save_type = sdk.find_type_definition("chainsaw.ResultSaveData1021")
-        if result_save_type ~= nil then
-            local get_high_score = result_save_type:get_method("getHighScore")
-            if get_high_score ~= nil then
-                log.info("[Merc AP] Hooking ResultSaveData1021.getHighScore")
-                safe_hook(get_high_score, function(args)
-                    local st = sdk.to_int64(args[3])
-                    local ch = sdk.to_int64(args[4])
-                    log.info(string.format("[Merc AP Gating] ResultSaveData1021.getHighScore(stage=%s, char=%s)", tostring(st), tostring(ch)))
-                end, function(retval)
-                    return retval
-                end)
-            end
-        end
-
-        -- 6. Hook input check events and stage changes to prevent selection of locked stages
-        if stage_select_type ~= nil then
-            local set_stage = stage_select_type:get_method("setStage")
-            if set_stage ~= nil then
-                log.info("[Merc AP] Hooking Cp1021StageSelectGuiBehavior.setStage")
-                safe_hook(set_stage, function(args)
-                    local this_ptr = sdk.to_managed_object(args[2])
-                    if this_ptr ~= nil and should_enforce_gating() then
-                        local panel_stage = this_ptr:get_field("_PanelStage")
-                        local sl = panel_stage and panel_stage:get_field("_SlStage")
-                        local sel_idx = sl and get_safe_int(sl, "get_CursorIndex", -1) or -1
-                        if sel_idx >= 0 and sel_idx <= 3 and not is_stage_owned(sel_idx) then
-                            log.info(string.format("[Merc AP Gating] Blocking setStage for unowned stage %d", sel_idx))
-                            return sdk.PreHookResult.SKIP_ORIGINAL
-                        end
-                    end
-                end, function(retval)
-                    return retval
-                end)
-            end
-
-            local change_step_stage = stage_select_type:get_method("changeStep")
-            if change_step_stage ~= nil then
-                log.info("[Merc AP] Hooking Cp1021StageSelectGuiBehavior.changeStep")
-                safe_hook(change_step_stage, function(args)
-                    local this_ptr = sdk.to_managed_object(args[2])
-                    local next_step = args[3] ~= nil and sdk.to_int64(args[3]) or -1
-                    if this_ptr ~= nil and should_enforce_gating() and next_step ~= 0 and next_step ~= -1 then
-                        local panel_stage = this_ptr:get_field("_PanelStage")
-                        local sl = panel_stage and panel_stage:get_field("_SlStage")
-                        local sel_idx = sl and get_safe_int(sl, "get_CursorIndex", -1) or -1
-                        if sel_idx >= 0 and sel_idx <= 3 and not is_stage_owned(sel_idx) then
-                            log.info(string.format("[Merc AP Gating] Blocking StageSelect.changeStep to %s for unowned stage %d", tostring(next_step), sel_idx))
-                            pcall(function() this_ptr:set_field("_bDecided", false) end)
-                            return sdk.PreHookResult.SKIP_ORIGINAL
-                        end
-                    end
-                end, function(retval)
-                    return retval
-                end)
-            end
-
-            local input_check = stage_select_type:get_method("onInputCheckEvent")
-            if input_check ~= nil then
-                log.info("[Merc AP] Hooking Cp1021StageSelectGuiBehavior.onInputCheckEvent")
-                local last_stage_input = nil
-                safe_hook(input_check, function(args)
-                    local this_ptr = sdk.to_managed_object(args[2])
-                    last_stage_input = this_ptr
-                end, function(retval)
-                    local this_ptr = last_stage_input
-                    last_stage_input = nil
-                    if not should_enforce_gating() or this_ptr == nil then return retval end
-
-                    local panel_stage = this_ptr:get_field("_PanelStage")
-                    local sl = panel_stage and panel_stage:get_field("_SlStage")
-                    local sel_idx = sl and get_safe_int(sl, "get_CursorIndex", -1) or -1
-                    if sel_idx >= 0 and sel_idx <= 3 then
-                        local owned = is_stage_owned(sel_idx)
-                        log.info(string.format("[Merc AP Gating] StageSelect.onInputCheckEvent(stage=%d) -> owned=%s", sel_idx, tostring(owned)))
-                        if not owned then
-                            pcall(function() this_ptr:set_field("_bDecided", false) end)
-                            return sdk.to_ptr(0) -- Block confirmation
-                        end
-                    end
-                    return retval
-                end)
-            end
-        end
-
-        local function resolve_selected_character_kind(char_gui)
+        local function resolve_highlighted_character_kind(char_gui)
             if char_gui == nil then return -1 end
 
-            local ok_curr, curr = pcall(function() return char_gui:call("get_CurrCharacter") end)
-            if ok_curr and curr ~= nil then
-                local ok_kind, kind = pcall(function() return char_gui:call("getCharacterKind", curr) end)
-                if ok_kind and type(kind) == "number" and kind >= 0 and kind <= 7 then
-                    return kind
+            -- 1. Try _PanelThumbList._SlCharacter cursor index
+            local panel_thumb = nil
+            pcall(function() panel_thumb = char_gui:get_field("_PanelThumbList") end)
+            local cursor_idx = -1
+            if panel_thumb ~= nil then
+                local sl = nil
+                pcall(function() sl = panel_thumb:get_field("_SlCharacter") end)
+                if sl ~= nil then
+                    cursor_idx = get_safe_int(sl, "get_CursorIndex", -1)
+                end
+                if cursor_idx < 0 then
+                    cursor_idx = get_safe_int(panel_thumb, "get_SelectedIndex", -1)
                 end
             end
 
-            local panel_thumb = char_gui:get_field("_PanelThumbList")
-            if panel_thumb ~= nil then
-                local ok_idx, idx = pcall(function() return panel_thumb:call("get_SelectedIndex") end)
-                if ok_idx and type(idx) == "number" and idx >= 0 and idx <= 7 then
-                    return idx
+            -- 2. Map cursor index through _CharacterItemList / getCharacterKind
+            if cursor_idx >= 0 then
+                local item_list = nil
+                pcall(function() item_list = char_gui:get_field("_CharacterItemList") end)
+                if item_list ~= nil then
+                    local ok_it, action_type = pcall(function() return item_list:call("get_Item", cursor_idx) end)
+                    if ok_it and action_type ~= nil then
+                        local ok_k, kind = pcall(function() return char_gui:call("getCharacterKind", action_type) end)
+                        if ok_k and type(kind) == "number" and kind >= 0 and kind <= 7 then
+                            return kind
+                        end
+                    end
                 end
 
-                local sl = panel_thumb:get_field("_SlCharacter")
-                if sl ~= nil then
-                    local ok_cur, cur = pcall(function() return sl:call("get_CursorIndex") end)
-                    if ok_cur and type(cur) == "number" and cur >= 0 and cur <= 7 then
-                        return cur
-                    end
+                local ok_k, kind = pcall(function() return char_gui:call("getCharacterKind", cursor_idx) end)
+                if ok_k and type(kind) == "number" and kind >= 0 and kind <= 7 then
+                    return kind
+                end
+                if cursor_idx >= 0 and cursor_idx <= 7 then
+                    return cursor_idx
+                end
+            end
+
+            -- 3. Fallback: get_CurrCharacter
+            local ok_curr, curr = pcall(function() return char_gui:call("get_CurrCharacter") end)
+            if ok_curr and curr ~= nil then
+                local ok_k, kind = pcall(function() return char_gui:call("getCharacterKind", curr) end)
+                if ok_k and type(kind) == "number" and kind >= 0 and kind <= 7 then
+                    return kind
                 end
             end
 
             return -1
         end
 
-        if char_select_type ~= nil then
-            local change_step_char = char_select_type:get_method("changeStep")
-            if change_step_char ~= nil then
-                log.info("[Merc AP] Hooking Cp1021CharacterSelectGuiBehavior.changeStep")
-                safe_hook(change_step_char, function(args)
-                    local this_ptr = sdk.to_managed_object(args[2])
-                    local next_step = args[3] ~= nil and sdk.to_int64(args[3]) or -1
-                    if this_ptr ~= nil and should_enforce_gating() and next_step ~= 0 and next_step ~= -1 then
-                        local char_kind = resolve_selected_character_kind(this_ptr)
-                        if char_kind >= 0 and char_kind <= 7 and not is_character_owned(char_kind) then
-                            log.info(string.format("[Merc AP Gating] Blocking CharacterSelect.changeStep to %s for unowned character %d", tostring(next_step), char_kind))
-                            pcall(function() this_ptr:set_field("_bDecided", false) end)
-                            pcall(function() this_ptr:set_field("_bOldCharaUnlock", false) end)
-                            return sdk.PreHookResult.SKIP_ORIGINAL
-                        end
-                    end
-                end, function(retval)
-                    return retval
-                end)
+        local function resolve_highlighted_stage_kind(stage_gui)
+            if stage_gui == nil then return -1 end
+
+            -- 1. Try _PanelStage._SlStage cursor index
+            local panel_stage = nil
+            pcall(function() panel_stage = stage_gui:get_field("_PanelStage") end)
+            local cursor_idx = -1
+            if panel_stage ~= nil then
+                local sl = nil
+                pcall(function() sl = panel_stage:get_field("_SlStage") end)
+                if sl ~= nil then
+                    cursor_idx = get_safe_int(sl, "get_CursorIndex", -1)
+                end
             end
 
-            local select_costume = char_select_type:get_method("selectCostume")
-            if select_costume ~= nil then
-                log.info("[Merc AP] Hooking Cp1021CharacterSelectGuiBehavior.selectCostume")
-                safe_hook(select_costume, function(args)
-                    local this_ptr = sdk.to_managed_object(args[2])
-                    if this_ptr ~= nil and should_enforce_gating() then
-                        local char_kind = resolve_selected_character_kind(this_ptr)
-                        if char_kind >= 0 and char_kind <= 7 and not is_character_owned(char_kind) then
-                            log.info(string.format("[Merc AP Gating] Blocking selectCostume for unowned character %d", char_kind))
-                            return sdk.PreHookResult.SKIP_ORIGINAL
+            -- 2. Map cursor index through _MenuItemList / getKindId
+            if cursor_idx >= 0 then
+                local item_list = nil
+                pcall(function() item_list = stage_gui:get_field("_MenuItemList") end)
+                if item_list ~= nil then
+                    local ok_it, action_type = pcall(function() return item_list:call("get_Item", cursor_idx) end)
+                    if ok_it and action_type ~= nil then
+                        local ok_k, kind = pcall(function() return stage_gui:call("getKindId", action_type) end)
+                        if ok_k and type(kind) == "number" and kind >= 0 and kind <= 3 then
+                            return kind
                         end
                     end
-                end, function(retval)
-                    return retval
-                end)
+                end
+
+                local ok_k, kind = pcall(function() return stage_gui:call("getKindId", cursor_idx) end)
+                if ok_k and type(kind) == "number" and kind >= 0 and kind <= 3 then
+                    return kind
+                end
+                if cursor_idx >= 0 and cursor_idx <= 3 then
+                    return cursor_idx
+                end
             end
 
-            local input_check = char_select_type:get_method("onInputCheckEvent")
-            if input_check ~= nil then
-                log.info("[Merc AP] Hooking Cp1021CharacterSelectGuiBehavior.onInputCheckEvent")
-                local last_char_input = nil
-                safe_hook(input_check, function(args)
-                    local this_ptr = sdk.to_managed_object(args[2])
-                    last_char_input = this_ptr
-                end, function(retval)
-                    local this_ptr = last_char_input
-                    last_char_input = nil
-                    if not should_enforce_gating() or this_ptr == nil then return retval end
+            return -1
+        end
 
-                    local char_kind = resolve_selected_character_kind(this_ptr)
+        -- Rate-limited logging state
+        local last_blocked_char = nil
+        local last_blocked_stage = nil
+
+        local hooked_functions = {}
+        local function safe_hook_unique(method, pre, post)
+            if method == nil then return end
+            local func_ptr = nil
+            pcall(function() func_ptr = method:get_function() end)
+            local key = tostring(func_ptr or method)
+            if hooked_functions[key] then return end
+
+            local ok = pcall(function()
+                sdk.hook(method, pre, post)
+            end)
+            if ok then
+                hooked_functions[key] = true
+            end
+        end
+
+        -- ==================================================================
+        -- 1. UNIFIED isUnlock HOOKS (Visual Presentation & Native Locks)
+        -- ==================================================================
+        local last_is_unlock_query = nil
+        local function on_is_unlock_pre(args)
+            local this_obj = sdk.to_managed_object(args[2])
+            local raw_arg = -1
+            if args[3] ~= nil then
+                local parsed = sdk.to_int64(args[3])
+                if parsed ~= nil then raw_arg = tonumber(parsed) end
+            end
+            last_is_unlock_query = { this = this_obj, arg = raw_arg }
+        end
+
+        local function on_is_unlock_post(retval)
+            local query = last_is_unlock_query
+            last_is_unlock_query = nil
+            if query == nil or not should_enforce_gating() or query.this == nil then
+                return retval
+            end
+
+            local type_name = get_obj_type_name(query.this)
+
+            if type_name == "chainsaw.Cp1021UnlockSettingsUserData.CharacterSetting" then
+                local kind = get_safe_field_int(query.this, "KindId", -1)
+                if kind >= 0 and kind <= 7 then
+                    local owned = is_character_owned(kind)
+                    return sdk.to_ptr(owned and 1 or 0)
+                end
+            elseif type_name == "chainsaw.Cp1021UnlockSettingsUserData.StageSetting" then
+                local kind = get_safe_field_int(query.this, "KindId", -1)
+                if kind >= 0 and kind <= 3 then
+                    local owned = is_stage_owned(kind)
+                    return sdk.to_ptr(owned and 1 or 0)
+                end
+            elseif type_name == "chainsaw.Cp1021CharacterSelectGuiBehavior" then
+                if query.arg >= 0 then
+                    local char_kind = query.arg
+                    local ok_k, k = pcall(function() return query.this:call("getCharacterKind", query.arg) end)
+                    if ok_k and type(k) == "number" and k >= 0 and k <= 7 then
+                        char_kind = k
+                    end
                     if char_kind >= 0 and char_kind <= 7 then
                         local owned = is_character_owned(char_kind)
-                        log.info(string.format("[Merc AP Gating] CharacterSelect.onInputCheckEvent(char=%d) -> owned=%s", char_kind, tostring(owned)))
-                        if not owned then
-                            pcall(function() this_ptr:set_field("_bDecided", false) end)
-                            pcall(function() this_ptr:set_field("_bOldCharaUnlock", false) end)
-                            return sdk.to_ptr(0) -- Block confirmation
+                        return sdk.to_ptr(owned and 1 or 0)
+                    end
+                end
+            elseif type_name == "chainsaw.Cp1021StageSelectGuiBehavior" then
+                if query.arg >= 0 then
+                    local stage_kind = query.arg
+                    local ok_k, k = pcall(function() return query.this:call("getKindId", query.arg) end)
+                    if ok_k and type(k) == "number" and k >= 0 and k <= 3 then
+                        stage_kind = k
+                    end
+                    if stage_kind >= 0 and stage_kind <= 3 then
+                        local owned = is_stage_owned(stage_kind)
+                        return sdk.to_ptr(owned and 1 or 0)
+                    end
+                end
+            end
+
+            return retval
+        end
+
+        local is_unlock_types = {
+            "chainsaw.Cp1021UnlockSettingsUserData.StageSetting",
+            "chainsaw.Cp1021UnlockSettingsUserData.CharacterSetting",
+            "chainsaw.Cp1021StageSelectGuiBehavior",
+            "chainsaw.Cp1021CharacterSelectGuiBehavior",
+        }
+        for _, tname in ipairs(is_unlock_types) do
+            local td = sdk.find_type_definition(tname)
+            if td ~= nil then
+                for _, method in ipairs(td:get_methods() or {}) do
+                    if method:get_name() == "isUnlock" then
+                        safe_hook_unique(method, on_is_unlock_pre, on_is_unlock_post)
+                    end
+                end
+            end
+        end
+
+        -- ==================================================================
+        -- 2. UNIFIED onInputCheckEvent HOOKS (Pre-Confirmation Hard Boundary)
+        -- ==================================================================
+        local last_input_check_blocked = false
+        local function on_input_check_pre(args)
+            last_input_check_blocked = false
+            local this_obj = sdk.to_managed_object(args[2])
+            if this_obj == nil or not should_enforce_gating() then return end
+
+            local type_name = get_obj_type_name(this_obj)
+
+            if type_name == "chainsaw.Cp1021CharacterSelectGuiBehavior" then
+                local char_kind = resolve_highlighted_character_kind(this_obj)
+                if char_kind >= 0 and char_kind <= 7 and not is_character_owned(char_kind) then
+                    if last_blocked_char ~= char_kind then
+                        last_blocked_char = char_kind
+                        log.info(string.format("[Merc AP Gating] character confirmation blocked: %s (index %d)", ROSTER_INDEX_TO_NAME[char_kind] or "Unknown", char_kind))
+                    end
+                    pcall(function() this_obj:set_field("_bDecided", false) end)
+                    pcall(function() this_obj:set_field("_bOldCharaUnlock", false) end)
+                    last_input_check_blocked = true
+                    return sdk.PreHookResult.SKIP_ORIGINAL
+                else
+                    last_blocked_char = nil
+                end
+            elseif type_name == "chainsaw.Cp1021StageSelectGuiBehavior" then
+                local stage_kind = resolve_highlighted_stage_kind(this_obj)
+                if stage_kind >= 0 and stage_kind <= 3 and not is_stage_owned(stage_kind) then
+                    if last_blocked_stage ~= stage_kind then
+                        last_blocked_stage = stage_kind
+                        log.info(string.format("[Merc AP Gating] stage confirmation blocked: %s (kind %d)", STAGE_KIND_NAMES[stage_kind] or "Unknown", stage_kind))
+                    end
+                    pcall(function() this_obj:set_field("_bDecided", false) end)
+                    last_input_check_blocked = true
+                    return sdk.PreHookResult.SKIP_ORIGINAL
+                else
+                    last_blocked_stage = nil
+                end
+            end
+        end
+
+        local function on_input_check_post(retval)
+            if last_input_check_blocked then
+                last_input_check_blocked = false
+                return sdk.to_ptr(0)
+            end
+            return retval
+        end
+
+        local gui_behavior_types = {
+            "chainsaw.Cp1021StageSelectGuiBehavior",
+            "chainsaw.Cp1021CharacterSelectGuiBehavior",
+        }
+        for _, tname in ipairs(gui_behavior_types) do
+            local td = sdk.find_type_definition(tname)
+            if td ~= nil then
+                local m = td:get_method("onInputCheckEvent")
+                if m ~= nil then
+                    safe_hook_unique(m, on_input_check_pre, on_input_check_post)
+                end
+            end
+        end
+
+        -- ==================================================================
+        -- 3. UNIFIED changeStep & setStage HOOKS (Step Transition Prevention)
+        -- ==================================================================
+        local function on_change_step_pre(args)
+            local this_obj = sdk.to_managed_object(args[2])
+            if this_obj == nil or not should_enforce_gating() then return end
+
+            local next_step = args[3] ~= nil and sdk.to_int64(args[3]) or -1
+            if next_step == 0 or next_step == -1 then return end
+
+            local type_name = get_obj_type_name(this_obj)
+
+            if type_name == "chainsaw.Cp1021CharacterSelectGuiBehavior" then
+                local char_kind = resolve_highlighted_character_kind(this_obj)
+                if char_kind >= 0 and char_kind <= 7 and not is_character_owned(char_kind) then
+                    pcall(function() this_obj:set_field("_bDecided", false) end)
+                    pcall(function() this_obj:set_field("_bOldCharaUnlock", false) end)
+                    return sdk.PreHookResult.SKIP_ORIGINAL
+                end
+            elseif type_name == "chainsaw.Cp1021StageSelectGuiBehavior" then
+                local stage_kind = resolve_highlighted_stage_kind(this_obj)
+                if stage_kind >= 0 and stage_kind <= 3 and not is_stage_owned(stage_kind) then
+                    pcall(function() this_obj:set_field("_bDecided", false) end)
+                    return sdk.PreHookResult.SKIP_ORIGINAL
+                end
+            end
+        end
+
+        local function on_change_step_post(retval)
+            return retval
+        end
+
+        for _, tname in ipairs(gui_behavior_types) do
+            local td = sdk.find_type_definition(tname)
+            if td ~= nil then
+                local m = td:get_method("changeStep")
+                if m ~= nil then
+                    safe_hook_unique(m, on_change_step_pre, on_change_step_post)
+                end
+            end
+        end
+
+        local stage_td = sdk.find_type_definition("chainsaw.Cp1021StageSelectGuiBehavior")
+        if stage_td ~= nil then
+            local set_stage_m = stage_td:get_method("setStage")
+            if set_stage_m ~= nil then
+                safe_hook_unique(set_stage_m, function(args)
+                    local this_obj = sdk.to_managed_object(args[2])
+                    if this_obj ~= nil and should_enforce_gating() then
+                        local stage_kind = resolve_highlighted_stage_kind(this_obj)
+                        if stage_kind >= 0 and stage_kind <= 3 and not is_stage_owned(stage_kind) then
+                            return sdk.PreHookResult.SKIP_ORIGINAL
                         end
                     end
-                    return retval
-                end)
-            end
-        end
-
-        -- 7. Hook Cp1021AcController_CharacterSelect & StageSelect
-        local ac_char_type = sdk.find_type_definition("chainsaw.gui.mainmenu.Cp1021AcController_CharacterSelect")
-        if ac_char_type ~= nil then
-            for _, m in ipairs(ac_char_type:get_methods() or {}) do
-                local mname = m:get_name()
-                log.info(string.format("[Merc AP] Hooking Cp1021AcController_CharacterSelect.%s", mname))
-                safe_hook(m, function(args)
-                    local this_ptr = sdk.to_managed_object(args[2])
-                    log.info(string.format("[Merc AP Gating] AcController_CharacterSelect.%s PRE", mname))
                 end, function(retval)
                     return retval
                 end)
             end
         end
 
-        local ac_stage_type = sdk.find_type_definition("chainsaw.gui.mainmenu.Cp1021AcController_StageSelect")
-        if ac_stage_type ~= nil then
-            for _, m in ipairs(ac_stage_type:get_methods() or {}) do
-                local mname = m:get_name()
-                log.info(string.format("[Merc AP] Hooking Cp1021AcController_StageSelect.%s", mname))
-                safe_hook(m, function(args)
-                    local this_ptr = sdk.to_managed_object(args[2])
-                    log.info(string.format("[Merc AP Gating] AcController_StageSelect.%s PRE", mname))
-                end, function(retval)
-                    return retval
-                end)
-            end
-        end
-
-        -- 8. Hook MercenariesModeController.startGame & updateGame (AUTHORITATIVE HARD GATE)
+        -- ==================================================================
+        -- 4. DIAGNOSTIC ASSERTION ON startGame (Quiet Guard, No State Corruption)
+        -- ==================================================================
         local merc_ctrl_type = sdk.find_type_definition("chainsaw.MercenariesModeController")
         if merc_ctrl_type ~= nil then
             local start_game = merc_ctrl_type:get_method("startGame")
             if start_game ~= nil then
-                log.info("[Merc AP] Hooking MercenariesModeController.startGame (Authoritative Hard Security Boundary)")
-                safe_hook(start_game, function(args)
+                safe_hook_unique(start_game, function(args)
                     local this_ptr = sdk.to_managed_object(args[2])
                     if this_ptr ~= nil and should_enforce_gating() then
                         local st = get_safe_field_int(this_ptr, "_StageKind", -1)
@@ -1079,33 +1003,7 @@ local function install(ctx)
                         local ch_owned = is_character_owned(char_idx)
 
                         if not (st_owned and ch_owned) then
-                            log.error(string.format("[Merc AP Gating] HARD GATE ACTIVATED: Blocking launch! Stage: %d (owned=%s), Character: %s (owned=%s)", st, tostring(st_owned), tostring(char_idx), tostring(ch_owned)))
-                            pcall(function() this_ptr:call("requestInGameQuit") end)
-                            return sdk.PreHookResult.SKIP_ORIGINAL
-                        end
-                        log.info(string.format("[Merc AP Gating] HARD GATE PASSED: Stage %d, Character %d (%s) allowed", st, char_idx, tostring(entry and entry.name or "Unknown")))
-                    end
-                end, function(retval)
-                    return retval
-                end)
-            end
-
-            local update_game = merc_ctrl_type:get_method("updateGame")
-            if update_game ~= nil then
-                log.info("[Merc AP] Hooking MercenariesModeController.updateGame (Continuous Hard Guard)")
-                safe_hook(update_game, function(args)
-                    local this_ptr = sdk.to_managed_object(args[2])
-                    if this_ptr ~= nil and should_enforce_gating() then
-                        local st = get_safe_field_int(this_ptr, "_StageKind", -1)
-                        local ch = get_safe_field_int(this_ptr, "_PlayerCharacterKind", -1)
-                        local co = get_safe_field_int(this_ptr, "_PlayerCharacterCostumeId", 0)
-                        local key = string.format("%d:%d", ch, co)
-                        local entry = CHAR_COSTUME_TO_ROSTER[key]
-                        local char_idx = entry and entry.index or ch
-
-                        if not (is_stage_owned(st) and is_character_owned(char_idx)) then
-                            pcall(function() this_ptr:call("requestInGameQuit") end)
-                            return sdk.PreHookResult.SKIP_ORIGINAL
+                            log.error(string.format("[Merc AP Gating] ASSERTION FAILURE: unowned selection reached startGame (Stage: %d owned=%s, Character: %d owned=%s)", st, tostring(st_owned), char_idx, tostring(ch_owned)))
                         end
                     end
                 end, function(retval)
@@ -1115,7 +1013,7 @@ local function install(ctx)
         end
 
         hooks_installed = true
-        log.info("[Merc AP] virtual unlock gating hooks initialized")
+        log.info("[Merc AP Gating] virtual selection gating hooks initialized")
     end
 
 
