@@ -531,12 +531,81 @@ local function install(ctx)
     end
 
     local function draw_check_progress_overlay()
+        local get_merc_info = ctx.get_current_merc_play_info or _G.get_current_merc_play_info
+        local merc_info = (type(get_merc_info) == "function") and get_merc_info() or nil
+
+        if merc_info ~= nil and merc_info.stage_idx >= 0 then
+            local header_text = string.format(
+                "The Mercenaries | %s - %s | %d/%d Checked",
+                merc_info.stage_name,
+                merc_info.char_name,
+                merc_info.done,
+                merc_info.total
+            )
+            local ranks_text = merc_info.ranks_str
+            local ap_client_text, ap_client_color = build_ap_client_overlay_text()
+
+            local header_line_count = 1 + ((ranks_text ~= nil and ranks_text ~= "") and 1 or 0) + (ap_client_text ~= nil and 1 or 0)
+            local header_display_height = (CHECK_OVERLAY_PADDING_Y * 2)
+                + (header_line_count * CHECK_OVERLAY_LINE_HEIGHT)
+                + ((header_line_count - 1) * CHECK_OVERLAY_ITEM_SPACING_Y)
+
+            local header_window_width = math.max(
+                CHECK_OVERLAY_HEADER_MIN_WIDTH,
+                get_imgui_text_width(header_text) + (CHECK_OVERLAY_HEADER_PADDING_X * 2),
+                (ranks_text ~= nil and ranks_text ~= "") and (get_imgui_text_width(ranks_text) + (CHECK_OVERLAY_HEADER_PADDING_X * 2)) or 0,
+                ap_client_text ~= nil and (get_imgui_text_width(ap_client_text) + (CHECK_OVERLAY_HEADER_PADDING_X * 2)) or 0
+            )
+
+            imgui.set_next_window_pos(
+                Vector2f.new(get_overlay_anchor_x(header_window_width), CHECK_OVERLAY_MARGIN_Y),
+                1
+            )
+            imgui.set_next_window_size(
+                Vector2f.new(header_window_width, header_display_height),
+                1
+            )
+            set_next_overlay_window_bg_alpha(0.0)
+            local overlay_style_count = push_overlay_window_transparent_style()
+            imgui.begin_window("##re4r_check_progress_overlay", true, CHECK_OVERLAY_WINDOW_FLAGS)
+
+            draw_centered_overlay_segments(
+                {
+                    { text = header_text, color = CHECK_OVERLAY_TEXT_COLOR_FILLER },
+                },
+                header_window_width
+            )
+
+            if ranks_text ~= nil and ranks_text ~= "" then
+                draw_centered_overlay_segments(
+                    {
+                        { text = ranks_text, color = CHECK_OVERLAY_TEXT_COLOR_PROGRESS },
+                    },
+                    header_window_width
+                )
+            end
+
+            if ap_client_text ~= nil then
+                draw_centered_overlay_segments(
+                    {
+                        { text = ap_client_text, color = ap_client_color },
+                    },
+                    header_window_width
+                )
+            end
+
+            imgui.end_window()
+            pop_overlay_window_transparent_style(overlay_style_count)
+            return
+        end
+
         local state = bridge.last_state or {}
         if not state.is_playable or type(state.current_stage) ~= "number" then
             return
         end
 
         local chapter_display = tostring(bridge.ui_current_chapter_display or "(unknown)")
+
 
         -- Header: Chapter | <pause-map area name> | <section-scoped checks>.
         -- Stages are internal streaming units and never player-facing (see

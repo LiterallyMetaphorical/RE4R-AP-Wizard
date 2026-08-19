@@ -331,8 +331,10 @@ re.on_pre_application_entry("UpdateBehavior", function()
             ctx.update_mercenaries_state()
         end
 
-        if now_clock - bridge.last_scan_clock >= SCAN_INTERVAL_SECONDS then
+        local get_domain = ctx.get_runtime_domain or _G.get_runtime_domain
+        local is_merc = (type(get_domain) == "function" and get_domain() == "MERCENARIES")
 
+        if not is_merc and now_clock - bridge.last_scan_clock >= SCAN_INTERVAL_SECONDS then
             bridge.last_scan_clock = now_clock
             runtime_state = get_runtime_state()
             process_pending_warp(runtime_state)
@@ -344,6 +346,7 @@ re.on_pre_application_entry("UpdateBehavior", function()
                 prune_pending_pickup_accepts(runtime_state.current_stage)
             end
         end
+
 
         if now_clock - last_state_process_clock < WRITE_INTERVAL_SECONDS then
             return

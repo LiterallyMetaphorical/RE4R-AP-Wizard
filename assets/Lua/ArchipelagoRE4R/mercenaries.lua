@@ -135,25 +135,47 @@ local function install(ctx)
         return sdk.call_native_func(scene_mgr, scene_mgr_type, "get_CurrentScene")
     end
 
-    local function get_merc_controller()
+    local function find_first_component(type_name)
         local scene = get_scene_object()
         if scene == nil then return nil end
-        local typeof_ctrl = cached_typeof("chainsaw.MercenariesModeController")
-        if typeof_ctrl == nil then return nil end
-        local game_obj = scene:call("findGameObject(System.Type)", typeof_ctrl)
-        if game_obj == nil then return nil end
-        return game_obj:call("getComponent(System.Type)", typeof_ctrl)
+        local t = cached_typeof(type_name)
+        if t == nil then return nil end
+        local result = nil
+        pcall(function() result = scene:call("findComponents", t) end)
+        if result == nil then return nil end
+
+        local ok_el, elements = pcall(function() return result:get_elements() end)
+        if ok_el and type(elements) == "table" and #elements > 0 then
+            return elements[1]
+        end
+
+        local ok_count, count = pcall(function() return result:get_Count() end)
+        if not ok_count then
+            ok_count, count = pcall(function() return result:get_size() end)
+        end
+        count = tonumber(count) or 0
+        if count > 0 then
+            local ok_item, item = pcall(function() return result:get_Item(0) end)
+            if not ok_item then
+                ok_item, item = pcall(function() return result:get_element(0) end)
+            end
+            if ok_item and item ~= nil then
+                return item
+            end
+        end
+        return nil
     end
 
-    local function get_result_gui_behavior()
-        local scene = get_scene_object()
-        if scene == nil then return nil end
-        local typeof_gui = cached_typeof("chainsaw.Cp1021GameClearResultGuiBehavior")
-        if typeof_gui == nil then return nil end
-        local game_obj = scene:call("findGameObject(System.Type)", typeof_gui)
-        if game_obj == nil then return nil end
-        return game_obj:call("getComponent(System.Type)", typeof_gui)
+    local function get_merc_controller()
+        return find_first_component("chainsaw.MercenariesModeController")
     end
+    export("get_merc_controller", get_merc_controller)
+
+    local function get_result_gui_behavior()
+        return find_first_component("chainsaw.Cp1021GameClearResultGuiBehavior")
+    end
+    export("get_result_gui_behavior", get_result_gui_behavior)
+
 
 
     -- Authoritative Runtime Domain Detection
@@ -255,7 +277,156 @@ local function install(ctx)
         return ownership.stages[stage_kind] == true
     end
 
-    -- Result location emission
+    local function get_mercenaries_checklist()
+        local slot_data = ctx.slot_data or bridge.slot_data
+        local merc_conf = (type(slot_data) == "table") and slot_data.mercenaries or nil
+        local score_checks_mode = (merc_conf and merc_conf.score_checks)
+            or (type(slot_data) == "table" and slot_data.mercenaries_score_checks)
+            or "standard"
+
+        local active_ranks = { { name = "A", idx = 0 } }
+        if score_checks_mode == "standard" or score_checks_mode == "full" then
+            table.insert(active_ranks, { name = "S", idx = 1 })
+        end
+        if score_checks_mode == "full" then
+            table.insert(active_ranks, { name = "S+", idx = 2 })
+            table.insert(active_ranks, { name = "S++", idx = 3 })
+        end
+
+        local checked_set = bridge.checked_locations or {}
+        local stages_data = {}
+        local grand_found = 0
+        local grand_total = 0
+
+        for stage_idx = 0, 3 do
+            local stage_name = STAGE_KIND_NAMES[stage_idx]
+            local st_found = 0
+            local st_total = 0
+            local st_chars = {}
+
+            for char_idx = 0, 7 do
+                local char_name = ROSTER_INDEX_TO_NAME[char_idx]
+                local char_ranks = {}
+                local char_st_found = 0
+
+                for _, rank in ipairs(active_ranks) do
+                    local loc_id = 440001000 + char_idx * 16 + stage_idx * 4 + rank.idx
+                    local is_checked = (checked_set[loc_id] == true)
+                    if is_checked then
+                        char_st_found = char_st_found + 1
+                        st_found = st_found + 1
+                        grand_found = grand_found + 1
+                    end
+                    st_total = st_total + 1
+                    grand_total = grand_total + 1
+                    table.insert(char_ranks, {
+                        name = rank.name,
+                        loc_id = loc_id,
+                        checked = is_checked,
+                    })
+                end
+
+                table.insert(st_chars, {
+                    char_idx = char_idx,
+                    char_name = char_name,
+                    unlocked = ownership.characters[char_idx] == true,
+                    found = char_st_found,
+                    total = #active_ranks,
+                    ranks = char_ranks,
+                })
+            end
+
+            table.insert(stages_data, {
+                stage_idx = stage_idx,
+                stage_name = stage_name,
+                unlocked = ownership.stages[stage_idx] == true,
+                found = st_found,
+                total = st_total,
+                characters = st_chars,
+            })
+        end
+
+        local is_enabled = (merc_conf ~= nil and merc_conf.enabled == true)
+            or (type(slot_data) == "table" and (slot_data.game_mode == "mercenaries_only" or slot_data.game_mode == "campaign_and_mercenaries"))
+
+        return {
+            enabled = is_enabled,
+            mode = (type(slot_data) == "table") and slot_data.game_mode or "campaign",
+            score_checks_mode = score_checks_mode,
+            found = grand_found,
+            total = grand_total,
+            stages = stages_data,
+        }
+    end
+    export("get_mercenaries_checklist", get_mercenaries_checklist)
+
+    local function get_current_merc_play_info()
+
+        local controller = get_merc_controller()
+        if controller == nil then return nil end
+
+        local raw_stage = get_safe_int(controller, "get_StageKind", -1)
+        if raw_stage < 0 then
+            raw_stage = get_safe_field_int(controller, "_StageKind", -1)
+        end
+
+        local raw_char = get_safe_field_int(controller, "_PlayerCharacterKind", -1)
+        local raw_costume = get_safe_field_int(controller, "_PlayerCharacterCostumeId", 0)
+
+        local char_name = "Unknown"
+        local char_idx = 0
+        local key = string.format("%d:%d", raw_char, raw_costume)
+        local entry = CHAR_COSTUME_TO_ROSTER[key]
+        if entry ~= nil then
+            char_name = entry.name
+            char_idx = entry.index
+        end
+
+        local stage_name = STAGE_KIND_NAMES[raw_stage] or "Unknown Stage"
+
+        -- Count checks completed for this (char, stage) pair
+        local slot_data = ctx.slot_data or bridge.slot_data
+        local merc_conf = (type(slot_data) == "table") and slot_data.mercenaries or nil
+        local score_checks_mode = (merc_conf and merc_conf.score_checks)
+            or (type(slot_data) == "table" and slot_data.mercenaries_score_checks)
+            or "standard"
+
+        local active_ranks = { { name = "A", idx = 0 } }
+        if score_checks_mode == "standard" or score_checks_mode == "full" then
+            table.insert(active_ranks, { name = "S", idx = 1 })
+        end
+        if score_checks_mode == "full" then
+            table.insert(active_ranks, { name = "S+", idx = 2 })
+            table.insert(active_ranks, { name = "S++", idx = 3 })
+        end
+
+        local checked_set = bridge.checked_locations or {}
+        local done_count = 0
+        local rank_summary = {}
+
+        for _, rank in ipairs(active_ranks) do
+            local loc_id = 440001000 + char_idx * 16 + raw_stage * 4 + rank.idx
+            local is_done = (checked_set[loc_id] == true)
+            if is_done then
+                done_count = done_count + 1
+                table.insert(rank_summary, "[" .. rank.name .. ": OK]")
+            else
+                table.insert(rank_summary, "[" .. rank.name .. "]")
+            end
+        end
+
+        return {
+            stage_name = stage_name,
+            char_name = char_name,
+            stage_idx = raw_stage,
+            char_idx = char_idx,
+            done = done_count,
+            total = #active_ranks,
+            ranks_str = table.concat(rank_summary, " "),
+        }
+    end
+    export("get_current_merc_play_info", get_current_merc_play_info)
+
     local function get_merc_location_id(char_name, stage_name, rank_name, slot_data)
         -- 1. Try slot_data lookup
         if type(slot_data) == "table" and type(slot_data.mercenaries) == "table" then
@@ -446,76 +617,198 @@ local function install(ctx)
 
     -- Virtual Selection Gating (Hooks)
     local hooks_installed = false
-    local pending_stage_query = nil
-    local pending_char_query = nil
 
     local function install_merc_virtual_gating_hooks()
         if hooks_installed then return end
 
+        local function should_enforce_gating()
+            if not ownership.initialized then return false end
+            local slot_data = ctx.slot_data or bridge.slot_data
+            if type(slot_data) ~= "table" then return false end
+            if slot_data.game_mode == "mercenaries_only" or slot_data.game_mode == "campaign_and_mercenaries" then
+                return true
+            end
+            if type(slot_data.mercenaries) == "table" and slot_data.mercenaries.enabled == true then
+                return true
+            end
+            return false
+        end
+
+        local function dump_type_full(type_name)
+            local td = sdk.find_type_definition(type_name)
+            if td == nil then
+                log.info(string.format("[Merc AP SaveDump] Type NOT FOUND: %s", type_name))
+                return
+            end
+            local methods = td:get_methods() or {}
+            local fields = td:get_fields() or {}
+            log.info(string.format("[Merc AP SaveDump] Type %s has %d methods, %d fields:", type_name, #methods, #fields))
+            for _, f in ipairs(fields) do
+                local fname = f:get_name()
+                local ftype = f:get_type()
+                local ftname = ftype and ftype:get_full_name() or "unknown"
+                log.info(string.format("[Merc AP SaveDump]   field: %s (%s)", fname, ftname))
+            end
+            for _, m in ipairs(methods) do
+                local mname = m:get_name()
+                local nparams = m:get_num_params()
+                local rtype = m:get_return_type()
+                local rname = rtype and rtype:get_full_name() or "void"
+                log.info(string.format("[Merc AP SaveDump]   method: %s(%d params) -> %s", mname, nparams, rname))
+            end
+        end
+
+        dump_type_full("chainsaw.SaveDataManager1021")
+        dump_type_full("chainsaw.SaveDataManager1021.SaveData")
+        dump_type_full("chainsaw.ResultSaveData1021")
+        dump_type_full("chainsaw.ResultSaveData1021.SaveData")
+        dump_type_full("chainsaw.ResultSaveData1021.HighScore")
+        dump_type_full("chainsaw.InfoSaveData1021")
+        dump_type_full("chainsaw.ShortcutSaveData1021")
+        dump_type_full("chainsaw.Cp1021UnlockSettingsUserData")
+        dump_type_full("chainsaw.Cp1021UnlockSettingsUserData.CharacterSetting")
+        dump_type_full("chainsaw.Cp1021UnlockSettingsUserData.StageSetting")
+        dump_type_full("chainsaw.Cp1021UnlockSettingsUserData.UnlockCondition")
+        dump_type_full("chainsaw.Cp1021StageSelectGuiBehavior")
+        dump_type_full("chainsaw.Cp1021StageSelectGuiBehavior.PanelStage")
+        dump_type_full("chainsaw.Cp1021StageSelectGuiBehavior.StageSettings")
+        dump_type_full("chainsaw.Cp1021StageSelectGuiBehavior.CharacterSettings")
+        dump_type_full("chainsaw.Cp1021CharacterSelectGuiBehavior")
+        dump_type_full("chainsaw.Cp1021CharacterSelectGuiBehavior.PanelThumbList")
+        dump_type_full("chainsaw.Cp1021CharacterSelectGuiBehavior.PanelCharacterSub")
+        dump_type_full("chainsaw.Cp1021CharacterSelectGuiBehavior.PanelImage")
+
+
+
+
+        -- 1. Hook all isUnlock overloads on Cp1021StageSelectGuiBehavior
         local stage_select_type = sdk.find_type_definition("chainsaw.Cp1021StageSelectGuiBehavior")
         if stage_select_type ~= nil then
-            local is_unlock_method = stage_select_type:get_method("isUnlock")
-            if is_unlock_method ~= nil then
-                sdk.hook(is_unlock_method, function(args)
-                    local this_ptr = sdk.to_managed_object(args[1])
-                    local kind_id = -1
-                    if args[2] ~= nil then
-                        local raw_arg = sdk.to_int64(args[2])
-                        if raw_arg ~= nil and raw_arg >= 0 and raw_arg <= 10 then
-                            kind_id = tonumber(raw_arg)
+            for _, method in ipairs(stage_select_type:get_methods() or {}) do
+                if method:get_name() == "isUnlock" then
+                    local pcount = method:get_num_params()
+                    log.info(string.format("[Merc AP] Hooking Cp1021StageSelectGuiBehavior.isUnlock (%d params)", pcount))
+                    
+                    local last_query = nil
+                    sdk.hook(method, function(args)
+                        local this_ptr = sdk.to_managed_object(args[1])
+                        local raw_arg = -1
+                        if args[2] ~= nil then
+                            local parsed = sdk.to_int64(args[2])
+                            if parsed ~= nil then raw_arg = tonumber(parsed) end
                         end
-                    end
-                    if (kind_id < 0 or kind_id > 3) and this_ptr ~= nil then
-                        kind_id = get_safe_int(this_ptr, "getKindId", -1)
-                    end
-                    pending_stage_query = kind_id
-                end, function(retval)
-                    local kind_id = pending_stage_query
-                    pending_stage_query = nil
-                    if not ownership.initialized then return retval end
-                    local slot_data = ctx.slot_data or bridge.slot_data
-                    if type(slot_data) ~= "table" or type(slot_data.mercenaries) ~= "table" or slot_data.mercenaries.enabled ~= true then
-                        return retval -- vanilla untouched
-                    end
+                        last_query = { this = this_ptr, arg = raw_arg }
+                    end, function(retval)
+                        local query = last_query
+                        last_query = nil
+                        if not should_enforce_gating() then return retval end
 
-                    if kind_id ~= nil and kind_id >= 0 and kind_id <= 3 then
-                        local owned = is_stage_owned(kind_id)
-                        return sdk.to_ptr(owned and 1 or 0)
+                        if query ~= nil then
+                            -- Case 1: Stage check (StageKind 0..3)
+                            if query.arg >= 0 and query.arg <= 3 then
+                                local owned = is_stage_owned(query.arg)
+                                return sdk.to_ptr(owned and 1 or 0)
+                            end
+                            -- Case 2: Character check (PlayerCharacterWithCostumeKind 0..7)
+                            if query.arg >= 0 and query.arg <= 7 then
+                                local owned = is_character_owned(query.arg)
+                                return sdk.to_ptr(owned and 1 or 0)
+                            end
+                            -- Case 3: Fallback query via getKindId on this
+                            if query.this ~= nil then
+                                local kind = get_safe_int(query.this, "getKindId", -1)
+                                if kind >= 0 and kind <= 3 then
+                                    local owned = is_stage_owned(kind)
+                                    return sdk.to_ptr(owned and 1 or 0)
+                                end
+                            end
+                        end
+                        return retval
+                    end)
+                end
+            end
+        end
+
+        -- 2. Hook all isUnlock overloads on Cp1021CharacterSelectGuiBehavior
+        local char_select_type = sdk.find_type_definition("chainsaw.Cp1021CharacterSelectGuiBehavior")
+        if char_select_type ~= nil then
+            for _, method in ipairs(char_select_type:get_methods() or {}) do
+                if method:get_name() == "isUnlock" then
+                    local pcount = method:get_num_params()
+                    log.info(string.format("[Merc AP] Hooking Cp1021CharacterSelectGuiBehavior.isUnlock (%d params)", pcount))
+
+                    local last_query = nil
+                    sdk.hook(method, function(args)
+                        local this_ptr = sdk.to_managed_object(args[1])
+                        local raw_arg = -1
+                        if args[2] ~= nil then
+                            local parsed = sdk.to_int64(args[2])
+                            if parsed ~= nil then raw_arg = tonumber(parsed) end
+                        end
+                        if raw_arg < 0 and this_ptr ~= nil then
+                            raw_arg = get_safe_int(this_ptr, "getCharacterKind", -1)
+                        end
+                        last_query = { this = this_ptr, arg = raw_arg }
+                    end, function(retval)
+                        local query = last_query
+                        last_query = nil
+                        if not should_enforce_gating() then return retval end
+
+                        if query ~= nil and query.arg >= 0 and query.arg <= 7 then
+                            local owned = is_character_owned(query.arg)
+                            return sdk.to_ptr(owned and 1 or 0)
+                        end
+                        return retval
+                    end)
+                end
+            end
+        end
+
+        -- 3. Hook input check events to prevent selection of locked stages/characters
+        if stage_select_type ~= nil then
+            local input_check = stage_select_type:get_method("onInputCheckEvent")
+            if input_check ~= nil then
+                log.info("[Merc AP] Hooking Cp1021StageSelectGuiBehavior.onInputCheckEvent")
+                local last_stage_input = nil
+                sdk.hook(input_check, function(args)
+                    local this_ptr = sdk.to_managed_object(args[1])
+                    last_stage_input = this_ptr
+                end, function(retval)
+                    local this_ptr = last_stage_input
+                    last_stage_input = nil
+                    if not should_enforce_gating() or this_ptr == nil then return retval end
+
+                    local kind = get_safe_int(this_ptr, "getKindId", -1)
+                    if kind >= 0 and kind <= 3 then
+                        local owned = is_stage_owned(kind)
+                        if not owned then
+                            return sdk.to_ptr(0) -- Block confirmation
+                        end
                     end
                     return retval
                 end)
             end
         end
 
-        local char_select_type = sdk.find_type_definition("chainsaw.Cp1021CharacterSelectGuiBehavior")
         if char_select_type ~= nil then
-            local is_unlock_method = char_select_type:get_method("isUnlock")
-            if is_unlock_method ~= nil then
-                sdk.hook(is_unlock_method, function(args)
+            local input_check = char_select_type:get_method("onInputCheckEvent")
+            if input_check ~= nil then
+                log.info("[Merc AP] Hooking Cp1021CharacterSelectGuiBehavior.onInputCheckEvent")
+                local last_char_input = nil
+                sdk.hook(input_check, function(args)
                     local this_ptr = sdk.to_managed_object(args[1])
-                    local char_kind = -1
-                    if args[2] ~= nil then
-                        local raw_arg = sdk.to_int64(args[2])
-                        if raw_arg ~= nil and raw_arg >= 0 and raw_arg <= 20 then
-                            char_kind = tonumber(raw_arg)
-                        end
-                    end
-                    if (char_kind < 0 or char_kind > 7) and this_ptr ~= nil then
-                        char_kind = get_safe_int(this_ptr, "getCharacterKind", -1)
-                    end
-                    pending_char_query = char_kind
+                    last_char_input = this_ptr
                 end, function(retval)
-                    local char_kind = pending_char_query
-                    pending_char_query = nil
-                    if not ownership.initialized then return retval end
-                    local slot_data = ctx.slot_data or bridge.slot_data
-                    if type(slot_data) ~= "table" or type(slot_data.mercenaries) ~= "table" or slot_data.mercenaries.enabled ~= true then
-                        return retval -- vanilla untouched
-                    end
+                    local this_ptr = last_char_input
+                    last_char_input = nil
+                    if not should_enforce_gating() or this_ptr == nil then return retval end
 
-                    if char_kind ~= nil and char_kind >= 0 and char_kind <= 7 then
+                    local char_kind = get_safe_int(this_ptr, "getCharacterKind", -1)
+                    if char_kind >= 0 and char_kind <= 7 then
                         local owned = is_character_owned(char_kind)
-                        return sdk.to_ptr(owned and 1 or 0)
+                        if not owned then
+                            return sdk.to_ptr(0) -- Block confirmation
+                        end
                     end
                     return retval
                 end)
@@ -526,6 +819,8 @@ local function install(ctx)
         log.info("[Merc AP] virtual unlock gating hooks initialized")
     end
     export("install_merc_virtual_gating_hooks", install_merc_virtual_gating_hooks)
+
+
 
     -- Install hooks immediately on boot
     install_merc_virtual_gating_hooks()
