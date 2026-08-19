@@ -96,6 +96,14 @@ local function install(ctx)
         return fallback
     end
 
+    local function get_safe_field_int(obj, field_name, fallback)
+        if obj == nil then return fallback end
+        local ok, val = pcall(function() return obj:get_field(field_name) end)
+        if ok and type(val) == "number" then return val end
+        return fallback
+    end
+
+
     local function decode_anti_cheat_int(obj)
         if obj == nil then return 0 end
         local ok, val = pcall(function() return obj:call("get_Value()") end)
@@ -361,70 +369,74 @@ local function install(ctx)
     export("get_mercenaries_checklist", get_mercenaries_checklist)
 
     local function get_current_merc_play_info()
+        local ok, res = pcall(function()
+            local controller = get_merc_controller()
+            if controller == nil then return nil end
 
-        local controller = get_merc_controller()
-        if controller == nil then return nil end
-
-        local raw_stage = get_safe_int(controller, "get_StageKind", -1)
-        if raw_stage < 0 then
-            raw_stage = get_safe_field_int(controller, "_StageKind", -1)
-        end
-
-        local raw_char = get_safe_field_int(controller, "_PlayerCharacterKind", -1)
-        local raw_costume = get_safe_field_int(controller, "_PlayerCharacterCostumeId", 0)
-
-        local char_name = "Unknown"
-        local char_idx = 0
-        local key = string.format("%d:%d", raw_char, raw_costume)
-        local entry = CHAR_COSTUME_TO_ROSTER[key]
-        if entry ~= nil then
-            char_name = entry.name
-            char_idx = entry.index
-        end
-
-        local stage_name = STAGE_KIND_NAMES[raw_stage] or "Unknown Stage"
-
-        -- Count checks completed for this (char, stage) pair
-        local slot_data = ctx.slot_data or bridge.slot_data
-        local merc_conf = (type(slot_data) == "table") and slot_data.mercenaries or nil
-        local score_checks_mode = (merc_conf and merc_conf.score_checks)
-            or (type(slot_data) == "table" and slot_data.mercenaries_score_checks)
-            or "standard"
-
-        local active_ranks = { { name = "A", idx = 0 } }
-        if score_checks_mode == "standard" or score_checks_mode == "full" then
-            table.insert(active_ranks, { name = "S", idx = 1 })
-        end
-        if score_checks_mode == "full" then
-            table.insert(active_ranks, { name = "S+", idx = 2 })
-            table.insert(active_ranks, { name = "S++", idx = 3 })
-        end
-
-        local checked_set = bridge.checked_locations or {}
-        local done_count = 0
-        local rank_summary = {}
-
-        for _, rank in ipairs(active_ranks) do
-            local loc_id = 440001000 + char_idx * 16 + raw_stage * 4 + rank.idx
-            local is_done = (checked_set[loc_id] == true)
-            if is_done then
-                done_count = done_count + 1
-                table.insert(rank_summary, "[" .. rank.name .. ": OK]")
-            else
-                table.insert(rank_summary, "[" .. rank.name .. "]")
+            local raw_stage = get_safe_int(controller, "get_StageKind", -1)
+            if raw_stage < 0 then
+                raw_stage = get_safe_field_int(controller, "_StageKind", -1)
             end
-        end
 
-        return {
-            stage_name = stage_name,
-            char_name = char_name,
-            stage_idx = raw_stage,
-            char_idx = char_idx,
-            done = done_count,
-            total = #active_ranks,
-            ranks_str = table.concat(rank_summary, " "),
-        }
+            local raw_char = get_safe_field_int(controller, "_PlayerCharacterKind", -1)
+            local raw_costume = get_safe_field_int(controller, "_PlayerCharacterCostumeId", 0)
+
+            local char_name = "Unknown"
+            local char_idx = 0
+            local key = string.format("%d:%d", raw_char, raw_costume)
+            local entry = CHAR_COSTUME_TO_ROSTER[key]
+            if entry ~= nil then
+                char_name = entry.name
+                char_idx = entry.index
+            end
+
+            local stage_name = STAGE_KIND_NAMES[raw_stage] or "Unknown Stage"
+
+            -- Count checks completed for this (char, stage) pair
+            local slot_data = ctx.slot_data or bridge.slot_data
+            local merc_conf = (type(slot_data) == "table") and slot_data.mercenaries or nil
+            local score_checks_mode = (merc_conf and merc_conf.score_checks)
+                or (type(slot_data) == "table" and slot_data.mercenaries_score_checks)
+                or "standard"
+
+            local active_ranks = { { name = "A", idx = 0 } }
+            if score_checks_mode == "standard" or score_checks_mode == "full" then
+                table.insert(active_ranks, { name = "S", idx = 1 })
+            end
+            if score_checks_mode == "full" then
+                table.insert(active_ranks, { name = "S+", idx = 2 })
+                table.insert(active_ranks, { name = "S++", idx = 3 })
+            end
+
+            local checked_set = bridge.checked_locations or {}
+            local done_count = 0
+            local rank_summary = {}
+
+            for _, rank in ipairs(active_ranks) do
+                local loc_id = 440001000 + char_idx * 16 + raw_stage * 4 + rank.idx
+                local is_done = (checked_set[loc_id] == true)
+                if is_done then
+                    done_count = done_count + 1
+                    table.insert(rank_summary, "[" .. rank.name .. ": OK]")
+                else
+                    table.insert(rank_summary, "[" .. rank.name .. "]")
+                end
+            end
+
+            return {
+                stage_name = stage_name,
+                char_name = char_name,
+                stage_idx = raw_stage,
+                char_idx = char_idx,
+                done = done_count,
+                total = #active_ranks,
+                ranks_str = table.concat(rank_summary, " "),
+            }
+        end)
+        if ok then return res end
+        return nil
     end
+
     export("get_current_merc_play_info", get_current_merc_play_info)
 
     local function get_merc_location_id(char_name, stage_name, rank_name, slot_data)
@@ -622,17 +634,25 @@ local function install(ctx)
         if hooks_installed then return end
 
         local function should_enforce_gating()
-            if not ownership.initialized then return false end
             local slot_data = ctx.slot_data or bridge.slot_data
-            if type(slot_data) ~= "table" then return false end
-            if slot_data.game_mode == "mercenaries_only" or slot_data.game_mode == "campaign_and_mercenaries" then
+            if type(slot_data) == "table" then
+                if slot_data.game_mode == "mercenaries_only" or slot_data.game_mode == "campaign_and_mercenaries" then
+                    return true
+                end
+                if type(slot_data.mercenaries) == "table" and slot_data.mercenaries.enabled == true then
+                    return true
+                end
+            end
+            if ownership.initialized then
                 return true
             end
-            if type(slot_data.mercenaries) == "table" and slot_data.mercenaries.enabled == true then
+            local get_domain = ctx.get_runtime_domain or _G.get_runtime_domain
+            if type(get_domain) == "function" and get_domain() == "MERCENARIES" then
                 return true
             end
             return false
         end
+
 
         local function dump_type_full(type_name)
             local td = sdk.find_type_definition(type_name)
@@ -681,8 +701,68 @@ local function install(ctx)
 
 
 
+        local function safe_hook(method, pre, post)
+            if method == nil then return end
+            pcall(function()
+                sdk.hook(method, pre, post)
+            end)
+        end
+
+        -- 0. Hook Cp1021UnlockSettingsUserData.StageSetting.isUnlock (Authoritative Stage Unlock)
+        local stage_setting_type = sdk.find_type_definition("chainsaw.Cp1021UnlockSettingsUserData.StageSetting")
+        if stage_setting_type ~= nil then
+            local is_unlock = stage_setting_type:get_method("isUnlock")
+            if is_unlock ~= nil then
+                log.info("[Merc AP] Hooking Cp1021UnlockSettingsUserData.StageSetting.isUnlock")
+                local last_stage_setting = nil
+                safe_hook(is_unlock, function(args)
+                    local this_ptr = sdk.to_managed_object(args[1])
+                    last_stage_setting = this_ptr
+                end, function(retval)
+                    local this_ptr = last_stage_setting
+                    last_stage_setting = nil
+                    if not should_enforce_gating() or this_ptr == nil then return retval end
+
+                    local kind = get_safe_field_int(this_ptr, "KindId", -1)
+                    if kind >= 0 and kind <= 3 then
+                        local owned = is_stage_owned(kind)
+                        log.info(string.format("[Merc AP Gating] StageSetting.isUnlock(stage=%d) -> %s", kind, tostring(owned)))
+                        return sdk.to_ptr(owned and 1 or 0)
+                    end
+                    return retval
+                end)
+            end
+        end
+
+        -- 0. Hook Cp1021UnlockSettingsUserData.CharacterSetting.isUnlock (Authoritative Character Unlock)
+        local char_setting_type = sdk.find_type_definition("chainsaw.Cp1021UnlockSettingsUserData.CharacterSetting")
+        if char_setting_type ~= nil then
+            local is_unlock = char_setting_type:get_method("isUnlock")
+            if is_unlock ~= nil then
+                log.info("[Merc AP] Hooking Cp1021UnlockSettingsUserData.CharacterSetting.isUnlock")
+                local last_char_setting = nil
+                safe_hook(is_unlock, function(args)
+                    local this_ptr = sdk.to_managed_object(args[1])
+                    last_char_setting = this_ptr
+                end, function(retval)
+                    local this_ptr = last_char_setting
+                    last_char_setting = nil
+                    if not should_enforce_gating() or this_ptr == nil then return retval end
+
+                    local kind = get_safe_field_int(this_ptr, "KindId", -1)
+                    if kind >= 0 and kind <= 7 then
+                        local owned = is_character_owned(kind)
+                        log.info(string.format("[Merc AP Gating] CharacterSetting.isUnlock(char=%d) -> %s", kind, tostring(owned)))
+                        return sdk.to_ptr(owned and 1 or 0)
+                    end
+                    return retval
+                end)
+            end
+        end
+
         -- 1. Hook all isUnlock overloads on Cp1021StageSelectGuiBehavior
         local stage_select_type = sdk.find_type_definition("chainsaw.Cp1021StageSelectGuiBehavior")
+
         if stage_select_type ~= nil then
             for _, method in ipairs(stage_select_type:get_methods() or {}) do
                 if method:get_name() == "isUnlock" then
@@ -690,7 +770,7 @@ local function install(ctx)
                     log.info(string.format("[Merc AP] Hooking Cp1021StageSelectGuiBehavior.isUnlock (%d params)", pcount))
                     
                     local last_query = nil
-                    sdk.hook(method, function(args)
+                    safe_hook(method, function(args)
                         local this_ptr = sdk.to_managed_object(args[1])
                         local raw_arg = -1
                         if args[2] ~= nil then
@@ -707,11 +787,13 @@ local function install(ctx)
                             -- Case 1: Stage check (StageKind 0..3)
                             if query.arg >= 0 and query.arg <= 3 then
                                 local owned = is_stage_owned(query.arg)
+                                log.info(string.format("[Merc AP Gating] StageSelect.isUnlock(stage=%d) -> %s", query.arg, tostring(owned)))
                                 return sdk.to_ptr(owned and 1 or 0)
                             end
                             -- Case 2: Character check (PlayerCharacterWithCostumeKind 0..7)
                             if query.arg >= 0 and query.arg <= 7 then
                                 local owned = is_character_owned(query.arg)
+                                log.info(string.format("[Merc AP Gating] StageSelect.isUnlock(char=%d) -> %s", query.arg, tostring(owned)))
                                 return sdk.to_ptr(owned and 1 or 0)
                             end
                             -- Case 3: Fallback query via getKindId on this
@@ -719,6 +801,7 @@ local function install(ctx)
                                 local kind = get_safe_int(query.this, "getKindId", -1)
                                 if kind >= 0 and kind <= 3 then
                                     local owned = is_stage_owned(kind)
+                                    log.info(string.format("[Merc AP Gating] StageSelect.isUnlock(this.getKindId=%d) -> %s", kind, tostring(owned)))
                                     return sdk.to_ptr(owned and 1 or 0)
                                 end
                             end
@@ -738,7 +821,7 @@ local function install(ctx)
                     log.info(string.format("[Merc AP] Hooking Cp1021CharacterSelectGuiBehavior.isUnlock (%d params)", pcount))
 
                     local last_query = nil
-                    sdk.hook(method, function(args)
+                    safe_hook(method, function(args)
                         local this_ptr = sdk.to_managed_object(args[1])
                         local raw_arg = -1
                         if args[2] ~= nil then
@@ -756,6 +839,7 @@ local function install(ctx)
 
                         if query ~= nil and query.arg >= 0 and query.arg <= 7 then
                             local owned = is_character_owned(query.arg)
+                            log.info(string.format("[Merc AP Gating] CharacterSelect.isUnlock(char=%d) -> %s", query.arg, tostring(owned)))
                             return sdk.to_ptr(owned and 1 or 0)
                         end
                         return retval
@@ -770,7 +854,7 @@ local function install(ctx)
             if input_check ~= nil then
                 log.info("[Merc AP] Hooking Cp1021StageSelectGuiBehavior.onInputCheckEvent")
                 local last_stage_input = nil
-                sdk.hook(input_check, function(args)
+                safe_hook(input_check, function(args)
                     local this_ptr = sdk.to_managed_object(args[1])
                     last_stage_input = this_ptr
                 end, function(retval)
@@ -795,7 +879,7 @@ local function install(ctx)
             if input_check ~= nil then
                 log.info("[Merc AP] Hooking Cp1021CharacterSelectGuiBehavior.onInputCheckEvent")
                 local last_char_input = nil
-                sdk.hook(input_check, function(args)
+                safe_hook(input_check, function(args)
                     local this_ptr = sdk.to_managed_object(args[1])
                     last_char_input = this_ptr
                 end, function(retval)
@@ -818,6 +902,7 @@ local function install(ctx)
         hooks_installed = true
         log.info("[Merc AP] virtual unlock gating hooks initialized")
     end
+
     export("install_merc_virtual_gating_hooks", install_merc_virtual_gating_hooks)
 
 

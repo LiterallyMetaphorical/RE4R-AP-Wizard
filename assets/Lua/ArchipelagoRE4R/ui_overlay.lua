@@ -546,9 +546,8 @@ local function install(ctx)
             local ap_client_text, ap_client_color = build_ap_client_overlay_text()
 
             local header_line_count = 1 + ((ranks_text ~= nil and ranks_text ~= "") and 1 or 0) + (ap_client_text ~= nil and 1 or 0)
-            local header_display_height = (CHECK_OVERLAY_PADDING_Y * 2)
-                + (header_line_count * CHECK_OVERLAY_LINE_HEIGHT)
-                + ((header_line_count - 1) * CHECK_OVERLAY_ITEM_SPACING_Y)
+            local header_display_height = CHECK_OVERLAY_HEADER_HEIGHT + ((header_line_count - 1) * CHECK_OVERLAY_HEADER_MAIN_Y_OFFSET)
+
 
             local header_window_width = math.max(
                 CHECK_OVERLAY_HEADER_MIN_WIDTH,

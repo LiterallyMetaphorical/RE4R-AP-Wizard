@@ -404,48 +404,59 @@ if #injectable_items > 0 then
 end
 
 re.on_frame(function()
-    -- Destroy intercepted placeholder drops outside their own accept hook.
-    pump_placeholder_despawns()
-    -- Capture toasts into the durable Message Log before the overlay prunes them.
-    capture_message_log_entries()
-    -- Then mirror fresh toasts onto the game's native activity-log rail (mode-
-    -- gated inside; ui_overlay skips records it marks rendered_natively).
-    dispatch_native_toasts()
-    -- World-space check markers first; the HUD windows layer over them.
-    draw_world_check_markers()
-    draw_check_progress_overlay()
-    -- Outside gameplay the header draws nothing, so the AP connection
-    -- status gets its own line at the menus and during loads.
-    draw_ap_status_menu_overlay()
-    draw_check_notification_overlays_polished()
-    -- After the toast rail so the goal banner layers over it.
-    draw_celebration_overlay()
-    draw_progression_warning_dialog()
-    -- Connection recovery sits above everything else: it is only ever
-    -- visible when the session cannot reach its own multiworld.
-    draw_port_recovery_dialog()
-    -- First-seed welcome: armed on the first playable Chapter 1 tick.
-    maybe_show_tutorial()
-    draw_tutorial_dialog()
-    draw_main_window()
+    local ok, err = pcall(function()
+        -- Destroy intercepted placeholder drops outside their own accept hook.
+        pump_placeholder_despawns()
+        -- Capture toasts into the durable Message Log before the overlay prunes them.
+        capture_message_log_entries()
+        -- Then mirror fresh toasts onto the game's native activity-log rail (mode-
+        -- gated inside; ui_overlay skips records it marks rendered_natively).
+        dispatch_native_toasts()
+        -- World-space check markers first; the HUD windows layer over them.
+        draw_world_check_markers()
+        draw_check_progress_overlay()
+        -- Outside gameplay the header draws nothing, so the AP connection
+        -- status gets its own line at the menus and during loads.
+        draw_ap_status_menu_overlay()
+        draw_check_notification_overlays_polished()
+        -- After the toast rail so the goal banner layers over it.
+        draw_celebration_overlay()
+        draw_progression_warning_dialog()
+        -- Connection recovery sits above everything else: it is only ever
+        -- visible when the session cannot reach its own multiworld.
+        draw_port_recovery_dialog()
+        -- First-seed welcome: armed on the first playable Chapter 1 tick.
+        maybe_show_tutorial()
+        draw_tutorial_dialog()
+        draw_main_window()
+    end)
+    if not ok then
+        log.error("[ArchipelagoRE4R] on_frame render error: " .. tostring(err))
+    end
 end)
 
 re.on_draw_ui(function()
-    -- Bootstrap toggles ONLY. Everything a player configures (markers and
-    -- their detail) moved into the window's Guidance tab, because this menu
-    -- is REFramework's and new players never open it (2026-07-31).
-    local changed_main, main_value = imgui.checkbox("Show Archipelago RE4R Window", bridge.main_window_enabled)
-    if changed_main then
-        bridge.main_window_enabled = main_value
-    end
-
-    local changed_dev, dev_value = imgui.checkbox("Developer Tools (Debug tab)", bridge.developer_tools_enabled)
-    if changed_dev then
-        bridge.developer_tools_enabled = dev_value
-        if dev_value and type(sync_warp_inputs_to_current_state) == "function" then
-            sync_warp_inputs_to_current_state()
+    local ok, err = pcall(function()
+        -- Bootstrap toggles ONLY. Everything a player configures (markers and
+        -- their detail) moved into the window's Guidance tab, because this menu
+        -- is REFramework's and new players never open it (2026-07-31).
+        local changed_main, main_value = imgui.checkbox("Show Archipelago RE4R Window", bridge.main_window_enabled)
+        if changed_main then
+            bridge.main_window_enabled = main_value
         end
-    end
 
-    imgui.text("Marker settings live in the window's Guidance tab (press Insert).")
+        local changed_dev, dev_value = imgui.checkbox("Developer Tools (Debug tab)", bridge.developer_tools_enabled)
+        if changed_dev then
+            bridge.developer_tools_enabled = dev_value
+            if dev_value and type(sync_warp_inputs_to_current_state) == "function" then
+                sync_warp_inputs_to_current_state()
+            end
+        end
+
+        imgui.text("Marker settings live in the window's Guidance tab (press Insert).")
+    end)
+    if not ok then
+        log.error("[ArchipelagoRE4R] on_draw_ui render error: " .. tostring(err))
+    end
 end)
+
