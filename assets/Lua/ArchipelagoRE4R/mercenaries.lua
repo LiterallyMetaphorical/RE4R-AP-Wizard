@@ -120,12 +120,25 @@ local function install(ctx)
     end
 
 
-    local function get_merc_controller()
+    local type_cache = {}
+    local function cached_typeof(type_name)
+        if not type_cache[type_name] then
+            type_cache[type_name] = sdk.typeof(type_name)
+        end
+        return type_cache[type_name]
+    end
+
+    local function get_scene_object()
         local scene_mgr = sdk.get_native_singleton("via.SceneManager")
-        if scene_mgr == nil then return nil end
-        local scene = sdk.call_native_func(scene_mgr, typeof("via.SceneManager"), "get_CurrentScene")
+        local scene_mgr_type = sdk.find_type_definition("via.SceneManager")
+        if scene_mgr == nil or scene_mgr_type == nil then return nil end
+        return sdk.call_native_func(scene_mgr, scene_mgr_type, "get_CurrentScene")
+    end
+
+    local function get_merc_controller()
+        local scene = get_scene_object()
         if scene == nil then return nil end
-        local typeof_ctrl = typeof("chainsaw.MercenariesModeController")
+        local typeof_ctrl = cached_typeof("chainsaw.MercenariesModeController")
         if typeof_ctrl == nil then return nil end
         local game_obj = scene:call("findGameObject(System.Type)", typeof_ctrl)
         if game_obj == nil then return nil end
@@ -133,16 +146,15 @@ local function install(ctx)
     end
 
     local function get_result_gui_behavior()
-        local scene_mgr = sdk.get_native_singleton("via.SceneManager")
-        if scene_mgr == nil then return nil end
-        local scene = sdk.call_native_func(scene_mgr, typeof("via.SceneManager"), "get_CurrentScene")
+        local scene = get_scene_object()
         if scene == nil then return nil end
-        local typeof_gui = typeof("chainsaw.Cp1021GameClearResultGuiBehavior")
+        local typeof_gui = cached_typeof("chainsaw.Cp1021GameClearResultGuiBehavior")
         if typeof_gui == nil then return nil end
         local game_obj = scene:call("findGameObject(System.Type)", typeof_gui)
         if game_obj == nil then return nil end
         return game_obj:call("getComponent(System.Type)", typeof_gui)
     end
+
 
     -- Authoritative Runtime Domain Detection
     local function get_runtime_domain()
@@ -434,6 +446,9 @@ local function install(ctx)
 
     -- Virtual Selection Gating (Hooks)
     local hooks_installed = false
+    local pending_stage_query = nil
+    local pending_char_query = nil
+
     local function install_merc_virtual_gating_hooks()
         if hooks_installed then return end
 
@@ -442,22 +457,30 @@ local function install(ctx)
             local is_unlock_method = stage_select_type:get_method("isUnlock")
             if is_unlock_method ~= nil then
                 sdk.hook(is_unlock_method, function(args)
-                    -- pre-hook: remember queried stage from args or this
+                    local this_ptr = sdk.to_managed_object(args[1])
+                    local kind_id = -1
+                    if args[2] ~= nil then
+                        local raw_arg = sdk.to_int64(args[2])
+                        if raw_arg ~= nil and raw_arg >= 0 and raw_arg <= 10 then
+                            kind_id = tonumber(raw_arg)
+                        end
+                    end
+                    if (kind_id < 0 or kind_id > 3) and this_ptr ~= nil then
+                        kind_id = get_safe_int(this_ptr, "getKindId", -1)
+                    end
+                    pending_stage_query = kind_id
                 end, function(retval)
+                    local kind_id = pending_stage_query
+                    pending_stage_query = nil
                     if not ownership.initialized then return retval end
                     local slot_data = ctx.slot_data or bridge.slot_data
                     if type(slot_data) ~= "table" or type(slot_data.mercenaries) ~= "table" or slot_data.mercenaries.enabled ~= true then
                         return retval -- vanilla untouched
                     end
 
-                    -- Check stage gating
-                    local this_ptr = sdk.get_managed_singleton("chainsaw.Cp1021StageSelectGuiBehavior")
-                    if this_ptr ~= nil then
-                        local kind_id = get_safe_int(this_ptr, "getKindId", -1)
-                        if kind_id >= 0 and kind_id <= 3 then
-                            local owned = is_stage_owned(kind_id)
-                            return sdk.to_ptr(owned and 1 or 0)
-                        end
+                    if kind_id ~= nil and kind_id >= 0 and kind_id <= 3 then
+                        local owned = is_stage_owned(kind_id)
+                        return sdk.to_ptr(owned and 1 or 0)
                     end
                     return retval
                 end)
@@ -469,22 +492,30 @@ local function install(ctx)
             local is_unlock_method = char_select_type:get_method("isUnlock")
             if is_unlock_method ~= nil then
                 sdk.hook(is_unlock_method, function(args)
-                    -- pre-hook
+                    local this_ptr = sdk.to_managed_object(args[1])
+                    local char_kind = -1
+                    if args[2] ~= nil then
+                        local raw_arg = sdk.to_int64(args[2])
+                        if raw_arg ~= nil and raw_arg >= 0 and raw_arg <= 20 then
+                            char_kind = tonumber(raw_arg)
+                        end
+                    end
+                    if (char_kind < 0 or char_kind > 7) and this_ptr ~= nil then
+                        char_kind = get_safe_int(this_ptr, "getCharacterKind", -1)
+                    end
+                    pending_char_query = char_kind
                 end, function(retval)
+                    local char_kind = pending_char_query
+                    pending_char_query = nil
                     if not ownership.initialized then return retval end
                     local slot_data = ctx.slot_data or bridge.slot_data
                     if type(slot_data) ~= "table" or type(slot_data.mercenaries) ~= "table" or slot_data.mercenaries.enabled ~= true then
                         return retval -- vanilla untouched
                     end
 
-                    -- Check character gating
-                    local this_ptr = sdk.get_managed_singleton("chainsaw.Cp1021CharacterSelectGuiBehavior")
-                    if this_ptr ~= nil then
-                        local char_kind = get_safe_int(this_ptr, "getCharacterKind", -1)
-                        if char_kind >= 0 and char_kind <= 7 then
-                            local owned = is_character_owned(char_kind)
-                            return sdk.to_ptr(owned and 1 or 0)
-                        end
+                    if char_kind ~= nil and char_kind >= 0 and char_kind <= 7 then
+                        local owned = is_character_owned(char_kind)
+                        return sdk.to_ptr(owned and 1 or 0)
                     end
                     return retval
                 end)
@@ -496,8 +527,12 @@ local function install(ctx)
     end
     export("install_merc_virtual_gating_hooks", install_merc_virtual_gating_hooks)
 
+    -- Install hooks immediately on boot
+    install_merc_virtual_gating_hooks()
+
     export("merc_state", merc_state)
     export("merc_ownership", ownership)
 end
 
 return install
+
