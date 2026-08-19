@@ -913,9 +913,11 @@ return function(ctx)
                             break -- keep the failing item at the head; do not advance
                         end
                     end
+                    end
                 end
             end
         end
+
 
         -- [Overlay] End the sync burst once nothing new remains to deliver (a gap
         -- still counts as new -> stay latched until it fills). Leaves the "Synced N"
