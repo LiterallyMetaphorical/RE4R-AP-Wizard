@@ -90,6 +90,9 @@ local function install(ctx)
         ready = false,   -- True iff starting/received ownership inventory is populated
     }
 
+    local MERC_P1_TRACE_REV = "2026-08-19-TRACE-V2-FORENSIC"
+    log.info(string.format("[Merc AP Trace] Initializing Mercenaries runtime module (rev %s)", MERC_P1_TRACE_REV))
+
     local function get_safe_int(obj, method_name, fallback)
         if obj == nil then return fallback end
         local ok, val = pcall(function() return obj:call(method_name) end)
@@ -104,6 +107,31 @@ local function install(ctx)
         return fallback
     end
 
+    local function get_safe_field_bool(obj, field_name, fallback)
+        if obj == nil then return fallback end
+        local ok, val = pcall(function() return obj:get_field(field_name) end)
+        if ok and type(val) == "boolean" then return val end
+        if ok and type(val) == "number" then return val ~= 0 end
+        return fallback
+    end
+
+    local function get_safe_bool(obj, method_name, fallback)
+        if obj == nil then return fallback end
+        local ok, val = pcall(function() return obj:call(method_name) end)
+        if ok and type(val) == "boolean" then return val end
+        if ok and type(val) == "number" then return val ~= 0 end
+        return fallback
+    end
+
+    local function get_obj_address_str(obj)
+        if obj == nil then return "nil" end
+        local addr = nil
+        pcall(function() addr = obj:get_address() end)
+        if addr ~= nil then
+            return string.format("0x%X", addr)
+        end
+        return tostring(obj)
+    end
 
     local function decode_anti_cheat_int(obj)
         if obj == nil then return 0 end
@@ -128,7 +156,6 @@ local function install(ctx)
         return nil
     end
 
-
     local type_cache = {}
     local function cached_typeof(type_name)
         if not type_cache[type_name] then
@@ -144,18 +171,22 @@ local function install(ctx)
         return sdk.call_native_func(scene_mgr, scene_mgr_type, "get_CurrentScene")
     end
 
-    local function find_first_component(type_name)
+    local function get_all_components(type_name)
         local scene = get_scene_object()
-        if scene == nil then return nil end
+        if scene == nil then return {} end
         local t = cached_typeof(type_name)
-        if t == nil then return nil end
+        if t == nil then return {} end
         local result = nil
         pcall(function() result = scene:call("findComponents", t) end)
-        if result == nil then return nil end
+        if result == nil then return {} end
 
+        local list = {}
         local ok_el, elements = pcall(function() return result:get_elements() end)
-        if ok_el and type(elements) == "table" and #elements > 0 then
-            return elements[1]
+        if ok_el and type(elements) == "table" then
+            for _, e in ipairs(elements) do
+                if e ~= nil then table.insert(list, e) end
+            end
+            if #list > 0 then return list end
         end
 
         local ok_count, count = pcall(function() return result:get_Count() end)
@@ -163,15 +194,21 @@ local function install(ctx)
             ok_count, count = pcall(function() return result:get_size() end)
         end
         count = tonumber(count) or 0
-        if count > 0 then
-            local ok_item, item = pcall(function() return result:get_Item(0) end)
-            if not ok_item then
-                ok_item, item = pcall(function() return result:get_element(0) end)
+        for i = 0, count - 1 do
+            local ok_item, item = pcall(function() return result:get_Item(i) end)
+            if not ok_item or item == nil then
+                ok_item, item = pcall(function() return result:get_element(i) end)
             end
             if ok_item and item ~= nil then
-                return item
+                table.insert(list, item)
             end
         end
+        return list
+    end
+
+    local function find_first_component(type_name)
+        local components = get_all_components(type_name)
+        if #components > 0 then return components[1] end
         return nil
     end
 
@@ -266,15 +303,42 @@ local function install(ctx)
     export("init_merc_ownership", init_merc_ownership)
 
 
+    local function refresh_open_merc_menus()
+        local stage_gui = find_first_component("chainsaw.Cp1021StageSelectGuiBehavior")
+        if stage_gui ~= nil then
+            local ok = pcall(function()
+                stage_gui:call("updateViewStage")
+            end)
+            if ok then
+                log.info("[Merc AP Gating] menu refresh: updated StageSelect view after ownership change")
+            end
+        end
+
+        local char_gui = find_first_component("chainsaw.Cp1021CharacterSelectGuiBehavior")
+        if char_gui ~= nil then
+            local ok = pcall(function()
+                char_gui:call("updateSelectCharacterList")
+            end)
+            if ok then
+                log.info("[Merc AP Gating] menu refresh: updated CharacterSelect view after ownership change")
+            end
+        end
+    end
+    export("refresh_open_merc_menus", refresh_open_merc_menus)
+
     local function handle_merc_item_received(item_name)
         if type(item_name) ~= "string" then return false end
+        local changed = false
 
         -- Check character items
         for key, roster in pairs(CHAR_COSTUME_TO_ROSTER) do
             if roster.item_name == item_name or roster.name == item_name then
-                ownership.characters[roster.index] = true
-                log.info(string.format("[Merc AP] received character unlock: %s", roster.name))
-                return true
+                if not ownership.characters[roster.index] then
+                    ownership.characters[roster.index] = true
+                    changed = true
+                    log.info(string.format("[Merc AP Gating] received character unlock: %s (index %d)", roster.name, roster.index))
+                end
+                break
             end
         end
 
@@ -282,15 +346,42 @@ local function install(ctx)
         for stage_name, stage_kind in pairs(STAGE_NAME_TO_KIND) do
             local expected_item = "Mercenaries Stage: " .. stage_name
             if expected_item == item_name or stage_name == item_name then
-                ownership.stages[stage_kind] = true
-                log.info(string.format("[Merc AP] received stage unlock: %s", stage_name))
-                return true
+                if not ownership.stages[stage_kind] then
+                    ownership.stages[stage_kind] = true
+                    changed = true
+                    log.info(string.format("[Merc AP Gating] received stage unlock: %s (kind %d)", stage_name, stage_kind))
+                end
+                break
             end
         end
 
-        return false
+        if changed then
+            refresh_open_merc_menus()
+        end
+
+        return changed
     end
     export("handle_merc_item_received", handle_merc_item_received)
+
+    local function reconcile_merc_ownership(items)
+        if type(items) ~= "table" then return false end
+        local any_changed = false
+        for _, it in pairs(items) do
+            local name = nil
+            if type(it) == "string" then
+                name = it
+            elseif type(it) == "table" then
+                name = it.name
+            end
+            if type(name) == "string" then
+                if handle_merc_item_received(name) then
+                    any_changed = true
+                end
+            end
+        end
+        return any_changed
+    end
+    export("reconcile_merc_ownership", reconcile_merc_ownership)
 
     local function is_character_owned(chara_costume_index)
         return ownership.characters[chara_costume_index] == true
@@ -598,6 +689,346 @@ local function install(ctx)
         end
     end
 
+    local ACTION_TYPE_TO_ROSTER_INDEX = {
+        [1] = 0, -- Character01: Leon (Default)
+        [2] = 1, -- Character01_01: Leon (Pinstripe)
+        [3] = 2, -- Character02: Luis
+        [4] = 3, -- Character03: Krauser
+        [5] = 4, -- Character04: HUNK
+        [6] = 5, -- Character05: Ada (Default)
+        [7] = 6, -- Character05_01: Ada (Dress)
+        [8] = 7, -- Character06: Wesker
+    }
+
+    local function action_type_to_roster_index(action_type, gui_obj)
+        if type(action_type) == "number" then
+            if ACTION_TYPE_TO_ROSTER_INDEX[action_type] ~= nil then
+                return ACTION_TYPE_TO_ROSTER_INDEX[action_type]
+            end
+            if action_type >= 1 and action_type <= 8 then
+                return action_type - 1
+            end
+            if action_type >= 0 and action_type <= 7 then
+                return action_type
+            end
+        end
+        if gui_obj ~= nil and action_type ~= nil then
+            local ok_k, k = pcall(function() return gui_obj:call("getCharacterKind", action_type) end)
+            if ok_k and type(k) == "number" and k >= 0 and k <= 7 then
+                return k
+            end
+        end
+        return -1
+    end
+
+    local function resolve_highlighted_character_kind(char_gui)
+        if char_gui == nil then return -1 end
+
+        -- 1. Try <RequestedCharacter>k__BackingField
+        local req_char = get_safe_field_int(char_gui, "<RequestedCharacter>k__BackingField", -1)
+        if req_char > 0 then
+            local idx = action_type_to_roster_index(req_char, char_gui)
+            if idx >= 0 then return idx end
+        end
+
+        -- 2. Try _PanelThumbList._SlCharacter cursor index
+        local panel_thumb = nil
+        pcall(function() panel_thumb = char_gui:get_field("_PanelThumbList") end)
+        local cursor_idx = -1
+        if panel_thumb ~= nil then
+            local sl = nil
+            pcall(function() sl = panel_thumb:get_field("_SlCharacter") end)
+            if sl ~= nil then
+                cursor_idx = get_safe_int(sl, "get_CursorIndex", -1)
+            end
+            if cursor_idx < 0 then
+                cursor_idx = get_safe_int(panel_thumb, "get_SelectedIndex", -1)
+            end
+        end
+
+        -- 3. Map cursor index through _CharacterItemList / getCharacterKind
+        if cursor_idx >= 0 then
+            local item_list = nil
+            pcall(function() item_list = char_gui:get_field("_CharacterItemList") end)
+            if item_list ~= nil then
+                local item_count = get_safe_int(item_list, "get_Count", -1)
+                if item_count < 0 then
+                    item_count = get_safe_int(item_list, "get_size", -1)
+                end
+                if cursor_idx < item_count then
+                    local ok_it, action_type = pcall(function() return item_list:call("get_Item", cursor_idx) end)
+                    if ok_it and action_type ~= nil then
+                        local idx = action_type_to_roster_index(action_type, char_gui)
+                        if idx >= 0 then return idx end
+                    end
+                end
+            end
+
+            local ok_k, kind = pcall(function() return char_gui:call("getCharacterKind", cursor_idx) end)
+            if ok_k and type(kind) == "number" and kind >= 0 and kind <= 7 then
+                return kind
+            end
+            if cursor_idx >= 0 and cursor_idx <= 7 then
+                return cursor_idx
+            end
+        end
+
+        -- 4. Fallback: get_CurrCharacter
+        local ok_curr, curr = pcall(function() return char_gui:call("get_CurrCharacter") end)
+        if ok_curr and curr ~= nil then
+            local idx = action_type_to_roster_index(curr, char_gui)
+            if idx >= 0 then return idx end
+        end
+
+        return -1
+    end
+
+    local function resolve_highlighted_stage_kind(stage_gui)
+        if stage_gui == nil then return -1 end
+
+        local panel_stage = nil
+        pcall(function() panel_stage = stage_gui:get_field("_PanelStage") end)
+        local cursor_idx = -1
+        if panel_stage ~= nil then
+            local sl = nil
+            pcall(function() sl = panel_stage:get_field("_SlStage") end)
+            if sl ~= nil then
+                cursor_idx = get_safe_int(sl, "get_CursorIndex", -1)
+            end
+        end
+
+        if cursor_idx >= 0 then
+            local item_list = nil
+            pcall(function() item_list = stage_gui:get_field("_MenuItemList") end)
+            if item_list ~= nil then
+                local ok_it, action_type = pcall(function() return item_list:call("get_Item", cursor_idx) end)
+                if ok_it and action_type ~= nil then
+                    local ok_k, kind = pcall(function() return stage_gui:call("getKindId", action_type) end)
+                    if ok_k and type(kind) == "number" and kind >= 0 and kind <= 3 then
+                        return kind
+                    end
+                end
+            end
+
+            local ok_k, kind = pcall(function() return stage_gui:call("getKindId", cursor_idx) end)
+            if ok_k and type(kind) == "number" and kind >= 0 and kind <= 3 then
+                return kind
+            end
+            if cursor_idx >= 0 and cursor_idx <= 3 then
+                return cursor_idx
+            end
+        end
+
+        return -1
+    end
+
+    -- Forensic observation infrastructure. This must remain side-effect free:
+    -- it records hook activity and delegate identity without changing gameplay.
+    local tracked_char_guis = {}
+    local tracked_ac_ctrls = {}
+    local tracked_controllers = {}
+    local call_counts = {}
+    local last_input_ret = nil
+    local inspected_on_decided = {}
+
+    local function record_call(name)
+        local key = tostring(name or "<nil>")
+        local count = (call_counts[key] or 0) + 1
+        call_counts[key] = count
+        return count
+    end
+
+    local function emit_call_counts_summary(reason)
+        local names = {}
+        for name in pairs(call_counts) do
+            table.insert(names, name)
+        end
+        table.sort(names)
+
+        local entries = {}
+        for _, name in ipairs(names) do
+            table.insert(entries, string.format("%s=%d", name, call_counts[name]))
+        end
+
+        log.info(string.format(
+            "[Merc AP Trace][CALL_COUNTS_SUMMARY] reason=%s counts=%s",
+            tostring(reason or "unknown"), #entries > 0 and table.concat(entries, ",") or "none"
+        ))
+    end
+
+    local function inspect_on_decided_delegate(open_param, owner_id)
+        if open_param == nil then return end
+
+        local delegate = nil
+        local ok = pcall(function() delegate = open_param:get_field("OnDecided") end)
+        if not ok or delegate == nil then return end
+
+        local delegate_id = get_obj_address_str(delegate)
+        if delegate_id == "nil" or inspected_on_decided[delegate_id] then return end
+        inspected_on_decided[delegate_id] = true
+
+        local content = "<unavailable>"
+        pcall(function() content = tostring(delegate) end)
+        log.info(string.format(
+            "[Merc AP Trace][ON_DECIDED_INSPECT] owner=%s delegate=%s content=%s",
+            tostring(owner_id or "unknown"), delegate_id, content
+        ))
+    end
+
+    local function poll_character_select_guis()
+        local guis = get_all_components("chainsaw.Cp1021CharacterSelectGuiBehavior")
+        local seen = {}
+
+        for _, gui in ipairs(guis) do
+            if gui ~= nil then
+                local addr_str = get_obj_address_str(gui)
+                seen[addr_str] = true
+
+                if not tracked_char_guis[addr_str] then
+                    tracked_char_guis[addr_str] = { gui = gui, active = false, last_fp = "" }
+                    log.info(string.format("[Merc AP Trace][CHAR_GUI_CREATED] obj=%s total_count=%d", addr_str, #guis))
+                end
+
+                local go = nil
+                pcall(function() go = gui:call("get_GameObject") end)
+                local is_act = false
+                if go ~= nil then
+                    local ok_act, act_val = pcall(function() return go:call("get_ActiveSelf") end)
+                    if ok_act and act_val == true then is_act = true end
+                end
+
+                if is_act ~= tracked_char_guis[addr_str].active then
+                    tracked_char_guis[addr_str].active = is_act
+                    log.info(string.format("[Merc AP Trace][%s] obj=%s", is_act and "CHAR_GUI_ACTIVE" or "CHAR_GUI_INACTIVE", addr_str))
+                end
+
+                local step_field = get_safe_field_int(gui, "<CurrStep>k__BackingField", -1)
+                local step_getter = get_safe_int(gui, "get_CurrStep", -1)
+                local req_field = get_safe_field_int(gui, "<RequestedCharacter>k__BackingField", -1)
+                local req_getter = get_safe_int(gui, "get_RequestedCharacter", -1)
+                local curr_char = -1
+                if step_field > 0 or step_getter > 0 then
+                    curr_char = get_safe_int(gui, "get_CurrCharacter", -1)
+                end
+                local decided = get_safe_field_bool(gui, "_bDecided", false)
+                local old_unlock = get_safe_field_bool(gui, "_bOldCharaUnlock", false)
+                local sub = get_safe_field_int(gui, "_SelectedSubCharacter", -1)
+
+                local open_param = nil
+                pcall(function() open_param = gui:get_field("_OpenParam") end)
+                local on_decided = nil
+                if open_param ~= nil then
+                    pcall(function() on_decided = open_param:get_field("OnDecided") end)
+                    inspect_on_decided_delegate(open_param, addr_str)
+                end
+
+                local ac_ctrl = nil
+                pcall(function() ac_ctrl = gui:call("get_AcCtrl") end)
+
+                local highlight_roster = -1
+                if step_field > 0 or step_getter > 0 then
+                    highlight_roster = resolve_highlighted_character_kind(gui)
+                end
+                local highlight_owned = is_character_owned(highlight_roster)
+
+                local fp = string.format(
+                    "%d|%d|%d|%d|%d|%s|%s|%d|%s|%s|%s|%d|%s",
+                    step_field, step_getter, req_field, req_getter, curr_char,
+                    tostring(decided), tostring(old_unlock), sub,
+                    get_obj_address_str(open_param), get_obj_address_str(on_decided),
+                    get_obj_address_str(ac_ctrl), highlight_roster, tostring(highlight_owned)
+                )
+
+                if fp ~= tracked_char_guis[addr_str].last_fp then
+                    tracked_char_guis[addr_str].last_fp = fp
+                    log.info(string.format(
+                        "[Merc AP Trace][CHAR_STATE] t=%.3f obj=%s active=%s step_field=%d step_getter=%d req_field=%d req_getter=%d curr_char=%d decided=%s old_unlock=%s sub=%d highlight_roster=%d (%s) owned=%s open_param=%s on_decided=%s ac_ctrl=%s",
+                        os.clock(), addr_str, tostring(is_act), step_field, step_getter, req_field, req_getter, curr_char,
+                        tostring(decided), tostring(old_unlock), sub, highlight_roster,
+                        ROSTER_INDEX_TO_NAME[highlight_roster] or "None", tostring(highlight_owned),
+                        get_obj_address_str(open_param), get_obj_address_str(on_decided), get_obj_address_str(ac_ctrl)
+                    ))
+                end
+
+                if ac_ctrl ~= nil then
+                    local ac_addr = get_obj_address_str(ac_ctrl)
+                    local rno = get_safe_field_int(ac_ctrl, "Rno", -1)
+                    if rno == -1 then rno = get_safe_int(ac_ctrl, "get_Rno", -1) end
+                    local next_val = get_safe_field_int(ac_ctrl, "Next", -1)
+                    if next_val == -1 then next_val = get_safe_int(ac_ctrl, "get_Next", -1) end
+                    local routine = get_safe_field_int(ac_ctrl, "RoutineType", -1)
+                    if routine == -1 then routine = get_safe_int(ac_ctrl, "get_RoutineType", -1) end
+                    local curr_ac = get_safe_field_int(ac_ctrl, "CurrAcKey", -1)
+                    if curr_ac == -1 then curr_ac = get_safe_int(ac_ctrl, "get_CurrAcKey", -1) end
+
+                    local ac_fp = string.format("%d|%d|%d|%d", rno, next_val, routine, curr_ac)
+                    if not tracked_ac_ctrls[ac_addr] or tracked_ac_ctrls[ac_addr].last_fp ~= ac_fp then
+                        tracked_ac_ctrls[ac_addr] = { last_fp = ac_fp }
+                        log.info(string.format(
+                            "[Merc AP Trace][AC_STATE] t=%.3f character_gui=%s ac_ctrl=%s rno=%d next=%d routine=%d curr_ac_key=%d",
+                            os.clock(), addr_str, ac_addr, rno, next_val, routine, curr_ac
+                        ))
+                    end
+                end
+            end
+        end
+
+        for tracked_addr, info in pairs(tracked_char_guis) do
+            if not seen[tracked_addr] then
+                log.info(string.format("[Merc AP Trace][CHAR_GUI_DESTROYED] obj=%s", tracked_addr))
+                emit_call_counts_summary("gui_destroyed")
+                tracked_char_guis[tracked_addr] = nil
+            end
+        end
+    end
+
+    local function poll_controllers_and_parent()
+        local ctrl = get_merc_controller()
+        if ctrl ~= nil then
+            local c_addr = get_obj_address_str(ctrl)
+            local st = get_safe_field_int(ctrl, "_StageKind", -1)
+            local ch = get_safe_field_int(ctrl, "_PlayerCharacterKind", -1)
+            local co = get_safe_field_int(ctrl, "_PlayerCharacterCostumeId", 0)
+            local rt = get_safe_field_int(ctrl, "_Routine", -1)
+            local c_fp = string.format("%d|%d|%d|%d", st, ch, co, rt)
+
+            if not tracked_controllers[c_addr] then
+                tracked_controllers[c_addr] = { last_fp = c_fp }
+                local key = string.format("%d:%d", ch, co)
+                local entry = CHAR_COSTUME_TO_ROSTER[key]
+                local roster_idx = entry and entry.index or ch
+                local st_owned = is_stage_owned(st)
+                local ch_owned = is_character_owned(roster_idx)
+                log.info(string.format(
+                    "[Merc AP Trace][MERC_CONTROLLER_CREATED] obj=%s stage=%d (%s, owned=%s) char=%d costume=%d roster=%d (%s, owned=%s) routine=%d t=%.3f",
+                    c_addr, st, STAGE_KIND_NAMES[st] or "Unknown", tostring(st_owned),
+                    ch, co, roster_idx, ROSTER_INDEX_TO_NAME[roster_idx] or "Unknown", tostring(ch_owned), rt, os.clock()
+                ))
+            elseif tracked_controllers[c_addr].last_fp ~= c_fp then
+                tracked_controllers[c_addr].last_fp = c_fp
+                log.info(string.format(
+                    "[Merc AP Trace][MERC_CONTROLLER_STATE] obj=%s stage=%d char=%d costume=%d routine=%d t=%.3f",
+                    c_addr, st, ch, co, rt, os.clock()
+                ))
+            end
+        end
+
+        local game_start_gui = find_first_component("chainsaw.Cp1021GameStartGuiBehavior")
+        if game_start_gui ~= nil then
+            local gs_addr = get_obj_address_str(game_start_gui)
+            local gs_step = get_safe_field_int(game_start_gui, "<CurrStep>k__BackingField", -1)
+            if gs_step == -1 then gs_step = get_safe_int(game_start_gui, "get_CurrStep", -1) end
+            local gs_fp = string.format("%d", gs_step)
+            if not tracked_controllers[gs_addr] or tracked_controllers[gs_addr].last_fp ~= gs_fp then
+                tracked_controllers[gs_addr] = { last_fp = gs_fp }
+                log.info(string.format(
+                    "[Merc AP Trace][PARENT_COMMIT] Cp1021GameStartGuiBehavior obj=%s step=%d t=%.3f",
+                    gs_addr, gs_step, os.clock()
+                ))
+            end
+        end
+    end
+
     -- Frame update tick
     local function update_mercenaries_state()
         local merc_mgr = get_merc_manager()
@@ -619,7 +1050,11 @@ local function install(ctx)
             end
         end
 
-        -- 2. Observe MercenariesManager.get_IsResult() boundary
+        -- 2. Forensic state-machine polling
+        poll_character_select_guis()
+        poll_controllers_and_parent()
+
+        -- 3. Observe MercenariesManager.get_IsResult() boundary
         if merc_mgr ~= nil then
             local is_result = get_safe_int(merc_mgr, "get_IsResult", 0) == 1
             if is_result and not merc_state.last_is_result then
@@ -635,14 +1070,14 @@ local function install(ctx)
             end
         end
 
-        -- 3. Poll payload if inside result pipeline
+        -- 4. Poll payload if inside result pipeline
         if merc_state.lifecycle == STATE_RESULT_PIPELINE then
             poll_result_pipeline()
         end
     end
     export("update_mercenaries_state", update_mercenaries_state)
 
-    -- Virtual Selection Gating (Unified Multi-Tier Architecture)
+    -- Virtual Selection Gating (Unified Multi-Tier Architecture & Forensic Tracing)
     local hooks_installed = false
 
     local function install_merc_virtual_gating_hooks()
@@ -664,124 +1099,29 @@ local function install(ctx)
             return ""
         end
 
-        local function resolve_highlighted_character_kind(char_gui)
-            if char_gui == nil then return -1 end
-
-            -- 1. Try _PanelThumbList._SlCharacter cursor index
-            local panel_thumb = nil
-            pcall(function() panel_thumb = char_gui:get_field("_PanelThumbList") end)
-            local cursor_idx = -1
-            if panel_thumb ~= nil then
-                local sl = nil
-                pcall(function() sl = panel_thumb:get_field("_SlCharacter") end)
-                if sl ~= nil then
-                    cursor_idx = get_safe_int(sl, "get_CursorIndex", -1)
-                end
-                if cursor_idx < 0 then
-                    cursor_idx = get_safe_int(panel_thumb, "get_SelectedIndex", -1)
-                end
-            end
-
-            -- 2. Map cursor index through _CharacterItemList / getCharacterKind
-            if cursor_idx >= 0 then
-                local item_list = nil
-                pcall(function() item_list = char_gui:get_field("_CharacterItemList") end)
-                if item_list ~= nil then
-                    local ok_it, action_type = pcall(function() return item_list:call("get_Item", cursor_idx) end)
-                    if ok_it and action_type ~= nil then
-                        local ok_k, kind = pcall(function() return char_gui:call("getCharacterKind", action_type) end)
-                        if ok_k and type(kind) == "number" and kind >= 0 and kind <= 7 then
-                            return kind
-                        end
-                    end
-                end
-
-                local ok_k, kind = pcall(function() return char_gui:call("getCharacterKind", cursor_idx) end)
-                if ok_k and type(kind) == "number" and kind >= 0 and kind <= 7 then
-                    return kind
-                end
-                if cursor_idx >= 0 and cursor_idx <= 7 then
-                    return cursor_idx
-                end
-            end
-
-            -- 3. Fallback: get_CurrCharacter
-            local ok_curr, curr = pcall(function() return char_gui:call("get_CurrCharacter") end)
-            if ok_curr and curr ~= nil then
-                local ok_k, kind = pcall(function() return char_gui:call("getCharacterKind", curr) end)
-                if ok_k and type(kind) == "number" and kind >= 0 and kind <= 7 then
-                    return kind
-                end
-            end
-
-            return -1
-        end
-
-        local function resolve_highlighted_stage_kind(stage_gui)
-            if stage_gui == nil then return -1 end
-
-            -- 1. Try _PanelStage._SlStage cursor index
-            local panel_stage = nil
-            pcall(function() panel_stage = stage_gui:get_field("_PanelStage") end)
-            local cursor_idx = -1
-            if panel_stage ~= nil then
-                local sl = nil
-                pcall(function() sl = panel_stage:get_field("_SlStage") end)
-                if sl ~= nil then
-                    cursor_idx = get_safe_int(sl, "get_CursorIndex", -1)
-                end
-            end
-
-            -- 2. Map cursor index through _MenuItemList / getKindId
-            if cursor_idx >= 0 then
-                local item_list = nil
-                pcall(function() item_list = stage_gui:get_field("_MenuItemList") end)
-                if item_list ~= nil then
-                    local ok_it, action_type = pcall(function() return item_list:call("get_Item", cursor_idx) end)
-                    if ok_it and action_type ~= nil then
-                        local ok_k, kind = pcall(function() return stage_gui:call("getKindId", action_type) end)
-                        if ok_k and type(kind) == "number" and kind >= 0 and kind <= 3 then
-                            return kind
-                        end
-                    end
-                end
-
-                local ok_k, kind = pcall(function() return stage_gui:call("getKindId", cursor_idx) end)
-                if ok_k and type(kind) == "number" and kind >= 0 and kind <= 3 then
-                    return kind
-                end
-                if cursor_idx >= 0 and cursor_idx <= 3 then
-                    return cursor_idx
-                end
-            end
-
-            return -1
-        end
-
-        -- Rate-limited logging state
-        local last_blocked_char = nil
-        local last_blocked_stage = nil
-
         local hooked_functions = {}
         local function safe_hook_unique(method, pre, post)
-            if method == nil then return end
+            if method == nil then return false end
             local func_ptr = nil
             pcall(function() func_ptr = method:get_function() end)
             local key = tostring(func_ptr or method)
-            if hooked_functions[key] then return end
+            if hooked_functions[key] then return true end
 
             local ok = pcall(function()
                 sdk.hook(method, pre, post)
             end)
             if ok then
                 hooked_functions[key] = true
+                return true
             end
+            return false
         end
 
         -- ==================================================================
         -- 1. UNIFIED isUnlock HOOKS (Visual Presentation & Native Locks)
         -- ==================================================================
         local last_is_unlock_query = nil
+        local logged_gui_is_unlock = {}
         local function on_is_unlock_pre(args)
             local this_obj = sdk.to_managed_object(args[2])
             local raw_arg = -1
@@ -801,39 +1141,54 @@ local function install(ctx)
 
             local type_name = get_obj_type_name(query.this)
 
+            local function trace_gui_is_unlock(kind, owned)
+                local key = string.format("%s:%d:%d", type_name, query.arg, kind)
+                if not logged_gui_is_unlock[key] then
+                    logged_gui_is_unlock[key] = true
+                    log.info(string.format(
+                        "[Merc AP Trace][IS_UNLOCK] type=%s raw=%d kind=%d owned=%s",
+                        type_name, query.arg, kind, tostring(owned)
+                    ))
+                end
+            end
+
             if type_name == "chainsaw.Cp1021UnlockSettingsUserData.CharacterSetting" then
                 local kind = get_safe_field_int(query.this, "KindId", -1)
+                if kind < 0 then
+                    kind = get_safe_int(query.this, "get_KindId", -1)
+                end
                 if kind >= 0 and kind <= 7 then
                     local owned = is_character_owned(kind)
                     return sdk.to_ptr(owned and 1 or 0)
                 end
             elseif type_name == "chainsaw.Cp1021UnlockSettingsUserData.StageSetting" then
                 local kind = get_safe_field_int(query.this, "KindId", -1)
+                if kind < 0 then
+                    kind = get_safe_int(query.this, "get_KindId", -1)
+                end
                 if kind >= 0 and kind <= 3 then
                     local owned = is_stage_owned(kind)
                     return sdk.to_ptr(owned and 1 or 0)
                 end
             elseif type_name == "chainsaw.Cp1021CharacterSelectGuiBehavior" then
                 if query.arg >= 0 then
-                    local char_kind = query.arg
-                    local ok_k, k = pcall(function() return query.this:call("getCharacterKind", query.arg) end)
-                    if ok_k and type(k) == "number" and k >= 0 and k <= 7 then
-                        char_kind = k
-                    end
-                    if char_kind >= 0 and char_kind <= 7 then
-                        local owned = is_character_owned(char_kind)
+                    local ok_kind, kind = pcall(function()
+                        return query.this:call("getCharacterKind", query.arg)
+                    end)
+                    if ok_kind and type(kind) == "number" and kind >= 0 and kind <= 7 then
+                        local owned = is_character_owned(kind)
+                        trace_gui_is_unlock(kind, owned)
                         return sdk.to_ptr(owned and 1 or 0)
                     end
                 end
             elseif type_name == "chainsaw.Cp1021StageSelectGuiBehavior" then
                 if query.arg >= 0 then
-                    local stage_kind = query.arg
-                    local ok_k, k = pcall(function() return query.this:call("getKindId", query.arg) end)
-                    if ok_k and type(k) == "number" and k >= 0 and k <= 3 then
-                        stage_kind = k
-                    end
-                    if stage_kind >= 0 and stage_kind <= 3 then
-                        local owned = is_stage_owned(stage_kind)
+                    local ok_kind, kind = pcall(function()
+                        return query.this:call("getKindId", query.arg)
+                    end)
+                    if ok_kind and type(kind) == "number" and kind >= 0 and kind <= 3 then
+                        local owned = is_stage_owned(kind)
+                        trace_gui_is_unlock(kind, owned)
                         return sdk.to_ptr(owned and 1 or 0)
                     end
                 end
@@ -860,130 +1215,135 @@ local function install(ctx)
         end
 
         -- ==================================================================
-        -- 2. UNIFIED onInputCheckEvent HOOKS (Pre-Confirmation Hard Boundary)
+        -- 2. FORENSIC HOOKS ON CharacterSelectGuiBehavior CANDIDATE METHODS
         -- ==================================================================
-        local last_input_check_blocked = false
-        local function on_input_check_pre(args)
-            last_input_check_blocked = false
-            local this_obj = sdk.to_managed_object(args[2])
-            if this_obj == nil or not should_enforce_gating() then return end
+        local char_td = sdk.find_type_definition("chainsaw.Cp1021CharacterSelectGuiBehavior")
+        if char_td ~= nil then
+            local candidate_methods = {
+                "onInputCheckEvent",
+                "onSelectionChanged",
+                "changeStep",
+                "set_RequestedCharacter",
+                "set_CurrStep",
+                "lateUpdateOnActive",
+                "selectCostume",
+                "openCostumeSelectList",
+                "closeCostumeSelectList",
+                "getCharacterKind",
+                "setCharacterInfo",
+                "onDeactivateEvent",
+                "recieveGuiParam",
+            }
 
-            local type_name = get_obj_type_name(this_obj)
+            for _, mname in ipairs(candidate_methods) do
+                local m = char_td:get_method(mname)
+                if m ~= nil then
+                    local ok_h = false
+                    if mname == "onInputCheckEvent" then
+                        ok_h = safe_hook_unique(m, function(args)
+                            record_call("onInputCheckEvent")
+                        end, function(retval)
+                            local cnt = call_counts["onInputCheckEvent"] or 0
+                            local ret_val = sdk.to_int64(retval)
+                            if cnt <= 5 or last_input_ret ~= ret_val then
+                                last_input_ret = ret_val
+                                local current_gui = find_first_component("chainsaw.Cp1021CharacterSelectGuiBehavior")
+                                local roster_idx = resolve_highlighted_character_kind(current_gui)
+                                local owned = is_character_owned(roster_idx)
+                                log.info(string.format(
+                                    "[Merc AP Trace][INPUT_CHECK] native_ret=%s highlight_roster=%d (%s) owned=%s count=%d t=%.3f",
+                                    tostring(ret_val), roster_idx, ROSTER_INDEX_TO_NAME[roster_idx] or "None", tostring(owned), cnt, os.clock()
+                                ))
+                            end
+                            return retval
+                        end)
+                    elseif mname == "lateUpdateOnActive" or mname == "getCharacterKind" then
+                        ok_h = safe_hook_unique(m, function(args)
+                            record_call(mname)
+                        end, function(retval)
+                            return retval
+                        end)
+                    else
+                        ok_h = safe_hook_unique(m, function(args)
+                            local cnt = record_call(mname)
+                            local this_obj = sdk.to_managed_object(args[2])
+                            local p1 = args[3] ~= nil and sdk.to_int64(args[3]) or nil
+                            local p2 = args[4] ~= nil and sdk.to_int64(args[4]) or nil
+                            local roster_idx = resolve_highlighted_character_kind(this_obj)
+                            log.info(string.format(
+                                "[Merc AP Trace][CALL_PRE] method=%s this=%s p1=%s p2=%s highlight_roster=%d (%s) owned=%s cnt=%d t=%.3f",
+                                mname, get_obj_address_str(this_obj), tostring(p1), tostring(p2),
+                                roster_idx, ROSTER_INDEX_TO_NAME[roster_idx] or "None", tostring(is_character_owned(roster_idx)), cnt, os.clock()
+                            ))
+                        end, function(retval)
+                            local ret_val = sdk.to_int64(retval)
+                            if ret_val ~= nil then
+                                log.info(string.format(
+                                    "[Merc AP Trace][CALL_POST] method=%s return=%s t=%.3f",
+                                    mname, tostring(ret_val), os.clock()
+                                ))
+                            end
+                            return retval
+                        end)
+                    end
 
-            if type_name == "chainsaw.Cp1021CharacterSelectGuiBehavior" then
-                local char_kind = resolve_highlighted_character_kind(this_obj)
-                if char_kind >= 0 and char_kind <= 7 and not is_character_owned(char_kind) then
-                    if last_blocked_char ~= char_kind then
-                        last_blocked_char = char_kind
-                        log.info(string.format("[Merc AP Gating] character confirmation blocked: %s (index %d)", ROSTER_INDEX_TO_NAME[char_kind] or "Unknown", char_kind))
+                    if ok_h then
+                        log.info(string.format("[Merc AP Trace][HOOK_REGISTERED] chainsaw.Cp1021CharacterSelectGuiBehavior.%s", mname))
+                    else
+                        log.warn(string.format("[Merc AP Trace][HOOK_FAILED] chainsaw.Cp1021CharacterSelectGuiBehavior.%s", mname))
                     end
-                    pcall(function() this_obj:set_field("_bDecided", false) end)
-                    pcall(function() this_obj:set_field("_bOldCharaUnlock", false) end)
-                    last_input_check_blocked = true
-                    return sdk.PreHookResult.SKIP_ORIGINAL
                 else
-                    last_blocked_char = nil
-                end
-            elseif type_name == "chainsaw.Cp1021StageSelectGuiBehavior" then
-                local stage_kind = resolve_highlighted_stage_kind(this_obj)
-                if stage_kind >= 0 and stage_kind <= 3 and not is_stage_owned(stage_kind) then
-                    if last_blocked_stage ~= stage_kind then
-                        last_blocked_stage = stage_kind
-                        log.info(string.format("[Merc AP Gating] stage confirmation blocked: %s (kind %d)", STAGE_KIND_NAMES[stage_kind] or "Unknown", stage_kind))
-                    end
-                    pcall(function() this_obj:set_field("_bDecided", false) end)
-                    last_input_check_blocked = true
-                    return sdk.PreHookResult.SKIP_ORIGINAL
-                else
-                    last_blocked_stage = nil
+                    log.warn(string.format("[Merc AP Trace][HOOK_NOT_FOUND] chainsaw.Cp1021CharacterSelectGuiBehavior.%s", mname))
                 end
             end
         end
 
-        local function on_input_check_post(retval)
-            if last_input_check_blocked then
-                last_input_check_blocked = false
-                return sdk.to_ptr(0)
-            end
-            return retval
-        end
-
-        local gui_behavior_types = {
-            "chainsaw.Cp1021StageSelectGuiBehavior",
-            "chainsaw.Cp1021CharacterSelectGuiBehavior",
+        -- ==================================================================
+        -- 3. COMPILER-GENERATED CLOSURES INSPECTION & TRACING
+        -- ==================================================================
+        local closure_types = {
+            "chainsaw.Cp1021CharacterSelectGuiBehavior.<>c__DisplayClass50_0",
+            "chainsaw.Cp1021CharacterSelectGuiBehavior.<>c__DisplayClass53_0",
+            "chainsaw.Cp1021CharacterSelectGuiBehavior.<>c__DisplayClass57_0",
+            "chainsaw.Cp1021CharacterSelectGuiBehavior.<>c__DisplayClass66_0",
         }
-        for _, tname in ipairs(gui_behavior_types) do
-            local td = sdk.find_type_definition(tname)
+        for _, cname in ipairs(closure_types) do
+            local td = sdk.find_type_definition(cname)
             if td ~= nil then
-                local m = td:get_method("onInputCheckEvent")
-                if m ~= nil then
-                    safe_hook_unique(m, on_input_check_pre, on_input_check_post)
-                end
-            end
-        end
-
-        -- ==================================================================
-        -- 3. UNIFIED changeStep & setStage HOOKS (Step Transition Prevention)
-        -- ==================================================================
-        local function on_change_step_pre(args)
-            local this_obj = sdk.to_managed_object(args[2])
-            if this_obj == nil or not should_enforce_gating() then return end
-
-            local next_step = args[3] ~= nil and sdk.to_int64(args[3]) or -1
-            if next_step == 0 or next_step == -1 then return end
-
-            local type_name = get_obj_type_name(this_obj)
-
-            if type_name == "chainsaw.Cp1021CharacterSelectGuiBehavior" then
-                local char_kind = resolve_highlighted_character_kind(this_obj)
-                if char_kind >= 0 and char_kind <= 7 and not is_character_owned(char_kind) then
-                    pcall(function() this_obj:set_field("_bDecided", false) end)
-                    pcall(function() this_obj:set_field("_bOldCharaUnlock", false) end)
-                    return sdk.PreHookResult.SKIP_ORIGINAL
-                end
-            elseif type_name == "chainsaw.Cp1021StageSelectGuiBehavior" then
-                local stage_kind = resolve_highlighted_stage_kind(this_obj)
-                if stage_kind >= 0 and stage_kind <= 3 and not is_stage_owned(stage_kind) then
-                    pcall(function() this_obj:set_field("_bDecided", false) end)
-                    return sdk.PreHookResult.SKIP_ORIGINAL
-                end
-            end
-        end
-
-        local function on_change_step_post(retval)
-            return retval
-        end
-
-        for _, tname in ipairs(gui_behavior_types) do
-            local td = sdk.find_type_definition(tname)
-            if td ~= nil then
-                local m = td:get_method("changeStep")
-                if m ~= nil then
-                    safe_hook_unique(m, on_change_step_pre, on_change_step_post)
-                end
-            end
-        end
-
-        local stage_td = sdk.find_type_definition("chainsaw.Cp1021StageSelectGuiBehavior")
-        if stage_td ~= nil then
-            local set_stage_m = stage_td:get_method("setStage")
-            if set_stage_m ~= nil then
-                safe_hook_unique(set_stage_m, function(args)
-                    local this_obj = sdk.to_managed_object(args[2])
-                    if this_obj ~= nil and should_enforce_gating() then
-                        local stage_kind = resolve_highlighted_stage_kind(this_obj)
-                        if stage_kind >= 0 and stage_kind <= 3 and not is_stage_owned(stage_kind) then
-                            return sdk.PreHookResult.SKIP_ORIGINAL
-                        end
+                local method_names = {}
+                for _, m in ipairs(td:get_methods() or {}) do
+                    local mname = m:get_name()
+                    table.insert(method_names, mname)
+                    if mname ~= ".ctor" and mname ~= "Finalize" then
+                        safe_hook_unique(m, function(args)
+                            record_call(cname .. "." .. mname)
+                            local this_obj = sdk.to_managed_object(args[2])
+                            local p1 = args[3] ~= nil and sdk.to_int64(args[3]) or nil
+                            local p2 = args[4] ~= nil and sdk.to_int64(args[4]) or nil
+                            log.info(string.format(
+                                "[Merc AP Trace][CLOSURE_CALL] type=%s method=%s this=%s p1=%s p2=%s t=%.3f",
+                                cname, mname, get_obj_address_str(this_obj), tostring(p1), tostring(p2), os.clock()
+                            ))
+                        end, function(retval)
+                            return retval
+                        end)
                     end
-                end, function(retval)
-                    return retval
-                end)
+                end
+                local field_names = {}
+                for _, f in ipairs(td:get_fields() or {}) do
+                    table.insert(field_names, f:get_name())
+                end
+                log.info(string.format(
+                    "[Merc AP Trace][CLOSURE_INSPECT] type=%s methods=[%s] fields=[%s]",
+                    cname, table.concat(method_names, ", "), table.concat(field_names, ", ")
+                ))
+            else
+                log.info(string.format("[Merc AP Trace][CLOSURE_INSPECT] type=%s (not found in TypeDB)", cname))
             end
         end
 
         -- ==================================================================
-        -- 4. DIAGNOSTIC ASSERTION ON startGame (Quiet Guard, No State Corruption)
+        -- 4. TERMINAL DIAGNOSTIC ASSERTION ON startGame
         -- ==================================================================
         local merc_ctrl_type = sdk.find_type_definition("chainsaw.MercenariesModeController")
         if merc_ctrl_type ~= nil then
@@ -991,7 +1351,7 @@ local function install(ctx)
             if start_game ~= nil then
                 safe_hook_unique(start_game, function(args)
                     local this_ptr = sdk.to_managed_object(args[2])
-                    if this_ptr ~= nil and should_enforce_gating() then
+                    if this_ptr ~= nil then
                         local st = get_safe_field_int(this_ptr, "_StageKind", -1)
                         local ch = get_safe_field_int(this_ptr, "_PlayerCharacterKind", -1)
                         local co = get_safe_field_int(this_ptr, "_PlayerCharacterCostumeId", 0)
@@ -1002,10 +1362,21 @@ local function install(ctx)
                         local st_owned = is_stage_owned(st)
                         local ch_owned = is_character_owned(char_idx)
 
-                        if not (st_owned and ch_owned) then
-                            log.error(string.format("[Merc AP Gating] ASSERTION FAILURE: unowned selection reached startGame (Stage: %d owned=%s, Character: %d owned=%s)", st, tostring(st_owned), char_idx, tostring(ch_owned)))
+                        log.info(string.format(
+                            "[Merc AP Trace][START_GAME_INVOKED] obj=%s stage=%d (%s, owned=%s) char=%d costume=%d roster=%d (%s, owned=%s) t=%.3f",
+                            get_obj_address_str(this_ptr), st, STAGE_KIND_NAMES[st] or "Unknown", tostring(st_owned),
+                            ch, co, char_idx, ROSTER_INDEX_TO_NAME[char_idx] or "Unknown", tostring(ch_owned), os.clock()
+                        ))
+                        emit_call_counts_summary("start_game")
+
+                        if should_enforce_gating() and not (st_owned and ch_owned) then
+                            log.error(string.format(
+                                "[Merc AP Gating] ASSERTION FAILURE: unowned selection reached startGame (Stage: %d owned=%s, Character: %d owned=%s)",
+                                st, tostring(st_owned), char_idx, tostring(ch_owned)
+                            ))
                         end
                     end
+                    return nil
                 end, function(retval)
                     return retval
                 end)
@@ -1013,15 +1384,10 @@ local function install(ctx)
         end
 
         hooks_installed = true
-        log.info("[Merc AP Gating] virtual selection gating hooks initialized")
+        log.info(string.format("[Merc AP Trace] virtual selection forensic hooks initialized (rev %s)", MERC_P1_TRACE_REV))
     end
 
-
-
-
     export("install_merc_virtual_gating_hooks", install_merc_virtual_gating_hooks)
-
-
 
     -- Install hooks immediately on boot
     install_merc_virtual_gating_hooks()
@@ -1031,4 +1397,3 @@ local function install(ctx)
 end
 
 return install
-

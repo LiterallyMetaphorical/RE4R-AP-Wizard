@@ -1491,6 +1491,29 @@ return function(ctx)
         local bridge = ctx.bridge
         local watermark = (bridge and tonumber(bridge.last_received_index)) or -1
         local queued, lo, hi = 0, nil, nil
+
+        -- [Mercenaries] Abstract ownership reconciliation side-channel:
+        -- Immediately and idempotently unlock any received Merc character/stage items,
+        -- completely independent of campaign inventory safety, active domain, or watermarks.
+        local handle_merc = ctx.handle_merc_item_received or _G.handle_merc_item_received
+        if type(handle_merc) == "function" then
+            for _, item in ipairs(items) do
+                local item_id = item.item
+                if item_id ~= nil then
+                    local mapping = ap_item_map[item_id]
+                    if mapping and mapping.name then
+                        local is_merc = (mapping.kind == "merc_character" or mapping.kind == "merc_stage" or mapping.kind == "merc_filler")
+                            or (type(item_id) == "number" and item_id >= 440000001 and item_id <= 440000099)
+                            or (mapping.name:find("^Mercenaries Stage:") ~= nil)
+                            or (mapping.name:find("^Mercenaries Character:") ~= nil)
+                        if is_merc then
+                            handle_merc(mapping.name)
+                        end
+                    end
+                end
+            end
+        end
+
         for _, item in ipairs(items) do
             local idx = item.index
             if type(idx) == "number" then
