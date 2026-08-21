@@ -59,8 +59,45 @@ public sealed class ManifestBuilder
         }
 
         var scoutedCount = scoutSession.Locations.Count - scoutedShopSlotCount;
-        if (scoutedCount == staticData.Counts.LocationsTotal - removedByEvents
-            || (staticData.Counts.AlwaysLocations > 0 && scoutedCount == staticData.Counts.AlwaysLocations - removedByEvents))
+
+        // [Hard-difficulty allowance] Hardcore and Professional slots never
+        // create the spots the game draws but refuses to hand over, so those
+        // rooms are legitimately SHORT against the bundle. Before this, such a
+        // room scouted 455 against a declared 456 and the patch was refused as
+        // a version mismatch - it blocked a player through six attempts across
+        // an hour, on a brand new seed, with nothing wrong at either end
+        // (Arkad, 2026-08-21).
+        //
+        // Checked by identity, not by tolerance: work out WHICH declared
+        // locations the room is missing, and allow it only when every one of
+        // them is a known difficulty-inert spot. A room missing anything else
+        // still fails, and now names what it was missing.
+        var scoutedLocationIds = scoutSession.Locations
+            .Select(location => location.LocationId)
+            .ToHashSet();
+        var missingDeclaredIds = staticData.LocationCodes
+            .Where(code => !scoutedLocationIds.Contains(code))
+            .ToList();
+        var inertIds = staticData.DifficultyInertLocations
+            .Select(entry => entry.Code)
+            .ToHashSet();
+        // Count the inert ones INDEPENDENTLY of whatever else is missing. An
+        // all-or-nothing test would break the Hardcore + Random Events room,
+        // where the missing set is a mix of event-removed and difficulty-inert
+        // and neither allowance would apply.
+        var difficultyAllowance = missingDeclaredIds.Count(inertIds.Contains);
+        if (difficultyAllowance > 0)
+        {
+            var names = staticData.DifficultyInertLocations
+                .Where(entry => missingDeclaredIds.Contains(entry.Code))
+                .Select(entry => entry.Name);
+            Log($"Room is missing {difficultyAllowance} hard-difficulty spot(s), which is expected on Hardcore and Professional: {string.Join("; ", names)}");
+        }
+
+        var expectedCount = staticData.Counts.LocationsTotal - removedByEvents - difficultyAllowance;
+        var expectedAlways = staticData.Counts.AlwaysLocations - removedByEvents - difficultyAllowance;
+        if (scoutedCount == expectedCount
+            || (staticData.Counts.AlwaysLocations > 0 && scoutedCount == expectedAlways))
         {
             var shopSuffix = scoutedShopSlotCount > 0
                 ? $" Plus {scoutedShopSlotCount} merchant shop check(s)."
@@ -72,7 +109,12 @@ public sealed class ManifestBuilder
         else
         {
             throw new ManifestBuildException(
-                $"The AP server returned {scoutedCount} world locations, but the bundled RE4R world data expects {staticData.Counts.LocationsTotal - removedByEvents}. The room was probably generated with a different RE4R.apworld version than this launcher bundles.");
+                $"The AP server returned {scoutedCount} world locations, but the bundled RE4R world data expects {expectedCount}. "
+                + (missingDeclaredIds.Count > 0
+                    ? $"The room is missing {missingDeclaredIds.Count} location id(s) the bundle declares (first: {missingDeclaredIds[0]}). "
+                    : string.Empty)
+                + "The room and this launcher were built from different versions of RE4R.apworld; which one is older cannot be told from here. "
+                + "Either regenerate the room with the apworld this launcher ships, or update the launcher to match the one the room was generated with.");
         }
 
         Log($"Building manifest for {scoutSession.Locations.Count} locations using BioRand game-version {gameVersion}.");

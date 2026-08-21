@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-08-21T15:31:55Z",
+  "generated_at_utc": "2026-08-21T21:54:55Z",
   "game": "Resident Evil 4 Remake",
   "world_version": "0.7.0",
   "placeholder_item_id": 120486400,
@@ -792,6 +792,14 @@
     "optional_key_locations": 0,
     "shop_slots": 120
   },
+  "difficulty_inert_locations": [
+    {
+      "guid": "4ce682fe-d46b-46f2-8deb-b72c14a48ac2",
+      "code": 2189581482,
+      "name": "Chapter 8 - Bindery - Lithographic Stone D x1 [4ce682fe]",
+      "reason": "drawn but not interactable on Hardcore; Standard collects it fine"
+    }
+  ],
   "location_codes": [
     3286922255,
     3431684013,

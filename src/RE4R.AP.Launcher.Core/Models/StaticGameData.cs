@@ -22,6 +22,14 @@ public sealed class StaticGameData
     [JsonPropertyName("counts")]
     public StaticGameDataCounts Counts { get; set; } = new();
 
+    // Spots the game draws but refuses to hand over on Hardcore and
+    // Professional, so those slots never create them. A room short by exactly
+    // these is a hard-difficulty room, not a drifted apworld - without this the
+    // count check refused to patch a legitimate Hardcore seed outright.
+    // Empty on a pre-2026-08-21 bundle, which just means no allowance is made.
+    [JsonPropertyName("difficulty_inert_locations")]
+    public List<StaticDifficultyInertLocation> DifficultyInertLocations { get; set; } = new();
+
     [JsonPropertyName("location_codes")]
     public List<long> LocationCodes { get; set; } = new();
 
