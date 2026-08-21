@@ -255,6 +255,7 @@ public sealed class LaunchWorkflowService
                 scoutResult.NormalizedServer,
                 scoutResult,
                 sessionRecord.BioRandOptions,
+                sessionRecord.EnemyGatesJson,
                 cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -964,6 +965,11 @@ public sealed class LaunchWorkflowService
             BioRandOptions = BioRandOptions.Sanitize(effectiveOptions),
             BioRandPatchFiles = patchFiles,
             LuaCopyFiles = luaFiles,
+            // A re-patch that reuses the prior generation must keep handing the
+            // mod the gate identities the installed pak was rolled with.
+            EnemyGatesJson = !string.IsNullOrEmpty(generationResult.EnemyGatesJson)
+                ? generationResult.EnemyGatesJson
+                : priorRecord?.EnemyGatesJson ?? string.Empty,
         };
     }
 
@@ -1192,6 +1198,7 @@ public sealed class LaunchWorkflowService
         string normalizedServer,
         ArchipelagoScoutSessionResult scoutResult,
         BioRandOptions recordedOptions,
+        string enemyGatesJson,
         CancellationToken cancellationToken)
     {
         try
@@ -1295,6 +1302,24 @@ public sealed class LaunchWorkflowService
                             }).ToArray(),
                         };
 
+                    // The generator's spawn-gate echo, verbatim. The mod reads
+                    // gates[].item_id + spawns[].controller/component and
+                    // vetoes those spawns at permitSpawn until the item is
+                    // possessed. Null when the patch rolled no gates (option
+                    // off, old fork build, or nothing landed in a gated class).
+                    System.Text.Json.Nodes.JsonNode? enemyGates = null;
+                    if (!string.IsNullOrWhiteSpace(enemyGatesJson))
+                    {
+                        try
+                        {
+                            enemyGates = System.Text.Json.Nodes.JsonNode.Parse(enemyGatesJson);
+                        }
+                        catch (JsonException)
+                        {
+                            Log("The generator's ap_enemy_gates.json did not parse; the mod will run without spawn gates.");
+                        }
+                    }
+
                     var roomJson = JsonSerializer.Serialize(new
                     {
                         seed_name = scoutResult.SeedName,
@@ -1302,6 +1327,7 @@ public sealed class LaunchWorkflowService
                         location_ids = sortedIds,
                         allow_bonus_items = AllowsBonusItems(recordedOptions),
                         merchant_shop = merchantShop,
+                        enemy_gates = enemyGates,
                     }, new JsonSerializerOptions { WriteIndented = true });
                     await File.WriteAllTextAsync(roomLocationsPath, roomJson, cancellationToken);
                     Log($"Wrote this room's {sortedIds.Length} location id(s) to {roomLocationsPath} for the in-game Lua mod.");

@@ -44,6 +44,7 @@ public sealed class Re4rYamlBuilder
             { "allow_missable_locations", request.AllowMissableLocations ? "true" : "false" },
             { "shuffle_keycards", request.ShuffleKeycards ? "true" : "false" },
             { "shuffle_merchant_gear", request.ShuffleMerchantGear ? "true" : "false" },
+            { "random_weapon_stats", request.RandomWeaponStats ? "true" : "false" },
             { "minimize_backtracking", request.MinimizeBacktracking ? "true" : "false" },
             { "random_events", request.RandomEvents ? "true" : "false" },
             { "shop_checks", Math.Clamp(request.ShopChecks, 0, 20).ToString(System.Globalization.CultureInfo.InvariantCulture) },

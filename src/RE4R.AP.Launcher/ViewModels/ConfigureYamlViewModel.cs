@@ -35,7 +35,11 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     private bool _deathLink;
     private bool _allowMissableLocations;
     private bool _shuffleKeycards;
-    private bool _shuffleMerchantGear;
+    private bool _randomWeaponStats;
+    // On by default, like ShopChecks below: the Archipelago merchant is the
+    // default experience, and drafts saved before the option existed load it
+    // back as off (their owner chose their shop before gear could scatter).
+    private bool _shuffleMerchantGear = true;
     private bool _minimizeBacktracking;
     private bool _randomEvents;
     private int _shopChecks = 16;
@@ -108,7 +112,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     // sets them gets silence. Say so rather than let them wonder.
     public string ItemSelectionHint =>
         "Only applies in a multiworld. A solo seed ignores these, because there is nowhere else for an item to go. "
-        + "Progression is everything the logic can require, and it contains the other two: the 28 Key Items, the Small Key, "
+        + "Progression is everything the logic can require, and it contains the other three: the 28 Key Items, the Small Key, "
         + "and the Biosensor Scope. Choose Key Items for the doors and quest items alone, or search for one item by name.";
 
     public string LocationSelectionHint =>
@@ -340,6 +344,24 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         set
         {
             if (SetProperty(ref _shuffleKeycards, value))
+            {
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
+
+    /// <summary>
+    /// BioRand's Random Upgraded Weapon Stats, decided in the YAML because
+    /// the multiworld holds the weapons. Pinned into BioRand at patch time;
+    /// its switch on the BioRand Options screen greys out and says so.
+    /// </summary>
+    public bool RandomWeaponStats
+    {
+        get => _randomWeaponStats;
+        set
+        {
+            if (SetProperty(ref _randomWeaponStats, value))
             {
                 RebuildYamlPreview();
                 QueueDraftSave();
@@ -762,6 +784,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         DeathLink = draft.DeathLink;
         AllowMissableLocations = draft.AllowMissableLocations;
         ShuffleKeycards = draft.ShuffleKeycards;
+        RandomWeaponStats = draft.RandomWeaponStats;
         ShuffleMerchantGear = draft.ShuffleMerchantGear;
         MinimizeBacktracking = draft.MinimizeBacktracking;
         RandomEvents = draft.RandomEvents;
@@ -811,6 +834,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
                 draft.DeathLink = DeathLink;
                 draft.AllowMissableLocations = AllowMissableLocations;
                 draft.ShuffleKeycards = ShuffleKeycards;
+                draft.RandomWeaponStats = RandomWeaponStats;
                 draft.ShuffleMerchantGear = ShuffleMerchantGear;
                 draft.MinimizeBacktracking = MinimizeBacktracking;
                 draft.RandomEvents = RandomEvents;
@@ -851,6 +875,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             DeathLink = DeathLink,
             AllowMissableLocations = AllowMissableLocations,
             ShuffleKeycards = ShuffleKeycards,
+            RandomWeaponStats = RandomWeaponStats,
             ShuffleMerchantGear = ShuffleMerchantGear,
             MinimizeBacktracking = MinimizeBacktracking,
             RandomEvents = RandomEvents,

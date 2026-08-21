@@ -54,6 +54,12 @@ public static class BioRandOptionCatalog
     public const string RandomEnemiesKey = "random-enemies";
     public const string RandomEventsKey = "random-events";
     public const string RandomMerchantKey = "random-merchant";
+    public const string RandomMerchantPricesKey = "random-merchant-prices";
+    public const string RandomWeaponStatsKey = "random-weapon-stats";
+    // The per-chapter restock schedule (~60 scale options). Its consumer is
+    // the same modifier random-merchant gates, so it is inert while the
+    // Archipelago merchant owns the shop.
+    public const string MerchantStockKeyPrefix = "merchant-stock-";
 
     private const string CatalogFileName = "biorand_options.json";
 

@@ -102,4 +102,10 @@ public sealed class SessionRecord
 
     [JsonPropertyName("lua_copy_files")]
     public List<StagedFileEntry> LuaCopyFiles { get; set; } = new();
+
+    // The generator's spawn-gate echo for this patch (raw ap_enemy_gates.json).
+    // Persisted so a relaunch or re-patch that skips generation still hands the
+    // mod the same gate identities the installed pak was rolled with.
+    [JsonPropertyName("enemy_gates_json")]
+    public string EnemyGatesJson { get; set; } = string.Empty;
 }

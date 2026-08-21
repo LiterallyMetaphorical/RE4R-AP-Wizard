@@ -14,6 +14,9 @@ public sealed class BioRandGenerationResult
 
     public string StagingDirectoryPath { get; init; } = string.Empty;
 
+    /// <summary>Raw ap_enemy_gates.json emitted by the generator, empty when gates were not in play.</summary>
+    public string EnemyGatesJson { get; init; } = string.Empty;
+
     public IReadOnlyList<StagedFileEntry> StagedFiles { get; init; } = Array.Empty<StagedFileEntry>();
 
     public IReadOnlyList<string> StandardOutputLines { get; init; } = Array.Empty<string>();

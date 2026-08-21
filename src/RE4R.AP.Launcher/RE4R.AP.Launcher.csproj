@@ -35,6 +35,13 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </Content>
+    <!-- Enemy preset curves (Crowd x Roster axes, class multipliers, HP positions,
+         possession gates). EnemyConfigurationPresets loads this; retunes are a data
+         edit + restage, no rebuild. Design doc: ENEMY_CLASS_DESIGN.md (untracked). -->
+    <Content Include="..\..\assets\Data\enemy_presets.json" Link="assets\Data\enemy_presets.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </Content>
     <!-- The shipped RE4R.apworld lives here (not in assets/Archipelago, which is
          deleted with the hosting cut): Generation Guidance hands this file to the
          organizer to copy into their own Archipelago's custom_worlds folder. -->

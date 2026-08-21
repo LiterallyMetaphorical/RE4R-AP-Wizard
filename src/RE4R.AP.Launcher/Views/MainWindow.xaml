@@ -811,9 +811,14 @@
                                       IsChecked="{Binding ShuffleMerchantGear}"
                                       Content="Shuffle the merchant's gear into the multiworld" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="Experimental. His weapons, attachments, case sizes and crafting recipes leave the buy tab and become multiworld items - your next gun is a check somewhere out there, maybe in another player's world. Consumable supplies, knife replacements, body armor, tune-ups, selling and trades stay. Expect a different power curve; gear never gates logic, so a seed can always be finished. Turning this on also turns shop checks on, so the emptied shelf sells checks instead of nothing - untick it if you really want a bare shop." />
+                                       Text="On by default. His weapons, attachments, case sizes and crafting recipes - plus the Deluxe and Separate Ways guns that work in Leon's campaign - leave the buy tab and become multiworld items: your next gun is a check somewhere out there, maybe in another player's world. Consumable supplies, knife replacements, body armor, tune-ups, selling and trades stay. Expect a different power curve; gear never gates logic, so a seed can always be finished. Turning this on also turns shop checks on, so the emptied shelf sells checks instead of nothing - untick it if you really want a bare shop." />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="While either option is on, the multiworld owns the shop: BioRand's own Random Merchant is switched off when you patch, and its row on the BioRand Options screen says so." />
+                            <CheckBox Margin="0,10,0,0"
+                                      IsChecked="{Binding RandomWeaponStats}"
+                                      Content="Random weapon stats" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="BioRand's Random Upgraded Weapon Stats, decided here because the multiworld holds the weapons: every gun's upgrade curve rerolls, from forgettable to monstrous. Applied identically on every patch; BioRand's own switch greys out and says the settings file decided." />
                         </StackPanel>
                         <StackPanel Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=WrapPanel}, Converter={StaticResource ColumnSnapConverter}, ConverterParameter=550}" Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
@@ -1895,6 +1900,58 @@
                                                                    Foreground="{DynamicResource SubtleTextBrush}"
                                                                    TextWrapping="Wrap"
                                                                    Text="{Binding DataContext.BioRandOptions.EnemyPresetDescription, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}" />
+                                                        <!-- The two dials underneath the presets: every preset is a
+                                                             curated pair of them, and off-pair combinations are the
+                                                             new freedom (Overrun + Familiar is horde mode, Sparse +
+                                                             Apex is a hunt). Hand-editing a row below blanks both. -->
+                                                        <StackPanel Margin="0,10,0,0"
+                                                                    Orientation="Horizontal">
+                                                            <StackPanel Width="230">
+                                                                <TextBlock FontWeight="SemiBold"
+                                                                           Text="Crowd" />
+                                                                <TextBlock FontSize="11"
+                                                                           Foreground="{DynamicResource SubtleTextBrush}"
+                                                                           TextWrapping="Wrap"
+                                                                           Text="How busy fights are." />
+                                                                <ComboBox Margin="0,4,0,0"
+                                                                          HorizontalAlignment="Stretch"
+                                                                          DisplayMemberPath="Label"
+                                                                          IsEnabled="{Binding DataContext.BioRandOptions.AreOptionsEditable, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
+                                                                          ItemsSource="{Binding DataContext.BioRandOptions.CrowdPoints, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
+                                                                          SelectedItem="{Binding DataContext.BioRandOptions.SelectedCrowdPoint, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}, Mode=TwoWay}"
+                                                                          AutomationProperties.Name="Crowd" />
+                                                            </StackPanel>
+                                                            <StackPanel Width="230"
+                                                                        Margin="14,0,0,0">
+                                                                <TextBlock FontWeight="SemiBold"
+                                                                           Text="Roster" />
+                                                                <TextBlock FontSize="11"
+                                                                           Foreground="{DynamicResource SubtleTextBrush}"
+                                                                           TextWrapping="Wrap"
+                                                                           Text="How scary the mix is." />
+                                                                <ComboBox Margin="0,4,0,0"
+                                                                          HorizontalAlignment="Stretch"
+                                                                          DisplayMemberPath="Label"
+                                                                          IsEnabled="{Binding DataContext.BioRandOptions.AreOptionsEditable, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
+                                                                          ItemsSource="{Binding DataContext.BioRandOptions.RosterSteps, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
+                                                                          SelectedItem="{Binding DataContext.BioRandOptions.SelectedRosterStep, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}, Mode=TwoWay}"
+                                                                          AutomationProperties.Name="Roster" />
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                        <TextBlock Margin="0,4,0,0"
+                                                                   FontSize="11"
+                                                                   Foreground="{DynamicResource SubtleTextBrush}"
+                                                                   TextWrapping="Wrap"
+                                                                   Text="Every preset above is a pair of these two dials, and any other pairing works too. Blank dials mean hand-tuned rows below." />
+                                                        <TextBlock Margin="0,6,0,0"
+                                                                   MaxWidth="640"
+                                                                   HorizontalAlignment="Left"
+                                                                   FontSize="11"
+                                                                   FontWeight="SemiBold"
+                                                                   Foreground="{DynamicResource WarningTextBrush}"
+                                                                   TextWrapping="Wrap"
+                                                                   Text="{Binding DataContext.BioRandOptions.ScatterIntensityWarning, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
+                                                                   Visibility="{Binding DataContext.BioRandOptions.ShowScatterIntensityWarning, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                                         <CheckBox Margin="0,8,0,0"
                                                                   IsEnabled="{Binding DataContext.BioRandOptions.AreOptionsEditable, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
                                                                   IsChecked="{Binding DataContext.BioRandOptions.ExcludeDifficultMendezEncounters, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}, Mode=TwoWay}"

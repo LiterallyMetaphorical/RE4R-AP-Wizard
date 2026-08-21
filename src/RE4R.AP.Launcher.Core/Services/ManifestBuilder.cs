@@ -148,7 +148,11 @@ public sealed class ManifestBuilder
 
         var configJson = BuildConfigJson(
             placements, normalizedOptions, gameVersion, scoutSession.RandomEvents, plannedShopSlots,
-            scoutSession.MerchantShop.ScatteredItemIds);
+            scoutSession.MerchantShop.ScatteredItemIds, scoutSession.RandomWeaponStats);
+        if (scoutSession.RandomWeaponStats is bool yamlWeaponStats)
+        {
+            Log($"Random Weapon Stats rides the YAML: {(yamlWeaponStats ? "on" : "off")} for every patch of this room.");
+        }
         if (scoutSession.MerchantShop.ScatteredItemIds.Count > 0)
         {
             Log($"{scoutSession.MerchantShop.ScatteredItemIds.Count} piece(s) of merchant gear are scattered into the multiworld; the shelf loses them.");
@@ -199,7 +203,8 @@ public sealed class ManifestBuilder
         string gameVersion,
         RandomEventsSlotData randomEvents,
         IReadOnlyList<MerchantShopPlannedSlot> shopSlots,
-        IReadOnlyList<int> scatteredItemIds)
+        IReadOnlyList<int> scatteredItemIds,
+        bool? randomWeaponStats)
     {
         var placementObject = new JsonObject();
         foreach (var placement in placements)
@@ -283,7 +288,9 @@ public sealed class ManifestBuilder
         if (shopSlots.Count > 0 || scatteredItemIds.Count > 0)
         {
             root[BioRandOptionCatalog.RandomMerchantKey] = false;
-            Log("AP merchant active: BioRand's own merchant randomization is forced off.");
+            root[BioRandOptionCatalog.RandomMerchantPricesKey] = false;
+            Log("AP merchant active: BioRand's own merchant randomization (stock and prices) is forced off.");
+
             var excludedIds = new SortedSet<int>(MerchantShopPlanner.PoolUniqueBuyableItemIds);
             foreach (var itemId in scatteredItemIds)
             {
@@ -323,6 +330,49 @@ public sealed class ManifestBuilder
                 ["tiers"] = tiers,
                 ["slots"] = slotsArray,
             };
+        }
+
+        // 4b. Weapon character rides with the multiworld's weapons: the
+        //     YAML's Random Weapon Stats pins BioRand's switch, identically
+        //     on every patch. Rooms from older apworlds carry no key and
+        //     leave the switch player-controlled.
+        if (randomWeaponStats is bool weaponStats)
+        {
+            root[BioRandOptionCatalog.RandomWeaponStatsKey] = weaponStats;
+        }
+
+        // 4c. Possession-keyed spawn gates (ENEMY_CLASS_DESIGN.md). The fork
+        //     echoes each enabled gate back with the spawn identities it rolled
+        //     into that class; the mod vetoes those spawns until the item is
+        //     possessed. Only item gates ship enabled today (Dread on the
+        //     Biosensor Scope); the arsenal gates stay data-scaffolded off.
+        var enabledItemGates = EnemyConfigurationPresets.Gates
+            .Where(gate => gate is { Enabled: true, Type: "item" } && gate.ItemEngineId > 0)
+            .ToList();
+        var randomEnemiesOn = root[BioRandOptionCatalog.RandomEnemiesKey] is JsonValue randomEnemiesValue
+            && randomEnemiesValue.TryGetValue<bool>(out var randomEnemiesFlag)
+            && randomEnemiesFlag;
+        if (enabledItemGates.Count > 0 && randomEnemiesOn)
+        {
+            var gatesObject = new JsonObject();
+            foreach (var gate in enabledItemGates)
+            {
+                var members = new JsonArray();
+                foreach (var member in gate.Members)
+                {
+                    members.Add(JsonValue.Create(member));
+                }
+
+                gatesObject[gate.ClassKey] = new JsonObject
+                {
+                    ["members"] = members,
+                    ["item-id"] = gate.ItemEngineId,
+                    ["item-name"] = gate.Item,
+                };
+            }
+
+            root["ap-enemy-gates"] = gatesObject;
+            Log($"Enemy spawn gates: {enabledItemGates.Count} class gate(s) sent to the generator.");
         }
 
         return root.ToJsonString(new JsonSerializerOptions

@@ -1,0 +1,198 @@
+{
+  "_comment": "Enemy preset curves, data-driven so retunes ride a restage instead of a rebuild. Two axes: crowdPoints (how busy fights are, snow's proven values) and rosterSteps (how scary the mix is, per-class weight multipliers over the catalog defaults in biorand_options.json). The five user-facing presets are curated pairs and reproduce the pre-split ladder exactly. Boss ratios are absolute values, not multipliers. hpPosition narrows every roster enemy's random-health band toward its floor (max' = min + t * (max - min)); boss-fight HP (boss-health-*) stays a free player dial. Design + evidence: ENEMY_CLASS_DESIGN.md at the repo root (untracked). Census: fork tools/enemy_census.py.",
+  "classes": {
+    "ambient": {
+      "label": "Ambient",
+      "members": ["cow", "pig"]
+    },
+    "fodder": {
+      "label": "Fodder",
+      "members": [
+        "villager", "villager_range", "zealot", "zealot_shield", "zealot_range",
+        "soldier", "soldier_range", "soldier_shield", "novistador", "arana", "colmillos"
+      ]
+    },
+    "elite": {
+      "label": "Elite",
+      "members": ["zealot_red", "brute", "brute_hammer", "brute_range", "brute_weapon", "armadura"]
+    },
+    "miniboss": {
+      "label": "Miniboss",
+      "members": ["chainsaw", "chainsaw_mad", "garrador", "brute_jj", "gold-armadura", "super-colmillos"]
+    },
+    "dread": {
+      "label": "Dread",
+      "members": ["regenerador", "iron_maiden", "super_iron_maiden"]
+    },
+    "boss": {
+      "label": "Boss",
+      "members": [
+        "krauser_1", "krauser_2", "verdugo", "mendez_chase", "mendez_2",
+        "pesanta", "u3", "sadler_human"
+      ]
+    }
+  },
+  "crowdPoints": [
+    {
+      "key": "sparse",
+      "label": "Sparse",
+      "values": {
+        "extra-enemy-amount": 0.0,
+        "enemy-multiplier": 1.0,
+        "enemy-waves-probability": 0.0,
+        "enemy-scale-probability": 0.0
+      }
+    },
+    {
+      "key": "lively",
+      "label": "Lively",
+      "values": {
+        "extra-enemy-amount": 0.1,
+        "enemy-multiplier": 1.15,
+        "enemy-waves-probability": 0.03,
+        "enemy-waves-min": 2,
+        "enemy-waves-max": 2,
+        "enemy-scale-probability": 0.02
+      }
+    },
+    {
+      "key": "busy",
+      "label": "Busy",
+      "values": {
+        "extra-enemy-amount": 0.25,
+        "enemy-multiplier": 1.4,
+        "enemy-waves-probability": 0.12,
+        "enemy-waves-min": 2,
+        "enemy-waves-max": 3,
+        "enemy-scale-probability": 0.05
+      }
+    },
+    {
+      "key": "relentless",
+      "label": "Relentless",
+      "values": {
+        "extra-enemy-amount": 0.4,
+        "enemy-multiplier": 1.75,
+        "enemy-waves-probability": 0.25,
+        "enemy-waves-min": 2,
+        "enemy-waves-max": 4,
+        "enemy-scale-probability": 0.1
+      }
+    },
+    {
+      "key": "overrun",
+      "label": "Overrun",
+      "values": {
+        "extra-enemy-amount": 0.6,
+        "enemy-multiplier": 2.25,
+        "enemy-variety": 35,
+        "enemy-pack-max": 4,
+        "enemy-waves-probability": 0.4,
+        "enemy-waves-min": 3,
+        "enemy-waves-max": 5,
+        "enemy-scale-probability": 0.2
+      }
+    }
+  ],
+  "rosterSteps": [
+    {
+      "key": "familiar",
+      "label": "Familiar",
+      "classMultipliers": { "ambient": 1.0, "fodder": 1.0, "elite": 0.5, "miniboss": 0.15, "dread": 0.0 },
+      "hpPosition": 0.35,
+      "rails": { "balanced-enemies": true, "nice-mendez-hill": true, "mendez-down-resistance": 0.0 },
+      "parasites": { "parasite-ratio-none": 0.97, "parasite-ratio-a": 0.02, "parasite-ratio-b": 0.0, "parasite-ratio-c": 0.01 }
+    },
+    {
+      "key": "varied",
+      "label": "Varied",
+      "classMultipliers": { "ambient": 1.0, "fodder": 1.0, "elite": 0.8, "miniboss": 0.4, "dread": 0.0 },
+      "hpPosition": 0.5,
+      "rails": { "balanced-enemies": true, "nice-mendez-hill": true, "mendez-down-resistance": 0.1 },
+      "parasites": { "parasite-ratio-none": 0.95, "parasite-ratio-a": 0.03, "parasite-ratio-b": 0.01, "parasite-ratio-c": 0.01 }
+    },
+    {
+      "key": "wild",
+      "label": "Wild",
+      "classMultipliers": { "ambient": 1.0, "fodder": 1.0, "elite": 1.0, "miniboss": 0.8, "dread": 0.25 },
+      "hpPosition": 0.65,
+      "rails": { "balanced-enemies": true, "nice-mendez-hill": true, "mendez-down-resistance": 0.2 },
+      "parasites": { "parasite-ratio-none": 0.93, "parasite-ratio-a": 0.05, "parasite-ratio-b": 0.02, "parasite-ratio-c": 0.05 }
+    },
+    {
+      "key": "menacing",
+      "label": "Menacing",
+      "classMultipliers": { "ambient": 1.0, "fodder": 1.0, "elite": 1.3, "miniboss": 1.2, "dread": 1.0 },
+      "hpPosition": 0.8,
+      "rails": { "balanced-enemies": false, "nice-mendez-hill": false, "mendez-down-resistance": 0.4 },
+      "parasites": { "parasite-ratio-none": 0.88, "parasite-ratio-a": 0.06, "parasite-ratio-b": 0.03, "parasite-ratio-c": 0.05 }
+    },
+    {
+      "key": "apex",
+      "label": "Apex",
+      "classMultipliers": { "ambient": 1.0, "fodder": 1.0, "elite": 1.6, "miniboss": 1.5, "dread": 1.5 },
+      "hpPosition": 1.0,
+      "rails": { "balanced-enemies": false, "nice-mendez-hill": false, "mendez-down-resistance": 0.7 },
+      "parasites": { "parasite-ratio-none": 0.8, "parasite-ratio-a": 0.09, "parasite-ratio-b": 0.05, "parasite-ratio-c": 0.06 }
+    }
+  ],
+  "bossAbsolute": {
+    "_comment": "Per roster step, absolute slider values. The SW trio is pinned 0 everywhere: their random-spawn HP tables are placeholders (pesanta 1 to 3 HP), nobody has balanced them; they enter when snow tunes them. Mendez rows keep snow's shipped values pending the census conversation (his .08 measures as ~46 invincible stalkers at Menacing crowd levels).",
+    "krauser_1": [0.0, 0.0, 0.0, 0.06, 0.12],
+    "krauser_2": [0.0, 0.0, 0.0, 0.01, 0.03],
+    "verdugo": [0.0, 0.0, 0.0, 0.01, 0.03],
+    "mendez_chase": [0.0, 0.0, 0.0, 0.08, 0.08],
+    "mendez_2": [0.0, 0.0, 0.0, 0.01, 0.01],
+    "pesanta": [0.0, 0.0, 0.0, 0.0, 0.0],
+    "u3": [0.0, 0.0, 0.0, 0.0, 0.0],
+    "sadler_human": [0.0, 0.0, 0.0, 0.0, 0.0]
+  },
+  "pairs": [
+    {
+      "key": "gentle-remix",
+      "name": "Gentle Remix",
+      "description": "New placements, restrained crowds, safe hill and Krauser opener.",
+      "intensity": "1 / 5",
+      "crowd": "sparse",
+      "roster": "familiar"
+    },
+    {
+      "key": "guided-variety",
+      "name": "Guided Variety",
+      "description": "More variety without turning every room into a pile-up.",
+      "intensity": "2 / 5",
+      "crowd": "lively",
+      "roster": "varied"
+    },
+    {
+      "key": "village-siege",
+      "name": "Village Siege",
+      "description": "Busy fights, occasional follow-up waves, still constrained around spikes.",
+      "intensity": "3 / 5",
+      "crowd": "busy",
+      "roster": "wild"
+    },
+    {
+      "key": "relentless",
+      "name": "Relentless",
+      "description": "Dense, recurring encounters. Removes hill and Krauser safety rails.",
+      "intensity": "4 / 5",
+      "crowd": "relentless",
+      "roster": "menacing"
+    },
+    {
+      "key": "unstable-chaos",
+      "name": "Unstable Chaos",
+      "description": "Large packs, frequent waves, wild sizes. Stability can suffer.",
+      "intensity": "5 / 5",
+      "crowd": "overrun",
+      "roster": "apex"
+    }
+  ],
+  "gates": {
+    "_comment": "Possession-keyed spawn admission, consumed by the room file writer and the mod's enemy_gate.lua. 'item' gates veto the class's randomized spawns until the named AP item is possessed (attache case, equipped, or Storage). 'arsenal' gates are the scaffold for roster-follows-your-weapons; thresholds undefined until the census + Cam settle them, so they ship disabled.",
+    "dread": { "type": "item", "item": "Biosensor Scope x1", "itemEngineId": 116004800, "enabled": true },
+    "miniboss": { "type": "arsenal", "enabled": false },
+    "boss": { "type": "arsenal", "enabled": false }
+  }
+}

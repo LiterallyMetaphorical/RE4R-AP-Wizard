@@ -31,4 +31,12 @@ public sealed class ArchipelagoScoutSessionResult
     /// or whose shop_checks is 0.
     /// </summary>
     public MerchantShopSlotData MerchantShop { get; init; } = MerchantShopSlotData.Disabled;
+
+    /// <summary>
+    /// The YAML's Random Weapon Stats choice: the multiworld holds the
+    /// weapons, so their character rides with them and BioRand's own switch
+    /// is pinned to this at patch time. Null for rooms whose apworld
+    /// predates the key - those leave the switch player-controlled.
+    /// </summary>
+    public bool? RandomWeaponStats { get; init; }
 }

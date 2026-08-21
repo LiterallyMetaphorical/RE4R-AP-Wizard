@@ -30,6 +30,8 @@ public sealed class Re4rYamlRequest
 
     public bool ShuffleMerchantGear { get; set; }
 
+    public bool RandomWeaponStats { get; set; }
+
     // Keep important checks along the main path: hard hexagon deadline plus
     // filler-only side excursions (apworld 0.6.0).
     public bool MinimizeBacktracking { get; set; }

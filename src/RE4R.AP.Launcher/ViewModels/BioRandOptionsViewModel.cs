@@ -26,6 +26,14 @@ public sealed class BioRandOptionsViewModel : ObservableObject
 
     private LaunchModeOption? _selectedMode;
     private EnemyConfigurationPreset _selectedEnemyPreset = EnemyConfigurationPresets.Custom;
+    // Dial state. When the combination is one of the five named pairs the
+    // picker shows that preset; off-ladder combos keep the picker on Custom
+    // and this holds the synthesized preset (its promise line included).
+    private EnemyCrowdPoint? _selectedCrowdPoint;
+    private EnemyRosterStep? _selectedRosterStep;
+    private EnemyConfigurationPreset? _activeDialPreset;
+    private bool _isSyncingDials;
+    private bool _gearScattered;
     // The Méndez ratios as they stood when the exclusion toggle last went on,
     // so unchecking restores the player's own numbers. Session-scoped.
     private Dictionary<string, double>? _mendezValuesBeforeExclusion;
@@ -35,6 +43,7 @@ public sealed class BioRandOptionsViewModel : ObservableObject
     private bool _isUnlockedForChange;
     private bool _randomEventsForced;
     private bool _merchantOwnedByAp;
+    private bool? _weaponStatsFromYaml;
     private string _pinnedNotice = string.Empty;
     private string _modeStatusText = "Choose a launch mode to continue.";
 
@@ -61,15 +70,157 @@ public sealed class BioRandOptionsViewModel : ObservableObject
 
             if (value.Key == EnemyConfigurationPresets.Custom.Key)
             {
+                if (!_isSyncingDials)
+                {
+                    _activeDialPreset = null;
+                    SyncDialsFrom(null, null);
+                }
+
                 OnPropertyChanged(nameof(EnemyPresetDescription));
                 return;
             }
 
+            _activeDialPreset = null;
+            SyncDialsFrom(value.CrowdKey, value.RosterKey);
             ApplyEnemyPreset(value);
         }
     }
 
-    public string EnemyPresetDescription => $"{SelectedEnemyPreset.Intensity} intensity. {SelectedEnemyPreset.Description}";
+    public string EnemyPresetDescription => _activeDialPreset is { } dialed
+        ? $"{dialed.DisplayName}. {dialed.Description}"
+        : $"{SelectedEnemyPreset.Intensity} intensity. {SelectedEnemyPreset.Description}";
+
+    public IReadOnlyList<EnemyCrowdPoint> CrowdPoints => EnemyConfigurationPresets.CrowdPoints;
+
+    public IReadOnlyList<EnemyRosterStep> RosterSteps => EnemyConfigurationPresets.RosterSteps;
+
+    /// <summary>Crowd dial (how busy fights are). Null while hand-tweaked values make the mix Custom.</summary>
+    public EnemyCrowdPoint? SelectedCrowdPoint
+    {
+        get => _selectedCrowdPoint;
+        set
+        {
+            if (SetProperty(ref _selectedCrowdPoint, value) && !_isSyncingDials)
+            {
+                ApplyDialCombination();
+            }
+
+            OnPropertyChanged(nameof(ShowScatterIntensityWarning));
+        }
+    }
+
+    /// <summary>Roster dial (how scary the mix is). Null while hand-tweaked values make the mix Custom.</summary>
+    public EnemyRosterStep? SelectedRosterStep
+    {
+        get => _selectedRosterStep;
+        set
+        {
+            if (SetProperty(ref _selectedRosterStep, value) && !_isSyncingDials)
+            {
+                ApplyDialCombination();
+            }
+
+            OnPropertyChanged(nameof(ShowScatterIntensityWarning));
+        }
+    }
+
+    /// <summary>
+    /// Set by the shell alongside <see cref="MerchantOwnedByAp"/>: true when the player's
+    /// settings scatter the merchant's gear into the multiworld (D10).
+    /// </summary>
+    public bool GearScattered
+    {
+        get => _gearScattered;
+        set
+        {
+            if (SetProperty(ref _gearScattered, value))
+            {
+                OnPropertyChanged(nameof(ShowScatterIntensityWarning));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Scattered gear thins the early arsenal while heavy Crowd/Roster settings raise what the
+    /// player must answer; warn when both are on the table (ENEMY_CLASS_DESIGN.md rider).
+    /// </summary>
+    public bool ShowScatterIntensityWarning =>
+        _gearScattered
+        && (IndexOfOrMinusOne(EnemyConfigurationPresets.CrowdPoints, _selectedCrowdPoint) >= 3
+            || IndexOfOrMinusOne(EnemyConfigurationPresets.RosterSteps, _selectedRosterStep) >= 3);
+
+    public string ScatterIntensityWarning =>
+        "Merchant gear is scattered into the multiworld, so your arsenal grows as deliveries "
+        + "land, not on the game's schedule. At this intensity the roster can outpace your kit. "
+        + "Consider Busy / Wild or below, or turn the gear shuffle off in your settings file.";
+
+    private static int IndexOfOrMinusOne<T>(IReadOnlyList<T> list, T? item) where T : class
+    {
+        if (item == null)
+        {
+            return -1;
+        }
+
+        for (var i = 0; i < list.Count; i++)
+        {
+            if (ReferenceEquals(list[i], item))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private void SyncDialsFrom(string? crowdKey, string? rosterKey)
+    {
+        _isSyncingDials = true;
+        try
+        {
+            SelectedCrowdPoint = crowdKey is null
+                ? null
+                : EnemyConfigurationPresets.CrowdPoints.FirstOrDefault(c => c.Key == crowdKey);
+            SelectedRosterStep = rosterKey is null
+                ? null
+                : EnemyConfigurationPresets.RosterSteps.FirstOrDefault(r => r.Key == rosterKey);
+        }
+        finally
+        {
+            _isSyncingDials = false;
+        }
+    }
+
+    private void ApplyDialCombination()
+    {
+        if (_selectedCrowdPoint is not { } crowd || _selectedRosterStep is not { } roster)
+        {
+            return;
+        }
+
+        var combination = EnemyConfigurationPresets.BuildCombination(crowd.Key, roster.Key);
+        if (EnemyConfigurationPresets.FindPair(crowd.Key, roster.Key) is { } pair)
+        {
+            _activeDialPreset = null;
+            SelectedEnemyPreset = pair;
+            return;
+        }
+
+        // Off-ladder mix: the picker reads Custom (the combination is not in
+        // its list), the description carries the synthesized promise line.
+        _activeDialPreset = combination;
+        _isSyncingDials = true;
+        try
+        {
+            SelectedEnemyPreset = EnemyConfigurationPresets.Custom;
+        }
+        finally
+        {
+            _isSyncingDials = false;
+        }
+
+        ApplyEnemyPreset(combination);
+        OnPropertyChanged(nameof(EnemyPresetDescription));
+    }
 
     /// <summary>Removes both Méndez classes from BioRand's random-enemy probability table.</summary>
     public bool ExcludeDifficultMendezEncounters
@@ -408,6 +559,14 @@ public sealed class BioRandOptionsViewModel : ObservableObject
             Pages.Add(pageVm);
         }
 
+        // Preset ownership extends past the Enemies page (the Health page's
+        // enemy band rows ride the roster's HP position curve), so the
+        // flip-to-Custom set derives from what a preset actually pins.
+        foreach (var key in EnemyConfigurationPresets.Named[0].Values.Keys)
+        {
+            _enemyOptionKeys.Add(key);
+        }
+
         AddRandomEventsNote();
         SyncEnemyPageBodyVisibility();
     }
@@ -559,6 +718,49 @@ public sealed class BioRandOptionsViewModel : ObservableObject
         }
 
         ApplyMerchantForcing();
+        ApplyWeaponStatsForcing();
+    }
+
+    /// <summary>
+    /// The YAML's Random Weapon Stats choice, when the player's settings
+    /// carry one. Null leaves BioRand's own switch player-controlled (drafts
+    /// and rooms from before the option existed). Draft-sourced hint like
+    /// the others; the manifest enforces the room's answer either way.
+    /// </summary>
+    public bool? WeaponStatsFromYaml
+    {
+        get => _weaponStatsFromYaml;
+        set
+        {
+            if (SetProperty(ref _weaponStatsFromYaml, value))
+            {
+                ApplyWeaponStatsForcing();
+            }
+        }
+    }
+
+    private void ApplyWeaponStatsForcing()
+    {
+        if (!_itemsByKey.TryGetValue(BioRandOptionCatalog.RandomWeaponStatsKey, out var item))
+        {
+            return;
+        }
+
+        if (_weaponStatsFromYaml is bool yamlChoice)
+        {
+            // The multiworld holds the weapons, so their character rides
+            // with them: the YAML decides once, every patch agrees.
+            item.LoadValue(System.Text.Json.Nodes.JsonValue.Create(yamlChoice));
+            item.IsEnabled = false;
+            item.ForcedNotice = yamlChoice
+                ? "On because your settings file says so - Random Weapon Stats rides with the multiworld's weapons."
+                : "Off because your settings file says so - Random Weapon Stats rides with the multiworld's weapons.";
+        }
+        else
+        {
+            item.IsEnabled = true;
+            item.ForcedNotice = string.Empty;
+        }
     }
 
     /// <summary>
@@ -581,26 +783,43 @@ public sealed class BioRandOptionsViewModel : ObservableObject
 
     private void ApplyMerchantForcing()
     {
-        if (!_itemsByKey.TryGetValue(BioRandOptionCatalog.RandomMerchantKey, out var item))
+        // Two owners cannot stock one shop: BioRand's merchant reroll would
+        // put weapons back on a shelf the multiworld just took over (its
+        // added arsenal is not pool-excludable) and reprice the check rows
+        // whose price IS their classification. The whole reroll suite -
+        // stock, prices and the per-chapter restock schedule - lives behind
+        // random-merchant in the fork, so it is forced off and the restock
+        // sliders grey out as the inert controls they become.
+        const string reason =
+            "Off because the multiworld runs this room's merchant (shop checks or scattered gear).";
+        foreach (var (key, item) in _itemsByKey)
         {
-            return;
-        }
+            var isHeadline = string.Equals(key, BioRandOptionCatalog.RandomMerchantKey, StringComparison.Ordinal)
+                || string.Equals(key, BioRandOptionCatalog.RandomMerchantPricesKey, StringComparison.Ordinal);
+            var isStockDial = key.StartsWith(BioRandOptionCatalog.MerchantStockKeyPrefix, StringComparison.Ordinal);
+            if (!isHeadline && !isStockDial)
+            {
+                continue;
+            }
 
-        if (_merchantOwnedByAp)
-        {
-            // Two owners cannot stock one shop: BioRand's merchant reroll
-            // would put weapons back on a shelf the multiworld just took
-            // over (its added arsenal is not pool-excludable), so the patch
-            // forces it off whenever AP merchant features are on.
-            item.LoadValue(System.Text.Json.Nodes.JsonValue.Create(false));
-            item.IsEnabled = false;
-            item.ForcedNotice =
-                "Off because the multiworld runs this room's merchant (shop checks or scattered gear).";
-        }
-        else
-        {
-            item.IsEnabled = true;
-            item.ForcedNotice = string.Empty;
+            if (_merchantOwnedByAp)
+            {
+                if (isHeadline)
+                {
+                    item.LoadValue(System.Text.Json.Nodes.JsonValue.Create(false));
+                    item.ForcedNotice = reason;
+                }
+
+                item.IsEnabled = false;
+            }
+            else
+            {
+                item.IsEnabled = true;
+                if (isHeadline)
+                {
+                    item.ForcedNotice = string.Empty;
+                }
+            }
         }
     }
 
@@ -721,18 +940,61 @@ public sealed class BioRandOptionsViewModel : ObservableObject
             _itemsByKey.TryGetValue(pair.Key, out var item) && ValuesMatch(item, pair.Value)))
             ?? EnemyConfigurationPresets.Custom;
 
+        // Not a named pair: the values may still be an off-ladder dial mix
+        // (25 combinations, cheap to try), which restores the dials on reload.
+        EnemyConfigurationPreset? dialed = null;
+        if (ReferenceEquals(preset, EnemyConfigurationPresets.Custom))
+        {
+            foreach (var crowd in EnemyConfigurationPresets.CrowdPoints)
+            {
+                foreach (var roster in EnemyConfigurationPresets.RosterSteps)
+                {
+                    var candidate = EnemyConfigurationPresets.BuildCombination(crowd.Key, roster.Key);
+                    if (candidate.Values.All(pair =>
+                        _itemsByKey.TryGetValue(pair.Key, out var item) && ValuesMatch(item, pair.Value)))
+                    {
+                        dialed = candidate;
+                        break;
+                    }
+                }
+
+                if (dialed != null)
+                {
+                    break;
+                }
+            }
+        }
+
+        _activeDialPreset = dialed;
+        SyncDialsFrom(
+            dialed?.CrowdKey ?? preset.CrowdKey,
+            dialed?.RosterKey ?? preset.RosterKey);
+
         if (!ReferenceEquals(_selectedEnemyPreset, preset))
         {
             _selectedEnemyPreset = preset;
             OnPropertyChanged(nameof(SelectedEnemyPreset));
-            OnPropertyChanged(nameof(EnemyPresetDescription));
         }
+
+        OnPropertyChanged(nameof(EnemyPresetDescription));
     }
 
     private void MarkEnemyPresetCustom()
     {
+        var dialsWereSet = _selectedCrowdPoint != null || _selectedRosterStep != null || _activeDialPreset != null;
+        if (dialsWereSet)
+        {
+            _activeDialPreset = null;
+            SyncDialsFrom(null, null);
+        }
+
         if (ReferenceEquals(_selectedEnemyPreset, EnemyConfigurationPresets.Custom))
         {
+            if (dialsWereSet)
+            {
+                OnPropertyChanged(nameof(EnemyPresetDescription));
+            }
+
             return;
         }
 

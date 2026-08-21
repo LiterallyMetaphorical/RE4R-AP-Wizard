@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "item_count": 152,
+  "item_count": 157,
   "items": {
     "20665965": {
       "name": "Red9 Stock x1",
@@ -70,6 +70,11 @@
     "396050682": {
       "name": "Silver Token x1",
       "re4r_item_id": 119286400,
+      "count": 1
+    },
+    "399783606": {
+      "name": "Skull Shaker x1",
+      "re4r_item_id": 278037056,
       "count": 1
     },
     "414850128": {
@@ -155,6 +160,11 @@
     "686624439": {
       "name": "TMP Stock x1",
       "re4r_item_id": 116006400,
+      "count": 1
+    },
+    "750570238": {
+      "name": "XM96E1 x1",
+      "re4r_item_id": 278515456,
       "count": 1
     },
     "754561484": {
@@ -337,9 +347,19 @@
       "re4r_item_id": 120835200,
       "count": 1
     },
+    "1855505831": {
+      "name": "SW - Blast Crossbow x1",
+      "re4r_item_id": 278198656,
+      "count": 1
+    },
     "1862471185": {
       "name": "Ruby x1",
       "re4r_item_id": 120830400,
+      "count": 1
+    },
+    "1895554320": {
+      "name": "SW - Sawed-off W-870 x1",
+      "re4r_item_id": 278195456,
       "count": 1
     },
     "1906327026": {
@@ -680,6 +700,11 @@
     "3862385800": {
       "name": "Flagon x1",
       "re4r_item_id": 122401600,
+      "count": 1
+    },
+    "3899322968": {
+      "name": "Sentinel Nine x1",
+      "re4r_item_id": 278035456,
       "count": 1
     },
     "3910021636": {

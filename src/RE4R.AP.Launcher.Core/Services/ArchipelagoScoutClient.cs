@@ -180,6 +180,16 @@ public sealed class ArchipelagoScoutClient
                     + $"{randomEvents.RemovedLocationCodes.Count} checks removed by events.");
             }
 
+            // The YAML's Random Weapon Stats choice (absent on older rooms).
+            bool? randomWeaponStats = null;
+            if (TryGetProperty(connectedPacket, "slot_data", out var weaponStatsSlotData)
+                && weaponStatsSlotData.ValueKind == JsonValueKind.Object
+                && weaponStatsSlotData.TryGetProperty("random_weapon_stats", out var weaponStatsElement)
+                && weaponStatsElement.ValueKind is JsonValueKind.True or JsonValueKind.False)
+            {
+                randomWeaponStats = weaponStatsElement.ValueKind == JsonValueKind.True;
+            }
+
             var merchantShop = ParseMerchantShopSlotData(connectedPacket);
             if (merchantShop.Enabled)
             {
@@ -241,6 +251,7 @@ public sealed class ArchipelagoScoutClient
                 RoomLocationIds = roomLocationIds,
                 RandomEvents = randomEvents,
                 MerchantShop = merchantShop,
+                RandomWeaponStats = randomWeaponStats,
             };
         }
         catch (ArchipelagoScoutException)

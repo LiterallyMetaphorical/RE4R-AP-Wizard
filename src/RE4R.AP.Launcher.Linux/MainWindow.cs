@@ -341,6 +341,7 @@ internal sealed class MainWindow : Window
             [!RangeBase.ValueProperty] = Binding("ShopChecks", BindingMode.TwoWay),
         });
         left.Children.Add(Check("Shuffle merchant gear into the multiworld", "ShuffleMerchantGear"));
+        left.Children.Add(Check("Random weapon stats", "RandomWeaponStats"));
 
         var right = new StackPanel { Spacing = 10, Margin = new Thickness(20, 0, 0, 0) };
         right.Children.Add(Label("Options"));
@@ -598,6 +599,34 @@ internal sealed class MainWindow : Window
         panel.Children.Add(Label("Enemy configuration"));
         panel.Children.Add(Combo(nameof(BioRandOptionsViewModel.EnemyPresets), nameof(BioRandOptionsViewModel.SelectedEnemyPreset), "DisplayName"));
         panel.Children.Add(Text(nameof(BioRandOptionsViewModel.EnemyPresetDescription), true));
+
+        // The two dials every preset is a pair of; off-pair combos are legal
+        // (Overrun + Familiar = horde mode, Sparse + Apex = a hunt).
+        var dials = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+        var crowd = new StackPanel { Spacing = 2, Width = 200 };
+        crowd.Children.Add(Label("Crowd"));
+        crowd.Children.Add(Combo(nameof(BioRandOptionsViewModel.CrowdPoints), nameof(BioRandOptionsViewModel.SelectedCrowdPoint), "Label"));
+        dials.Children.Add(crowd);
+        var roster = new StackPanel { Spacing = 2, Width = 200 };
+        roster.Children.Add(Label("Roster"));
+        roster.Children.Add(Combo(nameof(BioRandOptionsViewModel.RosterSteps), nameof(BioRandOptionsViewModel.SelectedRosterStep), "Label"));
+        dials.Children.Add(roster);
+        panel.Children.Add(dials);
+        panel.Children.Add(new TextBlock
+        {
+            Text = "Crowd is how busy fights are, Roster is how scary the mix is. Blank dials mean hand-tuned rows.",
+            TextWrapping = TextWrapping.Wrap,
+            Opacity = .65,
+        });
+        var scatterWarning = new TextBlock
+        {
+            TextWrapping = TextWrapping.Wrap,
+            Foreground = Brushes.Orange,
+            [!TextBlock.TextProperty] = Binding(nameof(BioRandOptionsViewModel.ScatterIntensityWarning)),
+        };
+        scatterWarning.Bind(IsVisibleProperty, Binding(nameof(BioRandOptionsViewModel.ShowScatterIntensityWarning)));
+        panel.Children.Add(scatterWarning);
+
         panel.Children.Add(Check("Exclude Méndez from enemy randomization", nameof(BioRandOptionsViewModel.ExcludeDifficultMendezEncounters)));
         panel.Children.Add(new TextBlock
         {

@@ -563,6 +563,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         JoinFlow.BioRandOptions.RandomEventsForced = _pendingDraft?.RandomEvents == true;
         JoinFlow.BioRandOptions.MerchantOwnedByAp = _pendingDraft is { } merchantDraft
             && (merchantDraft.ShopChecks > 0 || merchantDraft.ShuffleMerchantGear);
+        JoinFlow.BioRandOptions.GearScattered = _pendingDraft?.ShuffleMerchantGear == true;
+        JoinFlow.BioRandOptions.WeaponStatsFromYaml =
+            _pendingDraft is { } weaponStatsDraft ? weaponStatsDraft.RandomWeaponStats : null;
 
         CurrentScreen = JoinFlow;
         Action.AppendLog("Opening the join-session flow.");

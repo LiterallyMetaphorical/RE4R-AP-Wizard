@@ -749,6 +749,18 @@ public sealed class BioRandProcessRunner
         Log($"BioRand generation complete. {stagedFiles.Count} files were staged in {stagingDirectoryPath} ({FormatSize(stagedBytes)} total).");
         LogStagedFileSummary(stagedFiles);
 
+        // The generator's spawn-gate echo (ap-enemy-gates in the config ->
+        // ap_enemy_gates.json beside the logs). Absent whenever gates were not
+        // requested or the build predates them; the room file then carries no
+        // enemy_gates section and the mod gates nothing.
+        var enemyGatesJson = string.Empty;
+        var enemyGatesPath = Path.Combine(stagingDirectoryPath, "ap_enemy_gates.json");
+        if (File.Exists(enemyGatesPath))
+        {
+            enemyGatesJson = await File.ReadAllTextAsync(enemyGatesPath, cancellationToken);
+            Log("BioRand emitted the enemy spawn-gate manifest (ap_enemy_gates.json).");
+        }
+
         return new BioRandGenerationResult
         {
             Success = true,
@@ -759,6 +771,7 @@ public sealed class BioRandProcessRunner
             StagedFiles = stagedFiles,
             StandardOutputLines = stdoutLines,
             StandardErrorLines = stderrLines,
+            EnemyGatesJson = enemyGatesJson,
         };
     }
 

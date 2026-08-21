@@ -1,10 +1,13 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-08-15T20:20:54Z",
+  "generated_at_utc": "2026-08-16T01:08:56Z",
   "game": "Resident Evil 4 Remake",
   "world_version": "0.7.0",
   "placeholder_item_id": 120486400,
   "item_groups": {
+    "Biosensor Scope": [
+      "Biosensor Scope x1"
+    ],
     "Filler": [
       "Accessory: Stylish Mask x1",
       "Alexandrite x1",
@@ -189,12 +192,17 @@
       "Red9 x1",
       "Riot Gun x1",
       "SR M1903 x1",
+      "SW - Blast Crossbow x1",
+      "SW - Sawed-off W-870 x1",
       "Scope x1",
+      "Sentinel Nine x1",
+      "Skull Shaker x1",
       "Stingray x1",
       "Striker x1",
       "TMP Stock x1",
       "TMP x1",
-      "W-870 x5"
+      "W-870 x5",
+      "XM96E1 x1"
     ]
   },
   "location_groups": {
@@ -785,7 +793,7 @@
     "locations_total": 460,
     "guid_locations": 460,
     "noguid_locations": 0,
-    "items_total": 152,
+    "items_total": 157,
     "always_locations": 460,
     "optional_key_locations": 0,
     "shop_slots": 24
@@ -8859,6 +8867,13 @@
       "classification": "FILLER",
       "count": 1
     },
+    "399783606": {
+      "name": "Skull Shaker x1",
+      "biorand_item_id": 278037056,
+      "biorand_name": "Skull Shaker",
+      "classification": "USEFUL",
+      "count": 1
+    },
     "414850128": {
       "name": "Red x1",
       "biorand_item_id": 124640000,
@@ -8975,6 +8990,13 @@
       "name": "TMP Stock x1",
       "biorand_item_id": 116006400,
       "biorand_name": "TMP Stock",
+      "classification": "USEFUL",
+      "count": 1
+    },
+    "750570238": {
+      "name": "XM96E1 x1",
+      "biorand_item_id": 278515456,
+      "biorand_name": "XM96E1",
       "classification": "USEFUL",
       "count": 1
     },
@@ -9230,11 +9252,25 @@
       "classification": "FILLER",
       "count": 1
     },
+    "1855505831": {
+      "name": "SW - Blast Crossbow x1",
+      "biorand_item_id": 278198656,
+      "biorand_name": "SW - Blast Crossbow",
+      "classification": "USEFUL",
+      "count": 1
+    },
     "1862471185": {
       "name": "Ruby x1",
       "biorand_item_id": 120830400,
       "biorand_name": "Ruby",
       "classification": "FILLER",
+      "count": 1
+    },
+    "1895554320": {
+      "name": "SW - Sawed-off W-870 x1",
+      "biorand_item_id": 278195456,
+      "biorand_name": "SW - Sawed-off W-870",
+      "classification": "USEFUL",
       "count": 1
     },
     "1906327026": {
@@ -9711,6 +9747,13 @@
       "biorand_item_id": 122401600,
       "biorand_name": "Flagon",
       "classification": "FILLER",
+      "count": 1
+    },
+    "3899322968": {
+      "name": "Sentinel Nine x1",
+      "biorand_item_id": 278035456,
+      "biorand_name": "Sentinel Nine",
+      "classification": "USEFUL",
       "count": 1
     },
     "3910021636": {
