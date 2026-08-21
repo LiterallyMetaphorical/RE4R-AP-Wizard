@@ -564,6 +564,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         JoinFlow.BioRandOptions.MerchantOwnedByAp = _pendingDraft is { } merchantDraft
             && (merchantDraft.ShopChecks > 0 || merchantDraft.ShuffleMerchantGear);
         JoinFlow.BioRandOptions.GearScattered = _pendingDraft?.ShuffleMerchantGear == true;
+        JoinFlow.BioRandOptions.StartingArsenalCount = _pendingDraft?.StartingArsenal ?? 0;
         JoinFlow.BioRandOptions.WeaponStatsFromYaml =
             _pendingDraft is { } weaponStatsDraft ? weaponStatsDraft.RandomWeaponStats : null;
 
@@ -1676,6 +1677,21 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             && !string.Equals(_staticData.WorldVersion, currentRecord.WorldVersion, StringComparison.Ordinal))
         {
             warnings.Add("Bundled world data changed since the last patch. Re-patch is required.");
+        }
+
+        // The trap that ate 2026-08-16: a new launcher build faithfully shows
+        // an old session, the player launches, and every fix since the last
+        // patch silently isn't in their game. The install stamp knows exactly
+        // which payload built the world; disagree loudly, never silently.
+        var currentBioRandVersion = _cacheManager.GetBioRandVersionDescriptor();
+        if (!string.IsNullOrWhiteSpace(currentRecord.BioRandVersionAtPatch)
+            && !string.IsNullOrWhiteSpace(currentBioRandVersion)
+            && !string.Equals(currentRecord.BioRandVersionAtPatch, currentBioRandVersion, StringComparison.Ordinal))
+        {
+            warnings.Add(
+                "This room was patched with an OLDER build than the launcher you are running. "
+                + "The game still has the old world installed - re-patch before playing, or none "
+                + "of the newer fixes exist in your game.");
         }
 
         Action.AppendLog(

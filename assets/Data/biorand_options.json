@@ -2768,9 +2768,9 @@
        "step": null,
        "advanced": false,
        "defaults": [
-        false,
-        false,
-        false
+        true,
+        true,
+        true
        ]
       },
       {
@@ -4433,9 +4433,9 @@
        "step": null,
        "advanced": false,
        "defaults": [
-        false,
-        false,
-        false
+        true,
+        true,
+        true
        ]
       },
       {

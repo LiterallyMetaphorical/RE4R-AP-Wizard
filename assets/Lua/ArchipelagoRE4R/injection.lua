@@ -2565,6 +2565,55 @@ local function install(ctx)
         log.info("[RE4R AP] storage-sale reconciler installed (sell shortfalls leave Storage)")
     end
 
+    -- [Scatter interlock, 2026-08-16] The Deluxe entitlement grant drops DLC
+    -- weapons (Sentinel Nine, Skull Shaker) straight into Storage through
+    -- chainsaw.ArmouryManager.addExtraItem. While the merchant's gear is
+    -- scattered those guns are multiworld pool items, so the grant is vetoed
+    -- for exactly the scattered engine ids; every other extra item
+    -- (costumes, charms, non-scattered rooms) flows untouched. If the guns
+    -- still appear in Storage on a Deluxe profile, they arrive by a path
+    -- this hook never saw - the absence of the veto line in the log says so.
+    local function install_extra_item_veto_hook()
+        local armoury_type = sdk.find_type_definition("chainsaw.ArmouryManager")
+        if armoury_type == nil then
+            log.info("[RE4R AP] ArmouryManager type not found -- extra-item veto disabled")
+            return
+        end
+        local add_method = armoury_type:get_method("addExtraItem")
+        if add_method == nil then
+            log.info("[RE4R AP] ArmouryManager.addExtraItem not found -- extra-item veto disabled")
+            return
+        end
+        sdk.hook(
+            add_method,
+            function(args)
+                local bridge = ctx.bridge
+                if bridge == nil or bridge.gear_scattered ~= true then
+                    return sdk.PreHookResult.CALL_ORIGINAL
+                end
+                local scattered = bridge.scattered_item_ids
+                if type(scattered) ~= "table" then
+                    return sdk.PreHookResult.CALL_ORIGINAL
+                end
+                local item_id = nil
+                pcall(function()
+                    item_id = tonumber(sdk.to_int64(args[3]))
+                end)
+                if item_id ~= nil and scattered[item_id] then
+                    log.info(string.format(
+                        "[RE4R AP] entitlement grant vetoed: item %d is a multiworld item in this room",
+                        item_id))
+                    return sdk.PreHookResult.SKIP_ORIGINAL
+                end
+                return sdk.PreHookResult.CALL_ORIGINAL
+            end,
+            function(retval)
+                return retval
+            end
+        )
+        log.info("[RE4R AP] extra-item grant veto installed (scattered gear stays in the multiworld)")
+    end
+
     -- [D5] Bonus weapons. RE4R validates Extra Content Shop purchases when a
     -- save loads and DELETES un-bought bonus weapons from the inventory -
     -- which is what "bonus weapons disappear after death or reload" was. In
@@ -2605,10 +2654,30 @@ local function install(ctx)
             return false, "ExShopCategory.Weapon unresolved"
         end
 
+        -- [Scatter interlock, 2026-08-16] While the merchant's gear is
+        -- scattered, the Extra Content GUNS are multiworld pool items and the
+        -- free unlock would undercut them; only the Primal Knife (a knife,
+        -- never scattered) keeps its unlock. Cam: "we want weapons to be
+        -- gotten via the multiworld."
+        local gear_scattered = ctx.bridge ~= nil and ctx.bridge.gear_scattered == true
+        local weapons_to_unlock = BONUS_WEAPON_ITEM_IDS
+        if gear_scattered then
+            weapons_to_unlock = {}
+            for _, weapon in ipairs(BONUS_WEAPON_ITEM_IDS) do
+                if weapon.name == "Primal Knife" then
+                    weapons_to_unlock[#weapons_to_unlock + 1] = weapon
+                else
+                    log.info(string.format(
+                        "[RE4R AP] bonus unlock suppressed for %s - it is a multiworld item in this room",
+                        weapon.name))
+                end
+            end
+        end
+
         local unlocked = 0
         local unresolved = 0
         local unresolved_names = {}
-        for _, weapon in ipairs(BONUS_WEAPON_ITEM_IDS) do
+        for _, weapon in ipairs(weapons_to_unlock) do
             local ok, err = pcall(function()
                 local manager = inject_get_managed(record_manager)
                 local bonus_id = manager:call("getItemIdToBonus", weapon.id)
@@ -2710,6 +2779,7 @@ local function install(ctx)
     export("inject_read_key_item_ids", inject_read_key_item_ids)
     export("inject_ensure_bonus_weapons_unlocked", inject_ensure_bonus_weapons_unlocked)
     export("install_storage_sale_reconciler_hook", install_storage_sale_reconciler_hook)
+    export("install_extra_item_veto_hook", install_extra_item_veto_hook)
 
     -- Reads the campaign lead's key-item ids out of InventoryManager's
     -- per-context save-data table. The live controller unregisters while

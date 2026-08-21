@@ -1326,6 +1326,18 @@ public sealed class LaunchWorkflowService
                         slot_name = request.SlotName,
                         location_ids = sortedIds,
                         allow_bonus_items = AllowsBonusItems(recordedOptions),
+                        // While gear is scattered, bonus guns are multiworld
+                        // items, not free Storage grants: the mod's
+                        // force-unlock keeps only the Primal Knife, and the
+                        // entitlement grant (ArmouryManager.addExtraItem) is
+                        // vetoed for exactly these engine ids.
+                        gear_scattered = scoutResult.MerchantShop.ScatteredItemIds.Count > 0,
+                        scattered_item_ids = scoutResult.MerchantShop.ScatteredItemIds,
+                        // [Starting Arsenal] Engine ids the generator placed
+                        // in the starting case; the mod skips their precollect
+                        // delivery once each (the in-case copy is the real
+                        // one). Empty for rooms without the option.
+                        starting_arsenal_ids = scoutResult.MerchantShop.StartingWeaponIds,
                         merchant_shop = merchantShop,
                         enemy_gates = enemyGates,
                     }, new JsonSerializerOptions { WriteIndented = true });

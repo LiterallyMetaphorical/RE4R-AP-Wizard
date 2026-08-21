@@ -35,6 +35,7 @@ public sealed class BioRandOptionsViewModel : ObservableObject
     private EnemyConfigurationPreset? _activeDialPreset;
     private bool _isSyncingDials;
     private bool _gearScattered;
+    private int _startingArsenalCount;
     // The Méndez ratios as they stood when the exclusion toggle last went on,
     // so unchecking restores the player's own numbers. Session-scoped.
     private Dictionary<string, double>? _mendezValuesBeforeExclusion;
@@ -107,6 +108,39 @@ public sealed class BioRandOptionsViewModel : ObservableObject
             {
                 ApplyDialCombination();
             }
+
+            OnPropertyChanged(nameof(VitalityExampleText));
+            OnPropertyChanged(nameof(HasVitalityExampleText));
+            UpdateHealthRowNotices();
+        }
+    }
+
+    /// <summary>
+    /// Real numbers for the selected Vitality point ("Villager 600 to 1,300, ..."), so the
+    /// adjective is never the only context. Empty while the dial is blank.
+    /// </summary>
+    public string VitalityExampleText => _selectedVitalityPoint is { } vitality
+        ? EnemyConfigurationPresets.DescribeVitality(vitality.Key)
+        : string.Empty;
+
+    public bool HasVitalityExampleText => !string.IsNullOrEmpty(VitalityExampleText);
+
+    /// <summary>
+    /// The Health page's enemy rows explain themselves while a named Vitality drives them;
+    /// hand-editing one still works and flips the mix to Custom like any other row.
+    /// </summary>
+    private void UpdateHealthRowNotices()
+    {
+        var notice = _selectedVitalityPoint is { } vitality
+            ? $"Driven by the Vitality dial ({vitality.Label}). Editing this makes the enemy mix Custom."
+            : string.Empty;
+        foreach (var (key, item) in _itemsByKey)
+        {
+            if (key.StartsWith("enemy-health-", StringComparison.Ordinal)
+                || string.Equals(key, "enemy-random-health", StringComparison.Ordinal))
+            {
+                item.ForcedNotice = notice;
+            }
         }
     }
 
@@ -154,6 +188,38 @@ public sealed class BioRandOptionsViewModel : ObservableObject
                 OnPropertyChanged(nameof(ShowScatterIntensityWarning));
             }
         }
+    }
+
+    /// <summary>
+    /// The settings file's Starting Arsenal count, set by the shell from the
+    /// pending draft like <see cref="GearScattered"/>. Drives the composed
+    /// starting-kit note on the Random Inventory row.
+    /// </summary>
+    public int StartingArsenalCount
+    {
+        get => _startingArsenalCount;
+        set
+        {
+            if (SetProperty(ref _startingArsenalCount, value))
+            {
+                ApplyStartingKitOverlapNote();
+            }
+        }
+    }
+
+    // Random Inventory stays fully the player's choice; the note just says
+    // both systems shape the opening case so nobody thinks one replaced the
+    // other. Same editable-row notice pattern as the enemy Health rows.
+    private void ApplyStartingKitOverlapNote()
+    {
+        if (!_itemsByKey.TryGetValue("random-inventory", out var item))
+        {
+            return;
+        }
+
+        item.ForcedNotice = item.BoolValue && _startingArsenalCount > 0
+            ? "Also on: your settings file's Starting Arsenal. They compose - BioRand rolls the opening kit, then your precollected arsenal joins it, ammo included."
+            : string.Empty;
     }
 
     /// <summary>
@@ -739,6 +805,7 @@ public sealed class BioRandOptionsViewModel : ObservableObject
         }
 
         ApplyMerchantForcing();
+        ApplyStartingKitOverlapNote();
         ApplyWeaponStatsForcing();
     }
 
@@ -798,6 +865,7 @@ public sealed class BioRandOptionsViewModel : ObservableObject
             if (SetProperty(ref _merchantOwnedByAp, value))
             {
                 ApplyMerchantForcing();
+        ApplyStartingKitOverlapNote();
             }
         }
     }
@@ -863,6 +931,10 @@ public sealed class BioRandOptionsViewModel : ObservableObject
         if (string.Equals(item.Key, "allow-bonus-items", StringComparison.Ordinal) && item.BoolValue)
         {
             ConfirmBonusWeaponsOrRevert(item);
+        }
+        if (string.Equals(item.Key, "random-inventory", StringComparison.Ordinal))
+        {
+            ApplyStartingKitOverlapNote();
         }
         if (_enemyOptionKeys.Contains(item.Key))
         {

@@ -872,6 +872,23 @@ public sealed class ArchipelagoScoutClient
             }
         }
 
+        // [Starting Arsenal] The engine ids the player begins with; the fork
+        // paces their ammo from chapter zero. Absent in older rooms.
+        var startingWeaponIds = new List<int>();
+        if (block.TryGetProperty("starting_weapon_ids", out var startingElement)
+            && startingElement.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var element in startingElement.EnumerateArray())
+            {
+                if (element.ValueKind == JsonValueKind.Number
+                    && element.TryGetInt32(out var itemId)
+                    && itemId > 0)
+                {
+                    startingWeaponIds.Add(itemId);
+                }
+            }
+        }
+
         if (slots.Count == 0 && scatteredItemIds.Count == 0)
         {
             return MerchantShopSlotData.Disabled;
@@ -883,6 +900,7 @@ public sealed class ArchipelagoScoutClient
             Slots = slots,
             Tiers = tiers,
             ScatteredItemIds = scatteredItemIds,
+            StartingWeaponIds = startingWeaponIds,
         };
     }
 

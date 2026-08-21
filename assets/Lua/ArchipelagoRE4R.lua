@@ -96,7 +96,6 @@ local draw_marker_position_editor = ctx.draw_marker_position_editor
 local draw_boat_spike = ctx.draw_boat_spike
 local poll_door_recovery = ctx.poll_door_recovery
 local draw_main_window = ctx.draw_main_window
-local maybe_show_tutorial = ctx.maybe_show_tutorial
 local draw_tutorial_dialog = ctx.draw_tutorial_dialog
 local draw_progression_warning_dialog = ctx.draw_progression_warning_dialog
 local draw_port_recovery_dialog = ctx.draw_port_recovery_dialog
@@ -497,6 +496,7 @@ install_interact_holder_hit_hook()
 install_sellable_key_veto_hook()
 install_storage_sale_reconciler_hook()
 install_storage_accepts_anything_hook()
+install_extra_item_veto_hook()
 
 re.on_pre_application_entry("UpdateBehavior", function()
     local ok, err = pcall(function()
@@ -608,8 +608,6 @@ re.on_frame(function()
     -- Connection recovery sits above everything else: it is only ever
     -- visible when the session cannot reach its own multiworld.
     draw_port_recovery_dialog()
-    -- First-seed welcome: armed on the first playable Chapter 1 tick.
-    maybe_show_tutorial()
     draw_tutorial_dialog()
     draw_main_window()
 end)

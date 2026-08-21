@@ -148,7 +148,8 @@ public sealed class ManifestBuilder
 
         var configJson = BuildConfigJson(
             placements, normalizedOptions, gameVersion, scoutSession.RandomEvents, plannedShopSlots,
-            scoutSession.MerchantShop.ScatteredItemIds, scoutSession.RandomWeaponStats);
+            scoutSession.MerchantShop.ScatteredItemIds, scoutSession.MerchantShop.StartingWeaponIds,
+            scoutSession.RandomWeaponStats);
         if (scoutSession.RandomWeaponStats is bool yamlWeaponStats)
         {
             Log($"Random Weapon Stats rides the YAML: {(yamlWeaponStats ? "on" : "off")} for every patch of this room.");
@@ -204,6 +205,7 @@ public sealed class ManifestBuilder
         RandomEventsSlotData randomEvents,
         IReadOnlyList<MerchantShopPlannedSlot> shopSlots,
         IReadOnlyList<int> scatteredItemIds,
+        IReadOnlyList<int> startingWeaponIds,
         bool? randomWeaponStats)
     {
         var placementObject = new JsonObject();
@@ -297,6 +299,15 @@ public sealed class ManifestBuilder
                 excludedIds.Add(itemId);
             }
 
+            // Strip-only extras: rows that leave the shelf under scatter but do
+            // NOT become pool items. Today that is the Infinite Rocket Launcher
+            // alone - an infinite-ammo novelty has no business inside the AP
+            // economy, and pooling it would trivialize whoever received it.
+            if (scatteredItemIds.Count > 0)
+            {
+                excludedIds.Add(276278656);
+            }
+
             var excluded = new JsonArray();
             foreach (var itemId in excludedIds)
             {
@@ -339,6 +350,21 @@ public sealed class ManifestBuilder
         if (randomWeaponStats is bool weaponStats)
         {
             root[BioRandOptionCatalog.RandomWeaponStatsKey] = weaponStats;
+        }
+
+        // 4b2. [Starting Arsenal] The weapons the multiworld precollected
+        //      for this player. The fork treats their ammo as available from
+        //      chapter zero so drops match the guns actually in hand.
+        if (startingWeaponIds.Count > 0)
+        {
+            var startingArray = new JsonArray();
+            foreach (var itemId in startingWeaponIds)
+            {
+                startingArray.Add(JsonValue.Create(itemId));
+            }
+
+            root["ap-start-weapons"] = startingArray;
+            Log($"Starting arsenal: {startingWeaponIds.Count} weapon(s) begin in the player's hands; ammo paces from chapter zero.");
         }
 
         // 4c. Possession-keyed spawn gates (ENEMY_CLASS_DESIGN.md). The fork

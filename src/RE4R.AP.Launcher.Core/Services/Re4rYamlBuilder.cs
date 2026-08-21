@@ -44,10 +44,12 @@ public sealed class Re4rYamlBuilder
             { "allow_missable_locations", request.AllowMissableLocations ? "true" : "false" },
             { "shuffle_keycards", request.ShuffleKeycards ? "true" : "false" },
             { "shuffle_merchant_gear", request.ShuffleMerchantGear ? "true" : "false" },
+            { "starting_arsenal", Math.Clamp(request.StartingArsenal, 0, 2).ToString() },
             { "random_weapon_stats", request.RandomWeaponStats ? "true" : "false" },
             { "minimize_backtracking", request.MinimizeBacktracking ? "true" : "false" },
             { "random_events", request.RandomEvents ? "true" : "false" },
             { "shop_checks", Math.Clamp(request.ShopChecks, 0, 20).ToString(System.Globalization.CultureInfo.InvariantCulture) },
+            { "merchant_checks", NormalizeMerchantChecks(request.MerchantChecks) },
             { "tutorial", request.Tutorial ? "true" : "false" },
         };
 
@@ -58,6 +60,15 @@ public sealed class Re4rYamlBuilder
                 .Select(stageId => SingleQuotedScalar(stageId)));
 
         gameOptions.Add("unlocked_typewriters", unlockedTypewriters);
+
+        // Starting Arsenal types: only when the player trimmed the set. The
+        // full set is the apworld default, and emitting it anyway would churn
+        // every existing YAML for nothing.
+        if (request.StartingArsenalTypes.Count > 0)
+        {
+            gameOptions.Add("starting_arsenal_types", new YamlSequenceNode(
+                request.StartingArsenalTypes.Select(SingleQuotedScalar)));
+        }
 
         // Archipelago's per-game item/location lists. Emitted ONLY when a
         // player actually picked something: an empty sequence here would be
@@ -80,6 +91,12 @@ public sealed class Re4rYamlBuilder
     {
         var normalized = (value ?? string.Empty).Trim().ToLowerInvariant();
         return normalized is "off" or "markers" or "markers_rarity" ? normalized : "markers";
+    }
+
+    private static string NormalizeMerchantChecks(string? value)
+    {
+        var normalized = (value ?? string.Empty).Trim().ToLowerInvariant();
+        return normalized is "local_only" or "remote_only" ? normalized : "mixed";
     }
 
     private static string NormalizeMarkerDetail(string? value)

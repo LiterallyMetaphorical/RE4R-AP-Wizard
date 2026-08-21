@@ -340,7 +340,33 @@ internal sealed class MainWindow : Window
             TickFrequency = 1,
             [!RangeBase.ValueProperty] = Binding("ShopChecks", BindingMode.TwoWay),
         });
+        left.Children.Add(Label("Merchant checks"));
+        left.Children.Add(Combo("MerchantChecksOptions", "SelectedMerchantChecks", "Label"));
         left.Children.Add(Check("Shuffle merchant gear into the multiworld", "ShuffleMerchantGear"));
+        var arsenalRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        arsenalRow.Children.Add(new TextBlock { Text = "Starting arsenal:", VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center });
+        arsenalRow.Children.Add(Combo(nameof(ConfigureYamlViewModel.StartingArsenalChoices), nameof(ConfigureYamlViewModel.StartingArsenal), null));
+        arsenalRow.Bind(IsEnabledProperty, Binding("ShuffleMerchantGear"));
+        left.Children.Add(arsenalRow);
+        var arsenalTypesRow = new WrapPanel();
+        foreach (var option in vm.StartingArsenalTypeOptions)
+        {
+            arsenalTypesRow.Children.Add(new CheckBox
+            {
+                Content = option.Label,
+                DataContext = option,
+                Margin = new Thickness(0, 0, 12, 4),
+                [!ToggleButton.IsCheckedProperty] = Binding("IsSelected", BindingMode.TwoWay),
+            });
+        }
+        arsenalTypesRow.Bind(IsEnabledProperty, Binding("ShuffleMerchantGear"));
+        left.Children.Add(arsenalTypesRow);
+        left.Children.Add(new TextBlock
+        {
+            Text = "Random pool weapons already in the case, ammo to match, BioRand-style; each leaves the pool. The type boxes trim the draw (keep at least one). Needs the gear shuffle - without it, use BioRand's own starting-inventory options.",
+            TextWrapping = TextWrapping.Wrap,
+            Opacity = .65,
+        });
         left.Children.Add(Check("Random weapon stats", "RandomWeaponStats"));
 
         var right = new StackPanel { Spacing = 10, Margin = new Thickness(20, 0, 0, 0) };
@@ -622,6 +648,14 @@ internal sealed class MainWindow : Window
             TextWrapping = TextWrapping.Wrap,
             Opacity = .65,
         });
+        var vitalityExamples = new TextBlock
+        {
+            TextWrapping = TextWrapping.Wrap,
+            Opacity = .65,
+            [!TextBlock.TextProperty] = Binding(nameof(BioRandOptionsViewModel.VitalityExampleText)),
+        };
+        vitalityExamples.Bind(IsVisibleProperty, Binding(nameof(BioRandOptionsViewModel.HasVitalityExampleText)));
+        panel.Children.Add(vitalityExamples);
         var scatterWarning = new TextBlock
         {
             TextWrapping = TextWrapping.Wrap,

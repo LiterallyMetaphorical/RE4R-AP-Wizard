@@ -807,6 +807,15 @@
                             </StackPanel>
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="On by default, at 16 - one per chapter. The merchant sells this many Archipelago checks in his buy tab, spread across the campaign. Each row shows what it really is and who it belongs to, stays on the shelf until you buy it, then reads SOLD OUT. Prices are fixed by tier - 5,000 filler / 7,000 useful / 9,000 progression - and buying another player's item hands you back a gemstone worth exactly what you paid, so you need the money but never lose it." />
+                            <TextBlock Margin="0,10,0,0"
+                                       Text="Merchant checks" />
+                            <ListBox ItemsSource="{Binding MerchantChecksOptions}"
+                                     ItemTemplate="{StaticResource OptionShortLabelTemplate}"
+                                     SelectedItem="{Binding SelectedMerchantChecks, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource SegmentedPickerStyle}"
+                                     IsEnabled="{Binding ShopChecksEnabled}" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Who the check rows may hold. Mixed lets the multiworld decide. Local only keeps your own items on the shelf, so every purchase pays you. Remote only turns the shop into a trading post - every row belongs to another world, and the gem refund keeps you solvent while you stock everyone else. Remote only needs at least one other world in the room." />
                             <CheckBox Margin="0,10,0,0"
                                       IsChecked="{Binding ShuffleMerchantGear}"
                                       Content="Shuffle the merchant's gear into the multiworld" />
@@ -814,6 +823,35 @@
                                        Text="On by default. His weapons, attachments, case sizes and crafting recipes - plus the Deluxe and Separate Ways guns that work in Leon's campaign - leave the buy tab and become multiworld items: your next gun is a check somewhere out there, maybe in another player's world. Consumable supplies, knife replacements, body armor, tune-ups, selling and trades stay. Expect a different power curve; gear never gates logic, so a seed can always be finished. Turning this on also turns shop checks on, so the emptied shelf sells checks instead of nothing - untick it if you really want a bare shop." />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="While either option is on, the multiworld owns the shop: BioRand's own Random Merchant is switched off when you patch, and its row on the BioRand Options screen says so." />
+                            <StackPanel Margin="0,10,0,0"
+                                        Orientation="Horizontal"
+                                        IsEnabled="{Binding ShuffleMerchantGear}">
+                                <TextBlock VerticalAlignment="Center"
+                                           Text="Starting arsenal:" />
+                                <ComboBox Margin="8,0,0,0"
+                                          MinWidth="64"
+                                          ItemsSource="{Binding StartingArsenalChoices}"
+                                          SelectedItem="{Binding StartingArsenal, Mode=TwoWay}"
+                                          AutomationProperties.Name="Starting arsenal" />
+                            </StackPanel>
+                            <ItemsControl Margin="0,6,0,0"
+                                          IsEnabled="{Binding ShuffleMerchantGear}"
+                                          ItemsSource="{Binding StartingArsenalTypeOptions}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <CheckBox Margin="0,0,12,4"
+                                                  IsChecked="{Binding IsSelected}"
+                                                  Content="{Binding Label}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Begin the run with this many random pool weapons already in your case, ammo to match, exactly like BioRand's own starting loadout. Each one leaves the pool, so nobody finds a second copy. The type boxes trim what the draw may take - two guns come from two different types when the boxes allow it, and at least one box must stay ticked. Needs the gear shuffle above; without it, BioRand's own starting-inventory options on the options screen still work as always." />
                             <CheckBox Margin="0,10,0,0"
                                       IsChecked="{Binding RandomWeaponStats}"
                                       Content="Random weapon stats" />
@@ -1959,6 +1997,12 @@
                                                                    Foreground="{DynamicResource SubtleTextBrush}"
                                                                    TextWrapping="Wrap"
                                                                    Text="Every preset above is one setting of these three dials, and any other mix works too. Blank dials mean hand-tuned rows below." />
+                                                        <TextBlock Margin="0,2,0,0"
+                                                                   FontSize="11"
+                                                                   Foreground="{DynamicResource SubtleTextBrush}"
+                                                                   TextWrapping="Wrap"
+                                                                   Text="{Binding DataContext.BioRandOptions.VitalityExampleText, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}, StringFormat='Vitality in numbers: {0}.'}"
+                                                                   Visibility="{Binding DataContext.BioRandOptions.HasVitalityExampleText, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                                         <TextBlock Margin="0,6,0,0"
                                                                    MaxWidth="640"
                                                                    HorizontalAlignment="Left"

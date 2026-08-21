@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-08-16T01:08:56Z",
+  "generated_at_utc": "2026-08-16T16:26:31Z",
   "game": "Resident Evil 4 Remake",
   "world_version": "0.7.0",
   "placeholder_item_id": 120486400,
@@ -177,12 +177,17 @@
       "Case: 8x12 x1",
       "Case: 8x13 x1",
       "Case: 9x13 x1",
+      "Chicago Sweeper x1",
+      "Flamethrower x1",
+      "Handcannon x1",
       "High-power Scope x1",
       "Killer7 x1",
       "Kitchen Knife x1",
       "LE 5 x60",
       "Laser Sight x1",
       "Matilda Stock x1",
+      "Matilda x1",
+      "Punisher x1",
       "Recipe: Attachable Mines x1",
       "Recipe: Bolts x1",
       "Recipe: Flash Grenade x1",
@@ -191,6 +196,7 @@
       "Red9 Stock x1",
       "Red9 x1",
       "Riot Gun x1",
+      "Rocket Launcher x1",
       "SR M1903 x1",
       "SW - Blast Crossbow x1",
       "SW - Sawed-off W-870 x1",
@@ -793,7 +799,7 @@
     "locations_total": 460,
     "guid_locations": 460,
     "noguid_locations": 0,
-    "items_total": 157,
+    "items_total": 163,
     "always_locations": 460,
     "optional_key_locations": 0,
     "shop_slots": 24
@@ -9049,6 +9055,13 @@
       "classification": "PROGRESSION",
       "count": 1
     },
+    "940874684": {
+      "name": "Flamethrower x1",
+      "biorand_item_id": 275957056,
+      "biorand_name": "Flamethrower",
+      "classification": "USEFUL",
+      "count": 1
+    },
     "972234972": {
       "name": "Golden Lynx x1",
       "biorand_item_id": 122406400,
@@ -9378,11 +9391,25 @@
       "classification": "FILLER",
       "count": 1
     },
+    "2342841231": {
+      "name": "Chicago Sweeper x1",
+      "biorand_item_id": 275157056,
+      "biorand_name": "Chicago Sweeper",
+      "classification": "USEFUL",
+      "count": 1
+    },
     "2351475899": {
       "name": "Sapphire x1",
       "biorand_item_id": 120833600,
       "biorand_name": "Sapphire",
       "classification": "FILLER",
+      "count": 1
+    },
+    "2402639670": {
+      "name": "Matilda x1",
+      "biorand_item_id": 274841856,
+      "biorand_name": "Matilda",
+      "classification": "USEFUL",
       "count": 1
     },
     "2417443590": {
@@ -9546,6 +9573,13 @@
       "classification": "FILLER",
       "count": 1
     },
+    "3009070136": {
+      "name": "Rocket Launcher x1",
+      "biorand_item_id": 276275456,
+      "biorand_name": "Rocket Launcher",
+      "classification": "USEFUL",
+      "count": 1
+    },
     "3023476029": {
       "name": "Case: 7x12 x1",
       "biorand_item_id": 124161600,
@@ -9607,6 +9641,13 @@
       "biorand_item_id": 120840000,
       "biorand_name": "Gold Bar",
       "classification": "FILLER",
+      "count": 1
+    },
+    "3259886427": {
+      "name": "Punisher x1",
+      "biorand_item_id": 274837056,
+      "biorand_name": "Punisher",
+      "classification": "USEFUL",
       "count": 1
     },
     "3263967379": {
@@ -9839,6 +9880,13 @@
       "biorand_name": "Gunpowder",
       "classification": "FILLER",
       "count": 5
+    },
+    "4175876706": {
+      "name": "Handcannon x1",
+      "biorand_item_id": 275638656,
+      "biorand_name": "Handcannon",
+      "classification": "USEFUL",
+      "count": 1
     },
     "4228309747": {
       "name": "Laser Sight x1",

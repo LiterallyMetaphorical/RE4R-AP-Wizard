@@ -56,6 +56,18 @@ public sealed class PendingSessionDraft
     [JsonPropertyName("shuffle_merchant_gear")]
     public bool ShuffleMerchantGear { get; set; }
 
+    [JsonPropertyName("starting_arsenal")]
+    public int StartingArsenal { get; set; }
+
+    // Trimmed Starting Arsenal type keys; null/absent means every type
+    // (drafts from before the option existed load as the full set).
+    [JsonPropertyName("starting_arsenal_types")]
+    public List<string>? StartingArsenalTypes { get; set; }
+
+    // Merchant check locality; null/absent in older drafts means mixed.
+    [JsonPropertyName("merchant_checks")]
+    public string? MerchantChecks { get; set; }
+
     [JsonPropertyName("random_weapon_stats")]
     public bool RandomWeaponStats { get; set; }
 

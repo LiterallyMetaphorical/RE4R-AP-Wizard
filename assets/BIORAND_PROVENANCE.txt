@@ -19,7 +19,7 @@ HISTORY SQUASHED 2026-08-10: the fork's branch was flattened to a single commit,
                 .cs/.csv/.json, so the SHA-256 below still describes the code
                 that is on the branch today. Keep the old ids for the reasoning
                 they carry; treat 703e59a as the citable source commit.
-Source commit:  725dba8 (2026-08-16 second rebuild; see the REBUILD entries below)
+Source commit:  01ac858 (2026-08-16 fourth rebuild; see the REBUILD entries below)
 Previous:       05f581e (2026-08-06: FORCED EVENTS - BioRand takes its event
                 set from the multiworld. The apworld rolls the Village event
                 set at generation time and the launcher pins it in as
@@ -156,6 +156,28 @@ ProductVersion: 1.0.0+05f581e7cdf1c912869903a760539cdebb1c7bac (the launcher
                 writes this into version_stamp.json, and a change here is what
                 triggers the one-time setup cache re-harvest)
 Built with:     .NET SDK 10.0.301
+
+REBUILD 2026-08-16 fourth (01ac858)
+    Starting Arsenal support: ap-start-weapons manifest ids parse into
+    ApManifestConfiguration and IsAmmoAvailableYet treats their ammo as
+    available from chapter zero, so drops match the guns the multiworld
+    put in the player's hands at connect.
+    exe SHA-256: 89681b1bfe02a9a8655291e84a5c312872cb9027109d2a7ae9b04aae55088d73
+    Prior exe SHA-256: 1bd03cb2f5b1892e4f2a10380ac188f52cb4cdb84ccb3274398c3147140188c0
+
+REBUILD 2026-08-16 third (b98ca49)
+    The shop-shelf root fix + scatter integrity. Check-slot stock additions
+    move to the chapter flag that actually fires (chapter-1 slots were a
+    chapter late; InGameShopUpdateFlagType enum 0 fires at campaign start)
+    and are written into all four difficulty buckets (the old first-bucket
+    write starved three difficulties). The ValuableDistributor bounces
+    AP-excluded ids to the Item bucket so pool gear can never materialize
+    as enemy drops, shop restocks, rewards or the starting loadout; the
+    distribution schedule (ammo pacing) is untouched. Offline verify:
+    regenerated Cam's exact 10:56 config/seed - 80 additions (20 slots x 4
+    difficulties) written.
+    exe SHA-256: 1bd03cb2f5b1892e4f2a10380ac188f52cb4cdb84ccb3274398c3147140188c0
+    Prior exe SHA-256: b26a9b3cf828907a3ecc84e681712503c3e2c77e07850f1fc697910971dad78f
 
 REBUILD 2026-08-16 second (725dba8)
     The class lock (Cam's call: Familiar/Varied locked, Wild+ free, cows
@@ -312,3 +334,7 @@ Prior payload:  66b92490a53674bab7e5d95fd3a31805226a76272fa406127cc7ec94cd3c5166
                 (commit a309282) - ap-mode gates skipped modifiers wholesale.
                 12cf330e7cb2227532ca5e1e62ada57fdd4e927ba9b4b79567573a50e22e0460
                 (commit 7241cff) - full setup+generation verified end-to-end.
+                2fbfa8cea32746f83cd803f411e4293bd64f90ce91f76f90fa4e61ec10e272f0
+                (commit c8bba01) - starting arsenal placed in the opening case
+                on both inventory paths; pooled guns barred from world
+                valuables and from veteran-account shop rows.

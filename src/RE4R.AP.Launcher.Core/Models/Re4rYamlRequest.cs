@@ -30,6 +30,16 @@ public sealed class Re4rYamlRequest
 
     public bool ShuffleMerchantGear { get; set; }
 
+    /// <summary>Random pool weapons precollected at connect (0-3); requires the gear shuffle.</summary>
+    public int StartingArsenal { get; set; }
+
+    // Trimmed Starting Arsenal type keys. Empty means every type is allowed
+    // and the YAML key is omitted (the apworld default already covers it).
+    public IReadOnlyList<string> StartingArsenalTypes { get; set; } = [];
+
+    // Who the merchant's check rows may hold: mixed, local_only, remote_only.
+    public string MerchantChecks { get; set; } = "mixed";
+
     public bool RandomWeaponStats { get; set; }
 
     // Keep important checks along the main path: hard hexagon deadline plus

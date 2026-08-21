@@ -75,6 +75,7 @@ return function(ctx)
                     item_id = math.floor(item_id),
                     location_code = math.floor(location_code),
                     index = math.floor(tonumber(raw.index) or 0),
+                    unlock_chapter = math.floor(tonumber(raw.unlock_chapter) or 1),
                     classification = tostring(raw.classification or "FILLER"),
                     display_name = tostring(raw.display_name or "an item"),
                     player_name = tostring(raw.player_name or ""),
@@ -322,10 +323,33 @@ return function(ctx)
     end
 
     -- ------------------------------------------------------------- reconcile
-    -- Stock lives in the per-save shop blob, so a death after buying puts the
-    -- row back on the shelf while the check stays sent. Zero the stock of
-    -- every already-checked slot instead of trusting the save.
-    local function reconcile_sold_out()
+    -- Stock lives in the per-save shop blob; the server's checked list is the
+    -- only truth that survives deaths, reloads and old saves. So stock is
+    -- reconciled in BOTH directions on connect and on every shop open:
+    --   checked slot with stock  -> reduced to zero (no re-purchase)
+    --   unchecked slot with none -> restored to one, PROVIDED the game says
+    --     its unlock waypoint has fired (isEnableUpdateFlag) - this heals
+    --     saves that walked a chapter before its addition existed (the
+    --     2026-08-16 chapter-1 rows) and any future waypoint quirk.
+    -- The waypoint flag enum: value N-1 fires entering display chapter N,
+    -- value 0 at campaign start; clamped to the cp10 range 0..15.
+    local function slot_unlock_flag(slot)
+        local chapter = tonumber(slot.unlock_chapter) or 1
+        local flag = math.floor(chapter) - 1
+        if flag < 0 then flag = 0 end
+        if flag > 15 then flag = 15 end
+        return flag
+    end
+
+    local function slot_is_unlocked(manager, slot)
+        local unlocked = nil
+        pcall(function()
+            unlocked = manager:call("isEnableUpdateFlag", slot_unlock_flag(slot))
+        end)
+        return unlocked == true
+    end
+
+    local function reconcile_stock()
         if merchant.slot_count == 0 then
             return
         end
@@ -333,20 +357,29 @@ return function(ctx)
         if manager == nil then
             return
         end
-        local zeroed = 0
+        local zeroed, restored = 0, 0
         for _, slot in pairs(merchant.slots_by_item) do
-            if slot_is_checked(slot) then
-                local current = nil
-                pcall(function()
-                    current = manager:call("getCurrStock", slot.item_id)
-                end)
-                current = tonumber(current)
-                if current ~= nil and current > 0 then
+            local current = nil
+            pcall(function()
+                current = manager:call("getCurrStock", slot.item_id)
+            end)
+            current = tonumber(current)
+            if current ~= nil then
+                if slot_is_checked(slot) then
+                    if current > 0 then
+                        local ok = pcall(function()
+                            manager:call("reduceStock", slot.item_id, current)
+                        end)
+                        if ok then
+                            zeroed = zeroed + 1
+                        end
+                    end
+                elseif current < 1 and slot_is_unlocked(manager, slot) then
                     local ok = pcall(function()
-                        manager:call("reduceStock", slot.item_id, current)
+                        manager:call("addStock", slot.item_id, 1 - current)
                     end)
                     if ok then
-                        zeroed = zeroed + 1
+                        restored = restored + 1
                     end
                 end
             end
@@ -354,7 +387,14 @@ return function(ctx)
         if zeroed > 0 then
             info(string.format("%d already-checked slot(s) reconciled back to sold out", zeroed))
         end
+        if restored > 0 then
+            info(string.format("%d unlocked slot(s) reconciled back onto the shelf", restored))
+        end
     end
+
+    -- The old name stays callable: connect-time and shop-open call sites
+    -- predate the two-way rename.
+    local reconcile_sold_out = reconcile_stock
 
     -- ------------------------------------------------------------- dev probe
     -- [Live-test probe] With Developer Tools on, every shop open logs what

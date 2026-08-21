@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "item_count": 157,
+  "item_count": 163,
   "items": {
     "20665965": {
       "name": "Red9 Stock x1",
@@ -200,6 +200,11 @@
     "921567379": {
       "name": "Bunch of Keys x1",
       "re4r_item_id": 119275200,
+      "count": 1
+    },
+    "940874684": {
+      "name": "Flamethrower x1",
+      "re4r_item_id": 275957056,
       "count": 1
     },
     "972234972": {
@@ -437,9 +442,19 @@
       "re4r_item_id": 114401600,
       "count": 1
     },
+    "2342841231": {
+      "name": "Chicago Sweeper x1",
+      "re4r_item_id": 275157056,
+      "count": 1
+    },
     "2351475899": {
       "name": "Sapphire x1",
       "re4r_item_id": 120833600,
+      "count": 1
+    },
+    "2402639670": {
+      "name": "Matilda x1",
+      "re4r_item_id": 274841856,
       "count": 1
     },
     "2417443590": {
@@ -557,6 +572,11 @@
       "re4r_item_id": 120817600,
       "count": 1
     },
+    "3009070136": {
+      "name": "Rocket Launcher x1",
+      "re4r_item_id": 276275456,
+      "count": 1
+    },
     "3023476029": {
       "name": "Case: 7x12 x1",
       "re4r_item_id": 124161600,
@@ -600,6 +620,11 @@
     "3152993356": {
       "name": "Gold Bar x1",
       "re4r_item_id": 120840000,
+      "count": 1
+    },
+    "3259886427": {
+      "name": "Punisher x1",
+      "re4r_item_id": 274837056,
       "count": 1
     },
     "3263967379": {
@@ -766,6 +791,11 @@
       "name": "Gunpowder x5",
       "re4r_item_id": 117600000,
       "count": 5
+    },
+    "4175876706": {
+      "name": "Handcannon x1",
+      "re4r_item_id": 275638656,
+      "count": 1
     },
     "4228309747": {
       "name": "Laser Sight x1",

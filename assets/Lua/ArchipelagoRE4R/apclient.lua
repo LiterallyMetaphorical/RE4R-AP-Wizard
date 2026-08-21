@@ -850,6 +850,21 @@ return function(ctx)
                     processed = processed + 1
                     need_flush = false
                     if not persist() then break end
+                elseif bridge.starting_arsenal_placed_ids ~= nil
+                    and bridge.starting_arsenal_placed_ids[mapping.re4r_item_id] == true
+                    and type(entry.location) == "number" and entry.location < 0 then
+                    -- [Starting Arsenal] The generator already placed this gun
+                    -- in the starting case, so the precollect replay owes no
+                    -- delivery and no toast. One skip per id: a later same-id
+                    -- grant (server give, a filler twin) injects normally.
+                    bridge.starting_arsenal_placed_ids[mapping.re4r_item_id] = nil
+                    info(string.format(
+                        "starting arsenal already in the case: engine=%d (idx=%d) - delivery skipped",
+                        mapping.re4r_item_id, idx))
+                    bridge.last_received_index = idx
+                    need_flush = true
+                    pop_head(idx)
+                    processed = processed + 1
                 else
                     local status = tostring(inject_item_to_inventory(mapping.re4r_item_id, mapping.count))
                     if inject_command_succeeded(status) then
@@ -906,11 +921,16 @@ return function(ctx)
                             local classification = classify_flags(entry.flags)
                             local item_color = get_check_overlay_classification_color(classification)
                             -- "<sender> sent you <item> - routing to <where>" (Cam's format,
-                            -- 2026-07-23). <where> is the REAL landing partition: the case-full
-                            -- Storage fallback wins over the item's normal route.
-                            local to_storage = string.find(string.lower(status), "storage", 1, true) ~= nil
+                            -- 2026-07-23). <where> is the REAL landing partition. Only a real
+                            -- overflow fallback may say "case full": weapons route to Storage
+                            -- by design, and that toast claiming a full case on a fresh save
+                            -- was a lie (live 2026-08-16).
+                            local lowered_status = string.lower(status)
+                            local to_storage = string.find(lowered_status, "storage", 1, true) ~= nil
+                            local storage_overflow = string.find(lowered_status, "full; sent", 1, true) ~= nil
                             local route_fn = ctx.inject_get_route_destination or _G.inject_get_route_destination
-                            local dest = to_storage and "storage (case full)"
+                            local dest = (to_storage and storage_overflow and "storage (case full)")
+                                or (to_storage and "storage")
                                 or ((type(route_fn) == "function") and route_fn(mapping.re4r_item_id))
                                 or "inventory"
                             local title, title_segments
@@ -1574,6 +1594,37 @@ return function(ctx)
                     -- and read as false.
                     if ctx.bridge then
                         ctx.bridge.allow_bonus_items = (payload.allow_bonus_items == true)
+                        -- While the merchant's gear is scattered, bonus GUNS
+                        -- are multiworld items, not free Storage grants: the
+                        -- unlock keeps only the Primal Knife (knives are
+                        -- deliberately outside the scatter), and the Deluxe
+                        -- entitlement grant is vetoed for the scattered ids.
+                        ctx.bridge.gear_scattered = (payload.gear_scattered == true)
+                        local scattered_set = {}
+                        if type(payload.scattered_item_ids) == "table" then
+                            for _, raw_id in ipairs(payload.scattered_item_ids) do
+                                local item_id = tonumber(raw_id)
+                                if item_id ~= nil then
+                                    scattered_set[math.floor(item_id)] = true
+                                end
+                            end
+                        end
+                        ctx.bridge.scattered_item_ids = scattered_set
+                        -- [Starting Arsenal] Engine ids the generator placed
+                        -- in the starting case. Their precollect delivery is
+                        -- skipped once each: the in-case copy is the real one.
+                        -- Absent in older rooms -> deliveries inject exactly
+                        -- as they always did.
+                        local arsenal_set = {}
+                        if type(payload.starting_arsenal_ids) == "table" then
+                            for _, raw_id in ipairs(payload.starting_arsenal_ids) do
+                                local item_id = tonumber(raw_id)
+                                if item_id ~= nil then
+                                    arsenal_set[math.floor(item_id)] = true
+                                end
+                            end
+                        end
+                        ctx.bridge.starting_arsenal_placed_ids = arsenal_set
                     end
                     -- [D4] Merchant shop checks: slot records (stand-in item
                     -- id, location code, tier refund) come from the same

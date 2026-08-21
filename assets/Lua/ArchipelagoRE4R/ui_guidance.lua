@@ -117,9 +117,6 @@ local function install(ctx)
                 replay()
             end
         end
-        if bridge.tutorial_enabled == false then
-            imgui.text("    The host's settings turn the first-run guide off for new seeds.")
-        end
     end
 
     export("draw_guidance_content", draw_guidance_content)

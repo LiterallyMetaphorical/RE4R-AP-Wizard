@@ -15,15 +15,27 @@ public sealed record EnemyConfigurationPreset(
     string? VitalityKey = null);
 
 /// <summary>One point on the Crowd axis (how busy fights are).</summary>
-public sealed record EnemyCrowdPoint(string Key, string Label);
+public sealed record EnemyCrowdPoint(string Key, string Label)
+{
+    // The themed ComboBox renders the record's ToString in its selection
+    // box regardless of DisplayMemberPath (live 2026-08-16), so ToString IS
+    // the display contract for all three dial records.
+    public override string ToString() => Label;
+}
 
 /// <summary>One step on the Roster axis (how scary the mix is). <see cref="ClassLock"/> means
 /// spawns may only reroll within their vanilla occupant's class at this step (the threat map
 /// stays the designed campaign's), with classLockExempt classes eligible everywhere.</summary>
-public sealed record EnemyRosterStep(string Key, string Label, bool ClassLock);
+public sealed record EnemyRosterStep(string Key, string Label, bool ClassLock)
+{
+    public override string ToString() => Label;
+}
 
 /// <summary>One point on the Vitality axis (how tough each enemy's random-health band is).</summary>
-public sealed record EnemyVitalityPoint(string Key, string Label);
+public sealed record EnemyVitalityPoint(string Key, string Label)
+{
+    public override string ToString() => Label;
+}
 
 /// <summary>A possession gate for a class's randomized spawns. The manifest builder sends the
 /// enabled gates (members + item id) to the fork, which echoes back the spawn identities it
@@ -168,6 +180,46 @@ public static class EnemyConfigurationPresets
             && actualValue.TryGetValue<double>(out var actualNumber)
             && Math.Abs(actualNumber - expectedNumber) < .0001d;
     }
+
+    /// <summary>
+    /// Concrete example HP bands for a Vitality point, so the dial shows real numbers
+    /// instead of adjectives. Honest scope note: these are positions on BIORAND's
+    /// randomization bands; the game's own fixed HP varies per enemy and difficulty and
+    /// has not been calibrated onto this ladder yet.
+    /// </summary>
+    public static string DescribeVitality(string vitalityKey)
+    {
+        var vitality = _model.Value.VitalityDocs.FirstOrDefault(v => v.Key == vitalityKey);
+        if (vitality == null)
+        {
+            return string.Empty;
+        }
+
+        var parts = new List<string>();
+        foreach (var (member, label) in ExampleEnemies)
+        {
+            var minDefinition = BioRandOptionCatalog.Find($"enemy-health-min-{member}");
+            var maxDefinition = BioRandOptionCatalog.Find($"enemy-health-max-{member}");
+            if (minDefinition == null || maxDefinition == null)
+            {
+                continue;
+            }
+
+            var min = minDefinition.DefaultFor(BioRandOptionCatalog.ModeFullItemEnemy)?.GetValue<double>() ?? 0d;
+            var max = maxDefinition.DefaultFor(BioRandOptionCatalog.ModeFullItemEnemy)?.GetValue<double>() ?? min;
+            var scaledMax = Math.Max(Math.Round(min + vitality.HpPosition * (max - min)), min);
+            parts.Add($"{label} {min:n0} to {scaledMax:n0}");
+        }
+
+        return string.Join(", ", parts);
+    }
+
+    private static readonly (string Member, string Label)[] ExampleEnemies =
+    [
+        ("villager", "Villager"),
+        ("chainsaw", "Chainsaw Man"),
+        ("regenerador", "Regenerador"),
+    ];
 
     /// <summary>The named pair for a dial combination, or null when the combo is off-ladder.</summary>
     public static EnemyConfigurationPreset? FindPair(string crowdKey, string rosterKey, string vitalityKey) =>

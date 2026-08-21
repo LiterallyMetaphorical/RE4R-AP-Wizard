@@ -31,6 +31,13 @@ public sealed class MerchantShopSlotData
     public IReadOnlyList<int> ScatteredItemIds { get; init; } = Array.Empty<int>();
 
     /// <summary>
+    /// [Starting Arsenal] Engine ids the player begins with (precollected by
+    /// the multiworld). The fork paces their ammo from chapter zero. Empty
+    /// for rooms without the option.
+    /// </summary>
+    public IReadOnlyList<int> StartingWeaponIds { get; init; } = Array.Empty<int>();
+
+    /// <summary>
     /// Credit-check economy per AP classification: the peseta price of a slot
     /// and the gemstone handed back when the purchase is refundable. The
     /// apworld owns these values (shop.SHOP_TIERS); the launcher passes them

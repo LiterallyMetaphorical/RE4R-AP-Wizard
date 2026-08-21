@@ -1,11 +1,11 @@
--- [Tutorial] A one-time welcome window, shown the first time a seed reaches
--- Chapter 1. Styled like the progression-warning dialog (centred, its own
--- window) rather than buried inside a tab, because a first-time player has no
--- reason to open the window at all - the thing that explains the mod cannot
--- itself require knowing about the mod.
+-- [Tutorial] The welcome window, opened on demand from Guidance ("Show the
+-- getting-started guide again"). Styled like the progression-warning dialog
+-- (centred, its own window) rather than buried inside a tab.
 --
--- Suppressed by the `tutorial` YAML option (default on), so a veteran can turn
--- it off for every future seed, and dismissed per-seed once shown.
+-- First-run teaching belongs to the native in-world book. This window used to
+-- arm itself on a seed's first playable Chapter 1 tick, but it can only render
+-- inside REFramework's menu, so it ambushed the first Insert of every fresh
+-- seed instead of greeting the player (live test 2026-08-16).
 local function install(ctx)
     local bridge = ctx.bridge
 
@@ -67,34 +67,6 @@ local function install(ctx)
             },
         },
     }
-
-    local function tutorial_allowed()
-        -- Host/YAML opt-out wins; absent means enabled (older rooms).
-        return bridge.tutorial_enabled ~= false
-    end
-
-    -- Arm on the first playable Chapter 1 tick of a seed. state.lua owns the
-    -- per-seed flag so it persists with the session file.
-    local function maybe_show_tutorial()
-        if not tutorial_allowed() or bridge.tutorial_shown == true or bridge.tutorial_dialog_open then
-            return
-        end
-        local state = bridge.last_state or {}
-        if not state.is_in_game or not state.is_playable then
-            return
-        end
-        local chapter = tonumber(bridge.ui_current_chapter)
-        if chapter ~= nil and chapter > 1 then
-            -- Joined mid-run (or a returning player): never interrupt.
-            bridge.tutorial_shown = true
-            return
-        end
-        if chapter ~= 1 then
-            return
-        end
-        bridge.tutorial_dialog_open = true
-        bridge.tutorial_page = 1
-    end
 
     local function draw_tutorial_dialog()
         if not bridge.tutorial_dialog_open then
@@ -194,7 +166,6 @@ local function install(ctx)
         return "tutorial reopened"
     end
 
-    export("maybe_show_tutorial", maybe_show_tutorial)
     export("draw_tutorial_dialog", draw_tutorial_dialog)
     export("replay_tutorial", replay_tutorial)
 end

@@ -31,6 +31,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     private string _selectedDifficulty = "Standard";
     private int _progressionBalancing = 70;
     private CheckGuidanceOption _selectedCheckGuidance = CheckGuidanceOptionList[0];
+    private MerchantChecksOption _selectedMerchantChecks = MerchantChecksOptionList[0];
     private MarkerDetailOption _selectedMarkerDetail = MarkerDetailOptionList[2];
     private bool _deathLink;
     private bool _allowMissableLocations;
@@ -40,6 +41,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     // default experience, and drafts saved before the option existed load it
     // back as off (their owner chose their shop before gear could scatter).
     private bool _shuffleMerchantGear = true;
+    private int _startingArsenal;
     private bool _minimizeBacktracking;
     private bool _randomEvents;
     private int _shopChecks = 16;
@@ -72,6 +74,12 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         {
             option.PropertyChanged += OnTypewriterOptionPropertyChanged;
             TypewriterOptions.Add(option);
+        }
+
+        foreach (var option in CreateArsenalTypeOptions())
+        {
+            option.PropertyChanged += OnArsenalTypeOptionPropertyChanged;
+            StartingArsenalTypeOptions.Add(option);
         }
 
         // Amondo's request: the AP item/location options, in the editor instead
@@ -120,6 +128,9 @@ public sealed class ConfigureYamlViewModel : ObservableObject
 
     public ObservableCollection<TypewriterOptionViewModel> TypewriterOptions { get; } = new();
 
+    /// <summary>Weapon classes the Starting Arsenal draw may take; all ticked by default.</summary>
+    public ObservableCollection<ArsenalTypeOptionViewModel> StartingArsenalTypeOptions { get; } = new();
+
     public IReadOnlyList<string> DifficultyOptions { get; } = ["Standard", "Hardcore", "Assisted", "Professional"];
 
     // Mirrors ArchipelagoRE4R/options.py CheckGuidance (off/markers/markers_rarity).
@@ -132,6 +143,17 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     ];
 
     public IReadOnlyList<CheckGuidanceOption> CheckGuidanceOptions => CheckGuidanceOptionList;
+
+    // Who the merchant's check rows may hold. Mirrors the apworld's
+    // merchant_checks choice; mixed is the default and every older draft.
+    private static readonly IReadOnlyList<MerchantChecksOption> MerchantChecksOptionList =
+    [
+        new("Mixed (anything)", "mixed", "Mixed"),
+        new("Local only (always pays you)", "local_only", "Local"),
+        new("Remote only (trading post)", "remote_only", "Remote"),
+    ];
+
+    public IReadOnlyList<MerchantChecksOption> MerchantChecksOptions => MerchantChecksOptionList;
 
     // Ceiling on how much a world marker may say. Players still choose their
     // own level in game; this is the most the host allows. Ordered least to
@@ -312,6 +334,20 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         }
     }
 
+    public MerchantChecksOption SelectedMerchantChecks
+    {
+        get => _selectedMerchantChecks;
+        set
+        {
+            // Same transient-null guard as the pickers above.
+            if (value is not null && SetProperty(ref _selectedMerchantChecks, value))
+            {
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
+
     public bool DeathLink
     {
         get => _deathLink;
@@ -393,6 +429,28 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             }
         }
     }
+
+    /// <summary>
+    /// Starting Arsenal: N random pool weapons precollected into the
+    /// player's hands at connect. Draws from the scattered arsenal, so it
+    /// requires the gear shuffle; the row disables without it and the hint
+    /// points at BioRand's own starting-inventory options instead.
+    /// </summary>
+    public int StartingArsenal
+    {
+        get => _startingArsenal;
+        set
+        {
+            var clamped = Math.Clamp(value, 0, 3);
+            if (SetProperty(ref _startingArsenal, clamped))
+            {
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
+
+    public IReadOnlyList<int> StartingArsenalChoices { get; } = [0, 1, 2];
 
     public bool MinimizeBacktracking
     {
@@ -774,6 +832,11 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             SelectedCheckGuidance = guidance;
         }
 
+        // Absent in older drafts -> mixed, which is also the apworld default.
+        var merchantChecks = MerchantChecksOptions.FirstOrDefault(
+            option => string.Equals(option.Value, draft.MerchantChecks, StringComparison.OrdinalIgnoreCase));
+        SelectedMerchantChecks = merchantChecks ?? MerchantChecksOptionList[0];
+
         var markerDetail = MarkerDetailOptions.FirstOrDefault(
             option => string.Equals(option.Value, draft.MarkerDetail, StringComparison.OrdinalIgnoreCase));
         if (markerDetail is not null)
@@ -786,6 +849,14 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         ShuffleKeycards = draft.ShuffleKeycards;
         RandomWeaponStats = draft.RandomWeaponStats;
         ShuffleMerchantGear = draft.ShuffleMerchantGear;
+        StartingArsenal = draft.StartingArsenal;
+        // Null/absent means every type: drafts predating the option, or an
+        // untrimmed set (which is never persisted).
+        var draftArsenalTypes = draft.StartingArsenalTypes;
+        foreach (var option in StartingArsenalTypeOptions)
+        {
+            option.IsSelected = draftArsenalTypes == null || draftArsenalTypes.Contains(option.Key);
+        }
         MinimizeBacktracking = draft.MinimizeBacktracking;
         RandomEvents = draft.RandomEvents;
         // A saved 0 means it was switched off; keep the slider on a sensible
@@ -830,12 +901,18 @@ public sealed class ConfigureYamlViewModel : ObservableObject
                 draft.Difficulty = SelectedDifficulty;
                 draft.ProgressionBalancing = ProgressionBalancing;
                 draft.CheckGuidance = SelectedCheckGuidance.Value;
+                draft.MerchantChecks = SelectedMerchantChecks.Value;
                 draft.MarkerDetail = SelectedMarkerDetail.Value;
                 draft.DeathLink = DeathLink;
                 draft.AllowMissableLocations = AllowMissableLocations;
                 draft.ShuffleKeycards = ShuffleKeycards;
                 draft.RandomWeaponStats = RandomWeaponStats;
                 draft.ShuffleMerchantGear = ShuffleMerchantGear;
+                draft.StartingArsenal = StartingArsenal;
+                var trimmedArsenalTypes = TrimmedArsenalTypeKeys();
+                draft.StartingArsenalTypes = trimmedArsenalTypes.Count > 0
+                    ? trimmedArsenalTypes.ToList()
+                    : null;
                 draft.MinimizeBacktracking = MinimizeBacktracking;
                 draft.RandomEvents = RandomEvents;
                 draft.ShopChecks = ShopChecksEnabled ? ShopChecks : 0;
@@ -877,9 +954,12 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             ShuffleKeycards = ShuffleKeycards,
             RandomWeaponStats = RandomWeaponStats,
             ShuffleMerchantGear = ShuffleMerchantGear,
+            StartingArsenal = ShuffleMerchantGear ? StartingArsenal : 0,
+            StartingArsenalTypes = TrimmedArsenalTypeKeys(),
             MinimizeBacktracking = MinimizeBacktracking,
             RandomEvents = RandomEvents,
             ShopChecks = ShopChecksEnabled ? ShopChecks : 0,
+            MerchantChecks = SelectedMerchantChecks.Value,
             Tutorial = Tutorial,
             UnlockedTypewriterStageIds = TypewriterOptions
                 .Where(option => option.IsSelected)
@@ -921,6 +1001,51 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             RebuildYamlPreview();
             QueueDraftSave();
         }
+    }
+
+    private void OnArsenalTypeOptionPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (string.Equals(e.PropertyName, nameof(ArsenalTypeOptionViewModel.IsSelected), StringComparison.Ordinal))
+        {
+            RebuildYamlPreview();
+            QueueDraftSave();
+        }
+    }
+
+    // Mirrors the apworld's StartingArsenalTypes valid_keys, which mirror
+    // BioRand's own starting-inventory pickers. Everything starts ticked,
+    // matching the apworld default.
+    private static IEnumerable<ArsenalTypeOptionViewModel> CreateArsenalTypeOptions()
+    {
+        (string Key, string Label)[] entries =
+        [
+            ("handgun", "Handgun"),
+            ("shotgun", "Shotgun"),
+            ("smg", "SMG"),
+            ("rifle", "Rifle"),
+            ("magnum", "Magnum"),
+            ("bolt", "Bolt Thrower"),
+            ("arrow", "Arrows"),
+            ("flame", "Flamethrower"),
+            ("special", "Special (Rocket Launcher)"),
+        ];
+        foreach (var (key, label) in entries)
+        {
+            yield return new ArsenalTypeOptionViewModel { Key = key, Label = label };
+        }
+    }
+
+    // The YAML only carries the type list when the player trimmed it: the
+    // full set is the apworld default, and the key would churn every YAML.
+    private IReadOnlyList<string> TrimmedArsenalTypeKeys()
+    {
+        var selected = StartingArsenalTypeOptions
+            .Where(option => option.IsSelected)
+            .Select(option => option.Key)
+            .ToArray();
+        return selected.Length == StartingArsenalTypeOptions.Count
+            ? []
+            : selected;
     }
 
     /// <summary>
@@ -1036,5 +1161,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
 /// written into the YAML.
 /// </summary>
 public sealed record CheckGuidanceOption(string Label, string Value, string Short);
+
+public sealed record MerchantChecksOption(string Label, string Value, string Short);
 
 public sealed record MarkerDetailOption(string Label, string Value, string Short);
