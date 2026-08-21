@@ -37,15 +37,15 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     private bool _allowMissableLocations;
     private bool _shuffleKeycards;
     private bool _randomWeaponStats;
-    // On by default, like ShopChecks below: the Archipelago merchant is the
+    // On by default, like MerchantChecksPerChapter below: the Archipelago merchant is the
     // default experience, and drafts saved before the option existed load it
     // back as off (their owner chose their shop before gear could scatter).
     private bool _shuffleMerchantGear = true;
     private int _startingArsenal;
     private bool _minimizeBacktracking;
     private bool _randomEvents;
-    private int _shopChecks = 16;
-    private bool _shopChecksEnabled = true;
+    private int _merchantChecksPerChapter = 3;
+    private bool _merchantChecksEnabled = true;
     private bool _tutorial = true;
     private string _yamlPreview = "Enter your slot name to generate the YAML preview.";
     private string _statusText = "Choose your RE4R settings - they save automatically as you edit.";
@@ -155,16 +155,19 @@ public sealed class ConfigureYamlViewModel : ObservableObject
 
     public IReadOnlyList<MerchantChecksOption> MerchantChecksOptions => MerchantChecksOptionList;
 
-    // Ceiling on how much a world marker may say. Players still choose their
-    // own level in game; this is the most the host allows. Ordered least to
-    // most revealing, defaulting to Locate: everything about finding the spot,
-    // nothing about what the multiworld put in it.
+    // How much a world marker says, and what you actually get in game: this
+    // is the tier the run starts at, changeable any time in the in-game
+    // Guidance tab. It was a ceiling until 2026-08-17, which only ever capped
+    // the person who set it, since everyone writes their own settings file.
+    // Ordered least to most revealing, defaulting to Locate: everything about
+    // finding the spot, nothing about what the multiworld put in it.
     private static readonly IReadOnlyList<MarkerDetailOption> MarkerDetailOptionList =
     [
         new("Minimal - distance and height", "minimal", "Minimal"),
         new("Basic - + chapter and area", "basic", "Basic"),
         new("Locate - + item, container, how to reach it (recommended)", "locate", "Locate"),
         new("Identify - + the real item and its owner (spoiler)", "identify", "Identify"),
+        new("Developer - + the location code (debug)", "developer", "Developer"),
     ];
 
     public IReadOnlyList<MarkerDetailOption> MarkerDetailOptions => MarkerDetailOptionList;
@@ -419,9 +422,9 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         {
             if (SetProperty(ref _shuffleMerchantGear, value))
             {
-                if (value && !ShopChecksEnabled)
+                if (value && !MerchantChecksEnabled)
                 {
-                    ShopChecksEnabled = true;
+                    MerchantChecksEnabled = true;
                 }
 
                 RebuildYamlPreview();
@@ -490,19 +493,20 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     }
 
     /// <summary>
-    /// How many merchant buy-tab rows are AP checks. Clamped to the apworld's
-    /// own range so a hand-edited draft cannot produce a YAML the world
-    /// rejects.
+    /// How many AP checks the merchant releases each chapter. The seed total
+    /// is derived from it and shown in the label, so there is one number to
+    /// choose and its consequence is visible. Clamped to the apworld's own
+    /// range so a hand-edited draft cannot produce a YAML the world rejects.
     /// </summary>
-    public int ShopChecks
+    public int MerchantChecksPerChapter
     {
-        get => _shopChecks;
+        get => _merchantChecksPerChapter;
         set
         {
-            var clamped = Math.Clamp(value, 0, 20);
-            if (SetProperty(ref _shopChecks, clamped))
+            var clamped = Math.Clamp(value, 0, MerchantChecksPerChapterMax);
+            if (SetProperty(ref _merchantChecksPerChapter, clamped))
             {
-                OnPropertyChanged(nameof(ShopChecksLabel));
+                OnPropertyChanged(nameof(MerchantChecksLabel));
                 RebuildYamlPreview();
                 QueueDraftSave();
             }
@@ -514,24 +518,33 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     /// feature off does not mean hunting for zero on a slider, and turning it
     /// back on remembers the number you had.
     /// </summary>
-    public bool ShopChecksEnabled
+    public bool MerchantChecksEnabled
     {
-        get => _shopChecksEnabled;
+        get => _merchantChecksEnabled;
         set
         {
-            if (SetProperty(ref _shopChecksEnabled, value))
+            if (SetProperty(ref _merchantChecksEnabled, value))
             {
-                OnPropertyChanged(nameof(ShopChecksLabel));
+                OnPropertyChanged(nameof(MerchantChecksLabel));
                 RebuildYamlPreview();
                 QueueDraftSave();
             }
         }
     }
 
-    /// <summary>Slider read-out, e.g. "16 shop checks".</summary>
-    public string ShopChecksLabel => !_shopChecksEnabled
+    /// <summary>
+    /// The apworld's cap and campaign length, mirrored so the slider and the
+    /// derived total cannot drift from what the world will actually accept.
+    /// </summary>
+    public const int MerchantChecksPerChapterMax = 6;
+
+    private const int MerchantCheckChapters = 15;
+
+    /// <summary>Slider read-out, e.g. "3 per chapter (45 checks)".</summary>
+    public string MerchantChecksLabel => !_merchantChecksEnabled
         ? "Off - the merchant sells no checks"
-        : $"{_shopChecks} shop check{(_shopChecks == 1 ? string.Empty : "s")}";
+        : $"{_merchantChecksPerChapter} per chapter "
+          + $"({_merchantChecksPerChapter * MerchantCheckChapters} checks this seed)";
 
     /// <summary>
     /// The old BioRand-page warning said the logic knows nothing about Random
@@ -861,8 +874,8 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         RandomEvents = draft.RandomEvents;
         // A saved 0 means it was switched off; keep the slider on a sensible
         // number so switching it back on is not a fresh decision.
-        ShopChecksEnabled = draft.ShopChecks > 0;
-        ShopChecks = draft.ShopChecks > 0 ? draft.ShopChecks : 16;
+        MerchantChecksEnabled = draft.MerchantChecksPerChapter > 0;
+        MerchantChecksPerChapter = draft.MerchantChecksPerChapter > 0 ? draft.MerchantChecksPerChapter : 3;
         Tutorial = draft.Tutorial;
         var selected = new HashSet<string>(draft.UnlockedTypewriterStageIds, StringComparer.Ordinal);
         foreach (var option in TypewriterOptions)
@@ -915,7 +928,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
                     : null;
                 draft.MinimizeBacktracking = MinimizeBacktracking;
                 draft.RandomEvents = RandomEvents;
-                draft.ShopChecks = ShopChecksEnabled ? ShopChecks : 0;
+                draft.MerchantChecksPerChapter = MerchantChecksEnabled ? MerchantChecksPerChapter : 0;
                 draft.Tutorial = Tutorial;
                 draft.UnlockedTypewriterStageIds = TypewriterOptions
                     .Where(option => option.IsSelected)
@@ -958,7 +971,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             StartingArsenalTypes = TrimmedArsenalTypeKeys(),
             MinimizeBacktracking = MinimizeBacktracking,
             RandomEvents = RandomEvents,
-            ShopChecks = ShopChecksEnabled ? ShopChecks : 0,
+            MerchantChecksPerChapter = MerchantChecksEnabled ? MerchantChecksPerChapter : 0,
             MerchantChecks = SelectedMerchantChecks.Value,
             Tutorial = Tutorial,
             UnlockedTypewriterStageIds = TypewriterOptions

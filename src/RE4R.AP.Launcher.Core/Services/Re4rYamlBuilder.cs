@@ -48,7 +48,7 @@ public sealed class Re4rYamlBuilder
             { "random_weapon_stats", request.RandomWeaponStats ? "true" : "false" },
             { "minimize_backtracking", request.MinimizeBacktracking ? "true" : "false" },
             { "random_events", request.RandomEvents ? "true" : "false" },
-            { "shop_checks", Math.Clamp(request.ShopChecks, 0, 20).ToString(System.Globalization.CultureInfo.InvariantCulture) },
+            { "merchant_checks_per_chapter", Math.Clamp(request.MerchantChecksPerChapter, 0, 6).ToString(System.Globalization.CultureInfo.InvariantCulture) },
             { "merchant_checks", NormalizeMerchantChecks(request.MerchantChecks) },
             { "tutorial", request.Tutorial ? "true" : "false" },
         };
@@ -102,7 +102,9 @@ public sealed class Re4rYamlBuilder
     private static string NormalizeMarkerDetail(string? value)
     {
         var normalized = (value ?? string.Empty).Trim().ToLowerInvariant();
-        return normalized is "minimal" or "basic" or "locate" or "identify" ? normalized : "locate";
+        return normalized is "minimal" or "basic" or "locate" or "identify" or "developer"
+            ? normalized
+            : "locate";
     }
 
     // Item and location names are single-quoted for the same reason slot names

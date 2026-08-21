@@ -3,7 +3,7 @@ local function install(ctx)
         -- Logged at boot next to the launcher's install stamp so a player's
         -- re2_framework_log.txt identifies the exact deployed build. Bump on
         -- every Lua change that ships (date.rev).
-        MOD_VERSION = "2026.08.16-3",
+        MOD_VERSION = "2026.08.17-18",
         DATA_DIR = "ArchipelagoRE4R",
         WRITE_INTERVAL_SECONDS = 0.25,
         SCAN_INTERVAL_SECONDS = 1 / 30,
@@ -132,8 +132,8 @@ local function install(ctx)
         -- actual AP item and recipient -- a spoiler gated behind Developer
         -- Tools), or "developer" (+ the [guid8] location code that matches the
         -- spoiler log line -- same Developer Tools gate).
-        -- The Status-window picker overrides at runtime, capped by the YAML host
-        -- ceiling (marker_detail_ceiling). Guidance default says WHERE, not WHAT.
+        -- Only used before the first connect: slot_data.marker_detail sets the
+        -- starting tier, and the Guidance picker moves it freely from there.
         WORLD_MARKER_DETAIL = "basic",
         -- Developer pickup-probe telemetry (GUID / stage / ctx / "Not in dataset" /
         -- "No accept hook") in the header overlay. OFF for players; flip to true to

@@ -15,9 +15,9 @@ public sealed class Re4rYamlRequest
     // Permission ceiling for the in-game world markers.
     public string CheckGuidance { get; set; } = "markers";
 
-    // Custom apworld option: minimal / basic / locate / identify (default
-    // locate). Ceiling on how much the in-game markers may say; players still
-    // pick their own level below it.
+    // Custom apworld option: minimal / basic / locate / identify / developer
+    // (default locate). The tier markers actually start at, not a cap; the
+    // in-game Guidance tab can move it either way from there.
     public string MarkerDetail { get; set; } = "locate";
 
     public bool DeathLink { get; set; }
@@ -55,11 +55,11 @@ public sealed class Re4rYamlRequest
     // default; the launcher pins the rolled set into BioRand at patch time.
     public bool RandomEvents { get; set; }
 
-    // How many Archipelago checks the merchant sells in his buy tab (apworld
-    // 0.8.0, D4). 0 turns the feature off entirely; each slot adds one filler
-    // to the pool, so this also grows the item count.
-    // Off unless asked for, matching the apworld's own default.
-    public int ShopChecks { get; set; }
+    // How many Archipelago checks the merchant releases per chapter (D4 +
+    // rotation). 0 turns the feature off entirely; each check adds one filler
+    // to the pool, so this also grows the item count. The seed total is this
+    // times the campaign's 15 releasing chapters.
+    public int MerchantChecksPerChapter { get; set; }
 
     public IReadOnlyCollection<string> UnlockedTypewriterStageIds { get; set; } = Array.Empty<string>();
 

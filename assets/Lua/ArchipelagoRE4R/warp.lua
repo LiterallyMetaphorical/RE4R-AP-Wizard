@@ -441,10 +441,41 @@ local function install(ctx)
             if type(push) == "function" then
                 push("Warp failed", "see re2_framework_log.txt for the reason")
             end
+        else
+            -- [D9] Our warp is the only thing in the game that can separate the
+            -- player from the boat, so it is the only thing that has to put one
+            -- back. No-ops silently outside the lake, and when the boat is
+            -- already close enough to walk to.
+            bridge.pending_boat_summon = 2.0
         end
         bridge.pending_warp = nil
     end
 
+    -- The warp is a live teleport with no area reload, but the boat and its
+    -- piers are not necessarily resolvable the instant it lands, so the summon
+    -- waits a beat and retries rather than firing into a half-built scene.
+    local function process_pending_boat_summon(delta_seconds)
+        local remaining = bridge.pending_boat_summon
+        if type(remaining) ~= "number" then
+            return
+        end
+        remaining = remaining - (tonumber(delta_seconds) or 0)
+        if remaining > 0 then
+            bridge.pending_boat_summon = remaining
+            return
+        end
+        bridge.pending_boat_summon = nil
+        local summon = ctx.summon_boat_to_player or _G.summon_boat_to_player
+        if type(summon) ~= "function" then
+            return
+        end
+        local ok, detail = summon("after warp")
+        if not ok and detail ~= nil then
+            log.info("[RE4R AP][boat] summon skipped: " .. tostring(detail))
+        end
+    end
+
+    export("process_pending_boat_summon", process_pending_boat_summon)
     export("get_prefecture_and_location_ids", get_prefecture_and_location_ids)
     export("is_warp_stage_unlocked", is_warp_stage_unlocked)
     export("load_warp_unlocks", load_warp_unlocks)

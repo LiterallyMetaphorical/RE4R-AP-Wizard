@@ -142,7 +142,8 @@ public sealed class ManifestBuilder
         var plannedShopSlots = MerchantShopPlanner.Plan(scoutSession.MerchantShop);
         if (plannedShopSlots.Count > 0)
         {
-            Log($"Merchant sells {plannedShopSlots.Count} AP check(s); "
+            Log($"Merchant sells {plannedShopSlots.Count} AP check(s) across "
+                + $"{plannedShopSlots.RowItemIds.Count} shelf row(s); "
                 + $"{MerchantShopPlanner.PoolUniqueBuyableItemIds.Count} pool item(s) barred from his stock.");
         }
 
@@ -203,7 +204,7 @@ public sealed class ManifestBuilder
         BioRandOptions options,
         string gameVersion,
         RandomEventsSlotData randomEvents,
-        IReadOnlyList<MerchantShopPlannedSlot> shopSlots,
+        MerchantShopPlan shopPlan,
         IReadOnlyList<int> scatteredItemIds,
         IReadOnlyList<int> startingWeaponIds,
         bool? randomWeaponStats)
@@ -287,7 +288,7 @@ public sealed class ManifestBuilder
         //    restocks weapons the multiworld just claimed (its added arsenal
         //    is not pool-excludable), so it is forced off whenever the AP
         //    merchant is on. The options screen shows the same forcing.
-        if (shopSlots.Count > 0 || scatteredItemIds.Count > 0)
+        if (shopPlan.Count > 0 || scatteredItemIds.Count > 0)
         {
             root[BioRandOptionCatalog.RandomMerchantKey] = false;
             root[BioRandOptionCatalog.RandomMerchantPricesKey] = false;
@@ -316,7 +317,7 @@ public sealed class ManifestBuilder
 
             var tiers = new JsonObject();
             var slotsArray = new JsonArray();
-            foreach (var planned in shopSlots)
+            foreach (var planned in shopPlan.Checks)
             {
                 tiers[planned.Slot.Classification] = new JsonObject
                 {
@@ -325,13 +326,55 @@ public sealed class ManifestBuilder
                 slotsArray.Add(new JsonObject
                 {
                     ["index"] = planned.Slot.Index,
+                    // The check's durable key. The fork bakes text against it;
+                    // the mod acks against it. Neither keys on a row, because
+                    // rows carry different checks at different times.
+                    ["identity"] = planned.Slot.Identity,
                     ["location-code"] = planned.Slot.LocationCode,
                     ["unlock-chapter"] = planned.Slot.UnlockChapter,
-                    ["standin-item-id"] = planned.StandinItemId,
+                    ["chapter-ordinal"] = planned.Slot.ChapterOrdinal,
                     ["display-name"] = BuildShopRowName(planned.Slot),
                     ["player-name"] = planned.Slot.PlayerName,
                     ["classification"] = planned.Slot.Classification,
                     ["remote"] = planned.Slot.Remote,
+                    // Engine id behind a local check, zero for a remote one.
+                    // The fork uses it to skip the [AP] tag on a row the mod
+                    // will dress as the real item anyway.
+                    ["item-id"] = planned.Slot.ItemId,
+                    // Where the fork writes this check's name and caption. The
+                    // launcher assigns them so the mod can find the same text
+                    // at runtime without the fork reporting anything back.
+                    ["name-msg-guid"] = planned.NameMsgGuid.ToString(),
+                    ["caption-msg-guid"] = planned.CaptionMsgGuid.ToString(),
+                });
+            }
+
+            var rowIds = new JsonArray();
+            foreach (var row in shopPlan.Rows)
+            {
+                rowIds.Add(new JsonObject
+                {
+                    ["item-id"] = row.ItemId,
+                    // Fixed per row so the pak can carry the price. The mod
+                    // only ever shows a check of this classification here.
+                    ["classification"] = row.Classification,
+                    ["price"] = row.Tier.Price,
+                });
+            }
+
+            // The shelf's baseline consumable supply. The AP rows took the buy
+            // tab away from healing and crafting; the pool carries most of that
+            // now, but the pool delivers on the multiworld's clock, so a small
+            // reliable supply stays on the shelf. See MerchantStaples.
+            var staples = new JsonArray();
+            foreach (var staple in MerchantStaples.All)
+            {
+                staples.Add(new JsonObject
+                {
+                    ["item-id"] = staple.ItemId,
+                    ["name"] = staple.Name,
+                    ["per-chapter"] = staple.PerChapter,
+                    ["price"] = staple.Price,
                 });
             }
 
@@ -339,6 +382,11 @@ public sealed class ManifestBuilder
             {
                 ["excluded-item-ids"] = excluded,
                 ["tiers"] = tiers,
+                ["staples"] = staples,
+                // The shelf itself: one catalog row per entry, minted with a
+                // fixed tier price and filled at runtime. Checks outnumber
+                // these on purpose.
+                ["rows"] = rowIds,
                 ["slots"] = slotsArray,
             };
         }

@@ -39,9 +39,10 @@ local function install(ctx)
                 bridge.world_markers_max_distance = distance_value
             end
 
-            -- Detail tiers, capped by the host's YAML ceiling. Only the
-            -- developer tier needs Developer Tools now; identify is a spoiler
-            -- the HOST decides on, not a debug feature.
+            -- [2026-08-17] No ceiling any more. The settings file picks where
+            -- you START and this picker goes anywhere from there, including
+            -- the two spoiler tiers: you are choosing them for your own game,
+            -- deliberately, so Developer Tools has no business gating them.
             local detail_tier_index = { minimal = 1, basic = 2, locate = 3, identify = 4, developer = 5 }
             local detail_names = { "minimal", "basic", "locate", "identify", "developer" }
             local detail_labels = {
@@ -51,28 +52,21 @@ local function install(ctx)
                 "Identify - + the real item and who it belongs to (spoiler)",
                 "Developer - + the location code from the spoiler log",
             }
-            local ceiling_tier = detail_tier_index[bridge.marker_detail_ceiling or "developer"] or 5
-            -- Developer Tools unlocks the developer tier PAST the YAML
-            -- ceiling. The ceiling ladder cannot even name that tier (it tops
-            -- out at identify), so capping to it made tier 5 unreachable in
-            -- every room; the ceiling still caps the spoiler tiers for
-            -- everyone without Developer Tools.
-            local max_tier = bridge.developer_tools_enabled and 5 or math.min(ceiling_tier, 4)
-            local detail_options = {}
-            for i = 1, max_tier do detail_options[i] = detail_labels[i] end
             local cur_name = bridge.world_markers_detail
             if type(cur_name) ~= "string" then
                 cur_name = (type(WORLD_MARKER_DETAIL) == "string" and WORLD_MARKER_DETAIL) or "basic"
             end
-            local cur_tier = math.min(detail_tier_index[cur_name] or 1, max_tier)
-            local changed_detail, new_tier = imgui.combo("How much a marker says", cur_tier, detail_options)
+            local cur_tier = detail_tier_index[cur_name] or 1
+            local changed_detail, new_tier = imgui.combo("How much a marker says", cur_tier, detail_labels)
             if changed_detail then
                 bridge.world_markers_detail = detail_names[new_tier]
-            elseif detail_names[cur_tier] ~= cur_name then
-                bridge.world_markers_detail = detail_names[cur_tier]
+                -- Remembered per seed from here on, and no longer overwritten
+                -- by the settings file on a later connect.
+                bridge.world_markers_detail_chosen = true
+                bridge.state_dirty = true
             end
-            if ceiling_tier < 4 then
-                imgui.text("    This room's host capped how much markers may say.")
+            if cur_tier >= 4 then
+                imgui.text("    This tier spoils what the multiworld placed.")
             end
 
             imgui.text("    A [RE-GRAB] marker means you died before saving and one")

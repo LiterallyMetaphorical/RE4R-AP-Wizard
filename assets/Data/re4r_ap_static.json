@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-08-16T16:26:31Z",
+  "generated_at_utc": "2026-08-17T18:32:11Z",
   "game": "Resident Evil 4 Remake",
   "world_version": "0.7.0",
   "placeholder_item_id": 120486400,
@@ -802,7 +802,7 @@
     "items_total": 163,
     "always_locations": 460,
     "optional_key_locations": 0,
-    "shop_slots": 24
+    "shop_slots": 120
   },
   "location_codes": [
     3286922255,
@@ -8629,147 +8629,723 @@
     }
   },
   "shop_slots": {
-    "3204520031": {
-      "name": "Merchant Shop Slot 1",
+    "1542324809": {
+      "name": "Merchant Shop Chapter 1 Check 1",
       "slot": 1,
       "physical_chapter": 1,
       "logical_chapter": 2
     },
-    "2958937158": {
-      "name": "Merchant Shop Slot 2",
+    "1170216965": {
+      "name": "Merchant Shop Chapter 1 Check 2",
       "slot": 2,
-      "physical_chapter": 9,
-      "logical_chapter": 10
+      "physical_chapter": 1,
+      "logical_chapter": 2
     },
-    "1551234884": {
-      "name": "Merchant Shop Slot 3",
+    "1097256656": {
+      "name": "Merchant Shop Chapter 1 Check 3",
       "slot": 3,
-      "physical_chapter": 5,
-      "logical_chapter": 6
+      "physical_chapter": 1,
+      "logical_chapter": 2
     },
-    "3478878599": {
-      "name": "Merchant Shop Slot 4",
+    "2827179170": {
+      "name": "Merchant Shop Chapter 1 Check 4",
       "slot": 4,
-      "physical_chapter": 13,
-      "logical_chapter": 14
+      "physical_chapter": 1,
+      "logical_chapter": 2
     },
-    "277322678": {
-      "name": "Merchant Shop Slot 5",
+    "1459848454": {
+      "name": "Merchant Shop Chapter 1 Check 5",
       "slot": 5,
-      "physical_chapter": 3,
-      "logical_chapter": 4
+      "physical_chapter": 1,
+      "logical_chapter": 2
     },
-    "3356087488": {
-      "name": "Merchant Shop Slot 6",
+    "1190429400": {
+      "name": "Merchant Shop Chapter 1 Check 6",
       "slot": 6,
-      "physical_chapter": 11,
-      "logical_chapter": 12
+      "physical_chapter": 1,
+      "logical_chapter": 2
     },
-    "1289902959": {
-      "name": "Merchant Shop Slot 7",
+    "3201658568": {
+      "name": "Merchant Shop Chapter 1 Check 7",
       "slot": 7,
-      "physical_chapter": 7,
-      "logical_chapter": 8
+      "physical_chapter": 1,
+      "logical_chapter": 2
     },
-    "3786420583": {
-      "name": "Merchant Shop Slot 8",
+    "4084913530": {
+      "name": "Merchant Shop Chapter 1 Check 8",
       "slot": 8,
-      "physical_chapter": 15,
-      "logical_chapter": 16
+      "physical_chapter": 1,
+      "logical_chapter": 2
     },
-    "4216072421": {
-      "name": "Merchant Shop Slot 9",
+    "1194548714": {
+      "name": "Merchant Shop Chapter 2 Check 1",
       "slot": 9,
       "physical_chapter": 2,
       "logical_chapter": 3
     },
-    "194618670": {
-      "name": "Merchant Shop Slot 10",
+    "3341178225": {
+      "name": "Merchant Shop Chapter 2 Check 2",
       "slot": 10,
-      "physical_chapter": 10,
-      "logical_chapter": 11
+      "physical_chapter": 2,
+      "logical_chapter": 3
     },
-    "2844203313": {
-      "name": "Merchant Shop Slot 11",
+    "3917509320": {
+      "name": "Merchant Shop Chapter 2 Check 3",
       "slot": 11,
-      "physical_chapter": 6,
-      "logical_chapter": 7
+      "physical_chapter": 2,
+      "logical_chapter": 3
     },
-    "3634352994": {
-      "name": "Merchant Shop Slot 12",
+    "2343016049": {
+      "name": "Merchant Shop Chapter 2 Check 4",
       "slot": 12,
-      "physical_chapter": 14,
-      "logical_chapter": 15
+      "physical_chapter": 2,
+      "logical_chapter": 3
     },
-    "2622260351": {
-      "name": "Merchant Shop Slot 13",
+    "3494987482": {
+      "name": "Merchant Shop Chapter 2 Check 5",
       "slot": 13,
-      "physical_chapter": 4,
-      "logical_chapter": 5
+      "physical_chapter": 2,
+      "logical_chapter": 3
     },
-    "2165839740": {
-      "name": "Merchant Shop Slot 14",
+    "981512941": {
+      "name": "Merchant Shop Chapter 2 Check 6",
       "slot": 14,
-      "physical_chapter": 12,
-      "logical_chapter": 13
+      "physical_chapter": 2,
+      "logical_chapter": 3
     },
-    "809050318": {
-      "name": "Merchant Shop Slot 15",
+    "4134323037": {
+      "name": "Merchant Shop Chapter 2 Check 7",
       "slot": 15,
-      "physical_chapter": 8,
-      "logical_chapter": 9
+      "physical_chapter": 2,
+      "logical_chapter": 3
     },
-    "1128030029": {
-      "name": "Merchant Shop Slot 16",
+    "289205743": {
+      "name": "Merchant Shop Chapter 2 Check 8",
       "slot": 16,
-      "physical_chapter": 15,
-      "logical_chapter": 16
+      "physical_chapter": 2,
+      "logical_chapter": 3
     },
-    "1975624912": {
-      "name": "Merchant Shop Slot 17",
+    "1452715115": {
+      "name": "Merchant Shop Chapter 3 Check 1",
       "slot": 17,
-      "physical_chapter": 1,
-      "logical_chapter": 2
+      "physical_chapter": 3,
+      "logical_chapter": 4
     },
-    "4009476725": {
-      "name": "Merchant Shop Slot 18",
+    "2394316115": {
+      "name": "Merchant Shop Chapter 3 Check 2",
       "slot": 18,
-      "physical_chapter": 5,
-      "logical_chapter": 6
+      "physical_chapter": 3,
+      "logical_chapter": 4
     },
-    "2593205226": {
-      "name": "Merchant Shop Slot 19",
+    "1602358381": {
+      "name": "Merchant Shop Chapter 3 Check 3",
       "slot": 19,
-      "physical_chapter": 9,
-      "logical_chapter": 10
+      "physical_chapter": 3,
+      "logical_chapter": 4
     },
-    "2802696602": {
-      "name": "Merchant Shop Slot 20",
+    "1401220871": {
+      "name": "Merchant Shop Chapter 3 Check 4",
       "slot": 20,
-      "physical_chapter": 13,
-      "logical_chapter": 14
+      "physical_chapter": 3,
+      "logical_chapter": 4
     },
-    "3406039732": {
-      "name": "Merchant Shop Slot 21",
+    "1506685277": {
+      "name": "Merchant Shop Chapter 3 Check 5",
       "slot": 21,
       "physical_chapter": 3,
       "logical_chapter": 4
     },
-    "1758368763": {
-      "name": "Merchant Shop Slot 22",
+    "2079872970": {
+      "name": "Merchant Shop Chapter 3 Check 6",
       "slot": 22,
+      "physical_chapter": 3,
+      "logical_chapter": 4
+    },
+    "4162099367": {
+      "name": "Merchant Shop Chapter 3 Check 7",
+      "slot": 23,
+      "physical_chapter": 3,
+      "logical_chapter": 4
+    },
+    "192492262": {
+      "name": "Merchant Shop Chapter 3 Check 8",
+      "slot": 24,
+      "physical_chapter": 3,
+      "logical_chapter": 4
+    },
+    "1001472388": {
+      "name": "Merchant Shop Chapter 4 Check 1",
+      "slot": 25,
+      "physical_chapter": 4,
+      "logical_chapter": 5
+    },
+    "842976900": {
+      "name": "Merchant Shop Chapter 4 Check 2",
+      "slot": 26,
+      "physical_chapter": 4,
+      "logical_chapter": 5
+    },
+    "2644318611": {
+      "name": "Merchant Shop Chapter 4 Check 3",
+      "slot": 27,
+      "physical_chapter": 4,
+      "logical_chapter": 5
+    },
+    "3519081203": {
+      "name": "Merchant Shop Chapter 4 Check 4",
+      "slot": 28,
+      "physical_chapter": 4,
+      "logical_chapter": 5
+    },
+    "324055207": {
+      "name": "Merchant Shop Chapter 4 Check 5",
+      "slot": 29,
+      "physical_chapter": 4,
+      "logical_chapter": 5
+    },
+    "2588966884": {
+      "name": "Merchant Shop Chapter 4 Check 6",
+      "slot": 30,
+      "physical_chapter": 4,
+      "logical_chapter": 5
+    },
+    "4269344594": {
+      "name": "Merchant Shop Chapter 4 Check 7",
+      "slot": 31,
+      "physical_chapter": 4,
+      "logical_chapter": 5
+    },
+    "3155789497": {
+      "name": "Merchant Shop Chapter 4 Check 8",
+      "slot": 32,
+      "physical_chapter": 4,
+      "logical_chapter": 5
+    },
+    "3056802204": {
+      "name": "Merchant Shop Chapter 5 Check 1",
+      "slot": 33,
+      "physical_chapter": 5,
+      "logical_chapter": 6
+    },
+    "358070807": {
+      "name": "Merchant Shop Chapter 5 Check 2",
+      "slot": 34,
+      "physical_chapter": 5,
+      "logical_chapter": 6
+    },
+    "1844864671": {
+      "name": "Merchant Shop Chapter 5 Check 3",
+      "slot": 35,
+      "physical_chapter": 5,
+      "logical_chapter": 6
+    },
+    "248156842": {
+      "name": "Merchant Shop Chapter 5 Check 4",
+      "slot": 36,
+      "physical_chapter": 5,
+      "logical_chapter": 6
+    },
+    "3739641444": {
+      "name": "Merchant Shop Chapter 5 Check 5",
+      "slot": 37,
+      "physical_chapter": 5,
+      "logical_chapter": 6
+    },
+    "310890773": {
+      "name": "Merchant Shop Chapter 5 Check 6",
+      "slot": 38,
+      "physical_chapter": 5,
+      "logical_chapter": 6
+    },
+    "1349046507": {
+      "name": "Merchant Shop Chapter 5 Check 7",
+      "slot": 39,
+      "physical_chapter": 5,
+      "logical_chapter": 6
+    },
+    "218609062": {
+      "name": "Merchant Shop Chapter 5 Check 8",
+      "slot": 40,
+      "physical_chapter": 5,
+      "logical_chapter": 6
+    },
+    "674063431": {
+      "name": "Merchant Shop Chapter 6 Check 1",
+      "slot": 41,
+      "physical_chapter": 6,
+      "logical_chapter": 7
+    },
+    "3051290376": {
+      "name": "Merchant Shop Chapter 6 Check 2",
+      "slot": 42,
+      "physical_chapter": 6,
+      "logical_chapter": 7
+    },
+    "1426692154": {
+      "name": "Merchant Shop Chapter 6 Check 3",
+      "slot": 43,
+      "physical_chapter": 6,
+      "logical_chapter": 7
+    },
+    "1617919703": {
+      "name": "Merchant Shop Chapter 6 Check 4",
+      "slot": 44,
+      "physical_chapter": 6,
+      "logical_chapter": 7
+    },
+    "2165501891": {
+      "name": "Merchant Shop Chapter 6 Check 5",
+      "slot": 45,
+      "physical_chapter": 6,
+      "logical_chapter": 7
+    },
+    "1902564219": {
+      "name": "Merchant Shop Chapter 6 Check 6",
+      "slot": 46,
+      "physical_chapter": 6,
+      "logical_chapter": 7
+    },
+    "1484022811": {
+      "name": "Merchant Shop Chapter 6 Check 7",
+      "slot": 47,
+      "physical_chapter": 6,
+      "logical_chapter": 7
+    },
+    "2771466591": {
+      "name": "Merchant Shop Chapter 6 Check 8",
+      "slot": 48,
+      "physical_chapter": 6,
+      "logical_chapter": 7
+    },
+    "3142639898": {
+      "name": "Merchant Shop Chapter 7 Check 1",
+      "slot": 49,
       "physical_chapter": 7,
       "logical_chapter": 8
     },
-    "1610046566": {
-      "name": "Merchant Shop Slot 23",
-      "slot": 23,
+    "3890450729": {
+      "name": "Merchant Shop Chapter 7 Check 2",
+      "slot": 50,
+      "physical_chapter": 7,
+      "logical_chapter": 8
+    },
+    "813675793": {
+      "name": "Merchant Shop Chapter 7 Check 3",
+      "slot": 51,
+      "physical_chapter": 7,
+      "logical_chapter": 8
+    },
+    "3452214940": {
+      "name": "Merchant Shop Chapter 7 Check 4",
+      "slot": 52,
+      "physical_chapter": 7,
+      "logical_chapter": 8
+    },
+    "3997183305": {
+      "name": "Merchant Shop Chapter 7 Check 5",
+      "slot": 53,
+      "physical_chapter": 7,
+      "logical_chapter": 8
+    },
+    "1210272782": {
+      "name": "Merchant Shop Chapter 7 Check 6",
+      "slot": 54,
+      "physical_chapter": 7,
+      "logical_chapter": 8
+    },
+    "2254484379": {
+      "name": "Merchant Shop Chapter 7 Check 7",
+      "slot": 55,
+      "physical_chapter": 7,
+      "logical_chapter": 8
+    },
+    "1995592936": {
+      "name": "Merchant Shop Chapter 7 Check 8",
+      "slot": 56,
+      "physical_chapter": 7,
+      "logical_chapter": 8
+    },
+    "3640636859": {
+      "name": "Merchant Shop Chapter 8 Check 1",
+      "slot": 57,
+      "physical_chapter": 8,
+      "logical_chapter": 9
+    },
+    "3503432696": {
+      "name": "Merchant Shop Chapter 8 Check 2",
+      "slot": 58,
+      "physical_chapter": 8,
+      "logical_chapter": 9
+    },
+    "1068869668": {
+      "name": "Merchant Shop Chapter 8 Check 3",
+      "slot": 59,
+      "physical_chapter": 8,
+      "logical_chapter": 9
+    },
+    "3134846098": {
+      "name": "Merchant Shop Chapter 8 Check 4",
+      "slot": 60,
+      "physical_chapter": 8,
+      "logical_chapter": 9
+    },
+    "3375212761": {
+      "name": "Merchant Shop Chapter 8 Check 5",
+      "slot": 61,
+      "physical_chapter": 8,
+      "logical_chapter": 9
+    },
+    "3678996016": {
+      "name": "Merchant Shop Chapter 8 Check 6",
+      "slot": 62,
+      "physical_chapter": 8,
+      "logical_chapter": 9
+    },
+    "2249894008": {
+      "name": "Merchant Shop Chapter 8 Check 7",
+      "slot": 63,
+      "physical_chapter": 8,
+      "logical_chapter": 9
+    },
+    "3006402577": {
+      "name": "Merchant Shop Chapter 8 Check 8",
+      "slot": 64,
+      "physical_chapter": 8,
+      "logical_chapter": 9
+    },
+    "1497411371": {
+      "name": "Merchant Shop Chapter 9 Check 1",
+      "slot": 65,
+      "physical_chapter": 9,
+      "logical_chapter": 10
+    },
+    "96159994": {
+      "name": "Merchant Shop Chapter 9 Check 2",
+      "slot": 66,
+      "physical_chapter": 9,
+      "logical_chapter": 10
+    },
+    "598964931": {
+      "name": "Merchant Shop Chapter 9 Check 3",
+      "slot": 67,
+      "physical_chapter": 9,
+      "logical_chapter": 10
+    },
+    "982562224": {
+      "name": "Merchant Shop Chapter 9 Check 4",
+      "slot": 68,
+      "physical_chapter": 9,
+      "logical_chapter": 10
+    },
+    "3825075611": {
+      "name": "Merchant Shop Chapter 9 Check 5",
+      "slot": 69,
+      "physical_chapter": 9,
+      "logical_chapter": 10
+    },
+    "3131450478": {
+      "name": "Merchant Shop Chapter 9 Check 6",
+      "slot": 70,
+      "physical_chapter": 9,
+      "logical_chapter": 10
+    },
+    "305703876": {
+      "name": "Merchant Shop Chapter 9 Check 7",
+      "slot": 71,
+      "physical_chapter": 9,
+      "logical_chapter": 10
+    },
+    "3026683617": {
+      "name": "Merchant Shop Chapter 9 Check 8",
+      "slot": 72,
+      "physical_chapter": 9,
+      "logical_chapter": 10
+    },
+    "1107098491": {
+      "name": "Merchant Shop Chapter 10 Check 1",
+      "slot": 73,
+      "physical_chapter": 10,
+      "logical_chapter": 11
+    },
+    "920309751": {
+      "name": "Merchant Shop Chapter 10 Check 2",
+      "slot": 74,
+      "physical_chapter": 10,
+      "logical_chapter": 11
+    },
+    "2750811760": {
+      "name": "Merchant Shop Chapter 10 Check 3",
+      "slot": 75,
+      "physical_chapter": 10,
+      "logical_chapter": 11
+    },
+    "1611561168": {
+      "name": "Merchant Shop Chapter 10 Check 4",
+      "slot": 76,
+      "physical_chapter": 10,
+      "logical_chapter": 11
+    },
+    "3034056382": {
+      "name": "Merchant Shop Chapter 10 Check 5",
+      "slot": 77,
+      "physical_chapter": 10,
+      "logical_chapter": 11
+    },
+    "2724902206": {
+      "name": "Merchant Shop Chapter 10 Check 6",
+      "slot": 78,
+      "physical_chapter": 10,
+      "logical_chapter": 11
+    },
+    "2683228983": {
+      "name": "Merchant Shop Chapter 10 Check 7",
+      "slot": 79,
+      "physical_chapter": 10,
+      "logical_chapter": 11
+    },
+    "3137822042": {
+      "name": "Merchant Shop Chapter 10 Check 8",
+      "slot": 80,
+      "physical_chapter": 10,
+      "logical_chapter": 11
+    },
+    "1259501242": {
+      "name": "Merchant Shop Chapter 11 Check 1",
+      "slot": 81,
       "physical_chapter": 11,
       "logical_chapter": 12
     },
-    "1437942966": {
-      "name": "Merchant Shop Slot 24",
-      "slot": 24,
+    "2372142381": {
+      "name": "Merchant Shop Chapter 11 Check 2",
+      "slot": 82,
+      "physical_chapter": 11,
+      "logical_chapter": 12
+    },
+    "2435002653": {
+      "name": "Merchant Shop Chapter 11 Check 3",
+      "slot": 83,
+      "physical_chapter": 11,
+      "logical_chapter": 12
+    },
+    "3509571146": {
+      "name": "Merchant Shop Chapter 11 Check 4",
+      "slot": 84,
+      "physical_chapter": 11,
+      "logical_chapter": 12
+    },
+    "1537644037": {
+      "name": "Merchant Shop Chapter 11 Check 5",
+      "slot": 85,
+      "physical_chapter": 11,
+      "logical_chapter": 12
+    },
+    "2547313936": {
+      "name": "Merchant Shop Chapter 11 Check 6",
+      "slot": 86,
+      "physical_chapter": 11,
+      "logical_chapter": 12
+    },
+    "3951452081": {
+      "name": "Merchant Shop Chapter 11 Check 7",
+      "slot": 87,
+      "physical_chapter": 11,
+      "logical_chapter": 12
+    },
+    "2162994074": {
+      "name": "Merchant Shop Chapter 11 Check 8",
+      "slot": 88,
+      "physical_chapter": 11,
+      "logical_chapter": 12
+    },
+    "3463367769": {
+      "name": "Merchant Shop Chapter 12 Check 1",
+      "slot": 89,
+      "physical_chapter": 12,
+      "logical_chapter": 13
+    },
+    "1653378017": {
+      "name": "Merchant Shop Chapter 12 Check 2",
+      "slot": 90,
+      "physical_chapter": 12,
+      "logical_chapter": 13
+    },
+    "3063175644": {
+      "name": "Merchant Shop Chapter 12 Check 3",
+      "slot": 91,
+      "physical_chapter": 12,
+      "logical_chapter": 13
+    },
+    "2219479548": {
+      "name": "Merchant Shop Chapter 12 Check 4",
+      "slot": 92,
+      "physical_chapter": 12,
+      "logical_chapter": 13
+    },
+    "892097845": {
+      "name": "Merchant Shop Chapter 12 Check 5",
+      "slot": 93,
+      "physical_chapter": 12,
+      "logical_chapter": 13
+    },
+    "1164946940": {
+      "name": "Merchant Shop Chapter 12 Check 6",
+      "slot": 94,
+      "physical_chapter": 12,
+      "logical_chapter": 13
+    },
+    "3348510015": {
+      "name": "Merchant Shop Chapter 12 Check 7",
+      "slot": 95,
+      "physical_chapter": 12,
+      "logical_chapter": 13
+    },
+    "3190698782": {
+      "name": "Merchant Shop Chapter 12 Check 8",
+      "slot": 96,
+      "physical_chapter": 12,
+      "logical_chapter": 13
+    },
+    "2996130800": {
+      "name": "Merchant Shop Chapter 13 Check 1",
+      "slot": 97,
+      "physical_chapter": 13,
+      "logical_chapter": 14
+    },
+    "708340520": {
+      "name": "Merchant Shop Chapter 13 Check 2",
+      "slot": 98,
+      "physical_chapter": 13,
+      "logical_chapter": 14
+    },
+    "1262946470": {
+      "name": "Merchant Shop Chapter 13 Check 3",
+      "slot": 99,
+      "physical_chapter": 13,
+      "logical_chapter": 14
+    },
+    "2474631145": {
+      "name": "Merchant Shop Chapter 13 Check 4",
+      "slot": 100,
+      "physical_chapter": 13,
+      "logical_chapter": 14
+    },
+    "2301001297": {
+      "name": "Merchant Shop Chapter 13 Check 5",
+      "slot": 101,
+      "physical_chapter": 13,
+      "logical_chapter": 14
+    },
+    "3963687517": {
+      "name": "Merchant Shop Chapter 13 Check 6",
+      "slot": 102,
+      "physical_chapter": 13,
+      "logical_chapter": 14
+    },
+    "3637794082": {
+      "name": "Merchant Shop Chapter 13 Check 7",
+      "slot": 103,
+      "physical_chapter": 13,
+      "logical_chapter": 14
+    },
+    "142149295": {
+      "name": "Merchant Shop Chapter 13 Check 8",
+      "slot": 104,
+      "physical_chapter": 13,
+      "logical_chapter": 14
+    },
+    "2994707197": {
+      "name": "Merchant Shop Chapter 14 Check 1",
+      "slot": 105,
+      "physical_chapter": 14,
+      "logical_chapter": 15
+    },
+    "1871120588": {
+      "name": "Merchant Shop Chapter 14 Check 2",
+      "slot": 106,
+      "physical_chapter": 14,
+      "logical_chapter": 15
+    },
+    "737904334": {
+      "name": "Merchant Shop Chapter 14 Check 3",
+      "slot": 107,
+      "physical_chapter": 14,
+      "logical_chapter": 15
+    },
+    "3571688256": {
+      "name": "Merchant Shop Chapter 14 Check 4",
+      "slot": 108,
+      "physical_chapter": 14,
+      "logical_chapter": 15
+    },
+    "3889393894": {
+      "name": "Merchant Shop Chapter 14 Check 5",
+      "slot": 109,
+      "physical_chapter": 14,
+      "logical_chapter": 15
+    },
+    "1289099507": {
+      "name": "Merchant Shop Chapter 14 Check 6",
+      "slot": 110,
+      "physical_chapter": 14,
+      "logical_chapter": 15
+    },
+    "288381329": {
+      "name": "Merchant Shop Chapter 14 Check 7",
+      "slot": 111,
+      "physical_chapter": 14,
+      "logical_chapter": 15
+    },
+    "4134679852": {
+      "name": "Merchant Shop Chapter 14 Check 8",
+      "slot": 112,
+      "physical_chapter": 14,
+      "logical_chapter": 15
+    },
+    "2894006355": {
+      "name": "Merchant Shop Chapter 15 Check 1",
+      "slot": 113,
+      "physical_chapter": 15,
+      "logical_chapter": 16
+    },
+    "2184385651": {
+      "name": "Merchant Shop Chapter 15 Check 2",
+      "slot": 114,
+      "physical_chapter": 15,
+      "logical_chapter": 16
+    },
+    "975650400": {
+      "name": "Merchant Shop Chapter 15 Check 3",
+      "slot": 115,
+      "physical_chapter": 15,
+      "logical_chapter": 16
+    },
+    "1570430889": {
+      "name": "Merchant Shop Chapter 15 Check 4",
+      "slot": 116,
+      "physical_chapter": 15,
+      "logical_chapter": 16
+    },
+    "1690434220": {
+      "name": "Merchant Shop Chapter 15 Check 5",
+      "slot": 117,
+      "physical_chapter": 15,
+      "logical_chapter": 16
+    },
+    "284288782": {
+      "name": "Merchant Shop Chapter 15 Check 6",
+      "slot": 118,
+      "physical_chapter": 15,
+      "logical_chapter": 16
+    },
+    "1683511022": {
+      "name": "Merchant Shop Chapter 15 Check 7",
+      "slot": 119,
+      "physical_chapter": 15,
+      "logical_chapter": 16
+    },
+    "1278802280": {
+      "name": "Merchant Shop Chapter 15 Check 8",
+      "slot": 120,
       "physical_chapter": 15,
       "logical_chapter": 16
     }

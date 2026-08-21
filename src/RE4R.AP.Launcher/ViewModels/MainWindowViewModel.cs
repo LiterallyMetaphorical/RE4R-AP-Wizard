@@ -562,7 +562,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         // screen corrects the record once the real one arrives.
         JoinFlow.BioRandOptions.RandomEventsForced = _pendingDraft?.RandomEvents == true;
         JoinFlow.BioRandOptions.MerchantOwnedByAp = _pendingDraft is { } merchantDraft
-            && (merchantDraft.ShopChecks > 0 || merchantDraft.ShuffleMerchantGear);
+            && (merchantDraft.MerchantChecksPerChapter > 0 || merchantDraft.ShuffleMerchantGear);
         JoinFlow.BioRandOptions.GearScattered = _pendingDraft?.ShuffleMerchantGear == true;
         JoinFlow.BioRandOptions.StartingArsenalCount = _pendingDraft?.StartingArsenal ?? 0;
         JoinFlow.BioRandOptions.WeaponStatsFromYaml =

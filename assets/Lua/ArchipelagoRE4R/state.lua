@@ -131,12 +131,14 @@ local function install(ctx)
         -- [D5] True when the launcher's room file says this world was patched
         -- with allow-bonus-items; drives the bonus-weapon force-unlock.
         allow_bonus_items = false,
-        -- Marker detail tier the player picks (minimal | basic | locate |
-        -- identify | developer); capped by the YAML host ceiling
-        -- (marker_detail_ceiling) and, for developer only, by Developer Tools.
+        -- Marker detail tier (minimal | basic | locate | identify |
+        -- developer). Set from slot_data.marker_detail on connect, which is
+        -- where the player already chose it, and freely changed in Guidance
+        -- with no cap. This literal only matters before the first connect.
         world_markers_detail = "basic",
-        -- Host ceiling from slot_data.marker_detail; absent = permissive.
-        marker_detail_ceiling = nil,
+        -- True once the player picks a tier in Guidance. From then on their
+        -- choice persists per seed and the settings file stops overriding it.
+        world_markers_detail_chosen = false,
         -- Markers whose chapter differs from the current one are muted + tagged;
         -- this toggle hides those off-chapter markers outright instead.
         world_markers_hide_offchapter = false,

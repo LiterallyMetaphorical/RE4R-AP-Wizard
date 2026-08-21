@@ -678,6 +678,49 @@ local function install(ctx)
         return nil
     end
 
+    -- [Verified calls] REFramework does NOT raise when an invoke is rejected
+    -- for a bad name or the wrong argument count: it prints a warning and
+    -- returns nothing. So the house idiom
+    --
+    --     local ok = pcall(function() manager:call("whatever", true) end)
+    --
+    -- sets ok = true for a call that never happened, and any log line written
+    -- on the strength of it is a lie. Two save requests lied that way for as
+    -- long as they existed (found live 2026-08-17: the merchant's
+    -- post-purchase save passed the wrong argument count, and the bonus-weapon
+    -- unlock called requestSystemSave, which lives on an unrelated boot-flow
+    -- class, not on SaveDataManager). Both logged success while saving
+    -- nothing, and a player lost a refund gem to it.
+    --
+    -- Resolve the method off the type first and refuse when it is absent, so a
+    -- typo or a signature change is a loud failure instead of a silent no-op.
+    -- Returns ok, result-or-reason.
+    local function inject_call_verified(target, method_name, ...)
+        if target == nil then
+            return false, "target is nil"
+        end
+        local managed = inject_get_managed(target)
+        if managed == nil then
+            return false, "target is not a managed object"
+        end
+        local type_def = inject_get_value_type(target)
+        if type_def == nil then
+            return false, "type definition unavailable"
+        end
+        local argument_count = select("#", ...)
+        local method = inject_find_method(type_def, method_name, argument_count)
+        if method == nil then
+            return false, string.format(
+                "%s has no %s taking %d argument(s)",
+                tostring(inject_get_type_name(type_def)), method_name, argument_count)
+        end
+        local ok, result = pcall(method.call, method, managed, ...)
+        if not ok then
+            return false, tostring(result)
+        end
+        return true, result
+    end
+
     local function inject_get_collection_count(collection)
         local managed = inject_get_managed(collection)
         if managed == nil then
@@ -2708,19 +2751,24 @@ local function install(ctx)
         end
 
         if unlocked > 0 then
-            local ok_save, err_save = pcall(function()
-                local save_manager = sdk.get_managed_singleton("share.SaveDataManager")
-                if save_manager ~= nil then
-                    save_manager:call("requestSystemSave", true)
-                end
-            end)
+            -- share.SaveDataManager has no requestSystemSave: that name belongs
+            -- to a boot-flow class. The real entry point is
+            -- requestSaveSystemData(AppSaveSlot, SystemSaveRequestArgs), which
+            -- needs both arguments built properly, so this asks through the
+            -- verified helper and reports honestly when it cannot. The unlocks
+            -- themselves are already applied in memory either way; what is at
+            -- risk is only whether they survive without a normal save.
+            local save_manager = sdk.get_managed_singleton("share.SaveDataManager")
+            local ok_save, save_detail = inject_call_verified(save_manager, "requestSystemSave")
             if ok_save then
                 log.info(string.format(
                     "[RE4R AP] %d bonus weapon(s) force-unlocked; system save requested",
                     unlocked))
             else
-                log.info("[RE4R AP] bonus unlocks applied but system save request failed: "
-                    .. tostring(err_save))
+                log.warn(string.format(
+                    "[RE4R AP] %d bonus weapon(s) force-unlocked but NOT persisted: %s"
+                    .. " - they hold until the next normal save",
+                    unlocked, tostring(save_detail)))
             end
         end
 
@@ -2763,6 +2811,8 @@ local function install(ctx)
     export("build_filtered_injectable_view", build_filtered_injectable_view)
     export("inject_command_succeeded", inject_command_succeeded)
     export("inject_item_to_inventory", inject_item_to_inventory)
+    export("inject_resolve_case_inventory", inject_resolve_case_inventory)
+    export("inject_call_verified", inject_call_verified)
     export("inject_get_item_kind", inject_get_item_kind)
     export("inject_is_weapon_item_kind", inject_is_weapon_item_kind)
     export("inject_is_ptas_item", inject_is_ptas_item)

@@ -19,7 +19,7 @@ HISTORY SQUASHED 2026-08-10: the fork's branch was flattened to a single commit,
                 .cs/.csv/.json, so the SHA-256 below still describes the code
                 that is on the branch today. Keep the old ids for the reasoning
                 they carry; treat 703e59a as the citable source commit.
-Source commit:  01ac858 (2026-08-16 fourth rebuild; see the REBUILD entries below)
+Source commit:  d3d0bdd (2026-08-17 rotation rebuild; see the REBUILD entries below)
 Previous:       05f581e (2026-08-06: FORCED EVENTS - BioRand takes its event
                 set from the multiworld. The apworld rolls the Village event
                 set at generation time and the launcher pins it in as
@@ -156,6 +156,37 @@ ProductVersion: 1.0.0+05f581e7cdf1c912869903a760539cdebb1c7bac (the launcher
                 writes this into version_stamp.json, and a change here is what
                 triggers the one-time setup cache re-harvest)
 Built with:     .NET SDK 10.0.301
+
+REBUILD 2026-08-17 (d3d0bdd)
+    Slot rotation, and the shop sells consumables again.
+      * The shelf and the checks are separate lists in ap-merchant-shop now.
+        Rows are a display window with a FIXED tier each (so the price stays
+        baked and no runtime price call is needed), and a room can carry up to
+        ninety checks against at most twenty rows. The mod decides which check
+        a row is showing.
+      * Every check's name and caption are baked at message GUIDs the LAUNCHER
+        assigns, derived from the check identity, so the fork never reports
+        anything back and the mod finds the same text at runtime. A check
+        holding one of the player's own RE4R items skips the [AP] tag, because
+        the mod dresses that row as the real item.
+      * Staple restock: herbs, first aid, Resources, gunpowder and grenades
+        return to the buy tab at every chapter waypoint. ENSURE semantics
+        throughout - an item the shop already sells keeps its vanilla price and
+        only has its stock topped up, MaxStock is only ever raised, and an
+        existing addition is raised rather than duplicated. Ammo is
+        deliberately absent: it is crafted, and the multiworld now carries it.
+      * Refuses loudly on a manifest that cannot work, including a check whose
+        classification no row carries (it could never be displayed, which in
+        Archipelago is an unreachable location).
+      * spike-standin-item-id retired; the synthetic-id question is settled.
+    Offline verify: fork library builds clean, and a reflection probe against
+    the real assembly feeds it the exact JSON ManifestBuilder writes - parses,
+    and all six malformed shapes refuse with the right message (14/14).
+    NOT YET VERIFIED: no headless generation has run against this exe. The
+    first patch from the launcher is the smoke test; a throw would surface
+    there as a failed patch, not as a bad world.
+    exe SHA-256: b6c4999d3bd42d0d9ff71bc2310acb88dc628cf098aa4955a10ec28c1fda4166
+    Prior exe SHA-256: 7f3fd23571ef7848f52cae73f94dde25fdff2107eebe66dadbc8116b0a58334c
 
 REBUILD 2026-08-16 fourth (01ac858)
     Starting Arsenal support: ap-start-weapons manifest ids parse into
@@ -338,3 +369,13 @@ Prior payload:  66b92490a53674bab7e5d95fd3a31805226a76272fa406127cc7ec94cd3c5166
                 (commit c8bba01) - starting arsenal placed in the opening case
                 on both inventory paths; pooled guns barred from world
                 valuables and from veteran-account shop rows.
+                a8c3af456aed99bd0e2e85425c223bc1cfb920adbe4cd1f7b348973e55cc49af
+                (commit 64b9f43) - stand-in shop rows point at a minted
+                main-campaign prefab framing the AP logo.
+                36d84b23b2214d782c7fbf003565d40a0f5542d2938b356a89b7b00c8e64f430
+                (commit 952163c) - check rows carry the [AP] name tag until
+                the stand-in id rework can give them icons.
+                7f3fd23571ef7848f52cae73f94dde25fdff2107eebe66dadbc8116b0a58334c
+                (commit a5b6812) - pooled guns leave the merchant's purchase
+                categories; the entitlement-driven bonus DLC guns were
+                purchasable at 50k on a fresh save under the old flag park.

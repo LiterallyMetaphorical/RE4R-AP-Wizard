@@ -564,6 +564,9 @@ local function install(ctx)
         get_player_is_dead = get_player_is_dead,
         trigger_game_over = trigger_game_over,
         check_scenario_flag = check_scenario_flag,
+        -- Exported for the merchant: rotation points a shop row at a message
+        -- GUID the launcher assigned, and the room file carries it as text.
+        box_system_guid = box_system_guid,
         set_scenario_flag = set_scenario_flag,
         get_scene_object = get_scene_object,
         get_components = get_components,

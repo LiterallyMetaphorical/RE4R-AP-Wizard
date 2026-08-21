@@ -328,17 +328,17 @@ internal sealed class MainWindow : Window
         });
         left.Children.Add(Label("Check guidance"));
         left.Children.Add(Combo("CheckGuidanceOptions", "SelectedCheckGuidance", "Label"));
-        left.Children.Add(Label("Marker detail (ceiling)"));
+        left.Children.Add(Label("Marker detail"));
         left.Children.Add(Combo("MarkerDetailOptions", "SelectedMarkerDetail", "Label"));
-        left.Children.Add(Label("Merchant shop checks"));
-        left.Children.Add(Text("ShopChecksLabel"));
+        left.Children.Add(Label("Merchant checks per chapter"));
+        left.Children.Add(Text("MerchantChecksLabel"));
         left.Children.Add(new Slider
         {
             Minimum = 0,
-            Maximum = 20,
+            Maximum = 6,
             IsSnapToTickEnabled = true,
             TickFrequency = 1,
-            [!RangeBase.ValueProperty] = Binding("ShopChecks", BindingMode.TwoWay),
+            [!RangeBase.ValueProperty] = Binding("MerchantChecksPerChapter", BindingMode.TwoWay),
         });
         left.Children.Add(Label("Merchant checks"));
         left.Children.Add(Combo("MerchantChecksOptions", "SelectedMerchantChecks", "Label"));

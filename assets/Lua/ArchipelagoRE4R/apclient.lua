@@ -65,6 +65,19 @@ return function(ctx)
 
     local GAME_NAME = "Resident Evil 4 Remake"
     local ITEMS_HANDLING = 0x7           -- 0b111
+
+    -- [Purchase delivery] Resolved at call time: merchant.lua fills its slot
+    -- table when the room file is read, which is after this module loads.
+    -- Absent (older rooms, no shop checks) reads as "not a shop location",
+    -- so the own-find skip keeps its original behaviour.
+    local function is_merchant_shop_location(location_code)
+        local lookup = ctx.merchant_is_shop_location or _G.merchant_is_shop_location
+        if type(lookup) ~= "function" then
+            return false
+        end
+        local ok, result = pcall(lookup, location_code)
+        return ok and result == true
+    end
     -- [DeathLink] The "DeathLink" tag is carried ALWAYS (not toggled by the option),
     -- because lua-apclientpp exposes no ConnectUpdate to change tags after connect and
     -- slot_data.death_link only arrives post-connect. Behaviour is gated on
@@ -675,6 +688,13 @@ return function(ctx)
                             tostring(req.guid), tostring(req.save_count), floor, old_wm, requeued))
                         persist()
                     end
+                    -- [Purchase settlement] The same rollback that dropped
+                    -- received items can drop a refund gem, and unlike an item
+                    -- the check behind it can never be re-earned.
+                    local settle = ctx.merchant_settle_refunds_for_loaded_save
+                    if type(settle) == "function" then
+                        pcall(settle, req.guid, req.save_count)
+                    end
                     bridge.pending_save_reconcile = nil
                 elseif bridge.loaded_session_state_path ~= nil then
                     -- Session state is loaded but this exact save version has no
@@ -683,6 +703,10 @@ return function(ctx)
                     info(string.format(
                         "F8 reconcile: no recorded watermark for save '%s' #%s -> no re-delivery (safe; pre-fix or uncaptured save)",
                         tostring(req.guid), tostring(req.save_count)))
+                    local settle = ctx.merchant_settle_refunds_for_loaded_save
+                    if type(settle) == "function" then
+                        pcall(settle, req.guid, req.save_count)
+                    end
                     bridge.pending_save_reconcile = nil
                 end
                 -- else: session state not loaded yet (pre-connect) -> keep the request
@@ -828,7 +852,13 @@ return function(ctx)
                 -- ...unless a non-lead character made that pickup: the item
                 -- went into an inventory the game then threw away, so it owes
                 -- delivery to the lead exactly like a foreign gift would.
-                and bridge.non_lead_checked_locations[entry.location] ~= true then
+                and bridge.non_lead_checked_locations[entry.location] ~= true
+                -- ...or unless it was BOUGHT. A merchant check has no world
+                -- pickup to have granted it: the till hands over the stand-in
+                -- trinket, so the real item still owes delivery (live
+                -- 2026-08-17: a bought Insignia Key was skipped here and never
+                -- reached the player).
+                and not is_merchant_shop_location(entry.location) then
                 -- own-world physical pickup: BioRand already granted it in-game.
                 info(string.format("own-find skip idx=%d ap=%s location=%d",
                     idx, tostring(entry.item), entry.location))
@@ -1460,13 +1490,29 @@ return function(ctx)
         -- nothing ever wrote this value.
         do
             local md = (type(slot_data) == "table") and slot_data.marker_detail or nil
-            if md ~= "minimal" and md ~= "basic" and md ~= "locate" and md ~= "identify" then
+            if md ~= "minimal" and md ~= "basic" and md ~= "locate"
+                and md ~= "identify" and md ~= "developer" then
                 md = nil
             end
             if ctx.bridge then
-                ctx.bridge.marker_detail_ceiling = md
+                -- [2026-08-17] This was a CEILING, which never made sense:
+                -- everyone writes their own settings file in a multiworld, so
+                -- it only capped the person who set it, and the mod then
+                -- started them at the bottom of the ladder they had just
+                -- raised. It is the STARTING tier now - what you picked is
+                -- what you see - and the Guidance picker may go anywhere from
+                -- there. An explicit in-game choice is remembered per seed and
+                -- wins over this on later connects.
+                if md ~= nil and ctx.bridge.world_markers_detail_chosen ~= true then
+                    ctx.bridge.world_markers_detail = md
+                end
+                info(string.format(
+                    "Marker detail: %s (from slot_data)%s",
+                    tostring(md or "(unset)"),
+                    ctx.bridge.world_markers_detail_chosen == true
+                        and (" - keeping your own pick: " .. tostring(ctx.bridge.world_markers_detail))
+                        or ""))
             end
-            info("Marker detail ceiling: " .. tostring(md or "(unset - permissive)") .. " (from slot_data)")
         end
         -- [Difficulty] The room was generated for ONE difficulty, and on the
         -- hard ones the pool drops the spots that cannot be collected there.

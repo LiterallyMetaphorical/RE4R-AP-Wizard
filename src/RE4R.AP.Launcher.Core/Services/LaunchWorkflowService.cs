@@ -1275,27 +1275,51 @@ public sealed class LaunchWorkflowService
                     // (the options actually patched, replayed on re-patch), so
                     // the in-game mod knows to force-unlock the Extra Content
                     // bonus weapons before a save/load can strip them.
-                    // [D4] The merchant's AP rows. The mod recognises a
-                    // purchase by its stand-in item id, so it needs the same
-                    // slot -> stand-in assignment the fork patched into the
-                    // catalog, plus the tier price and refund gem. Absent
-                    // when the room has no shop checks; the mod then leaves
-                    // the merchant alone.
+                    // [D4 + rotation] The merchant's AP shelf. row_item_ids are
+                    // the catalog rows the fork minted; checks outnumber them
+                    // and the mod decides at runtime which check each row is
+                    // showing, so a purchase is recognised by the row it came
+                    // from plus what that row currently holds. Absent when the
+                    // room has no shop checks; the mod then leaves the
+                    // merchant alone.
                     var plannedShopSlots = MerchantShopPlanner.Plan(scoutResult.MerchantShop);
                     var merchantShop = plannedShopSlots.Count == 0
                         ? null
                         : new
                         {
-                            slots = plannedShopSlots.Select(planned => new
+                            // Each row's tier is fixed, so the mod can only
+                            // show a check on a row of the check's own
+                            // classification. That is what keeps the pak's
+                            // baked price correct without a runtime price call.
+                            rows = plannedShopSlots.Rows.Select(row => new
+                            {
+                                item_id = row.ItemId,
+                                classification = row.Classification,
+                                price = row.Tier.Price,
+                                refund_item_id = row.Tier.RefundItemId,
+                                refund_item_name = row.Tier.RefundItemName,
+                            }).ToArray(),
+                            slots = plannedShopSlots.Checks.Select(planned => new
                             {
                                 index = planned.Slot.Index,
-                                standin_item_id = planned.StandinItemId,
+                                identity = planned.Slot.Identity,
                                 location_code = planned.Slot.LocationCode,
                                 unlock_chapter = planned.Slot.UnlockChapter,
+                                chapter_ordinal = planned.Slot.ChapterOrdinal,
                                 classification = planned.Slot.Classification,
                                 display_name = planned.Slot.DisplayName,
                                 player_name = planned.Slot.PlayerName,
                                 remote = planned.Slot.Remote,
+                                // Zero unless the check holds a local RE4R
+                                // item, which is what lets the row wear the
+                                // real name, caption, icon and model.
+                                item_id = planned.Slot.ItemId,
+                                item_stack = planned.Slot.ItemStack,
+                                // The fork baked this check's text at these
+                                // GUIDs; the mod points a row at them when it
+                                // shows this check.
+                                name_msg_guid = planned.NameMsgGuid.ToString(),
+                                caption_msg_guid = planned.CaptionMsgGuid.ToString(),
                                 price = planned.Tier.Price,
                                 refund_item_id = planned.Tier.RefundItemId,
                                 refund_item_name = planned.Tier.RefundItemName,

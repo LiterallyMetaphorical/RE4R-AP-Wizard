@@ -789,33 +789,33 @@
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="Archipelago Merchant" />
-                            <CheckBox IsChecked="{Binding ShopChecksEnabled}"
+                            <CheckBox IsChecked="{Binding MerchantChecksEnabled}"
                                       Content="Let the merchant sell multiworld checks" />
                             <StackPanel Margin="0,6,0,0"
                                         Orientation="Horizontal"
-                                        IsEnabled="{Binding ShopChecksEnabled}">
+                                        IsEnabled="{Binding MerchantChecksEnabled}">
                                 <Slider Width="220"
                                         VerticalAlignment="Center"
                                         IsSnapToTickEnabled="True"
-                                        Maximum="20"
+                                        Maximum="6"
                                         Minimum="1"
                                         TickFrequency="1"
-                                        Value="{Binding ShopChecks}" />
+                                        Value="{Binding MerchantChecksPerChapter}" />
                                 <TextBlock Margin="10,0,0,0"
                                            VerticalAlignment="Center"
-                                           Text="{Binding ShopChecksLabel}" />
+                                           Text="{Binding MerchantChecksLabel}" />
                             </StackPanel>
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="On by default, at 16 - one per chapter. The merchant sells this many Archipelago checks in his buy tab, spread across the campaign. Each row shows what it really is and who it belongs to, stays on the shelf until you buy it, then reads SOLD OUT. Prices are fixed by tier - 5,000 filler / 7,000 useful / 9,000 progression - and buying another player's item hands you back a gemstone worth exactly what you paid, so you need the money but never lose it." />
+                                       Text="On by default, at 3 a chapter (45 checks a seed). The merchant releases this many Archipelago checks each chapter. His shelf shows twenty at a time and the rest queue behind them, moving up as you buy - a check is never lost, and the backlog is shown on screen. Each row names what it really is and who it belongs to, then reads SOLD OUT once bought. Prices are fixed by tier - 5,000 filler / 7,000 useful / 9,000 progression - and buying another player's item hands you back a gemstone worth exactly what you paid, so you need the money but never lose it. Your own items are normal spending. Every check also puts an item into the multiworld weighted toward what the merchant used to stock: healing, Resources, gunpowder and ammo." />
                             <TextBlock Margin="0,10,0,0"
                                        Text="Merchant checks" />
                             <ListBox ItemsSource="{Binding MerchantChecksOptions}"
                                      ItemTemplate="{StaticResource OptionShortLabelTemplate}"
                                      SelectedItem="{Binding SelectedMerchantChecks, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource SegmentedPickerStyle}"
-                                     IsEnabled="{Binding ShopChecksEnabled}" />
+                                     IsEnabled="{Binding MerchantChecksEnabled}" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="Who the check rows may hold. Mixed lets the multiworld decide. Local only keeps your own items on the shelf, so every purchase pays you. Remote only turns the shop into a trading post - every row belongs to another world, and the gem refund keeps you solvent while you stock everyone else. Remote only needs at least one other world in the room." />
+                                       Text="Who the check rows may hold. Mixed lets the multiworld decide. Local only keeps your own items on the shelf, so every row is something you will use yourself, but nothing on that shelf refunds and the prices are real spending. Remote only turns the shop into a trading post - every row belongs to another world, and the gem refund keeps you solvent while you stock everyone else. Remote only needs at least one other world in the room." />
                             <CheckBox Margin="0,10,0,0"
                                       IsChecked="{Binding ShuffleMerchantGear}"
                                       Content="Shuffle the merchant's gear into the multiworld" />
@@ -996,7 +996,7 @@
                                      SelectedItem="{Binding SelectedMarkerDetail, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource SegmentedPickerStyle}" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="How much a marker is allowed to say. This is a ceiling, not a fixed setting: players pick their own level in the in-game Guidance tab, but never above what you choose here. Locate is the recommended default - it names the item as it appeared in vanilla, what it is sitting in, and how to reach it, without revealing what the multiworld actually placed. Identify does reveal that, and is what a bought hint always shows." />
+                                       Text="How much a marker says, and what you will actually see: markers read at this level the moment you connect. You can change it any time in the in-game Guidance tab, and once you do, your choice sticks for that seed. Locate is the recommended default - it names the item as it appeared in vanilla, what it is sitting in, and how to reach it, without revealing what the multiworld actually placed. Identify does reveal that, and is what a bought hint always shows. Developer adds the location code and is a debug tool." />
                         </StackPanel>
 
                         <StackPanel Style="{StaticResource OptionCardStyle}">

@@ -37,7 +37,7 @@ public sealed class PendingSessionDraft
     [JsonPropertyName("check_guidance")]
     public string CheckGuidance { get; set; } = "markers";
 
-    // Ceiling on marker detail. Defaults to the apworld's own default so
+    // The tier markers start at. Defaults to the apworld's own default so
     // drafts saved before this option existed generate the same seed.
     [JsonPropertyName("marker_detail")]
     public string MarkerDetail { get; set; } = "locate";
@@ -78,11 +78,12 @@ public sealed class PendingSessionDraft
     [JsonPropertyName("random_events")]
     public bool RandomEvents { get; set; }
 
-    // How many merchant buy-tab slots are AP checks (apworld 0.8.0). Defaults
-    // to the apworld's own default so drafts saved before this option existed
-    // generate the same seed shape they would today.
-    [JsonPropertyName("shop_checks")]
-    public int ShopChecks { get; set; }
+    // How many AP checks the merchant releases each chapter. The key changed
+    // with rotation, and deliberately so: a draft saved before it holds a
+    // TOTAL (up to 20), and reading that as a per-chapter rate would silently
+    // multiply the shelf. An old draft falls back to the current default.
+    [JsonPropertyName("merchant_checks_per_chapter")]
+    public int MerchantChecksPerChapter { get; set; }
 
     // Default TRUE so drafts saved before this option existed keep the guide
     // on, matching the apworld default.

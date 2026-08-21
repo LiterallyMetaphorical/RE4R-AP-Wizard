@@ -1578,8 +1578,75 @@ local function install(ctx)
     export("prune_pending_pickup_accepts", prune_pending_pickup_accepts)
     export("scan_stage_pickups", scan_stage_pickups)
     export("pump_placeholder_despawns", pump_placeholder_despawns)
+    -- ------------------------------------------------------- weapon probe
+    -- [Lost-check spike] ~5% of checks grant the item and log NOTHING: no
+    -- accept, no commit, not even not_in_dataset. Container kind is REFUTED
+    -- (a small-key drawer fired 3 times and failed once in the same run).
+    -- Three of the four known losses held a local WEAPON (Killer7, Red9,
+    -- Boot Knife), and the class only appeared once shuffled local guns did,
+    -- which v0.4.0 did not have.
+    --
+    -- chainsaw.DropItem has THREE accept entry points and a weapon-specific
+    -- routine, and we only hook the first:
+    --   onAcceptPickup (hooked)  onAcceptCraft  onAcceptOccupied
+    --   updateWaitGetWeapon      onFirstGetAndPickedUp
+    -- So this logs which of the others fires, with the drop's item id and
+    -- guid, and says nothing at all if none of them do. UNGATED on purpose:
+    -- Developer Tools does not survive Reset Scripts. DELETE once the path
+    -- is known.
+    local weapon_probe_seen = {}
+
+    local function install_weapon_path_probe()
+        local drop_item_type = sdk.find_type_definition("chainsaw.DropItem")
+        if drop_item_type == nil then
+            log.info("[RE4R AP] weapon probe: DropItem type not found")
+            return
+        end
+
+        local watched = {
+            "onAcceptCraft",
+            "onAcceptOccupied",
+            "onFirstGetAndPickedUp",
+            "updateWaitGetWeapon",
+        }
+        local installed = {}
+        for _, name in ipairs(watched) do
+            local method = drop_item_type:get_method(name)
+            if method ~= nil then
+                sdk.hook(method, function(args)
+                    pcall(function()
+                        local this = sdk.to_managed_object(args[2])
+                        if this == nil then
+                            return
+                        end
+                        local item_id = nil
+                        pcall(function() item_id = this:call("getItemID") end)
+                        local guid = nil
+                        pcall(function()
+                            local context = this:call("get_Context")
+                            guid = resolve_drop_item_guid_from_context(context)
+                        end)
+                        -- Once per (method, drop): updateWaitGetWeapon runs
+                        -- every frame and would drown the log.
+                        local key = name .. "|" .. tostring(guid) .. "|" .. tostring(item_id)
+                        if weapon_probe_seen[key] then
+                            return
+                        end
+                        weapon_probe_seen[key] = true
+                        log.info(string.format(
+                            "[RE4R AP] weapon probe: %s fired, item=%s guid=%s",
+                            name, tostring(item_id), tostring(guid)))
+                    end)
+                end, nil)
+                installed[#installed + 1] = name
+            end
+        end
+        log.info("[RE4R AP] weapon probe: watching " .. table.concat(installed, ", "))
+    end
+
     export("install_pickup_accept_hook", install_pickup_accept_hook)
     export("install_pickup_commit_hook", install_pickup_commit_hook)
+    export("install_weapon_path_probe", install_weapon_path_probe)
     export("install_interact_holder_hit_hook", install_interact_holder_hit_hook)
 end
 

@@ -15,6 +15,8 @@ end
 ctx.now_unix_ms = now_unix_ms
 _G.now_unix_ms = now_unix_ms
 
+-- [D9] Boat summon. Before warp.lua, which calls it after a successful warp.
+dofile("reframework\\autorun\\ArchipelagoRE4R\\boat.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\warp.lua")(ctx)
 -- [A2 recovery] After injection, so inject_read_key_item_ids is on ctx.
 dofile("reframework\\autorun\\ArchipelagoRE4R\\door_recovery.lua")(ctx)
@@ -71,6 +73,7 @@ local load_stage_chapter_map = ctx.load_stage_chapter_map
 local load_warp_points = ctx.load_warp_points
 local load_warp_unlocks = ctx.load_warp_unlocks
 local process_pending_warp = ctx.process_pending_warp
+local process_pending_boat_summon = ctx.process_pending_boat_summon
 local refresh_launcher_bridge_files = ctx.refresh_launcher_bridge_files
 local save_session_state = ctx.save_session_state
 local select_known_injectable_item = ctx.select_known_injectable_item
@@ -95,6 +98,7 @@ local draw_world_check_markers = ctx.draw_world_check_markers
 local draw_marker_position_editor = ctx.draw_marker_position_editor
 local draw_boat_spike = ctx.draw_boat_spike
 local poll_door_recovery = ctx.poll_door_recovery
+local merchant_poll_pending_sweeps = ctx.merchant_poll_pending_sweeps
 local draw_main_window = ctx.draw_main_window
 local draw_tutorial_dialog = ctx.draw_tutorial_dialog
 local draw_progression_warning_dialog = ctx.draw_progression_warning_dialog
@@ -244,6 +248,14 @@ local function install_save_watermark_hook()
                 if type(guid) == "string" and guid ~= "" and type(count) == "number" then
                     local watermark = math.floor(tonumber(bridge.last_received_index) or -1)
                     record(guid, count, watermark)
+                    -- [Purchase settlement] Same instant, same reason: this is
+                    -- the only moment we know which refund gems the file just
+                    -- written actually contains.
+                    local granted_keys = ctx.merchant_granted_gem_keys
+                    local record_gems = ctx.record_settled_gems
+                    if type(granted_keys) == "function" and type(record_gems) == "function" then
+                        record_gems(guid, count, granted_keys())
+                    end
                     if type(save_session_state) == "function" then
                         save_session_state()
                     end
@@ -490,6 +502,11 @@ if #bridge.typewriter_warp_points > 0 then
 end
 install_pickup_accept_hook()
 install_pickup_commit_hook()
+-- [Lost-check spike] Which DropItem path does a weapon actually take? Delete
+-- with the probe once the answer is in.
+if type(ctx.install_weapon_path_probe) == "function" then
+    pcall(ctx.install_weapon_path_probe)
+end
 install_chapter_switch_hook()
 install_save_watermark_hook()
 install_interact_holder_hit_hook()
@@ -504,9 +521,14 @@ re.on_pre_application_entry("UpdateBehavior", function()
         local runtime_state = nil
 
         if now_clock - bridge.last_scan_clock >= SCAN_INTERVAL_SECONDS then
+            local scan_delta = now_clock - bridge.last_scan_clock
             bridge.last_scan_clock = now_clock
             runtime_state = get_runtime_state()
             process_pending_warp(runtime_state)
+            -- [D9] Fires a beat after a warp lands, so the scene is built.
+            if type(process_pending_boat_summon) == "function" then
+                process_pending_boat_summon(scan_delta)
+            end
             scan_stage_pickups(runtime_state)
             prune_local_injection_suppressions()
             if runtime_state.is_loading then
@@ -531,6 +553,12 @@ re.on_pre_application_entry("UpdateBehavior", function()
         -- [A2 recovery] Self-gated on its own 4s interval and on possession.
         if type(poll_door_recovery) == "function" then
             poll_door_recovery(runtime_state)
+        end
+        -- [Stand-in sweep] Costs nothing when the queue is empty, which is
+        -- almost always: it only fills for a few seconds after a shop check
+        -- is bought, because the trinket arrives after the purchase hook.
+        if type(merchant_poll_pending_sweeps) == "function" then
+            merchant_poll_pending_sweeps()
         end
         if type(refresh_launcher_bridge_files) == "function" then
             refresh_launcher_bridge_files()

@@ -41,12 +41,10 @@ local function install(ctx)
     --   locate    + the vanilla item, its container, and the finding note
     --   identify  + the REAL placement (item + recipient) - a spoiler
     --   developer + the [guid8] code that matches the spoiler log
-    -- The player's pick is capped by the host's YAML ceiling
-    -- (bridge.marker_detail_ceiling, absent = permissive). Only DEVELOPER is a
-    -- debug affordance now: identify used to sit behind Developer Tools too,
-    -- which meant no ordinary player could ever reach the top of the ladder
-    -- however permissive their room was (Cam, 2026-08-13). Spoiler policy
-    -- belongs to the host's ceiling; Developer Tools is for debugging.
+    -- What you pick is what renders, with no cap at all (2026-08-17). The
+    -- ceiling this used to obey was self-imposed - everyone writes their own
+    -- settings file in a multiworld - so it only ever stopped a player seeing
+    -- what they had already asked for, twice over.
     -- A HINTED check always renders identify regardless (you paid to know).
     local DETAIL_TIER = { minimal = 1, basic = 2, locate = 3, identify = 4, developer = 5 }
 
@@ -59,20 +57,7 @@ local function install(ctx)
         if type(pick) ~= "string" then
             pick = (type(_G.WORLD_MARKER_DETAIL) == "string" and _G.WORLD_MARKER_DETAIL) or "basic"
         end
-        -- Developer Tools honours the pick outright, ceiling included: the
-        -- ceiling ladder cannot even name the developer tier, so capping to
-        -- it made tier 5 unreachable in every room. The Guidance picker
-        -- offers the same range, so what you pick is what renders.
-        if bridge.developer_tools_enabled == true then
-            return detail_tier_of(pick)
-        end
-        -- Absent ceiling = permissive top tier.
-        local tier = math.min(detail_tier_of(pick), detail_tier_of(bridge.marker_detail_ceiling or "developer"))
-        -- Only the developer tier is a debug affordance.
-        if tier >= DETAIL_TIER.developer then
-            tier = DETAIL_TIER.identify
-        end
-        return tier
+        return detail_tier_of(pick)
     end
 
     -- identify: the ACTUAL AP placement here (real item + recipient) from the
@@ -584,8 +569,26 @@ local function install(ctx)
         if not state.is_playable or type(state.current_stage) ~= "number" then
             return
         end
+        -- Only while REFramework's menu is open (Insert). Without this the
+        -- editor drew straight over gameplay and Insert had nothing to do with
+        -- it, because it was never tied to the menu at all - the same mistake
+        -- the tutorial dialog made, and the same fix.
+        local ok_ui, drawing_ui = pcall(function() return reframework:is_drawing_ui() end)
+        if not ok_ui or not drawing_ui then
+            return
+        end
 
-        imgui.begin_window("AP Marker Position Editor", true)
+        -- begin_window reports whether the window is still open, and throwing
+        -- that away is why the X did nothing: the click was read and forgotten,
+        -- so the window came back the next frame. Dismissing turns the tool
+        -- off, which is what the Debug tab's toggle already means. Collapsing
+        -- counts as dismissing, same as the tutorial dialog.
+        local visible = imgui.begin_window("AP Marker Position Editor", true)
+        if not visible then
+            bridge.marker_editor_window_enabled = false
+            imgui.end_window()
+            return
+        end
         imgui.text("Nudge a marker onto the real item, then Log New Position.")
         imgui.text("Send marker_position_edits.log to have it merged.")
 

@@ -835,10 +835,41 @@ public sealed class ArchipelagoScoutClient
                     continue;
                 }
 
+                // Rotation rooms key on the check; pre-rotation rooms had one
+                // check per row and acked on the row number, so that is the
+                // honest fallback rather than a guess.
+                var identity = element.TryGetProperty("identity", out var identityElement)
+                    && identityElement.ValueKind == JsonValueKind.String
+                    && !string.IsNullOrWhiteSpace(identityElement.GetString())
+                        ? identityElement.GetString()!
+                        : $"shop:slot:{index}";
+
+                var chapterOrdinal = element.TryGetProperty("chapter_ordinal", out var ordinalElement)
+                    && ordinalElement.TryGetInt32(out var parsedOrdinal)
+                    && parsedOrdinal > 0
+                        ? parsedOrdinal
+                        : 1;
+
+                var itemId = element.TryGetProperty("item_id", out var itemIdElement)
+                    && itemIdElement.TryGetInt32(out var parsedItemId)
+                    && parsedItemId > 0
+                        ? parsedItemId
+                        : 0;
+
+                var itemStack = element.TryGetProperty("item_stack", out var stackElement)
+                    && stackElement.TryGetInt32(out var parsedStack)
+                    && parsedStack > 0
+                        ? parsedStack
+                        : 0;
+
                 slots.Add(new MerchantShopSlot
                 {
                     LocationCode = locationCode,
                     Index = index,
+                    Identity = identity,
+                    ChapterOrdinal = chapterOrdinal,
+                    ItemId = itemId,
+                    ItemStack = itemStack,
                     UnlockChapter = unlockChapter,
                     Classification = classification,
                     DisplayName = element.TryGetProperty("display_name", out var nameElement)

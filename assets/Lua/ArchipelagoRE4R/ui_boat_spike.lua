@@ -343,14 +343,36 @@ local function install(ctx)
         end
     end
 
+    -- via.vec3 is a VALUE TYPE. `sdk.create_instance` does not produce a
+    -- usable one, and writing native fields into that hollow object yields
+    -- nan - which is exactly what both experiments hit live on 2026-08-17:
+    -- the retarget "succeeded" but left _ReturnPortInfo.PierPos reading
+    -- (0.00, 0.00, -nan), and the teleport moved the boat to
+    -- (0.00, 0.03, -nan) instead of the pier. One broken helper, both
+    -- failures. REFramework's own Vector3f marshals correctly into via.vec3
+    -- parameters, so use that and keep a value-type box as the fallback.
     local function make_vec3(v)
-        local instance = sdk.create_instance("via.vec3")
-        local vec3_type = sdk.find_type_definition("via.vec3")
-        if instance == nil or vec3_type == nil then return nil end
-        sdk.set_native_field(instance, vec3_type, "x", v.x)
-        sdk.set_native_field(instance, vec3_type, "y", v.y)
-        sdk.set_native_field(instance, vec3_type, "z", v.z)
-        return instance
+        if v == nil then return nil end
+        if Vector3f ~= nil and Vector3f.new ~= nil then
+            local ok, result = pcall(function()
+                return Vector3f.new(v.x, v.y, v.z)
+            end)
+            if ok and result ~= nil then
+                return result
+            end
+        end
+        local ok, result = pcall(function()
+            local box = ValueType.new(sdk.find_type_definition("via.vec3"))
+            box:set_field("x", v.x)
+            box:set_field("y", v.y)
+            box:set_field("z", v.z)
+            return box
+        end)
+        if ok and result ~= nil then
+            return result
+        end
+        log.error("[RE4R AP] boat spike: could not build a via.vec3")
+        return nil
     end
 
     -- Question 2, the one that decides whether D9 rides the native path.
@@ -439,7 +461,15 @@ local function install(ctx)
             return
         end
 
-        imgui.begin_window("AP Boat Spike (D9)", true)
+        -- begin_window returns whether the window is still OPEN: discarding it
+        -- makes the title-bar X do nothing, because nothing ever clears the
+        -- toggle it was drawn from. Same defect the marker editor had.
+        bridge.boat_spike_window_enabled =
+            imgui.begin_window("AP Boat Spike (D9)", true)
+        if bridge.boat_spike_window_enabled ~= true then
+            imgui.end_window()
+            return
+        end
         imgui.text("Stand near the lake with the boat loaded, then work down.")
         imgui.text("Every button logs a before/after pair to the framework log.")
 
