@@ -117,6 +117,7 @@ local function install(ctx)
         -- at the lake so the boat-follows-the-player design can be settled.
         -- Temporary; goes away with ui_boat_spike.lua when D9 is built.
         boat_spike_window_enabled = false,
+        model_tuner_window_enabled = false,
         -- [World markers] floating "[AP]" tags over unchecked locations in the
         -- current stage (ui_world_markers.lua). Importance colours reveal scouted
         -- classification, so they are opt-in (guidance says where, never what).
@@ -196,6 +197,10 @@ local function install(ctx)
         chapter_switch_pending_special_jump_sequence = nil,
         chapter_switch_status = "(idle)",
         chapter_switch_last_armed_label = nil,
+        -- [Shop open state] merchant.lua sets this from the shop's own
+        -- enter/close states. Read ONLY by apclient's safe_to_inject, to
+        -- keep a DeathLink kill and item delivery out of an open shop.
+        shop_gui_open = false,
     }
 
     bridge.progression_warning_final_stage_by_chapter = {

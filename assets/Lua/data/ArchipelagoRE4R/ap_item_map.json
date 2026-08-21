@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "item_count": 163,
+  "item_count": 159,
   "items": {
     "20665965": {
       "name": "Red9 Stock x1",
@@ -37,11 +37,6 @@
       "re4r_item_id": 120865600,
       "count": 1
     },
-    "203780881": {
-      "name": "Accessory: Stylish Mask x1",
-      "re4r_item_id": 124646400,
-      "count": 1
-    },
     "214868457": {
       "name": "Bolts x2",
       "re4r_item_id": 112808000,
@@ -75,11 +70,6 @@
     "399783606": {
       "name": "Skull Shaker x1",
       "re4r_item_id": 278037056,
-      "count": 1
-    },
-    "414850128": {
-      "name": "Red x1",
-      "re4r_item_id": 124640000,
       "count": 1
     },
     "457754278": {
@@ -277,11 +267,6 @@
       "re4r_item_id": 276440256,
       "count": 1
     },
-    "1401905497": {
-      "name": "Wellington x1",
-      "re4r_item_id": 124643200,
-      "count": 1
-    },
     "1446550920": {
       "name": "Elegant Mask x1",
       "re4r_item_id": 122400000,
@@ -455,11 +440,6 @@
     "2402639670": {
       "name": "Matilda x1",
       "re4r_item_id": 274841856,
-      "count": 1
-    },
-    "2417443590": {
-      "name": "Blue x1",
-      "re4r_item_id": 124641600,
       "count": 1
     },
     "2442382199": {

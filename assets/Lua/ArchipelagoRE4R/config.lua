@@ -3,7 +3,7 @@ local function install(ctx)
         -- Logged at boot next to the launcher's install stamp so a player's
         -- re2_framework_log.txt identifies the exact deployed build. Bump on
         -- every Lua change that ships (date.rev).
-        MOD_VERSION = "2026.08.17-18",
+        MOD_VERSION = "2026.08.17-36",
         DATA_DIR = "ArchipelagoRE4R",
         WRITE_INTERVAL_SECONDS = 0.25,
         SCAN_INTERVAL_SECONDS = 1 / 30,
@@ -183,6 +183,13 @@ local function install(ctx)
         -- so the ITEM and the WHO read as distinct entities at a glance. The item keeps
         -- its classification colour; connective words stay white.
         CHECK_OVERLAY_TEXT_COLOR_PLAYER = { 0.45, 0.78, 0.96, 1.0 },
+        -- Areas in own-pickup titles ("You found your <item> in <area>"), the
+        -- local line's answer to the player colour above. Without it a filler
+        -- pickup rendered entirely white - item, connectives and place all the
+        -- same - while every multiworld line had the blue player name to break
+        -- it up (Cam 2026-08-21). Seafoam: clear of the golds, the blues and
+        -- the CONNECTED green.
+        CHECK_OVERLAY_TEXT_COLOR_AREA = { 0.55, 0.82, 0.70, 1.0 },
         CHECK_OVERLAY_TEXT_COLOR_CONNECTED = { 0.45, 0.85, 0.45, 1.0 },
         CHECK_OVERLAY_TEXT_COLOR_ERROR = { 0.92, 0.42, 0.42, 1.0 },
         CHECK_OVERLAY_TEXT_COLOR_DETAIL = { 1.0, 1.0, 1.0, 1.0 },

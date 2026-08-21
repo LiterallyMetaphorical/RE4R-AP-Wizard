@@ -941,11 +941,18 @@ local function install(ctx)
 
     local INJECT_PTAS_ITEM_ID = 124000000
     local INJECT_SPINEL_ITEM_ID = 120800000
+    -- Keys are engine item ids and MUST match items.py / re4r_ap_static.json.
+    -- They were mistyped during the monolith split (a6c645c): the table shipped
+    -- keyed on 1194xxxxx, which matches no item anywhere in the pipeline, so
+    -- the lookup below could never hit and a received case upgrade added the
+    -- item without ever calling changeSize. Corrected 2026-08-17 back to the
+    -- ids the old monolith used. Verified by sweeping every 8-10 digit table
+    -- key in the mod against the 138 known engine ids; this was the only miss.
     local INJECT_ATTACHE_CASE_SIZE_BY_ITEM_ID = {
-        [119455200] = 1,
-        [119456800] = 2,
-        [119458400] = 3,
-        [119460000] = 4,
+        [124161600] = 1,  -- Case: 7x12
+        [124163200] = 2,  -- Case: 8x12
+        [124164800] = 3,  -- Case: 8x13
+        [124166400] = 4,  -- Case: 9x13
     }
 
     inject_is_ptas_item = function(item_id)
@@ -1580,24 +1587,50 @@ local function install(ctx)
                     return head_updater:call("get_InventoryController")
                 end)
             end
-            if main_inventory_controller ~= nil then
+            if main_inventory_controller == nil then
+                log.info(string.format(
+                    "[RE4R AP] %s: case upgrade to size %d SKIPPED, InventoryController missing",
+                    route_label, attache_case_size))
+            else
                 main_inventory_controller = inject_try_add_ref(main_inventory_controller)
-                local current_size = inject_safe_call(function()
-                    return main_inventory_controller:call("get_CurrInventorySize()")
-                end)
-                if current_size == nil then
-                    current_size = inject_safe_call(function()
-                        return main_inventory_controller:call("get_CurrInventorySize")
+                -- changeSize hands back nothing worth trusting, so the size is
+                -- read again afterwards and the before/after pair is what
+                -- proves it took. Believing a return value is exactly what hid
+                -- the stand-in sweep failing for a week.
+                local function read_case_size()
+                    local raw = inject_safe_call(function()
+                        return main_inventory_controller:call("get_CurrInventorySize()")
                     end)
+                    if raw == nil then
+                        raw = inject_safe_call(function()
+                            return main_inventory_controller:call("get_CurrInventorySize")
+                        end)
+                    end
+                    return tonumber(raw)
                 end
-                local current_size_number = tonumber(current_size)
-                if current_size_number == nil or current_size_number < attache_case_size then
+                local before = read_case_size()
+                if before ~= nil and before >= attache_case_size then
+                    log.info(string.format(
+                        "[RE4R AP] %s: case already at size %d, upgrade to %d is a no-op",
+                        route_label, before, attache_case_size))
+                else
                     inject_safe_call(function()
                         return main_inventory_controller:call("changeSize", attache_case_size, false)
                     end)
                     inject_safe_call(function()
                         return main_inventory_controller:call("changeSize(System.Int32, System.Boolean)", attache_case_size, false)
                     end)
+                    local after = read_case_size()
+                    if after ~= nil and after >= attache_case_size then
+                        log.info(string.format(
+                            "[RE4R AP] %s: case resized %s -> %d",
+                            route_label, before ~= nil and tostring(before) or "?", after))
+                    else
+                        log.info(string.format(
+                            "[RE4R AP] %s: case resize to %d FAILED, size still reads %s",
+                            route_label, attache_case_size,
+                            after ~= nil and tostring(after) or "unreadable"))
+                    end
                 end
             end
         end
@@ -2346,6 +2379,210 @@ local function install(ctx)
         return counts
     end
 
+    -- [Stand-in diagnosis 2026-08-17] The merchant's case sweep calls
+    -- reduce() straight on the resolved CsInventory and gets nil back every
+    -- time, while the walk above reads the same case without trouble. The
+    -- difference is the inject_get_managed wrap, so the merchant gets the
+    -- proven accessors rather than keeping its own second idea of how this
+    -- object works.
+    --
+    -- Returns an array of { id, count } and no error, or nil plus a reason.
+    local function inject_debug_walk_case_items(limit)
+        local cs_inventory = inject_resolve_case_inventory()
+        if cs_inventory == nil then
+            return nil, "case inventory unavailable"
+        end
+        local managed = inject_get_managed(cs_inventory)
+        if managed == nil then
+            return nil, "case inventory did not wrap to a managed object"
+        end
+        local items_list = inject_safe_call(function()
+            return managed:get_field("_InventoryItems")
+        end)
+        local total = inject_get_collection_count(items_list)
+        if type(total) ~= "number" then
+            return nil, "inventory list count unavailable"
+        end
+        local found = {}
+        for index = 0, math.min(total, limit or 200) - 1 do
+            local wrapper_managed = inject_get_managed(inject_get_collection_item(items_list, index))
+            if wrapper_managed ~= nil then
+                local wrapped_managed = inject_get_managed(inject_safe_call(function()
+                    return wrapper_managed:get_field("<Item>k__BackingField")
+                end))
+                if wrapped_managed ~= nil then
+                    local id = tonumber(inject_safe_call(function()
+                        return wrapped_managed:get_field("_ItemId")
+                    end))
+                    if id ~= nil then
+                        local stack = tonumber(inject_safe_call(function()
+                            return wrapped_managed:get_field("_CurrentItemCount")
+                        end)) or 1
+                        found[#found + 1] = {
+                            id = math.floor(id),
+                            count = math.max(1, math.floor(stack)),
+                        }
+                    end
+                end
+            end
+        end
+        return found
+    end
+
+    -- Ask the LIVE object what it can actually do. The il2cpp dump advertised
+    -- get_U/get_V on via.gui.Texture that the real instance did not have, and
+    -- that cost two rounds, so removal methods get read off the instance.
+    -- Every accessor is tried by name and the failures are reported rather
+    -- than swallowed, because a wrong method name here would otherwise look
+    -- exactly like "this object has no methods".
+    local function inject_debug_case_methods(name_filter)
+        local cs_inventory = inject_resolve_case_inventory()
+        if cs_inventory == nil then
+            return nil, "case inventory unavailable"
+        end
+        local managed = inject_get_managed(cs_inventory)
+        if managed == nil then
+            return nil, "case inventory did not wrap to a managed object"
+        end
+        local type_def = inject_safe_call(function()
+            return managed:get_type_definition()
+        end)
+        if type_def == nil then
+            return nil, "get_type_definition returned nothing"
+        end
+        local methods = inject_safe_call(function()
+            return type_def:get_methods()
+        end)
+        if methods == nil then
+            return nil, "get_methods returned nothing"
+        end
+        local described = {}
+        for _, method in ipairs(methods) do
+            local name = inject_safe_call(function() return method:get_name() end)
+            if type(name) == "string"
+                and (name_filter == nil or name:lower():find(name_filter, 1, true) ~= nil) then
+                -- get_num_params, NOT get_params: the wrong one fails silently.
+                local param_count = tonumber(inject_safe_call(function()
+                    return method:get_num_params()
+                end))
+                local returns = inject_safe_call(function()
+                    local rt = method:get_return_type()
+                    return rt ~= nil and rt:get_full_name() or nil
+                end)
+                described[#described + 1] = string.format(
+                    "%s(%s params) -> %s",
+                    name,
+                    param_count ~= nil and tostring(param_count) or "?",
+                    tostring(returns or "?"))
+            end
+        end
+        table.sort(described)
+        return described
+    end
+
+    -- [Stand-in removal 2026-08-17] reduce(chainsaw.ItemID, Int32, Boolean)
+    -- resolves to nothing and hands back nil. Reflecting the live object shows
+    -- three reduce overloads, and the arity that matches ours takes different
+    -- param types, so the signature never binds. remove() is the better door:
+    -- two single-argument Boolean overloads, and the walk already produces the
+    -- Item object, which is how reduceArmouryItem is called elsewhere here.
+    --
+    -- Both a wrapped Item and an instance guid are tried, because the treasure
+    -- controller's own remove() takes a guid and the two 1-param overloads are
+    -- probably one of each. Success is proven by COUNTING the case before and
+    -- after, never by a return value. Returns removed_count, reason.
+    local function inject_remove_case_item(item_id)
+        item_id = math.floor(tonumber(item_id) or 0)
+        local cs_inventory = inject_resolve_case_inventory()
+        if cs_inventory == nil then
+            return 0, "case inventory unavailable"
+        end
+        local managed = inject_get_managed(cs_inventory)
+        if managed == nil then
+            return 0, "case inventory did not wrap to a managed object"
+        end
+
+        -- Returns how many copies are present, plus a handle and a guid for
+        -- the first one. Re-walked after every attempt so the count is live.
+        local function survey()
+            local items_list = inject_safe_call(function()
+                return managed:get_field("_InventoryItems")
+            end)
+            local total = inject_get_collection_count(items_list)
+            if type(total) ~= "number" then
+                return nil, nil, nil
+            end
+            local seen, handle, guid = 0, nil, nil
+            for index = 0, math.min(total, 200) - 1 do
+                local wrapper = inject_get_managed(inject_get_collection_item(items_list, index))
+                if wrapper ~= nil then
+                    local raw_item = inject_safe_call(function()
+                        return wrapper:get_field("<Item>k__BackingField")
+                    end)
+                    local inner = inject_get_managed(raw_item)
+                    if inner ~= nil then
+                        local id = tonumber(inject_safe_call(function()
+                            return inner:get_field("_ItemId")
+                        end))
+                        if id ~= nil and math.floor(id) == item_id then
+                            seen = seen + 1
+                            if handle == nil then
+                                handle = raw_item
+                                for _, field in ipairs({ "_Id", "_ID", "_Guid", "_InventoryItemId" }) do
+                                    if guid == nil then
+                                        guid = inject_safe_call(function()
+                                            return inner:get_field(field)
+                                        end)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            return seen, handle, guid
+        end
+
+        local before, handle, guid = survey()
+        if before == nil then
+            return 0, "inventory list unreadable"
+        end
+        if before == 0 then
+            return 0, "not in the case"
+        end
+
+        local attempts = {}
+        if handle ~= nil then
+            attempts[#attempts + 1] = { "remove(item)", function()
+                return managed:call("remove", handle)
+            end }
+            attempts[#attempts + 1] = { "remove(chainsaw.Item)", function()
+                return managed:call("remove(chainsaw.Item)", handle)
+            end }
+        end
+        if guid ~= nil then
+            attempts[#attempts + 1] = { "remove(guid)", function()
+                return managed:call("remove", guid)
+            end }
+        end
+        if #attempts == 0 then
+            return 0, "present but neither a handle nor a guid could be read"
+        end
+
+        for _, attempt in ipairs(attempts) do
+            inject_safe_call(attempt[2])
+            local after = survey()
+            if type(after) == "number" and after < before then
+                return before - after, nil
+            end
+        end
+
+        local final = survey()
+        return 0, string.format(
+            "tried %d removal form(s), count still %s (was %d)",
+            #attempts, tostring(final), before)
+    end
+
     local function inject_resolve_armoury_manager()
         local armoury_manager = sdk.get_managed_singleton("chainsaw.ArmouryManager")
         if armoury_manager == nil then
@@ -2812,6 +3049,9 @@ local function install(ctx)
     export("inject_command_succeeded", inject_command_succeeded)
     export("inject_item_to_inventory", inject_item_to_inventory)
     export("inject_resolve_case_inventory", inject_resolve_case_inventory)
+    export("inject_debug_walk_case_items", inject_debug_walk_case_items)
+    export("inject_debug_case_methods", inject_debug_case_methods)
+    export("inject_remove_case_item", inject_remove_case_item)
     export("inject_call_verified", inject_call_verified)
     export("inject_get_item_kind", inject_get_item_kind)
     export("inject_is_weapon_item_kind", inject_is_weapon_item_kind)

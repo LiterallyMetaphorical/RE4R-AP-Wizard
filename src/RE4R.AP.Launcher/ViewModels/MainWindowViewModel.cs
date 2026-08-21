@@ -145,6 +145,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         GenerationGuidance.DraftSaved += OnDraftSaved;
         GenerationGuidance.JoinRoomRequested += OnGuidanceJoinRoomRequested;
         GenerationGuidance.ConfigureYamlRequested += OnGuidanceConfigureYamlRequested;
+        // Step 3 renders the settings editor inline, so leaving it has to bank
+        // the draft before the wizard reads OwnYamlReady back off storage.
+        GenerationGuidance.OwnYamlFlushRequested += OnGuidanceOwnYamlFlushRequested;
         JoinFlow = new JoinFlowViewModel(Session, Action, BioRandOptions);
         PatchLaunch = new PatchLaunchViewModel(_workflowService, Action);
 
@@ -347,7 +350,28 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     public object? CurrentScreen
     {
         get => _currentScreen;
-        set => SetProperty(ref _currentScreen, value);
+        set
+        {
+            if (!SetProperty(ref _currentScreen, value))
+            {
+                return;
+            }
+
+            // The settings editor renders in two places: as its own screen,
+            // and inline as the organizer wizard's step 3. It hides its own
+            // 34pt header and blurb in the second case, because the step chip
+            // and title above it already say what it is.
+            var hosted = ReferenceEquals(value, GenerationGuidance);
+            ConfigureYaml.IsHostedInGuide = hosted;
+            if (hosted)
+            {
+                // Hosted means the organizer wizard, so the joiner handoff
+                // block ("your host needs two files from you") must not show.
+                // The old routing path set this; embedding removed that path
+                // and the block came back for hosts (Cam, 2026-08-21).
+                ConfigureYaml.IsOrganizerContext = true;
+            }
+        }
     }
 
     /// <summary>A newer release exists on GitHub and the player has not dismissed the notice.</summary>
@@ -461,6 +485,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         GenerationGuidance.DraftSaved -= OnDraftSaved;
         GenerationGuidance.JoinRoomRequested -= OnGuidanceJoinRoomRequested;
         GenerationGuidance.ConfigureYamlRequested -= OnGuidanceConfigureYamlRequested;
+        GenerationGuidance.OwnYamlFlushRequested -= OnGuidanceOwnYamlFlushRequested;
         JoinFlow.PatchRequested -= OnJoinPatchRequested;
         Setup.PropertyChanged -= OnSetupPropertyChanged;
         Session.PropertyChanged -= OnSessionPropertyChanged;
@@ -478,6 +503,13 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         CurrentScreen = GenerationGuidance;
         Action.AppendLog("Opening the organizer's Generation Guidance checklist.");
         _ = GenerationGuidance.EnterAsync();
+    }
+
+    private async Task OnGuidanceOwnYamlFlushRequested()
+    {
+        await ConfigureYaml.FlushDraftAsync();
+        _pendingDraft = await _draftStore.TryLoadAsync();
+        await GenerationGuidance.EnterAsync();
     }
 
     private void OnGuidanceConfigureYamlRequested()
@@ -562,9 +594,11 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         // screen corrects the record once the real one arrives.
         JoinFlow.BioRandOptions.RandomEventsForced = _pendingDraft?.RandomEvents == true;
         JoinFlow.BioRandOptions.MerchantOwnedByAp = _pendingDraft is { } merchantDraft
-            && (merchantDraft.MerchantChecksPerChapter > 0 || merchantDraft.ShuffleMerchantGear);
-        JoinFlow.BioRandOptions.GearScattered = _pendingDraft?.ShuffleMerchantGear == true;
-        JoinFlow.BioRandOptions.StartingArsenalCount = _pendingDraft?.StartingArsenal ?? 0;
+            && ((merchantDraft.MerchantChecksPerChapter ?? 3) > 0
+                || (merchantDraft.ShuffleMerchantGear ?? true));
+        JoinFlow.BioRandOptions.GearScattered = (_pendingDraft?.ShuffleMerchantGear ?? true) && _pendingDraft is not null;
+        JoinFlow.BioRandOptions.StartingArsenalCount =
+            _pendingDraft?.StartingArsenal ?? ConfigureYamlViewModel.DefaultStartingArsenal;
         JoinFlow.BioRandOptions.WeaponStatsFromYaml =
             _pendingDraft is { } weaponStatsDraft ? weaponStatsDraft.RandomWeaponStats : null;
 
@@ -1181,9 +1215,17 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             // The room answered but named locations this launcher does not
             // know. Saying "couldn't reach it" here sent a tester chasing a
             // sleeping-room fix for a version mismatch (Cam, live 2026-08-14).
+            //
+            // The replacement then asserted the ROOM was newer and led with
+            // "update the launcher", which is backwards whenever the launcher
+            // is the fresh side. That happened the day four accessory
+            // locations left the pool: every room generated before the cut hit
+            // this, and the only advice that worked was the one the message
+            // mentioned last (Cam, live 2026-08-21). Regenerating is now the
+            // lead because it is the fix that works in both directions.
             if (raw.Contains("bundled world data does not know", StringComparison.OrdinalIgnoreCase))
             {
-                return "The room and this launcher disagree about RE4R's locations, so patching stopped before touching your game. The room was probably generated with a newer RE4R.apworld than this launcher bundles - update the launcher, or regenerate the room with the apworld this launcher ships."
+                return "The room and this launcher disagree about RE4R's locations, so patching stopped before touching your game. Nothing is broken and your game was not touched. Regenerate the room with the apworld this launcher ships - that is the usual fix, and it is the right one whenever the launcher is the newer side. If the room is the newer one instead, update the launcher to match it."
                     + Environment.NewLine + Environment.NewLine + $"Details: {raw}";
             }
 

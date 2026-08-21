@@ -33,6 +33,9 @@ dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_world_markers.lua")(ctx)
 -- [D9 spike] Temporary dev probe for the boat-follows-the-player work. Delete
 -- this line with the module once D9 is built.
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_boat_spike.lua")(ctx)
+-- [Model placement] Dev-only tuner for the AP shop model. Delete with the
+-- module once the numbers are baked into the fork.
+dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_model_tuner.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_warning.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_windows.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_checks.lua")(ctx)
@@ -97,6 +100,7 @@ local draw_ap_status_menu_overlay = ctx.draw_ap_status_menu_overlay
 local draw_world_check_markers = ctx.draw_world_check_markers
 local draw_marker_position_editor = ctx.draw_marker_position_editor
 local draw_boat_spike = ctx.draw_boat_spike
+local draw_model_tuner = ctx.draw_model_tuner
 local poll_door_recovery = ctx.poll_door_recovery
 local merchant_poll_pending_sweeps = ctx.merchant_poll_pending_sweeps
 local draw_main_window = ctx.draw_main_window
@@ -130,6 +134,11 @@ local function install_chapter_switch_hook()
         load_save_method,
         function(args)
             clear_pending_pickup_accepts("loadGameSaveData")
+            -- [Shop open state] A load cannot happen with the shop open, so
+            -- this is the backstop that stops a missed close hook from
+            -- deferring DeathLink and item delivery for the rest of the
+            -- session.
+            bridge.shop_gui_open = false
             -- [F8] Record which campaign save version is being loaded so the AP
             -- client can reconcile received-item delivery against it (restore items
             -- a rollback dropped). Runs on EVERY load (chapter switch or not);
@@ -617,6 +626,9 @@ re.on_frame(function()
         draw_marker_position_editor()
     end
     -- [D9 spike] Dev-gated boat probe; no-ops unless both toggles are on.
+    if type(draw_model_tuner) == "function" then
+        draw_model_tuner()
+    end
     if type(draw_boat_spike) == "function" then
         draw_boat_spike()
     end
@@ -670,6 +682,11 @@ re.on_draw_ui(function()
             "Boat Spike (D9)", bridge.boat_spike_window_enabled)
         if changed_boat then
             bridge.boat_spike_window_enabled = boat_value
+        end
+        local changed_tuner, tuner_value = imgui.checkbox(
+            "AP Shop Model Tuner", bridge.model_tuner_window_enabled)
+        if changed_tuner then
+            bridge.model_tuner_window_enabled = tuner_value
         end
     end
 

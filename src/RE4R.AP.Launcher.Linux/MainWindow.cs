@@ -305,31 +305,20 @@ internal sealed class MainWindow : Window
         slotError.Bind(IsVisibleProperty, Binding("HasSlotNameError"));
         body.Children.Add(slotError);
 
-        // Two columns, matching the Windows pass. Stacking every setting in one
-        // narrow column wasted the whole right-hand side and pushed the YAML
-        // preview off the bottom of the window.
-        var left = new StackPanel { Spacing = 10 };
-        left.Children.Add(Label("Difficulty"));
-        left.Children.Add(Combo("DifficultyOptions", "SelectedDifficulty"));
-        left.Children.Add(new TextBlock
+        body.Children.Add(Label("Difficulty"));
+        body.Children.Add(Combo("DifficultyOptions", "SelectedDifficulty"));
+        body.Children.Add(new TextBlock
         {
             Text = "Match this to the save you will actually play. Do not change difficulty mid-run: "
                 + "moving up to Hardcore can strand an item in a spot you are no longer able to pick up.",
             TextWrapping = TextWrapping.Wrap,
             FontSize = 12,
         });
-        left.Children.Add(Label("Progression balancing"));
-        left.Children.Add(Text("ProgressionBalancingLabel"));
-        left.Children.Add(new Slider
-        {
-            Minimum = 0,
-            Maximum = 99,
-            [!RangeBase.ValueProperty] = Binding("ProgressionBalancing", BindingMode.TwoWay),
-        });
-        left.Children.Add(Label("Check guidance"));
-        left.Children.Add(Combo("CheckGuidanceOptions", "SelectedCheckGuidance", "Label"));
-        left.Children.Add(Label("Marker detail"));
-        left.Children.Add(Combo("MarkerDetailOptions", "SelectedMarkerDetail", "Label"));
+        // Two columns, matching the Windows pass. Stacking every setting in one
+        // narrow column wasted the whole right-hand side and pushed the YAML
+        // preview off the bottom of the window.
+        var left = new StackPanel { Spacing = 10 };
+        left.Children.Add(Section("THE MERCHANT"));
         left.Children.Add(Label("Merchant checks per chapter"));
         left.Children.Add(Text("MerchantChecksLabel"));
         left.Children.Add(new Slider
@@ -368,21 +357,25 @@ internal sealed class MainWindow : Window
             Opacity = .65,
         });
         left.Children.Add(Check("Random weapon stats", "RandomWeaponStats"));
+        left.Children.Add(Section("WHERE THINGS END UP"));
+        left.Children.Add(Check("Allow missable locations", "AllowMissableLocations"));
+        left.Children.Add(Check("Minimize backtracking + side areas", "MinimizeBacktracking"));
+        left.Children.Add(Check("Shuffle keycards", "ShuffleKeycards"));
+        left.Children.Add(Label("Progression balancing"));
+        left.Children.Add(Text("ProgressionBalancingLabel"));
+        left.Children.Add(new Slider
+        {
+            Minimum = 0,
+            Maximum = 99,
+            [!RangeBase.ValueProperty] = Binding("ProgressionBalancing", BindingMode.TwoWay),
+        });
 
         var right = new StackPanel { Spacing = 10, Margin = new Thickness(20, 0, 0, 0) };
-        right.Children.Add(Label("Options"));
-        right.Children.Add(Check("Death Link", "DeathLink"));
-        right.Children.Add(Check("Allow missable locations", "AllowMissableLocations"));
-        right.Children.Add(Check("Shuffle keycards", "ShuffleKeycards"));
-        right.Children.Add(Check("Minimize backtracking + side areas", "MinimizeBacktracking"));
-        right.Children.Add(Label("Random Events (Experimental)"));
-        right.Children.Add(Check("Let the multiworld author BioRand's Random Events", "RandomEvents"));
-        right.Children.Add(new TextBlock
-        {
-            Text = "Off by default. On: the Village chapters gain scripted set-pieces that the multiworld itself picks when the room generates, so the logic reacts to them - a couple of checks can trade places, and one event can replace the Hexagonal Emblem pickup with a guardian enemy who drops the emblem. Experimental and lightly tested; the launcher's bundled BioRand applies your room's roll automatically at patch time.",
-            TextWrapping = TextWrapping.Wrap,
-            Opacity = .72,
-        });
+        right.Children.Add(Section("HELP WHILE YOU PLAY"));
+        right.Children.Add(Label("Check guidance"));
+        right.Children.Add(Combo("CheckGuidanceOptions", "SelectedCheckGuidance", "Label"));
+        right.Children.Add(Label("Marker detail"));
+        right.Children.Add(Combo("MarkerDetailOptions", "SelectedMarkerDetail", "Label"));
         right.Children.Add(Check("Show the in-game getting-started guide", "Tutorial"));
         right.Children.Add(Label("Typewriter locations"));
         foreach (var option in vm.TypewriterOptions)
@@ -394,6 +387,16 @@ internal sealed class MainWindow : Window
                 [!ToggleButton.IsCheckedProperty] = Binding("IsSelected", BindingMode.TwoWay),
             });
         }
+        right.Children.Add(Section("EXTRAS"));
+        right.Children.Add(Check("Death Link", "DeathLink"));
+        right.Children.Add(Label("Random Events (Experimental)"));
+        right.Children.Add(Check("Let the multiworld author BioRand's Random Events", "RandomEvents"));
+        right.Children.Add(new TextBlock
+        {
+            Text = "Off by default. On: the Village chapters gain scripted set-pieces that the multiworld itself picks when the room generates, so the logic reacts to them - a couple of checks can trade places, and one event can replace the Hexagonal Emblem pickup with a guardian enemy who drops the emblem. Experimental and lightly tested; the launcher's bundled BioRand applies your room's roll automatically at patch time.",
+            TextWrapping = TextWrapping.Wrap,
+            Opacity = .72,
+        });
 
         var columns = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*") };
         Grid.SetColumn(right, 1);
@@ -857,6 +860,22 @@ internal sealed class MainWindow : Window
     }
 
     private static TextBlock Label(string value) => new() { Text = value, FontWeight = FontWeight.SemiBold };
+
+    /// <summary>A settings group heading, distinct from the field labels around it.</summary>
+    /// <remarks>
+    /// The Linux screen used Label() for both jobs, so "Options" and "Difficulty"
+    /// rendered identically and the settings read as one long undifferentiated
+    /// list. The Windows pass has SettingsSectionHeaderStyle for this; the two
+    /// screens now group the same way and in the same order.
+    /// </remarks>
+    private static TextBlock Section(string value) => new()
+    {
+        Text = value.ToUpperInvariant(),
+        FontWeight = FontWeight.Bold,
+        FontSize = 13,
+        Opacity = .6,
+        Margin = new Thickness(0, 14, 0, 2),
+    };
 
     private static TextBlock Text(string path, bool wrap = false, double fontSize = 14)
     {

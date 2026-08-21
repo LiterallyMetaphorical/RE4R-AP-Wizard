@@ -186,6 +186,7 @@ public sealed class BioRandOptionsViewModel : ObservableObject
             if (SetProperty(ref _gearScattered, value))
             {
                 OnPropertyChanged(nameof(ShowScatterIntensityWarning));
+                ApplyStartingWeaponForcing();
             }
         }
     }
@@ -212,6 +213,11 @@ public sealed class BioRandOptionsViewModel : ObservableObject
     // other. Same editable-row notice pattern as the enemy Health rows.
     private void ApplyStartingKitOverlapNote()
     {
+        // Rides the same triggers, but must not sit behind the early return
+        // below: the pickers grey out whether or not Random Inventory exists
+        // in this catalog.
+        ApplyStartingWeaponForcing();
+
         if (!_itemsByKey.TryGetValue("random-inventory", out var item))
         {
             return;
@@ -220,6 +226,49 @@ public sealed class BioRandOptionsViewModel : ObservableObject
         item.ForcedNotice = item.BoolValue && _startingArsenalCount > 0
             ? "Also on: your settings file's Starting Arsenal. They compose - BioRand rolls the opening kit, then your precollected arsenal joins it, ammo included."
             : string.Empty;
+    }
+
+    /// <summary>
+    /// Primary and Secondary Weapon: inert once the settings file asks for a
+    /// starting arsenal, so they grey out.
+    /// </summary>
+    /// <remarks>
+    /// These two groups pick the CLASS of the primary and secondary weapons
+    /// BioRand rolls into the opening case. A run with a starting arsenal has
+    /// already said how many guns it wants, so the fork stops rolling them
+    /// (ValuableDistributor.RandomizeStartLoadout) and the switches choose the
+    /// class of something that never happens.
+    ///
+    /// Before that they were worse than decorative. InventoryModifier's class
+    /// dedupe only drops a roll COLLIDING with an arsenal weapon, so a one-gun
+    /// arsenal opened the case with three: the arsenal shotgun plus a rolled
+    /// handgun plus a rolled rifle.
+    ///
+    /// The condition is exactly when the manifest carries starting weapon ids:
+    /// the arsenal draws from the scattered pool, so it needs the gear shuffle,
+    /// and at a count of zero it asks for nothing. Either off and BioRand rolls
+    /// as it always did, so the pickers come back.
+    ///
+    /// Random Inventory itself is untouched. It still owns the kit AROUND the
+    /// guns, which is the whole reason to leave it on.
+    /// </remarks>
+    private void ApplyStartingWeaponForcing()
+    {
+        var arsenalOwnsWeapons = _gearScattered && _startingArsenalCount > 0;
+        const string reason =
+            "Off because your settings file's Starting Arsenal picks the guns you begin with.";
+
+        foreach (var (key, item) in _itemsByKey)
+        {
+            if (!key.StartsWith(BioRandOptionCatalog.StartingWeaponPrimaryKeyPrefix, StringComparison.Ordinal)
+                && !key.StartsWith(BioRandOptionCatalog.StartingWeaponSecondaryKeyPrefix, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            item.IsEnabled = !arsenalOwnsWeapons;
+            item.ForcedNotice = arsenalOwnsWeapons ? reason : string.Empty;
+        }
     }
 
     /// <summary>
@@ -806,6 +855,7 @@ public sealed class BioRandOptionsViewModel : ObservableObject
 
         ApplyMerchantForcing();
         ApplyStartingKitOverlapNote();
+        ApplyBossHealthForcing();
         ApplyWeaponStatsForcing();
     }
 
@@ -865,8 +915,52 @@ public sealed class BioRandOptionsViewModel : ObservableObject
             if (SetProperty(ref _merchantOwnedByAp, value))
             {
                 ApplyMerchantForcing();
-        ApplyStartingKitOverlapNote();
+                ApplyStartingKitOverlapNote();
+                ApplyBossHealthForcing();
             }
+        }
+    }
+
+    /// <summary>
+    /// The per-boss HP dials go inert when Random Boss Health is off, so they
+    /// grey out and say why.
+    /// </summary>
+    /// <remarks>
+    /// EnemyModifier keeps the entire boss branch inside
+    /// "if (boss-random-health)". With the switch off, enemy.Health is never
+    /// assigned for a boss and all 38 dials do nothing. Nothing else reads
+    /// them either: the Pesanta chapter-HP fix in FixesModifier is gated on
+    /// the same switch.
+    ///
+    /// This cost a real test. Del Lago was set to min 0 / max 1 for a quick
+    /// kill and behaved exactly as normal, because the switch above the dials
+    /// was off and nothing said so (Cam, 2026-08-21).
+    ///
+    /// Deliberately NOT applied to the enemy-health-* group, which looks
+    /// identical but is not: FixesModifier reads enemy-health-min-brute_weapon
+    /// and -max-brute_weapon UNGATED to set the brute chapter HP. Greying that
+    /// group when enemy-random-health is off would be wrong about those two.
+    /// </remarks>
+    private void ApplyBossHealthForcing()
+    {
+        if (!_itemsByKey.TryGetValue(BioRandOptionCatalog.BossRandomHealthKey, out var master))
+        {
+            return;
+        }
+
+        var inert = !master.BoolValue;
+        const string reason =
+            "Inert while Random Boss Health is off - nothing reads these until you tick it.";
+
+        foreach (var (key, item) in _itemsByKey)
+        {
+            if (!key.StartsWith(BioRandOptionCatalog.BossHealthKeyPrefix, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            item.IsEnabled = !inert;
+            item.ForcedNotice = inert ? reason : string.Empty;
         }
     }
 
@@ -875,12 +969,18 @@ public sealed class BioRandOptionsViewModel : ObservableObject
         // Two owners cannot stock one shop: BioRand's merchant reroll would
         // put weapons back on a shelf the multiworld just took over (its
         // added arsenal is not pool-excludable) and reprice the check rows
-        // whose price IS their classification. The whole reroll suite -
-        // stock, prices and the per-chapter restock schedule - lives behind
-        // random-merchant in the fork, so it is forced off and the restock
-        // sliders grey out as the inert controls they become.
+        // whose price IS their classification. Stock, prices and the
+        // per-chapter restock schedule all live behind random-merchant in the
+        // fork, so it is forced off and the restock sliders grey out as the
+        // inert controls they become.
+        //
+        // The spinel TRADE rows are NOT part of that. They used to be, purely
+        // because SetRewards sat inside the same gated modifier, so an AP run
+        // shipped a vanilla trade tab while every other BioRand run got a
+        // randomized one. The fork now rolls them regardless, so the notice
+        // says shelf rather than merchant.
         const string reason =
-            "Off because the multiworld runs this room's merchant (shop checks or scattered gear).";
+            "Off because the multiworld runs this room's shelf (shop checks or scattered gear). The spinel trade rows are still randomized.";
         foreach (var (key, item) in _itemsByKey)
         {
             var isHeadline = string.Equals(key, BioRandOptionCatalog.RandomMerchantKey, StringComparison.Ordinal)
@@ -935,6 +1035,10 @@ public sealed class BioRandOptionsViewModel : ObservableObject
         if (string.Equals(item.Key, "random-inventory", StringComparison.Ordinal))
         {
             ApplyStartingKitOverlapNote();
+        }
+        if (string.Equals(item.Key, BioRandOptionCatalog.BossRandomHealthKey, StringComparison.Ordinal))
+        {
+            ApplyBossHealthForcing();
         }
         if (_enemyOptionKeys.Contains(item.Key))
         {

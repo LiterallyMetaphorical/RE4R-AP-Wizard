@@ -972,9 +972,18 @@ public sealed class ArchipelagoScoutClient
         var unknownIds = roomIds.Where(locationId => !knownIds.Contains(locationId)).ToList();
         if (unknownIds.Count > 0)
         {
+            // Direction is UNKNOWABLE from here. All this comparison proves is
+            // that the two sets differ; it cannot tell which side moved. The
+            // old wording asserted the room was NEWER and told the player to
+            // update the launcher, which is exactly backwards when the launcher
+            // is the fresh side - and it was, the day four cosmetic accessory
+            // locations left the pool and every room generated before that
+            // tripped this (Cam, live 2026-08-21). Name both remedies, rank
+            // neither.
             throw new ArchipelagoScoutException(
                 $"The room contains {unknownIds.Count} RE4R location id(s) this launcher's bundled world data does not know (first: {unknownIds[0]}). " +
-                "The room was probably generated with a newer RE4R.apworld than this launcher bundles - update the launcher and re-check.");
+                "The room and this launcher were built from different versions of RE4R.apworld; which one is older cannot be told from here. " +
+                "Either regenerate the room with the apworld this launcher ships, or update the launcher to match the one the room was generated with.");
         }
 
         return roomIds.ToArray();

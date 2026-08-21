@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-08-17T18:32:11Z",
+  "generated_at_utc": "2026-08-21T15:31:55Z",
   "game": "Resident Evil 4 Remake",
   "world_version": "0.7.0",
   "placeholder_item_id": 120486400,
@@ -9,14 +9,12 @@
       "Biosensor Scope x1"
     ],
     "Filler": [
-      "Accessory: Stylish Mask x1",
       "Alexandrite x1",
       "Antique Camera x1",
       "Antique Pipe x1",
       "Attachable Mines x4",
       "Attachable Mines x5",
       "Black Bass x1",
-      "Blue x1",
       "Bolts x2",
       "Bolts x4",
       "Bolts x5",
@@ -76,7 +74,6 @@
       "Red Beryl x1",
       "Red Gemstone Ring x1",
       "Red Herb x1",
-      "Red x1",
       "Resource (Large) x1",
       "Resources (Small) x1",
       "Rhinoceros Beetle x1",
@@ -98,7 +95,6 @@
       "Submachine Gun Ammo x50",
       "Velvet Blue x1",
       "Vintage Compass x1",
-      "Wellington x1",
       "Yellow Diamond x1",
       "Yellow Herb x1"
     ],
@@ -334,7 +330,6 @@
       "Chapter 8 - Castle Battlements - Ornate Necklace x1 (chest) [d0022d12]",
       "Chapter 8 - Castle Battlements - Ruby x1 (hanging) [142073d1]",
       "Chapter 8 - Castle Battlements - Yellow Herb x1 [024c6faa]",
-      "Chapter 8 - Courtyard - Accessory: Stylish Mask x1 (case) [c5639616]",
       "Chapter 8 - Courtyard - Gold Token x1 (case) [b1e533fa]",
       "Chapter 8 - Courtyard - Yellow Herb x1 [bc7cf6f2]",
       "Chapter 8 - Wine Cellar - Depraved Idol x1 (chest) [b8db5d3f]",
@@ -470,7 +465,6 @@
       "Chapter 14 - Campsite - Handgun Ammo x15 [e97cc3bc]",
       "Chapter 14 - Campsite - Heavy Grenade x1 [62c80fba]",
       "Chapter 14 - Campsite - Submachine Gun Ammo x30 [a4484001]",
-      "Chapter 14 - Facility 1 Exit - Blue x1 [e4191c54]",
       "Chapter 14 - Facility 1 Exit - Gold Token x1 [45c64385]",
       "Chapter 14 - Facility 2 - Emerald x1 [90bc4717]",
       "Chapter 14 - Facility 2 - Gunpowder x4 [cfdf4334]",
@@ -582,7 +576,6 @@
       "Chapter 12 - Upper Clock Tower - Silver Token x1 [01efc98e]",
       "Chapter 13 - Surveillance - Emerald x1 [40537700]",
       "Chapter 13 - Systems - Silver Token x1 (hanging) [dd9b9e71]",
-      "Chapter 14 - Facility 1 Exit - Blue x1 [e4191c54]",
       "Chapter 14 - Facility 1 Exit - Gold Token x1 [45c64385]",
       "Chapter 14 - Waste Disposal - Ruby x1 (hanging) [0ea6109c]",
       "Chapter 15 - Specimen Storage - Silver Token x1 (hanging) [fddb0b32]",
@@ -595,17 +588,14 @@
       "Chapter 4 - Large Cave Shrine - Silver Token x1 (hanging) [f52e1075]",
       "Chapter 4 - Small Cave Shrine - Ruby x1 (hanging) [8de2b01c]",
       "Chapter 5 - Church - Gold Token x1 [53f24a6c]",
-      "Chapter 5 - Church - Wellington x1 (case) [98fdec48]",
       "Chapter 5 - Village Square - Silver Token x1 (hanging) [5146332b]",
       "Chapter 6 - Checkpoint Alley - Red Beryl x1 (hanging) [e4edc52f]",
       "Chapter 6 - Slaughterhouse - Gold Token x1 [91e6dc7e]",
-      "Chapter 6 - Slaughterhouse - Red x1 [18bf2d8e]",
       "Chapter 7 - Audience Chamber - Elegant Crown x1 (case) [74d39fb5]",
       "Chapter 7 - Castle Gate - Sapphire x1 (hanging) [24ae996d]",
       "Chapter 7 - Treasury - Silver Token x1 (hanging) [3cd3b05f]",
       "Chapter 8 - Bindery - Alexandrite x1 (hanging) [e2460fe6]",
       "Chapter 8 - Bindery - Silver Token x1 (hanging) [285d0109]",
-      "Chapter 8 - Courtyard - Accessory: Stylish Mask x1 (case) [c5639616]",
       "Chapter 8 - Courtyard - Gold Token x1 (case) [b1e533fa]",
       "Chapter 9 - Armory - Silver Token x1 (hanging) [0d2236bf]",
       "Chapter 9 - Library - Yellow Diamond x1 (hanging) [8f5be12f]"
@@ -724,7 +714,7 @@
       "Chapter 4 - Large Cave Shrine - Apostate's Head x1 [687dbcd5]",
       "Chapter 4 - Large Cave Shrine - Flash Grenade x1 (breakable crate) [37849b90]",
       "Chapter 4 - Large Cave Shrine - Silver Token x1 (hanging) [f52e1075]",
-      "Chapter 4 - Large Cave Shrine - Velvet Blue x1 [c9b672e1]",
+      "Chapter 4 - Large Cave Shrine - Velvet Blue x1 (hanging) [c9b672e1]",
       "Chapter 4 - Large Cave Shrine - Yellow Herb x1 [a951718b]",
       "Chapter 4 - Mural Cave - Old Wayshrine Key x1 [f1d60034]",
       "Chapter 4 - Quarry - Green Herb x1 [bf08c52a]",
@@ -749,7 +739,6 @@
       "Chapter 5 - Church - Handgun Ammo x15 (rooftop) [3909672c]",
       "Chapter 5 - Church - Small Key x1 [89c7a0d8]",
       "Chapter 5 - Church - Submachine Gun Ammo x30 [fc4a6bdd]",
-      "Chapter 5 - Church - Wellington x1 (case) [98fdec48]",
       "Chapter 5 - Church - Yellow Diamond x1 (small-key drawer) [0c0f0d4b]",
       "Chapter 5 - Church - Yellow Diamond x1 [151a4801]",
       "Chapter 5 - Villa - Green Herb x1 [186dd826]",
@@ -791,16 +780,15 @@
       "Chapter 6 - Slaughterhouse - Handgun Ammo x30 [637d8990]",
       "Chapter 6 - Slaughterhouse - Kitchen Knife x1 [927f37d5]",
       "Chapter 6 - Slaughterhouse - Méndez's False Eye x1 (boss drop) [02676d58]",
-      "Chapter 6 - Slaughterhouse - Red Herb x1 [f0ad8ef6]",
-      "Chapter 6 - Slaughterhouse - Red x1 [18bf2d8e]"
+      "Chapter 6 - Slaughterhouse - Red Herb x1 [f0ad8ef6]"
     ]
   },
   "counts": {
-    "locations_total": 460,
-    "guid_locations": 460,
+    "locations_total": 456,
+    "guid_locations": 456,
     "noguid_locations": 0,
-    "items_total": 163,
-    "always_locations": 460,
+    "items_total": 159,
+    "always_locations": 456,
     "optional_key_locations": 0,
     "shop_slots": 120
   },
@@ -932,7 +920,6 @@
     3461757690,
     978914635,
     994272591,
-    1666167729,
     3692297634,
     3104642855,
     222898177,
@@ -985,7 +972,6 @@
     2932447861,
     2996162038,
     470703627,
-    3045507556,
     313717341,
     3515357816,
     3034030460,
@@ -1041,7 +1027,6 @@
     803745417,
     4147198940,
     1630145785,
-    2881858764,
     1339134035,
     2043326312,
     1033172125,
@@ -1154,7 +1139,6 @@
     2671681748,
     2804848610,
     1898434974,
-    4100356785,
     1884872331,
     2952833738,
     3569200257,
@@ -2237,9 +2221,9 @@
       "source_item_name": "Antique Pipe x1",
       "ap_eligibility": "always",
       "section_name": "Farm",
-      "x": 67.39,
-      "y": 3.2,
-      "z": -82.3,
+      "x": 66.39,
+      "y": 3.7,
+      "z": -84.3,
       "container": "key",
       "note": ""
     },
@@ -2429,9 +2413,9 @@
       "source_item_name": "Brown Chicken Egg x1",
       "ap_eligibility": "always",
       "section_name": "Village Chief's Manor",
-      "x": 2.23,
+      "x": 3.23,
       "y": 8.87,
-      "z": 95.69,
+      "z": 95.19,
       "container": "oven",
       "note": ""
     },
@@ -2589,9 +2573,9 @@
       "source_item_name": "Ruby x1",
       "ap_eligibility": "always",
       "section_name": "Village Chief's Manor",
-      "x": 5.58,
-      "y": 9.87,
-      "z": 95.19,
+      "x": 5.18,
+      "y": 8.87,
+      "z": 95.39,
       "container": "drawer",
       "note": ""
     },
@@ -3299,22 +3283,6 @@
       "container": "hanging",
       "note": ""
     },
-    "1666167729": {
-      "name": "Chapter 5 - Church - Wellington x1 (case) [98fdec48]",
-      "guid": "98fdec48-9bf2-4dc5-b41b-5bc7a3f8cf40",
-      "identity_kind": "guid",
-      "chapter": 5,
-      "stage": 45401,
-      "region": "Church",
-      "source_item_name": "Wellington x1",
-      "ap_eligibility": "always",
-      "section_name": "Church",
-      "x": 96.46,
-      "y": 23.13,
-      "z": 96.67,
-      "container": "case",
-      "note": ""
-    },
     "3692297634": {
       "name": "Chapter 5 - Church - Gold Token x1 [53f24a6c]",
       "guid": "53f24a6c-d17f-4ec0-a5c9-26fa93a2065c",
@@ -3453,9 +3421,9 @@
       "source_item_name": "Flash Grenade x1",
       "ap_eligibility": "always",
       "section_name": "Large Cave Shrine",
-      "x": 202.89,
+      "x": 211.79,
       "y": -6.86,
-      "z": 185.05,
+      "z": 189.65,
       "container": "crate",
       "note": ""
     },
@@ -3581,9 +3549,9 @@
       "source_item_name": "Splendid Bangle x1",
       "ap_eligibility": "always",
       "section_name": "Lakeside Shrine",
-      "x": 116.55,
+      "x": 115.45,
       "y": -5.23,
-      "z": 138.16,
+      "z": 137.26,
       "container": "key",
       "note": ""
     },
@@ -3636,7 +3604,7 @@
       "note": ""
     },
     "3802998627": {
-      "name": "Chapter 4 - Large Cave Shrine - Velvet Blue x1 [c9b672e1]",
+      "name": "Chapter 4 - Large Cave Shrine - Velvet Blue x1 (hanging) [c9b672e1]",
       "guid": "c9b672e1-3e8e-49cd-8ff9-533e0b7f57be",
       "identity_kind": "guid",
       "chapter": 4,
@@ -3645,10 +3613,10 @@
       "source_item_name": "Velvet Blue x1",
       "ap_eligibility": "always",
       "section_name": "Large Cave Shrine",
-      "x": 252.0,
-      "y": -6.38,
-      "z": 167.87,
-      "container": "",
+      "x": 250.0,
+      "y": -2.88,
+      "z": 167.37,
+      "container": "hanging",
       "note": ""
     },
     "1276584188": {
@@ -4145,22 +4113,6 @@
       "y": 22.62,
       "z": -182.55,
       "container": "hanging",
-      "note": ""
-    },
-    "3045507556": {
-      "name": "Chapter 6 - Slaughterhouse - Red x1 [18bf2d8e]",
-      "guid": "18bf2d8e-e85e-4ea0-8559-e652186d816f",
-      "identity_kind": "guid",
-      "chapter": 6,
-      "stage": 47401,
-      "region": "Church",
-      "source_item_name": "Red x1",
-      "ap_eligibility": "always",
-      "section_name": "Slaughterhouse",
-      "x": 298.17,
-      "y": 18.87,
-      "z": -178.94,
-      "container": "",
       "note": ""
     },
     "313717341": {
@@ -5041,22 +4993,6 @@
       "y": 26.85,
       "z": -30.21,
       "container": "hanging",
-      "note": ""
-    },
-    "2881858764": {
-      "name": "Chapter 8 - Courtyard - Accessory: Stylish Mask x1 (case) [c5639616]",
-      "guid": "c5639616-2aa4-4c57-b662-7b013f5aa2d0",
-      "identity_kind": "guid",
-      "chapter": 8,
-      "stage": 51200,
-      "region": "Castle Entry",
-      "source_item_name": "Accessory: Stylish Mask x1",
-      "ap_eligibility": "always",
-      "section_name": "Courtyard",
-      "x": 59.56,
-      "y": 26.34,
-      "z": 20.72,
-      "container": "case",
       "note": ""
     },
     "1339134035": {
@@ -6848,22 +6784,6 @@
       "x": 56.02,
       "y": 13.44,
       "z": -77.7,
-      "container": "",
-      "note": ""
-    },
-    "4100356785": {
-      "name": "Chapter 14 - Facility 1 Exit - Blue x1 [e4191c54]",
-      "guid": "e4191c54-aecc-4fca-8c97-b3f241d1f9c9",
-      "identity_kind": "guid",
-      "chapter": 14,
-      "stage": 61106,
-      "region": "Island Deep",
-      "source_item_name": "Blue x1",
-      "ap_eligibility": "always",
-      "section_name": "Facility 1 Exit",
-      "x": 49.61,
-      "y": 13.28,
-      "z": -89.21,
       "container": "",
       "note": ""
     },
@@ -9400,13 +9320,6 @@
       "classification": "FILLER",
       "count": 1
     },
-    "203780881": {
-      "name": "Accessory: Stylish Mask x1",
-      "biorand_item_id": 124646400,
-      "biorand_name": "Accessory: Stylish Mask",
-      "classification": "FILLER",
-      "count": 1
-    },
     "214868457": {
       "name": "Bolts x2",
       "biorand_item_id": 112808000,
@@ -9454,13 +9367,6 @@
       "biorand_item_id": 278037056,
       "biorand_name": "Skull Shaker",
       "classification": "USEFUL",
-      "count": 1
-    },
-    "414850128": {
-      "name": "Red x1",
-      "biorand_item_id": 124640000,
-      "biorand_name": "Red",
-      "classification": "FILLER",
       "count": 1
     },
     "457754278": {
@@ -9736,13 +9642,6 @@
       "classification": "USEFUL",
       "count": 1
     },
-    "1401905497": {
-      "name": "Wellington x1",
-      "biorand_item_id": 124643200,
-      "biorand_name": "Wellington",
-      "classification": "FILLER",
-      "count": 1
-    },
     "1446550920": {
       "name": "Elegant Mask x1",
       "biorand_item_id": 122400000,
@@ -9986,13 +9885,6 @@
       "biorand_item_id": 274841856,
       "biorand_name": "Matilda",
       "classification": "USEFUL",
-      "count": 1
-    },
-    "2417443590": {
-      "name": "Blue x1",
-      "biorand_item_id": 124641600,
-      "biorand_name": "Blue",
-      "classification": "FILLER",
       "count": 1
     },
     "2442382199": {

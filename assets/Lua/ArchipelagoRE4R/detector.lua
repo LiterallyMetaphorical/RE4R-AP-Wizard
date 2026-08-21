@@ -144,27 +144,36 @@ local function install(ctx)
                 toast_native_route = SUPPRESS_ORGANIC_AP_ITEM_TOAST and "text" or "suppress"
                 own_pickup_single_line = true
                 title_max_chars = 78
-                toast_title = "Collected " .. actual_display
+                -- "You found your <item> in <area>" (Cam 2026-08-21). Mirrors
+                -- the multiworld line's shape - You <verb> <ITEM> <preposition>
+                -- <ENTITY> - so the two read as one voice, and "your" is what
+                -- says at a glance that this one was not somebody else's.
+                --
+                -- The AREA carries its own colour for the same reason the
+                -- player name does. Before this, a filler pickup came out
+                -- entirely white (white item, white connectives, white place)
+                -- while every multiworld line had the blue player name to break
+                -- it up, which is the colourization the local line never got.
+                toast_title = "You found your " .. actual_display
                 toast_title_segments = {
-                    { text = "Collected", color = CHECK_OVERLAY_TEXT_COLOR_FILLER },
+                    { text = "You found your", color = CHECK_OVERLAY_TEXT_COLOR_FILLER },
                     { text = truncate_overlay_text(actual_display, 30),
                       color = get_check_overlay_classification_color(classification), entity = "item" },
                 }
-                -- Skip the origin clause when the item you got IS what vanilla had
-                -- here ("Collected Green Herb from Green Herb" reads silly).
-                if vanilla_name ~= "" and vanilla_name:lower() ~= actual_base:lower() then
-                    toast_title = toast_title .. " from " .. vanilla_name
-                    toast_title_segments[#toast_title_segments + 1] =
-                        { text = "from", color = CHECK_OVERLAY_TEXT_COLOR_FILLER }
-                    toast_title_segments[#toast_title_segments + 1] =
-                        { text = truncate_overlay_text(vanilla_name, 24), color = CHECK_OVERLAY_TEXT_COLOR_DETAIL }
-                end
                 if section_name ~= "" then
                     toast_title = toast_title .. " in " .. section_name
                     toast_title_segments[#toast_title_segments + 1] =
                         { text = "in", color = CHECK_OVERLAY_TEXT_COLOR_FILLER }
                     toast_title_segments[#toast_title_segments + 1] =
-                        { text = truncate_overlay_text(section_name, 24), color = CHECK_OVERLAY_TEXT_COLOR_DETAIL }
+                        { text = truncate_overlay_text(section_name, 24),
+                          color = CHECK_OVERLAY_TEXT_COLOR_AREA, entity = "area" }
+                end
+                -- The vanilla origin leaves the title and becomes the detail.
+                -- A "was <x>" detail is Message-Log-only by native_log's own
+                -- rule, so the rail stays the clean one-liner and nothing is
+                -- lost. Skipped when the item you got IS what vanilla had here.
+                if vanilla_name ~= "" and vanilla_name:lower() ~= actual_base:lower() then
+                    detail_line = "was " .. vanilla_name
                 end
             end
             -- Other-player (sent) toasts still carry the vanilla origin in the
@@ -323,9 +332,102 @@ local function install(ctx)
         return drop_item
     end
 
+    -- [findDropItem miss, live 2026-08-19] Route B for the same lookup: walk
+    -- the manager's own live set and match each drop by its ContextID key.
+    --
+    -- Why this exists. A tester lost essentially every check in a seed. The
+    -- accept hook resolved guids fine for ordinary non-AP drops in that same
+    -- session, but produced NOTHING for AP-location drops - no probe, no
+    -- pending accept - so every commit landed "unmatched" and the item went
+    -- into the case unchecked. Their drop_audit.json proves those exact drops
+    -- were sitting in collectAllItem() minutes earlier with readable
+    -- GameObject guids at correct positions. The two paths differ in one
+    -- step, so the manager's KEYED lookup is missing entries its own
+    -- ENUMERATION returns.
+    --
+    -- get_Context is the DropItem's own ContextID (the accessor the weapon
+    -- probe already reads), so its key is directly comparable to the one the
+    -- hook was handed. Same ladder as inject_resolve_controller: known-good
+    -- key first, enumerate and match on a miss, and say which route won.
+    local function find_drop_item_by_context_scan(wanted_key)
+        if wanted_key == nil or wanted_key == "" then
+            return nil
+        end
+
+        local drop_item_manager = sdk.get_managed_singleton("chainsaw.DropItemManager")
+        if drop_item_manager == nil then
+            return nil
+        end
+
+        local drop_list = safe_call(drop_item_manager, "collectAllItem")
+        if drop_list == nil then
+            drop_list = safe_call(drop_item_manager, "collectAllItem()")
+        end
+        if drop_list == nil then
+            return nil
+        end
+
+        local list_count = safe_call(drop_list, "get_Count")
+        if type(list_count) ~= "number" then
+            list_count = safe_call(drop_list, "get_size")
+        end
+        if type(list_count) ~= "number" then
+            return nil
+        end
+
+        for index = 0, list_count - 1 do
+            local drop_item = safe_call(drop_list, "get_Item", index)
+            if drop_item == nil then
+                drop_item = safe_call(drop_list, "get_element", index)
+            end
+            if drop_item ~= nil then
+                local ok_context, context = pcall(function()
+                    return drop_item:call("get_Context")
+                end)
+                if ok_context and context ~= nil then
+                    if get_context_id_key(context) == wanted_key then
+                        return drop_item
+                    end
+                end
+            end
+        end
+
+        return nil
+    end
+
+    -- One line per context key per save: enough to prove which route a live
+    -- pickup took, quiet enough to leave on in a release (bounded by the
+    -- drops the player actually touches). Reset alongside the other per-save
+    -- memos in clear_pending_pickup_accepts.
+    local drop_lookup_route_logged = {}
+
+    local function clear_drop_lookup_route_memo()
+        drop_lookup_route_logged = {}
+    end
+
+    local function log_drop_lookup_route(wanted_key, route, guid)
+        local key = tostring(wanted_key)
+        if drop_lookup_route_logged[key] then
+            return
+        end
+        drop_lookup_route_logged[key] = true
+        log.info(string.format(
+            "[RE4R AP] drop lookup context=%s route=%s guid=%s",
+            key, tostring(route), tostring(guid)))
+    end
+
     local function resolve_drop_item_guid_from_context(raw_context_arg)
+        local wanted_key = get_context_id_key(raw_context_arg)
+        local route = "find"
         local drop_item = find_drop_item_by_context(raw_context_arg)
         if drop_item == nil then
+            drop_item = find_drop_item_by_context_scan(wanted_key)
+            route = "scan"
+        end
+        if drop_item == nil then
+            -- Both routes missed: the context itself is unusable, which is a
+            -- different (and worse) problem than a stale lookup index.
+            log_drop_lookup_route(wanted_key, "none", nil)
             return nil
         end
 
@@ -333,10 +435,13 @@ local function install(ctx)
             return drop_item:get_GameObject()
         end)
         if not ok_game_object or game_object == nil then
+            log_drop_lookup_route(wanted_key, route .. "+no_gameobject", nil)
             return nil
         end
 
-        return get_game_object_guid(game_object)
+        local guid = get_game_object_guid(game_object)
+        log_drop_lookup_route(wanted_key, route, guid)
+        return guid
     end
 
     local function get_drop_item_context(drop_item)
@@ -548,6 +653,7 @@ local function install(ctx)
         -- (fire_pickup_event_flags re-checks the live flag before setting, so
         -- a reset is idempotent, never a double-set).
         clear_event_flag_memos()
+        clear_drop_lookup_route_memo()
         if removed_count > 0 and type(reason) == "string" and reason ~= "" then
             log.info(string.format("[RE4R AP] Cleared %d pending pickup accept(s): %s", removed_count, reason))
         end
@@ -909,6 +1015,24 @@ local function install(ctx)
         end
     end
 
+    -- [Silent-exit audit, 2026-08-19] The accept hook had THREE ways to drop a
+    -- pickup without leaving a trace, which is why "no accept line" has never
+    -- distinguished "the hook never fired" from "it fired and bailed early".
+    -- The commit hook got this treatment after the Mines miss; the accept hook
+    -- never did. Throttled per reason so a held prompt cannot flood the log.
+    local accept_bail_last_ms = {}
+
+    local function log_accept_bail(reason, detail)
+        local now_ms = current_unix_ms()
+        local last = accept_bail_last_ms[reason]
+        if last ~= nil and (now_ms - last) < 1000 then
+            return
+        end
+        accept_bail_last_ms[reason] = now_ms
+        log.info(string.format(
+            "[RE4R AP] pickup_accept bailed (%s) %s", tostring(reason), tostring(detail)))
+    end
+
     local function install_pickup_accept_hook()
         local drop_item_type = sdk.find_type_definition("chainsaw.DropItem")
         if drop_item_type == nil then
@@ -928,12 +1052,35 @@ local function install(ctx)
                 local runtime_state = get_runtime_state()
                 local stage = get_active_runtime_stage(runtime_state)
                 if not runtime_state.is_playable or type(stage) ~= "number" then
+                    -- is_playable folds in `not is_paused` and `not is_cutscene`
+                    -- (runtime.lua): an item-get raises the pause flag and a
+                    -- scripted container open raises the event flags, so this
+                    -- can fire on a perfectly ordinary pickup and take the check
+                    -- with it. Behaviour deliberately UNCHANGED here - this run
+                    -- is to establish whether it fires at all, so that a fix is
+                    -- attributable rather than a guess.
+                    log_accept_bail("guard", string.format(
+                        "playable=%s paused=%s cutscene=%s loading=%s title=%s stage=%s",
+                        tostring(runtime_state.is_playable),
+                        tostring(runtime_state.is_paused),
+                        tostring(runtime_state.is_cutscene),
+                        tostring(runtime_state.is_loading),
+                        tostring(runtime_state.is_title_screen),
+                        tostring(stage)))
                     return sdk.PreHookResult.CALL_ORIGINAL
                 end
 
                 local context_arg = args[3]
                 local context_key = get_context_id_key(context_arg)
                 local guid = resolve_drop_item_guid_from_context(context_arg)
+                if guid == nil then
+                    -- Nothing downstream can run without a guid: no probe, no
+                    -- pending accept, no intercept. The commit that follows will
+                    -- log "unmatched" and the check is lost. resolve_... already
+                    -- said WHICH lookup route missed; this ties it to the accept.
+                    log_accept_bail("no_guid", string.format(
+                        "stage=%s context=%s", tostring(stage), tostring(context_key)))
+                end
                 -- [Stage canonicalization] The drop's DATASET stage wins over the
                 -- player's current stage volume: sub-stage boundaries overlap in
                 -- the world (live miss 2026-07-23, Abandoned Factory: drops filed
@@ -1059,6 +1206,10 @@ local function install(ctx)
                 end
 
                 if get_stage_watch_entry(stage) == nil then
+                    log_accept_bail("stage_not_watched", string.format(
+                        "stage=%s runtime_stage=%s guid=%s context=%s",
+                        tostring(stage), tostring(runtime_stage),
+                        tostring(guid), tostring(context_key)))
                     return sdk.PreHookResult.CALL_ORIGINAL
                 end
 

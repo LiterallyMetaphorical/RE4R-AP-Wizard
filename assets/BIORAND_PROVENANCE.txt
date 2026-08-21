@@ -19,7 +19,7 @@ HISTORY SQUASHED 2026-08-10: the fork's branch was flattened to a single commit,
                 .cs/.csv/.json, so the SHA-256 below still describes the code
                 that is on the branch today. Keep the old ids for the reasoning
                 they carry; treat 703e59a as the citable source commit.
-Source commit:  d3d0bdd (2026-08-17 rotation rebuild; see the REBUILD entries below)
+Source commit:  6a8ad72 (2026-08-21 welcome desk moved; see the REBUILD entries below)
 Previous:       05f581e (2026-08-06: FORCED EVENTS - BioRand takes its event
                 set from the multiworld. The apworld rolls the Village event
                 set at generation time and the launcher pins it in as
@@ -156,6 +156,98 @@ ProductVersion: 1.0.0+05f581e7cdf1c912869903a760539cdebb1c7bac (the launcher
                 writes this into version_stamp.json, and a change here is what
                 triggers the one-time setup cache re-harvest)
 Built with:     .NET SDK 10.0.301
+
+REBUILD 2026-08-21 second (6a8ad72)
+    The welcome desk meets you at the start.
+      * FileModifier.PlaceWelcomeDocument moves from stage 40502 (the first
+        cabin) to 40501 (the opening area), a few feet from where Leon starts.
+        The getting-started guide explaining what Archipelago is had been
+        waiting a cabin away from the player who needed it.
+      * Position is runtime truth, not a guess: Cam stood on the spot and used
+        the Debug tab's Save Current Point, which wrote
+        40501,-255.909,5.218,32.103 into warp.csv.
+      * One transform drives the gimmick Transform, the StaticDataReadFile
+        position in the save table and the FindBestArea stage lookup, so the
+        desk prefab and the readable document move together.
+      * Yaw held at 45 on purpose so the first look is unambiguous about
+        whether POSITION is right. Expect a nudge or two on Y and Yaw.
+    Offline verify: library builds clean on .NET SDK 10.0.301, 0 warnings;
+    staged and hash-verified by tools/stage_payload.py.
+    NOT YET VERIFIED IN GAME: start a new run and look for the desk near spawn.
+    Watch for it sinking into the floor - Y is the height Cam's boots were at,
+    which assumes the prefab origin sits at its base.
+    exe SHA-256: c7c3852b59151f1ec238a8f92e4f17bafc1c0b6aecbd2e20e5e151bd0d8cfeeb
+    Prior exe SHA-256: 88d4e7400cc8aff3b8261ed378a205bcf9cdeac8b4587f4b5d03fbfb3886482b
+
+REBUILD 2026-08-21 (e743134)
+    The spinel trade gets randomized again.
+      * The launcher forces random-merchant off whenever the Archipelago
+        merchant owns the shelf, and that switch gated the WHOLE modifier.
+        SetRewards lives inside it, so an AP run shipped a VANILLA trade tab
+        while every other BioRand run got a randomized one. Nothing about
+        Archipelago wants to own Trade.
+      * Apply now also runs when the manifest carries a merchant shop, in a
+        rewards-only mode that skips InitializeShop and everything from SetShop
+        down. The four Distribute passes only fill _availableItems and write
+        nothing to the shop, so SetRewards keeps its full candidate list.
+      * random-merchant genuinely off with no AP merchant still randomizes
+        nothing, which is what that switch means to a base BioRand player.
+      * SetRewards refuses pool items up front. ApMerchantShopModifier strips
+        them afterwards either way, so rolling them just handed the player a
+        SHORTER trade tab than a non-AP run gets.
+    Offline verify: library and full solution build clean on .NET SDK 10.0.301,
+    0 warnings; staged and hash-verified by tools/stage_payload.py.
+    NOT YET VERIFIED IN GAME: open the merchant's Trade tab in an AP room and
+    confirm the spinel rows are not the vanilla set.
+    exe SHA-256: 88d4e7400cc8aff3b8261ed378a205bcf9cdeac8b4587f4b5d03fbfb3886482b
+    Prior exe SHA-256: a94286f5dfa09e3ad26b6281fbe03ea498860c39fcb9c1f6d8437050a08ecbb2
+
+REBUILD 2026-08-20 second (ddcfaf5)
+    Your starting arsenal picks the guns.
+      * A run that asks for a starting arsenal has already said how many guns
+        it wants, so RandomizeStartLoadout stops rolling a primary and a
+        secondary on top of them. InventoryModifier's class dedupe only ever
+        dropped a roll COLLIDING with an arsenal weapon's class, so a one-gun
+        arsenal opened the case with three: the arsenal shotgun, a rolled
+        handgun and a rolled rifle.
+      * The attachment roll survives and aims at the arsenal instead, so a
+        scope can still start on the gun the multiworld actually gave you.
+      * The knife roll is untouched. With no starting arsenal, nothing about
+        this path changes.
+      * Launcher side: inventory-weapon-primary/secondary grey out whenever
+        the manifest carries starting weapon ids, since they now choose the
+        class of rolls that never happen.
+    Offline verify: library and full solution build clean on .NET SDK 10.0.301,
+    0 warnings; staged and hash-verified by tools/stage_payload.py.
+    NOT YET VERIFIED IN GAME: confirm by starting a run with Starting Arsenal
+    at 1 and counting the guns in the opening case. One, plus the knife.
+    exe SHA-256: a94286f5dfa09e3ad26b6281fbe03ea498860c39fcb9c1f6d8437050a08ecbb2
+    Prior exe SHA-256: a3c3d2802e5cd0d569f934faac44612095a569e982cee0f5f4bc5c4a406616a3
+
+REBUILD 2026-08-20 (e125e4c)
+    The staples reach the shelf, and the bonus guns leave it.
+      * The staple restock was landing in the pak perfectly and appearing
+        nowhere. RE4R carries herbs, resources and gunpowder as SELL-ONLY rows
+        at _PurchasePrice -1 so the player can sell them, and the "vanilla
+        pricing wins" rule was faithfully preserving "not for sale". An
+        existing row now gets a purchase price when it has none and its unlock
+        condition cleared. _SellingPrice is left alone, so selling herbs stays
+        vanilla.
+      * The same mechanism, used on purpose, is what finally stops the
+        Handcannon and Chicago Sweeper. Clearing them from the purchase
+        categories emptied every real tab but not ALL, which is built from
+        shop.Items - confirmed live at 50,000 under ALL. Pooled ids are priced
+        at -1 now, so the row survives for selling and cannot be bought.
+      * Check rows carry a real description in the same "stranger" voice the
+        refund toast uses, and one row in 4096 says something else entirely.
+    Offline verify: publishes clean on .NET SDK 10.0.301; staged and
+    hash-verified by tools/stage_payload.py.
+    NOT YET VERIFIED IN GAME: no seed has been patched or played against this
+    exe. Sections 1 and 2 of LIVE_TEST_CHECKLIST_20260817.md are the tests it
+    owes, and the staples are the one to watch - they landed in the pak
+    correctly once before and still did not appear.
+    exe SHA-256: a3c3d2802e5cd0d569f934faac44612095a569e982cee0f5f4bc5c4a406616a3
+    Prior exe SHA-256: b6c4999d3bd42d0d9ff71bc2310acb88dc628cf098aa4955a10ec28c1fda4166
 
 REBUILD 2026-08-17 (d3d0bdd)
     Slot rotation, and the shop sells consumables again.

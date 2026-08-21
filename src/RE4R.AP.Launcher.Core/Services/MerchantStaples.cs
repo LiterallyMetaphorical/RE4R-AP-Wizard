@@ -37,10 +37,27 @@ public static class MerchantStaples
         new MerchantStaple(114403200, "Yellow Herb", 1, 4_000),
         new MerchantStaple(114416000, "First Aid Spray", 1, 5_000),
 
-        // Crafting inputs. These carry the ammo economy without selling ammo.
-        new MerchantStaple(117606400, "Resources (Small)", 3, 800),
-        new MerchantStaple(117601600, "Resource (Large)", 2, 1_600),
-        new MerchantStaple(117600000, "Gunpowder", 3, 700),
+        // Crafting inputs. These carry the ammo economy without selling ammo,
+        // so they are the one place on this shelf that is deliberately NOT
+        // modest (Cam, 2026-08-21).
+        //
+        // Gunpowder was 3 a chapter, which is 48 for a whole run. Rifle ammo
+        // alone costs 12 gunpowder for 7 bullets, so the entire run's supply
+        // was about 28 rifle rounds if you spent every grain on one gun. The
+        // shelf stopped selling ammo on the premise that you would craft it,
+        // and 48 gunpowder did not fund that premise.
+        //
+        // Worth remembering WHY this is our number to pick: vanilla carries
+        // gunpowder as a SELL-ONLY row, so the merchant never sold it at all.
+        // RestockStaples creates the purchasable row and turns stock limiting
+        // on for it, so the cap is entirely ours, not something vanilla chose.
+        //
+        // Resources go up alongside it on purpose. Gunpowder is one input of
+        // two; raising it alone would not open the bottleneck, it would just
+        // move it onto Resources.
+        new MerchantStaple(117606400, "Resources (Small)", 6, 800),
+        new MerchantStaple(117601600, "Resource (Large)", 4, 1_600),
+        new MerchantStaple(117600000, "Gunpowder", 24, 700),
 
         // Combat consumables, priced high on purpose: a convenience, not a
         // supply line.

@@ -5,7 +5,8 @@ namespace RE4R.AP.Launcher.Models;
 /// <summary>
 /// One weapon class the Starting Arsenal draw may take. Mirrors the
 /// apworld's starting_arsenal_types keys, which mirror BioRand's own
-/// starting-inventory pickers; "special" means the Rocket Launcher.
+/// starting-inventory pickers. The Rocket Launcher is deliberately absent:
+/// an infinite-ammo novelty is not an opening weapon.
 /// </summary>
 public sealed class ArsenalTypeOptionViewModel : ObservableObject
 {

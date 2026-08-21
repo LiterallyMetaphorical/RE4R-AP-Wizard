@@ -294,6 +294,23 @@ return function(ctx)
 
     -- The exact 5-field compound bridge.lua uses before injecting (is_playable
     -- already implies the others, but we mirror the proven gate verbatim).
+    -- [Shop open state] The merchant shop is not a pause, not a cutscene and
+    -- not a load, so nothing in MainFlowManager calls it a menu and
+    -- is_playable reads TRUE while the player stands at the shelf. That is how
+    -- a DeathLink kill got waved into an open shop and came back as a grey
+    -- wash the player could only clear by restarting the game (Cam, live
+    -- 2026-08-20). merchant.lua publishes the shop's own enter/close state;
+    -- this is the only reader, deliberately, so the pickup path's own
+    -- is_playable check is left exactly as it was.
+    --
+    -- Blocking here DEFERS, it never drops: an incoming death stays queued in
+    -- st.dl_pending_incoming and the delivery watermark does not advance, so
+    -- both resume the moment the shop closes.
+    local function shop_gui_is_open()
+        local bridge = ctx.bridge
+        return bridge ~= nil and bridge.shop_gui_open == true
+    end
+
     local function safe_to_inject(rs)
         return rs ~= nil
             and rs.is_in_game
@@ -301,6 +318,7 @@ return function(ctx)
             and rs.is_playable
             and not rs.is_loading
             and not rs.is_cutscene
+            and not shop_gui_is_open()
     end
 
     -- [Phase 4/Overlay] Exact port of client.py _classify_location_scout_flags: AP
@@ -2136,6 +2154,12 @@ return function(ctx)
         local parts = { "enabled" }
         parts[#parts + 1] = (st.dl_pending_incoming ~= nil)
             and "kill queued, waiting for a safe tick" or "no kill queued"
+        -- Name the shop specifically: it is the one safe-state block a
+        -- player can see themselves and clear on purpose, by walking away
+        -- from the merchant.
+        if shop_gui_is_open() then
+            parts[#parts + 1] = "held: shop is open"
+        end
         if os.clock() < (st.dl_amnesty_until or 0) then
             parts[#parts + 1] = string.format(
                 "amnesty %.0fs left", (st.dl_amnesty_until or 0) - os.clock())

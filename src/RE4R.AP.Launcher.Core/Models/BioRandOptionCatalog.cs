@@ -60,6 +60,20 @@ public static class BioRandOptionCatalog
     // the same modifier random-merchant gates, so it is inert while the
     // Archipelago merchant owns the shop.
     public const string MerchantStockKeyPrefix = "merchant-stock-";
+    // The two starting-weapon class pickers. They choose the class of the
+    // primary and secondary BioRand rolls into the opening case, and those
+    // rolls do not happen at all once the settings file asks for a starting
+    // arsenal - the arsenal count IS the weapon count then. Inert controls,
+    // so they grey out.
+    public const string StartingWeaponPrimaryKeyPrefix = "inventory-weapon-primary-";
+    // The 38 per-boss HP dials and the switch that decides whether anything
+    // reads them. EnemyModifier keeps the whole boss branch inside
+    // "if (boss-random-health)", so with the switch off every one of those
+    // dials is inert - which cost a live test on a Del Lago set to 1 HP that
+    // never took damage differently (Cam, 2026-08-21).
+    public const string BossRandomHealthKey = "boss-random-health";
+    public const string BossHealthKeyPrefix = "boss-health-";
+    public const string StartingWeaponSecondaryKeyPrefix = "inventory-weapon-secondary-";
 
     private const string CatalogFileName = "biorand_options.json";
 

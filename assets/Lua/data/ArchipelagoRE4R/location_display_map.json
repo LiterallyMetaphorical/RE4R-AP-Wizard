@@ -477,9 +477,9 @@
         "chapter": 1,
         "stage_name": "Farm after village.",
         "section_name": "Farm",
-        "x": 67.39,
-        "y": 3.2,
-        "z": -82.3,
+        "x": 66.39,
+        "y": 3.7,
+        "z": -84.3,
         "container": "key",
         "note": "in the wayshrine"
       }
@@ -913,9 +913,9 @@
         "chapter": 2,
         "stage_name": "Mendez house inside. - Chapter 3 start too",
         "section_name": "Village Chief's Manor",
-        "x": 2.23,
+        "x": 3.23,
         "y": 8.87,
-        "z": 95.69,
+        "z": 95.19,
         "container": "oven",
         "note": ""
       },
@@ -1003,9 +1003,9 @@
         "chapter": 2,
         "stage_name": "Mendez house inside. - Chapter 3 start too",
         "section_name": "Village Chief's Manor",
-        "x": 5.58,
-        "y": 9.87,
-        "z": 95.19,
+        "x": 5.18,
+        "y": 8.87,
+        "z": 95.39,
         "container": "drawer",
         "note": ""
       },
@@ -1454,9 +1454,9 @@
         "chapter": 4,
         "stage_name": "Back of the water cave where treasure (below walk ways) + wooden walk ways",
         "section_name": "Lakeside Shrine",
-        "x": 116.55,
+        "x": 115.45,
         "y": -5.23,
-        "z": 138.16,
+        "z": 137.26,
         "container": "key",
         "note": "in the wayshrine"
       }
@@ -1888,21 +1888,6 @@
         "container": "",
         "note": "in Ashley's room"
       },
-      "98fdec48-9bf2-4dc5-b41b-5bc7a3f8cf40": {
-        "location_id": 1666167729,
-        "location_name": "Chapter 5 - Church - Wellington x1 (case) [98fdec48]",
-        "toast_title": "Wellington",
-        "item_name": "Wellington x1",
-        "classification": "FILLER",
-        "chapter": 5,
-        "stage_name": "Chapter start Church interior - Backtracking through graveyard to village all same IDs",
-        "section_name": "Church",
-        "x": 96.46,
-        "y": 23.13,
-        "z": 96.67,
-        "container": "case",
-        "note": "in the church attic"
-      },
       "53f24a6c-d17f-4ec0-a5c9-26fa93a2065c": {
         "location_id": 3692297634,
         "location_name": "Chapter 5 - Church - Gold Token x1 [53f24a6c]",
@@ -2239,9 +2224,9 @@
         "chapter": 4,
         "stage_name": "Larger cave system with head key item",
         "section_name": "Large Cave Shrine",
-        "x": 202.89,
+        "x": 211.79,
         "y": -6.86,
-        "z": 185.05,
+        "z": 189.65,
         "container": "crate",
         "note": ""
       },
@@ -2262,17 +2247,17 @@
       },
       "c9b672e1-3e8e-49cd-8ff9-533e0b7f57be": {
         "location_id": 3802998627,
-        "location_name": "Chapter 4 - Large Cave Shrine - Velvet Blue x1 [c9b672e1]",
+        "location_name": "Chapter 4 - Large Cave Shrine - Velvet Blue x1 (hanging) [c9b672e1]",
         "toast_title": "Velvet Blue",
         "item_name": "Velvet Blue x1",
         "classification": "FILLER",
         "chapter": 4,
         "stage_name": "Larger cave system with head key item",
         "section_name": "Large Cave Shrine",
-        "x": 252.0,
-        "y": -6.38,
-        "z": 167.87,
-        "container": "",
+        "x": 250.0,
+        "y": -2.88,
+        "z": 167.37,
+        "container": "hanging",
         "note": ""
       },
       "f52e1075-53c8-49fa-b93a-55c4a19f1461": {
@@ -2683,21 +2668,6 @@
         "y": 22.62,
         "z": -182.55,
         "container": "hanging",
-        "note": ""
-      },
-      "18bf2d8e-e85e-4ea0-8559-e652186d816f": {
-        "location_id": 3045507556,
-        "location_name": "Chapter 6 - Slaughterhouse - Red x1 [18bf2d8e]",
-        "toast_title": "Red",
-        "item_name": "Red x1",
-        "classification": "FILLER",
-        "chapter": 6,
-        "stage_name": "Unknown Stage 47401",
-        "section_name": "Slaughterhouse",
-        "x": 298.17,
-        "y": 18.87,
-        "z": -178.94,
-        "container": "",
         "note": ""
       },
       "91e6dc7e-1a5b-42dc-9016-f6e39a5b0b16": {
@@ -3372,21 +3342,6 @@
         "z": 25.71,
         "container": "",
         "note": ""
-      },
-      "c5639616-2aa4-4c57-b662-7b013f5aa2d0": {
-        "location_id": 2881858764,
-        "location_name": "Chapter 8 - Courtyard - Accessory: Stylish Mask x1 (case) [c5639616]",
-        "toast_title": "Accessory: Stylish Mask",
-        "item_name": "Accessory: Stylish Mask x1",
-        "classification": "FILLER",
-        "chapter": 8,
-        "stage_name": "Chapter end and Chapter 9 maze area",
-        "section_name": "Courtyard",
-        "x": 59.56,
-        "y": 26.34,
-        "z": 20.72,
-        "container": "case",
-        "note": "in the corridor before rejoining Ashley"
       },
       "b1e533fa-b79d-4944-8dcc-9a2c22430803": {
         "location_id": 1339134035,
@@ -5446,21 +5401,6 @@
       }
     },
     "61106": {
-      "e4191c54-aecc-4fca-8c97-b3f241d1f9c9": {
-        "location_id": 4100356785,
-        "location_name": "Chapter 14 - Facility 1 Exit - Blue x1 [e4191c54]",
-        "toast_title": "Blue",
-        "item_name": "Blue x1",
-        "classification": "FILLER",
-        "chapter": 14,
-        "stage_name": "Unknown Stage 61106",
-        "section_name": "Facility 1 Exit",
-        "x": 49.61,
-        "y": 13.28,
-        "z": -89.21,
-        "container": "",
-        "note": ""
-      },
       "45c64385-d06c-4bde-a830-b9975580f73a": {
         "location_id": 1884872331,
         "location_name": "Chapter 14 - Facility 1 Exit - Gold Token x1 [45c64385]",

@@ -53,11 +53,20 @@ public sealed class PendingSessionDraft
     [JsonPropertyName("shuffle_keycards")]
     public bool ShuffleKeycards { get; set; }
 
+    // NULLABLE on purpose. A plain bool cannot tell "the player switched this
+    // off" from "this draft predates the option", and both deserialize to
+    // false - so a draft saved before the Archipelago merchant existed loaded
+    // with the merchant switched OFF, silently overriding a default that is
+    // meant to be ON (Cam, live 2026-08-21: "just now in the launcher they
+    // were off by default"). Absent now means "use the default", which is
+    // exactly how StartingArsenalTypes already behaves.
     [JsonPropertyName("shuffle_merchant_gear")]
-    public bool ShuffleMerchantGear { get; set; }
+    public bool? ShuffleMerchantGear { get; set; }
 
+    // Nullable for the same reason: 0 is a legitimate choice AND the value an
+    // older draft deserializes to, so they have to be distinguishable.
     [JsonPropertyName("starting_arsenal")]
-    public int StartingArsenal { get; set; }
+    public int? StartingArsenal { get; set; }
 
     // Trimmed Starting Arsenal type keys; null/absent means every type
     // (drafts from before the option existed load as the full set).
@@ -82,8 +91,11 @@ public sealed class PendingSessionDraft
     // with rotation, and deliberately so: a draft saved before it holds a
     // TOTAL (up to 20), and reading that as a per-chapter rate would silently
     // multiply the shelf. An old draft falls back to the current default.
+    // Nullable: 0 means "the player turned merchant checks off", which is not
+    // the same as an older draft that never had the field. See
+    // ShuffleMerchantGear above.
     [JsonPropertyName("merchant_checks_per_chapter")]
-    public int MerchantChecksPerChapter { get; set; }
+    public int? MerchantChecksPerChapter { get; set; }
 
     // Default TRUE so drafts saved before this option existed keep the guide
     // on, matching the apworld default.

@@ -205,6 +205,19 @@
             <Setter Property="Margin" Value="0,0,0,6" />
         </Style>
 
+        <!-- A checkbox that IS the card's title. Cards used to carry a title
+             TextBlock and then a checkbox repeating the same words at a
+             smaller size ("Allow Missable Locations" over "Allow missable
+             locations"), which read as clutter and halved the click target
+             (Cam, 2026-08-21). Mirrors OptionCardTitleStyle's weight and
+             spacing so the cards still line up with the ones that keep a
+             title, which are the cards whose control has no label of its
+             own - pickers and sliders. -->
+        <Style x:Key="OptionCardCheckTitleStyle" TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+
         <Style x:Key="OptionCardHintStyle" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
             <Setter Property="Margin" Value="0,6,0,0" />
             <Setter Property="Foreground" Value="{DynamicResource SubtleTextBrush}" />
@@ -703,8 +716,10 @@
 
                 <TextBlock FontSize="34"
                            FontWeight="SemiBold"
+                           Visibility="{Binding IsHostedInGuide, Converter={StaticResource InverseBooleanToVisibilityConverter}}"
                            Text="Configure Archipelago Settings" />
-                <StackPanel Grid.Row="2">
+                <StackPanel Grid.Row="2"
+                            Visibility="{Binding IsHostedInGuide, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
                     <TextBlock Foreground="{DynamicResource SubtleTextBrush}"
                                TextWrapping="Wrap"
                                Text="{Binding FileExplainer}" />
@@ -759,36 +774,12 @@
                     </WrapPanel>
                     <Border Style="{StaticResource SettingsSectionRuleStyle}">
                         <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
-                                   Text="WHERE THINGS END UP" />
+                                   Text="THE MERCHANT" />
                     </Border>
                     <WrapPanel MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}, Converter={StaticResource ColumnSnapConverter}, ConverterParameter=550}">
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
-                                       Text="Allow Missable Locations" />
-                            <CheckBox IsChecked="{Binding AllowMissableLocations}"
-                                      Content="Allow missable locations" />
-                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="Off by default, which keeps progression items away from spots you can permanently lose: ones you can walk past for good, and small-key drawers (a discarded Small Key can seal one). On allows them in both - riskier seeds." />
-                        </StackPanel>
-                        <StackPanel Style="{StaticResource OptionCardStyle}">
-                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
-                                       Text="Minimize Backtracking" />
-                            <CheckBox IsChecked="{Binding MinimizeBacktracking}"
-                                      Content="Minimize backtracking + side areas" />
-                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="Off by default. On: keeps the important checks along the main path - all three Hexagon pieces are guaranteed before leaving the Fish Farm so the lake altar solves in one boat pass, and the optional excursions (Forest Altar, the chapter 12 Throne Room revisit, the lake's egg-nest islet) only ever hold plain filler." />
-                        </StackPanel>
-                        <StackPanel Style="{StaticResource OptionCardStyle}">
-                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
-                                       Text="Shuffle Keycards" />
-                            <CheckBox IsChecked="{Binding ShuffleKeycards}"
-                                      Content="Shuffle the Level 1/2/3 Keycards" />
-                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="Off by default: each keycard sits at its native facility spot (still a check), so the island door sequence plays like vanilla. On: the keycards join the shuffle like any other key item - logic guarantees each card is obtainable before the first door that needs it, but it may come from anywhere in the multiworld." />
-                        </StackPanel>
-                        <StackPanel Style="{StaticResource OptionCardStyle}">
-                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
-                                       Text="Archipelago Merchant" />
+                                       Text="Merchant Checks" />
                             <CheckBox IsChecked="{Binding MerchantChecksEnabled}"
                                       Content="Let the merchant sell multiworld checks" />
                             <StackPanel Margin="0,6,0,0"
@@ -816,14 +807,20 @@
                                      IsEnabled="{Binding MerchantChecksEnabled}" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="Who the check rows may hold. Mixed lets the multiworld decide. Local only keeps your own items on the shelf, so every row is something you will use yourself, but nothing on that shelf refunds and the prices are real spending. Remote only turns the shop into a trading post - every row belongs to another world, and the gem refund keeps you solvent while you stock everyone else. Remote only needs at least one other world in the room." />
-                            <CheckBox Margin="0,10,0,0"
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <CheckBox Style="{StaticResource OptionCardCheckTitleStyle}"
                                       IsChecked="{Binding ShuffleMerchantGear}"
-                                      Content="Shuffle the merchant's gear into the multiworld" />
+                                      Content="Merchant Gear" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="On by default. His weapons, attachments, case sizes and crafting recipes - plus the Deluxe and Separate Ways guns that work in Leon's campaign - leave the buy tab and become multiworld items: your next gun is a check somewhere out there, maybe in another player's world. Consumable supplies, knife replacements, body armor, tune-ups, selling and trades stay. Expect a different power curve; gear never gates logic, so a seed can always be finished. Turning this on also turns shop checks on, so the emptied shelf sells checks instead of nothing - untick it if you really want a bare shop." />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="While either option is on, the multiworld owns the shop: BioRand's own Random Merchant is switched off when you patch, and its row on the BioRand Options screen says so." />
-                            <StackPanel Margin="0,10,0,0"
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Starting Arsenal" />
+                            <StackPanel
                                         Orientation="Horizontal"
                                         IsEnabled="{Binding ShuffleMerchantGear}">
                                 <TextBlock VerticalAlignment="Center"
@@ -852,11 +849,40 @@
                             </ItemsControl>
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="Begin the run with this many random pool weapons already in your case, ammo to match, exactly like BioRand's own starting loadout. Each one leaves the pool, so nobody finds a second copy. The type boxes trim what the draw may take - two guns come from two different types when the boxes allow it, and at least one box must stay ticked. Needs the gear shuffle above; without it, BioRand's own starting-inventory options on the options screen still work as always." />
-                            <CheckBox Margin="0,10,0,0"
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <CheckBox Style="{StaticResource OptionCardCheckTitleStyle}"
                                       IsChecked="{Binding RandomWeaponStats}"
-                                      Content="Random weapon stats" />
+                                      Content="Random Weapon Stats" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="BioRand's Random Upgraded Weapon Stats, decided here because the multiworld holds the weapons: every gun's upgrade curve rerolls, from forgettable to monstrous. Applied identically on every patch; BioRand's own switch greys out and says the settings file decided." />
+                        </StackPanel>
+                    </WrapPanel>
+                    <Border Style="{StaticResource SettingsSectionRuleStyle}">
+                        <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
+                                   Text="WHERE THINGS END UP" />
+                    </Border>
+                    <WrapPanel MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}, Converter={StaticResource ColumnSnapConverter}, ConverterParameter=550}">
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <CheckBox Style="{StaticResource OptionCardCheckTitleStyle}"
+                                      IsChecked="{Binding AllowMissableLocations}"
+                                      Content="Allow Missable Locations" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Off by default, which keeps progression items away from spots you can permanently lose: ones you can walk past for good, and small-key drawers (a discarded Small Key can seal one). On allows them in both - riskier seeds." />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <CheckBox Style="{StaticResource OptionCardCheckTitleStyle}"
+                                      IsChecked="{Binding MinimizeBacktracking}"
+                                      Content="Minimize Backtracking" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Off by default. On: keeps the important checks along the main path - all three Hexagon pieces are guaranteed before leaving the Fish Farm so the lake altar solves in one boat pass, and the optional excursions (Forest Altar, the chapter 12 Throne Room revisit, the lake's egg-nest islet) only ever hold plain filler." />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <CheckBox Style="{StaticResource OptionCardCheckTitleStyle}"
+                                      IsChecked="{Binding ShuffleKeycards}"
+                                      Content="Shuffle Keycards" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Off by default: each keycard sits at its native facility spot (still a check), so the island door sequence plays like vanilla. On: the keycards join the shuffle like any other key item - logic guarantees each card is obtainable before the first door that needs it, but it may come from anywhere in the multiworld." />
                         </StackPanel>
                         <StackPanel Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=WrapPanel}, Converter={StaticResource ColumnSnapConverter}, ConverterParameter=550}" Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
@@ -998,36 +1024,12 @@
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="How much a marker says, and what you will actually see: markers read at this level the moment you connect. You can change it any time in the in-game Guidance tab, and once you do, your choice sticks for that seed. Locate is the recommended default - it names the item as it appeared in vanilla, what it is sitting in, and how to reach it, without revealing what the multiworld actually placed. Identify does reveal that, and is what a bought hint always shows. Developer adds the location code and is a debug tool." />
                         </StackPanel>
-
                         <StackPanel Style="{StaticResource OptionCardStyle}">
-                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
-                                       Text="In-Game Tutorial" />
-                            <CheckBox IsChecked="{Binding Tutorial}"
-                                      Content="Show the getting-started guide" />
+                            <CheckBox Style="{StaticResource OptionCardCheckTitleStyle}"
+                                      IsChecked="{Binding Tutorial}"
+                                      Content="In-Game Tutorial" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="On by default: a short guide appears in game on your first chapter, explaining checks, markers and how to get unstuck. You can reopen or skip it any time. Turn it off if you already know how this works." />
-                        </StackPanel>
-                    </WrapPanel>
-                    <Border Style="{StaticResource SettingsSectionRuleStyle}">
-                        <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
-                                   Text="EXTRAS" />
-                    </Border>
-                    <WrapPanel MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}, Converter={StaticResource ColumnSnapConverter}, ConverterParameter=550}">
-                        <StackPanel Style="{StaticResource OptionCardStyle}">
-                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
-                                       Text="Death Link" />
-                            <CheckBox IsChecked="{Binding DeathLink}"
-                                      Content="Enable Death Link" />
-                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="Dying sends a death to all Death Link players, and theirs kill you." />
-                        </StackPanel>
-                        <StackPanel Style="{StaticResource OptionCardStyle}">
-                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
-                                       Text="Random Events (Experimental)" />
-                            <CheckBox IsChecked="{Binding RandomEvents}"
-                                      Content="Let the multiworld author BioRand's Random Events" />
-                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="Off by default. On: the Village chapters gain scripted set-pieces that the multiworld itself picks when the room generates, so the logic reacts to them - a couple of checks can trade places, and one event can replace the Hexagonal Emblem pickup with a guardian enemy who drops the emblem. Experimental and lightly tested; the launcher's bundled BioRand applies your room's roll automatically at patch time." />
                         </StackPanel>
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
@@ -1051,6 +1053,26 @@
                             </Border>
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="Save points you can warp to from the start of the run." />
+                        </StackPanel>
+                    </WrapPanel>
+                    <Border Style="{StaticResource SettingsSectionRuleStyle}">
+                        <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
+                                   Text="EXTRAS" />
+                    </Border>
+                    <WrapPanel MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}, Converter={StaticResource ColumnSnapConverter}, ConverterParameter=550}">
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <CheckBox Style="{StaticResource OptionCardCheckTitleStyle}"
+                                      IsChecked="{Binding DeathLink}"
+                                      Content="Death Link" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Dying sends a death to all Death Link players, and theirs kill you." />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <CheckBox Style="{StaticResource OptionCardCheckTitleStyle}"
+                                      IsChecked="{Binding RandomEvents}"
+                                      Content="Random Events (Experimental)" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Off by default. On: the Village chapters gain scripted set-pieces that the multiworld itself picks when the room generates, so the logic reacts to them - a couple of checks can trade places, and one event can replace the Hexagonal Emblem pickup with a guardian enemy who drops the emblem. Experimental and lightly tested; the launcher's bundled BioRand applies your room's roll automatically at patch time." />
                         </StackPanel>
                     </WrapPanel>
 
@@ -1133,7 +1155,7 @@
         </DataTemplate>
 
         <DataTemplate DataType="{x:Type viewModels:GenerationGuidanceViewModel}">
-            <StackPanel MaxWidth="1050"
+            <StackPanel MaxWidth="{Binding GuidanceMaxWidth}"
                         HorizontalAlignment="Left">
                 <TextBlock FontSize="34"
                            FontWeight="SemiBold"
@@ -1271,21 +1293,19 @@
                                        Text="✓ Done"
                                        Visibility="{Binding OwnYamlReady, Converter={StaticResource BooleanToVisibilityConverter}}" />
                             <TextBlock Style="{StaticResource GuidanceStepTitleStyle}"
-                                       Text="Set up your own settings file" />
+                                       Text="Configure Your YAML" />
                         </DockPanel>
                         <TextBlock Margin="38,6,0,0"
                                    Foreground="{DynamicResource SubtleTextBrush}"
                                    TextWrapping="Wrap"
                                    Text="You play too - these settings decide how YOUR RE4R plays and which slot name is yours. Your file joins everyone else's in the next step." />
-                        <StackPanel Margin="38,10,0,0"
-                                    Orientation="Horizontal">
-                            <Button Style="{StaticResource GuidanceButtonStyle}"
-                                    Command="{Binding ConfigureOwnYamlCommand}"
-                                    Content="Configure Your YAML" />
-                        </StackPanel>
-                        <TextBlock Margin="38,4,0,0"
-                                   TextWrapping="Wrap"
-                                   Text="{Binding OwnYamlStatusText}" />
+                        <!-- The settings editor itself, not a button that opens
+                             it. Step 3 IS Configure Your YAML (Cam, 2026-08-21,
+                             asked three times). Its own 34pt header and blurb
+                             hide via IsHostedInGuide, since the step chip and
+                             title above already say what this is. -->
+                        <ContentControl Margin="38,10,0,0"
+                                        Content="{Binding DataContext.ConfigureYaml, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" />
                     </StackPanel>
                 </Border>
 

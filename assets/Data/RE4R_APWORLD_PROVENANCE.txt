@@ -1,5 +1,23 @@
 RE4R.apworld provenance
 =======================
+Rebuilt:     2026-08-20, from ArchipelagoRE4R fix/playtest-round-2 @ 82679e3. World
+             pool is 456: Leon's four cosmetic accessories (Wellington, Red,
+             Stylish Mask, Blue) left Archipelago entirely, as items and as
+             checks, after one landed on a chapter 1 spot and drew nothing.
+             They were DLC-tagged, so the T.DLC group is 32 spots now, not 36.
+             The merchant releases checks PER CHAPTER via
+             merchant_checks_per_chapter (0-6, default 3), so a default seed is
+             505 locations. That option REPLACES shop_checks: an old YAML still
+             generates and silently takes the default, so rebuild the YAML from
+             the launcher. Also ships the starting arsenal options, the marker
+             detail fix, and the lost-check instrumentation (MOD_VERSION
+             2026.08.17-33: a collectAllItem/ContextID fallback when
+             findDropItem misses, plus route and bail logging on the accept
+             hook).
+             Staged by tools/stage_payload.py; see assets/PAYLOAD_STAMP.json
+             for the exact source commits and hashes.
+             NOT YET VERIFIED IN GAME.
+
 Rebuilt:     2026-08-13, from ArchipelagoRE4R fix/playtest-round-2 @ e946cd7. Location pool
              is 460 (was 467): the runtime-inert five, the birdcage and the
              Gallery egg left, and Lithographic Stone D is excluded on Hardcore
@@ -297,7 +315,7 @@ Source:      built from the ArchipelagoRE4R repo (build_apworld.py); world_versi
              per that repo's archipelago.json.
 AP target:   Archipelago 0.6.7 (the version the apworld was developed and
              generation-validated against; pinned via the manifest as of 2026-07-12).
-SHA-256:     fb74a4a1b69fa7a33edd3f51a39c907837631d7f10d62bf306a375c29ae2a54e
+SHA-256:     af979580501f0e7ffd844baf52c7af314aa11deb40f14b7084a1166278addba7
 Consumed by: the Generation Guidance screen ("Copy RE4R.apworld to your Archipelago
              custom_worlds folder") - ArchipelagoInstallationService reads the
              world_version out of this zip's manifest for display and copies the

@@ -330,34 +330,100 @@ return function(ctx)
         return nil
     end
 
+    -- [Stand-in diagnosis 2026-08-17] Both of these run ONLY on the loud last
+    -- try, so they cost nothing in the normal case. The walk and the
+    -- reflection both live in injection.lua, which owns the accessors that are
+    -- already proven against this object; the point is to stop merchant.lua
+    -- having its own second idea of how a CsInventory works.
+    local case_methods_reported = false
+
+    local function report_case_contents(wanted_id)
+        local walk = ctx.inject_debug_walk_case_items or _G.inject_debug_walk_case_items
+        if type(walk) ~= "function" then
+            info("case dump unavailable: inject_debug_walk_case_items is not exported")
+            return
+        end
+        local items, why = walk()
+        if items == nil then
+            info(string.format("case dump failed: %s", tostring(why)))
+            return
+        end
+        if #items == 0 then
+            info("case dump: walked clean, 0 items in the case")
+            return
+        end
+        local parts, present = {}, false
+        for _, entry in ipairs(items) do
+            parts[#parts + 1] = string.format("%d x%d", entry.id, entry.count)
+            if entry.id == wanted_id then present = true end
+        end
+        info(string.format("case dump (%d items): %s", #items, table.concat(parts, ", ")))
+        -- The line this whole exercise exists for.
+        info(string.format(
+            "case dump: stand-in %d is %s in the case",
+            wanted_id, present and "PRESENT" or "ABSENT"))
+    end
+
+    local function report_case_methods_once()
+        if case_methods_reported then return end
+        case_methods_reported = true
+        local reflect = ctx.inject_debug_case_methods or _G.inject_debug_case_methods
+        if type(reflect) ~= "function" then
+            info("case methods unavailable: inject_debug_case_methods is not exported")
+            return
+        end
+        for _, filter in ipairs({ "reduce", "remove" }) do
+            local found, why = reflect(filter)
+            if found == nil then
+                info(string.format("case methods (%s) failed: %s", filter, tostring(why)))
+            elseif #found == 0 then
+                info(string.format("case methods (%s): none on the live object", filter))
+            else
+                info(string.format(
+                    "case methods (%s): %s", filter, table.concat(found, " | ")))
+            end
+        end
+    end
+
     -- The case is where a bought stand-in actually lands (live 2026-08-17).
-    -- CsInventory.reduce is overloaded three ways, so the call carries its full
-    -- signature to pick the ItemID one; the trailing boolean is the engine's
-    -- own flag whose meaning is unverified, and a wrong guess here can only
-    -- leave the trinket in place, which is today's behaviour anyway.
+    -- This used to call reduce(chainsaw.ItemID, Int32, Boolean) directly and
+    -- got nil back every single time: the live object's three reduce overloads
+    -- take other param types, so that signature never bound. The removal now
+    -- lives in injection.lua next to the accessors that are already proven
+    -- against a CsInventory, and it confirms success by counting the case
+    -- before and after rather than reading a return value.
     local function sweep_case_inventory(item_id, quiet)
         local function note(text)
             if not quiet then info(text) end
         end
-        local resolve = ctx.inject_resolve_case_inventory or _G.inject_resolve_case_inventory
-        if type(resolve) ~= "function" then
-            note(string.format("stand-in %d left in the case (no inventory resolver)", item_id))
+        local remove_from_case = ctx.inject_remove_case_item or _G.inject_remove_case_item
+        if type(remove_from_case) ~= "function" then
+            note(string.format(
+                "stand-in %d left in the case (inject_remove_case_item not exported)", item_id))
             return 0
         end
-        local cs_inventory = resolve()
-        if cs_inventory == nil then
-            note(string.format("stand-in %d left in the case (case inventory unavailable)", item_id))
-            return 0
-        end
-        local ok, result = pcall(function()
-            return cs_inventory:call(
-                "reduce(chainsaw.ItemID, System.Int32, System.Boolean)", item_id, 1, true)
-        end)
+        local ok, removed, reason = pcall(remove_from_case, item_id)
         if not ok then
-            info(string.format("stand-in %d case sweep errored: %s", item_id, tostring(result)))
+            info(string.format("stand-in %d case sweep errored: %s", item_id, tostring(removed)))
             return 0
         end
-        return (result == true) and 1 or 0
+        removed = tonumber(removed) or 0
+        if removed > 0 then
+            return removed
+        end
+        -- "not in the case" is the ordinary early-retry answer and stays quiet.
+        -- Anything else is the interesting failure, so it brings the evidence.
+        if reason ~= "not in the case" then
+            note(string.format(
+                "stand-in %d not removed from the case: %s", item_id, tostring(reason)))
+            if not quiet then
+                report_case_contents(item_id)
+                report_case_methods_once()
+            end
+        else
+            note(string.format("stand-in %d not in the case yet", item_id))
+        end
+        return 0
     end
 
     -- Returns true once the stand-in has actually been taken back. Quiet
@@ -421,23 +487,46 @@ return function(ctx)
     -- The purchase hook fires BEFORE the game hands the trinket over: live
     -- 2026-08-17 timed the sweep at .841 and the delivery at .083 of the next
     -- second, so an inline sweep searches an inventory the stand-in has not
-    -- reached. Queue it and keep looking for a few seconds instead.
-    local SWEEP_RETRY_FRAMES = 300
+    -- reached. Queue it and keep looking instead.
+    --
+    -- NOT FRAMES, despite where this runs. The poll is driven from the entry
+    -- file's UpdateBehavior block, but it sits AFTER that block's
+    -- WRITE_INTERVAL_SECONDS early return, so it ticks at 4 Hz, not 60. 40
+    -- ticks is therefore about 10 SECONDS.
+    --
+    -- Deliberately SHORT, and do not raise it. This was 300 ticks (75 real
+    -- seconds) for the live 2026-08-17 run and the stand-in still never
+    -- turned up, against a hand-over delay measured at about a quarter of a
+    -- second. So the window was never the problem, and a long one only
+    -- delays the diagnosis on the last tick. If a stand-in is missed, it is
+    -- not where we are looking, not late.
+    local SWEEP_RETRY_TICKS = 40
 
     local function poll_pending_sweeps()
         if next(merchant.pending_sweeps) == nil then
             return
         end
-        for item_id, frames_left in pairs(merchant.pending_sweeps) do
-            local ok, swept = pcall(suppress_standin, item_id, true)
+        for item_id, ticks_left in pairs(merchant.pending_sweeps) do
+            -- The final tick runs LOUD. Every reason suppress_standin can bail
+            -- for is quiet-gated, and both callers pass quiet, so the give-up
+            -- line below used to be the only trace and it names nothing. Live
+            -- 2026-08-17: 300 ticks of silence with no way to tell which step
+            -- gave out.
+            local last_try = ticks_left <= 1
+            local ok, swept = pcall(suppress_standin, item_id, not last_try)
             if ok and swept then
                 merchant.pending_sweeps[item_id] = nil
-            elseif frames_left <= 1 then
+            elseif last_try then
                 merchant.pending_sweeps[item_id] = nil
+                if not ok then
+                    info(string.format(
+                        "stand-in %d sweep threw on the last try: %s",
+                        item_id, tostring(swept)))
+                end
                 info(string.format(
                     "stand-in %d never appeared within the retry window - left alone", item_id))
             else
-                merchant.pending_sweeps[item_id] = frames_left - 1
+                merchant.pending_sweeps[item_id] = ticks_left - 1
             end
         end
     end
@@ -459,7 +548,7 @@ return function(ctx)
         local row_item_id = math.floor(tonumber(item_id) or 0)
         local ok_sweep, swept = pcall(suppress_standin, row_item_id, true)
         if not (ok_sweep and swept) then
-            merchant.pending_sweeps[row_item_id] = SWEEP_RETRY_FRAMES
+            merchant.pending_sweeps[row_item_id] = SWEEP_RETRY_TICKS
         end
 
         local queued = queue_check(slot)
@@ -739,22 +828,52 @@ return function(ctx)
         end
         -- The dump decorates overloads, so match by prefix and arity rather
         -- than by an exact name we would have to guess.
-        local ok = pcall(function()
-            for _, method in ipairs(ext:get_methods()) do
-                local name = method:get_name()
-                if name:find("setItemIcon", 1, true) == 1
-                    and #method:get_params() == 2 then
-                    set_item_icon_method = method
-                    break
+        -- Resolve by name first; the dump decorates overloads, so fall back to
+        -- scanning. REMethodDefinition exposes get_num_params(), NOT
+        -- get_params() - guessing that cost a live round (2026-08-17: "no
+        -- 2-argument setItemIcon" while the method was sitting right there).
+        pcall(function() set_item_icon_method = ext:get_method("setItemIcon") end)
+        if set_item_icon_method == nil then
+            local seen = {}
+            pcall(function()
+                for _, method in ipairs(ext:get_methods()) do
+                    local name = method:get_name()
+                    if name:find("setItemIcon", 1, true) == 1 then
+                        seen[#seen + 1] = name
+                        local arity = nil
+                        pcall(function() arity = method:get_num_params() end)
+                        -- Prefer the two-argument overload; take any match
+                        -- rather than none if the arity call is unavailable.
+                        if arity == 2 then
+                            set_item_icon_method = method
+                            break
+                        elseif arity == nil and set_item_icon_method == nil then
+                            set_item_icon_method = method
+                        end
+                    end
                 end
+            end)
+            if #seen > 0 then
+                info("row icons: candidates seen: " .. table.concat(seen, " "))
             end
-        end)
+        end
+        local ok = set_item_icon_method ~= nil
         if not ok or set_item_icon_method == nil then
             info("row icons: no 2-argument setItemIcon; icons stay AP-branded")
             return nil
         end
         info("row icons: using " .. set_item_icon_method:get_name())
         return set_item_icon_method
+    end
+
+    -- The AP placeholder (SW - Glasses re-skinned with the Archipelago logo).
+    -- config owns the id so this can never drift from the world-drop path.
+    local function ap_placeholder_item_id()
+        local from_config = ctx.config and ctx.config.PLACEHOLDER_ITEM_ID
+        if type(from_config) == "number" and from_config > 0 then
+            return math.floor(from_config)
+        end
+        return 120486400
     end
 
     local function dress_row_icons(list_gui)
@@ -786,18 +905,35 @@ return function(ctx)
                     return
                 end
                 local check = merchant.slots_by_item[math.floor(row_item_id)]
-                -- Not one of our rows, or showing a remote check, or a local
-                -- item the table could not name: leave it exactly as it is.
-                if check == nil or check.remote or check.item_id_real <= 0 then
+                if check == nil then
+                    -- Not one of our rows: leave it exactly as it is.
                     return
                 end
+
+                -- A LOCAL check wears its real item. A REMOTE one has no RE4R
+                -- item to borrow from, and the stand-in ids are cut content
+                -- with no icon of their own, which is why those rows drew
+                -- BLANK. Point them at the AP placeholder instead: that id
+                -- already carries the Archipelago logo art the world drops and
+                -- the valuables tab use, so a remote row now looks like an
+                -- Archipelago item rather than a hole in the list.
+                local icon_item_id = nil
+                if not check.remote and check.item_id_real > 0 then
+                    icon_item_id = check.item_id_real
+                else
+                    icon_item_id = ap_placeholder_item_id()
+                end
+                if icon_item_id == nil or icon_item_id <= 0 then
+                    return
+                end
+
                 local tex = row:get_field("_ItemIconTex")
                 if tex == nil then
                     return
                 end
                 -- Re-applied every frame on purpose: the GUI stamps its own
                 -- icon back whenever it redraws or the list scrolls.
-                setter:call(nil, tex, check.item_id_real)
+                setter:call(nil, tex, icon_item_id)
             end)
         end
     end
@@ -891,6 +1027,121 @@ return function(ctx)
             end)
         end, nil)
         info("row models: local check rows will show their real item")
+    end
+
+    -- --------------------------------------------------- AP model placement
+    -- The minted AP prefab inherits the fuel canister donor's transform, so
+    -- the model floats over the tab bar instead of sitting in the display
+    -- area. registerItemModelParam overrides that per item id.
+    --
+    -- These numbers were dialled in live by Cam on 2026-08-17 with the
+    -- Developer Tools tuner (ui_model_tuner.lua, which exists only to produce
+    -- them and can be deleted). Change them there, not by guessing here.
+    local AP_MODEL_OFFSET = { x = 0.335, y = 0.000, z = 0.235 }
+    local AP_MODEL_SCALE = 1.000
+    local AP_MODEL_TILT = { x = -90.0, y = 0.0, z = 0.0 }   -- degrees
+
+    -- Quaternion.new takes (w, x, y, z). PROVEN by read-back 2026-08-17: the
+    -- value passed as the second argument came back as x. The natural-looking
+    -- (x, y, z, w) guess builds a 180 degree flip at "zero", which is exactly
+    -- how the model kept vanishing. Do not reorder this without re-proving it.
+    local function ap_model_rotation()
+        if Quaternion == nil or Quaternion.new == nil then
+            return nil
+        end
+        local hx = math.rad(AP_MODEL_TILT.x) * 0.5
+        local hy = math.rad(AP_MODEL_TILT.y) * 0.5
+        local hz = math.rad(AP_MODEL_TILT.z) * 0.5
+        local cx, sx = math.cos(hx), math.sin(hx)
+        local cy, sy = math.cos(hy), math.sin(hy)
+        local cz, sz = math.cos(hz), math.sin(hz)
+        local qx = sx * cy * cz - cx * sy * sz
+        local qy = cx * sy * cz + sx * cy * sz
+        local qz = cx * cy * sz - sx * sy * cz
+        local qw = cx * cy * cz + sx * sy * sz
+        local ok, quat = pcall(function() return Quaternion.new(qw, qx, qy, qz) end)
+        return ok and quat or nil
+    end
+
+    -- Registrations live in the manager and survive a script reload, so this
+    -- only needs to run once per row per session.
+    local function place_ap_models()
+        if merchant.slot_count == 0 then
+            return
+        end
+        local manager = shop_manager()
+        if manager == nil then
+            return
+        end
+        local table_ok, model_table = pcall(function()
+            return manager:get_field("_ItemModelSettingTable")
+        end)
+        if not table_ok then
+            model_table = nil
+        end
+
+        local Vec = _G.Vector3f
+        if Vec == nil or Vec.new == nil then
+            return
+        end
+        local offset = nil
+        local scale = nil
+        pcall(function()
+            offset = Vec.new(AP_MODEL_OFFSET.x, AP_MODEL_OFFSET.y, AP_MODEL_OFFSET.z)
+            scale = Vec.new(AP_MODEL_SCALE, AP_MODEL_SCALE, AP_MODEL_SCALE)
+        end)
+        if offset == nil or scale == nil then
+            return
+        end
+        local rotation = ap_model_rotation()
+
+        merchant.models_placed = merchant.models_placed or {}
+        local placed = 0
+        for _, row in ipairs(merchant.rows) do
+            local check = merchant.slots_by_item[row.item_id]
+            -- A LOCAL check shows its real item's model, which brings its own
+            -- framing; only the AP placeholder needs repositioning.
+            local wears_ap_model = (check == nil) or check.remote or (check.item_id_real <= 0)
+            if wears_ap_model and not merchant.models_placed[row.item_id] then
+                -- Edit the live entry where the game has one; only mint when
+                -- it does not, because minting is what overrides the prefab.
+                local data = nil
+                if model_table ~= nil then
+                    pcall(function()
+                        if model_table:call("ContainsKey", row.item_id) == true then
+                            data = model_table:call("get_Item", row.item_id)
+                        end
+                    end)
+                end
+                if data == nil then
+                    pcall(function()
+                        data = sdk.create_instance(
+                            "chainsaw.InGameShopItemModelParamUserData.ItemModelData")
+                    end)
+                end
+                if data ~= nil then
+                    local ok = pcall(function()
+                        data:call("set_ItemID", row.item_id)
+                        data:call("set_OffsetPosition", offset)
+                        data:call("set_Scale", scale)
+                        if rotation ~= nil then
+                            data:call("set_Rotation", rotation)
+                        end
+                        manager:call("registerItemModelParam", row.item_id, data)
+                    end)
+                    if ok then
+                        merchant.models_placed[row.item_id] = true
+                        placed = placed + 1
+                    end
+                end
+            end
+        end
+        if placed > 0 then
+            info(string.format(
+                "%d AP model(s) placed at offset (%.3f, %.3f, %.3f) tilt (%.1f, %.1f, %.1f)",
+                placed, AP_MODEL_OFFSET.x, AP_MODEL_OFFSET.y, AP_MODEL_OFFSET.z,
+                AP_MODEL_TILT.x, AP_MODEL_TILT.y, AP_MODEL_TILT.z))
+        end
     end
 
     local function install_row_icon_hook()
@@ -987,6 +1238,7 @@ return function(ctx)
         end
 
         dress_assigned_rows(assignment)
+        pcall(place_ap_models)
 
         if zeroed > 0 then
             info(string.format("%d row(s) emptied - nothing of that tier left to show", zeroed))
@@ -1138,7 +1390,44 @@ return function(ctx)
             function(retval) return retval end
         )
 
-        -- Shop opened: reconcile before the player can look at the shelf.
+        merchant.hooks_installed = true
+        info("purchase hook installed")
+    end
+
+    -- [Shop open state] The shop's enter/close states, hooked ALWAYS - not
+    -- behind the merchant-checks gate the purchase hooks sit behind, because
+    -- what rides on this has nothing to do with whether the shelf holds
+    -- checks.
+    --
+    -- Why it exists (Cam, live 2026-08-20): take a DeathLink death standing at
+    -- the merchant and the game comes back as a grey wash. The world renders
+    -- fine - brazier, flame and the merchant's own stand are all visible - it
+    -- is still wearing the backdrop the shop puts over the world, because
+    -- InGameShopGuiState_Close never ran to lift it. Exiting to title then
+    -- hangs on black, since the shop state machine is parked in a state
+    -- nothing will leave. Only a full restart clears it.
+    --
+    -- The cause is that nothing in MainFlowManager calls the shop a menu.
+    -- RE4R does not pause for it, so is_playable reads TRUE at the shelf and
+    -- apclient's safe_to_inject waves an incoming death straight through.
+    -- trigger_game_over then goes in via GameOverManager's mediator, which
+    -- deliberately skips the damage pipeline (that is what lets it kill with
+    -- no attacker) and so skips whatever teardown a real death would run.
+    --
+    -- Published on the bridge rather than folded into is_playable on purpose.
+    -- is_playable guards the pickup path too, and making that stricter while
+    -- the lost-check investigation still has it under suspicion would muddy
+    -- two problems at once. Only safe_to_inject reads this.
+    --
+    -- A missed close leaves the flag stuck, which DEFERS an incoming death and
+    -- item delivery rather than dropping either: the death stays queued and
+    -- the delivery watermark does not advance. The loadGameSaveData hook
+    -- clears it, so a stuck flag cannot outlive one load.
+    local function install_shop_state_hooks()
+        if merchant.state_hooks_installed then
+            return
+        end
+
         local enter_type = sdk.find_type_definition("chainsaw.gui.shop.InGameShopGuiState_Enter")
             or sdk.find_type_definition("chainsaw.gui.shop.InGameShopGuiState_PurchaseEnter")
         local enter_method = enter_type and (enter_type:get_method("enter") or enter_type:get_method("onEnter"))
@@ -1146,22 +1435,31 @@ return function(ctx)
             sdk.hook(
                 enter_method,
                 function()
-                    pcall(reconcile_sold_out)
-                    pcall(probe_shelf)
+                    if bridge ~= nil then bridge.shop_gui_open = true end
+                    -- Reconcile before the player can look at the shelf.
+                    if merchant.slot_count > 0 then
+                        pcall(reconcile_sold_out)
+                        pcall(probe_shelf)
+                    end
                     return sdk.PreHookResult.CALL_ORIGINAL
                 end,
                 function(retval) return retval end
             )
+        else
+            info("shop enter state not found - a death at the merchant cannot be deferred")
         end
 
-        -- Shop closed: commit the visit if anything was bought.
         local close_type = sdk.find_type_definition("chainsaw.gui.shop.InGameShopGuiState_Close")
         local close_method = close_type and (close_type:get_method("enter") or close_type:get_method("onEnter"))
         if close_method ~= nil then
             sdk.hook(
                 close_method,
                 function()
-                    pcall(request_game_save)
+                    if bridge ~= nil then bridge.shop_gui_open = false end
+                    -- Commit the visit if anything was bought.
+                    if merchant.slot_count > 0 then
+                        pcall(request_game_save)
+                    end
                     return sdk.PreHookResult.CALL_ORIGINAL
                 end,
                 function(retval) return retval end
@@ -1170,8 +1468,7 @@ return function(ctx)
             info("shop close state not found - purchases will save with the next normal save")
         end
 
-        merchant.hooks_installed = true
-        info("purchase hook installed")
+        merchant.state_hooks_installed = true
     end
 
     -- ---------------------------------------------------------------- public
@@ -1179,6 +1476,9 @@ return function(ctx)
     -- on_connected once the per-seed ack set is in memory.
     local function merchant_configure(payload)
         load_slots(payload)
+        -- Unconditional: a seed with no merchant checks still has a shop, and
+        -- a death taken inside it still bricks the render state.
+        pcall(install_shop_state_hooks)
         if merchant.slot_count > 0 then
             install_hooks()
         end

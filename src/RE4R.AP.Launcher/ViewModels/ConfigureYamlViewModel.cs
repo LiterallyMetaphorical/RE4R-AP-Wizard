@@ -41,7 +41,23 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     // default experience, and drafts saved before the option existed load it
     // back as off (their owner chose their shop before gear could scatter).
     private bool _shuffleMerchantGear = true;
-    private int _startingArsenal;
+    private bool _isHostedInGuide;
+
+    /// <summary>
+    /// True while this editor is rendered INSIDE the organizer wizard's step 3
+    /// rather than as its own screen. Suppresses its big header and blurb,
+    /// which the wizard's own step chrome already provides.
+    /// </summary>
+    public bool IsHostedInGuide
+    {
+        get => _isHostedInGuide;
+        set => SetProperty(ref _isHostedInGuide, value);
+    }
+
+    /// <summary>Two guns in the case by default (Cam, 2026-08-21).</summary>
+    public const int DefaultStartingArsenal = 2;
+
+    private int _startingArsenal = DefaultStartingArsenal;
     private bool _minimizeBacktracking;
     private bool _randomEvents;
     private int _merchantChecksPerChapter = 3;
@@ -861,8 +877,11 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         AllowMissableLocations = draft.AllowMissableLocations;
         ShuffleKeycards = draft.ShuffleKeycards;
         RandomWeaponStats = draft.RandomWeaponStats;
-        ShuffleMerchantGear = draft.ShuffleMerchantGear;
-        StartingArsenal = draft.StartingArsenal;
+        // ?? is the whole point of these being nullable: absent means the
+        // draft predates the option, so the DEFAULT applies rather than the
+        // zero value the field would otherwise deserialize to.
+        ShuffleMerchantGear = draft.ShuffleMerchantGear ?? true;
+        StartingArsenal = draft.StartingArsenal ?? DefaultStartingArsenal;
         // Null/absent means every type: drafts predating the option, or an
         // untrimmed set (which is never persisted).
         var draftArsenalTypes = draft.StartingArsenalTypes;
@@ -874,8 +893,9 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         RandomEvents = draft.RandomEvents;
         // A saved 0 means it was switched off; keep the slider on a sensible
         // number so switching it back on is not a fresh decision.
-        MerchantChecksEnabled = draft.MerchantChecksPerChapter > 0;
-        MerchantChecksPerChapter = draft.MerchantChecksPerChapter > 0 ? draft.MerchantChecksPerChapter : 3;
+        var draftMerchantRate = draft.MerchantChecksPerChapter;
+        MerchantChecksEnabled = draftMerchantRate is null || draftMerchantRate > 0;
+        MerchantChecksPerChapter = draftMerchantRate is > 0 ? draftMerchantRate.Value : 3;
         Tutorial = draft.Tutorial;
         var selected = new HashSet<string>(draft.UnlockedTypewriterStageIds, StringComparer.Ordinal);
         foreach (var option in TypewriterOptions)
@@ -1026,25 +1046,36 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     }
 
     // Mirrors the apworld's StartingArsenalTypes valid_keys, which mirror
-    // BioRand's own starting-inventory pickers. Everything starts ticked,
-    // matching the apworld default.
+    // BioRand's own starting-inventory pickers.
+    //
+    // The Rocket Launcher ("special") is GONE, not merely unticked: an
+    // infinite-ammo novelty has no business in an opening loadout, and the
+    // same gun is already stripped from the merchant's shelf under scatter for
+    // exactly that reason (Cam, 2026-08-21).
+    //
+    // Bolt Thrower and Arrows ship unticked. They are available, just not what
+    // you want handed to you at the start of a run.
     private static IEnumerable<ArsenalTypeOptionViewModel> CreateArsenalTypeOptions()
     {
-        (string Key, string Label)[] entries =
+        (string Key, string Label, bool OnByDefault)[] entries =
         [
-            ("handgun", "Handgun"),
-            ("shotgun", "Shotgun"),
-            ("smg", "SMG"),
-            ("rifle", "Rifle"),
-            ("magnum", "Magnum"),
-            ("bolt", "Bolt Thrower"),
-            ("arrow", "Arrows"),
-            ("flame", "Flamethrower"),
-            ("special", "Special (Rocket Launcher)"),
+            ("handgun", "Handgun", true),
+            ("shotgun", "Shotgun", true),
+            ("smg", "SMG", true),
+            ("rifle", "Rifle", true),
+            ("magnum", "Magnum", true),
+            ("flame", "Flamethrower", true),
+            ("bolt", "Bolt Thrower", false),
+            ("arrow", "Arrows", false),
         ];
-        foreach (var (key, label) in entries)
+        foreach (var (key, label, onByDefault) in entries)
         {
-            yield return new ArsenalTypeOptionViewModel { Key = key, Label = label };
+            yield return new ArsenalTypeOptionViewModel
+            {
+                Key = key,
+                Label = label,
+                IsSelected = onByDefault,
+            };
         }
     }
 
