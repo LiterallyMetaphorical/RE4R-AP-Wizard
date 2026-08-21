@@ -822,14 +822,48 @@ local function install(ctx)
         return -1
     end
 
-    -- Forensic observation infrastructure. This must remain side-effect free:
-    -- it records hook activity and delegate identity without changing gameplay.
+    local function should_enforce_gating()
+        return ownership.enabled == true and ownership.ready == true
+    end
+
+    local function enforce_character_decision_gate(gui, source)
+        if not should_enforce_gating() or gui == nil then return false end
+
+        local decided = get_safe_field_bool(gui, "_bDecided", false)
+        if decided ~= true then return false end
+
+        local requested = get_safe_field_int(gui, "<RequestedCharacter>k__BackingField", -1)
+        if requested == -1 then
+            requested = get_safe_int(gui, "get_RequestedCharacter", -1)
+        end
+
+        local ok_kind, roster = pcall(function()
+            return gui:call("getCharacterKind", requested)
+        end)
+        if not ok_kind or type(roster) ~= "number" or roster < 0 or roster > 7 then
+            return false
+        end
+
+        if is_character_owned(roster) then return false end
+
+        pcall(function() gui:set_field("_bDecided", false) end)
+        pcall(function() gui:set_field("_bOldCharaUnlock", false) end)
+        log.info(string.format(
+            "[Merc AP Gating] character decision rejected: source=%s action=%d roster=%d name=%s",
+            tostring(source or "unknown"), requested, roster, ROSTER_INDEX_TO_NAME[roster]
+        ))
+        return true
+    end
+
+    -- Forensic observation infrastructure records hook activity and delegate
+    -- identity. Retained post-decision helper below is legacy diagnostics only.
     local tracked_char_guis = {}
     local tracked_ac_ctrls = {}
     local tracked_controllers = {}
     local call_counts = {}
-    local last_input_ret = nil
     local inspected_on_decided = {}
+    local install_live_on_decided_invoke_hook = nil
+    local dump_live_on_decided_internals = nil
 
     local function record_call(name)
         local key = tostring(name or "<nil>")
@@ -856,7 +890,7 @@ local function install(ctx)
         ))
     end
 
-    local function inspect_on_decided_delegate(open_param, owner_id)
+    local function inspect_on_decided_delegate(open_param, owner_id, gui)
         if open_param == nil then return end
 
         local delegate = nil
@@ -864,15 +898,22 @@ local function install(ctx)
         if not ok or delegate == nil then return end
 
         local delegate_id = get_obj_address_str(delegate)
-        if delegate_id == "nil" or inspected_on_decided[delegate_id] then return end
-        inspected_on_decided[delegate_id] = true
+        if delegate_id ~= "nil" and not inspected_on_decided[delegate_id] then
+            inspected_on_decided[delegate_id] = true
+            local content = "<unavailable>"
+            pcall(function() content = tostring(delegate) end)
+            log.info(string.format(
+                "[Merc AP Trace][ON_DECIDED_INSPECT] owner=%s delegate=%s content=%s",
+                tostring(owner_id or "unknown"), delegate_id, content
+            ))
+            if dump_live_on_decided_internals ~= nil then
+                dump_live_on_decided_internals(delegate, delegate_id)
+            end
+        end
 
-        local content = "<unavailable>"
-        pcall(function() content = tostring(delegate) end)
-        log.info(string.format(
-            "[Merc AP Trace][ON_DECIDED_INSPECT] owner=%s delegate=%s content=%s",
-            tostring(owner_id or "unknown"), delegate_id, content
-        ))
+        if install_live_on_decided_invoke_hook ~= nil then
+            install_live_on_decided_invoke_hook(delegate, gui)
+        end
     end
 
     local function poll_character_select_guis()
@@ -919,7 +960,7 @@ local function install(ctx)
                 local on_decided = nil
                 if open_param ~= nil then
                     pcall(function() on_decided = open_param:get_field("OnDecided") end)
-                    inspect_on_decided_delegate(open_param, addr_str)
+                    inspect_on_decided_delegate(open_param, addr_str, gui)
                 end
 
                 local ac_ctrl = nil
@@ -1083,10 +1124,6 @@ local function install(ctx)
     local function install_merc_virtual_gating_hooks()
         if hooks_installed then return end
 
-        local function should_enforce_gating()
-            return ownership.enabled == true and ownership.ready == true
-        end
-
         local function get_obj_type_name(obj)
             if obj == nil then return "" end
             local ok, td = pcall(function() return obj:get_type_definition() end)
@@ -1115,6 +1152,280 @@ local function install(ctx)
                 return true
             end
             return false
+        end
+
+        local function trace_safe_string(value)
+            local ok, result = pcall(function() return tostring(value) end)
+            if not ok or result == nil then return "<unavailable>" end
+            result = tostring(result):gsub("[%c]", "?")
+            if #result > 160 then
+                return result:sub(1, 157) .. "..."
+            end
+            return result
+        end
+
+        local function trace_raw_string(value)
+            local ok, result = pcall(function() return tostring(value) end)
+            if not ok or result == nil then return "<unavailable>" end
+            return tostring(result):gsub("[%c]", "?")
+        end
+
+        local function trace_numeric_value(value)
+            if value == nil then return "nil" end
+            local converted = nil
+            local ok = pcall(function() converted = sdk.to_int64(value) end)
+            if ok and converted ~= nil then
+                return trace_safe_string(converted)
+            end
+            return "nil"
+        end
+
+        local function trace_pointer_value(value)
+            if value == nil then return "nil" end
+            local address = nil
+            local ok = pcall(function() address = value:get_address() end)
+            if ok and address ~= nil then
+                return trace_safe_string(address)
+            end
+            return trace_safe_string(value)
+        end
+
+        local function safe_array_value(array, index)
+            if array == nil then return nil end
+            local value = nil
+            pcall(function() value = array[index] end)
+            return value
+        end
+
+        local function trace_typed_value(raw, param)
+            if param == nil then return "type=<unreflected>" end
+            local type_name = tostring(param.type_name or ""):lower()
+            local typed = {}
+
+            if type_name:find("single", 1, true) or type_name:find("float", 1, true) then
+                if type(sdk.to_float) == "function" then
+                    local value = nil
+                    local ok = pcall(function() value = sdk.to_float(raw) end)
+                    if ok and value ~= nil then typed[#typed + 1] = "float=" .. trace_safe_string(value) end
+                end
+            elseif type_name:find("double", 1, true) then
+                if type(sdk.to_double) == "function" then
+                    local value = nil
+                    local ok = pcall(function() value = sdk.to_double(raw) end)
+                    if ok and value ~= nil then typed[#typed + 1] = "double=" .. trace_safe_string(value) end
+                end
+            elseif type_name:find("class", 1, true)
+                or type_name:find("object", 1, true)
+                or type_name:find("interface", 1, true)
+                or type_name:find("string", 1, true) then
+                if type(sdk.to_managed_object) == "function" then
+                    local value = nil
+                    local ok = pcall(function() value = sdk.to_managed_object(raw) end)
+                    if ok and value ~= nil then typed[#typed + 1] = "managed=" .. trace_pointer_value(value) end
+                end
+            elseif type_name:find("valuetype", 1, true)
+                or type_name:find("struct", 1, true) then
+                if type(sdk.to_valuetype) == "function" then
+                    local value = nil
+                    local ok = pcall(function() value = sdk.to_valuetype(raw, param.type_name) end)
+                    if ok and value ~= nil then typed[#typed + 1] = "valuetype=" .. trace_safe_string(value) end
+                end
+            end
+
+            return #typed > 0 and table.concat(typed, ",") or "typed=nil"
+        end
+
+        local function trace_enum_symbol(raw, param)
+            if param == nil or param.type_obj == nil then return "enum=unknown" end
+
+            local numeric = trace_numeric_value(raw)
+            if numeric == "nil" then return "enum=unknown" end
+            local fields = nil
+            local ok_fields = pcall(function() fields = param.type_obj:get_fields() end)
+            if not ok_fields or fields == nil then return "enum=unknown" end
+
+            for _, field in ipairs(fields) do
+                local is_static = false
+                local ok_static = pcall(function() is_static = field:is_static() end)
+                if ok_static and (is_static == true or is_static == 1) then
+                    local field_value = nil
+                    local field_name = nil
+                    local ok_value = pcall(function() field_value = field:get_data(nil) end)
+                    pcall(function() field_name = field:get_name() end)
+                    if ok_value and field_name ~= nil and trace_numeric_value(field_value) == numeric then
+                        return "enum=" .. trace_safe_string(field_name)
+                    end
+                end
+            end
+            return "enum=unknown"
+        end
+
+        local function capture_input_args(args, metadata)
+            local captured = {}
+            local param_count = metadata and metadata.param_count or 0
+            local param_offset = metadata and metadata.param_offset or 3
+            local params = metadata and metadata.params or {}
+            for param_index = 0, param_count - 1 do
+                local arg_index = param_offset + param_index
+                local raw = args[arg_index]
+                local param = params[param_index + 1]
+                captured[#captured + 1] = string.format(
+                    "%d:param=%d,name=%s,type=%s,raw=%s,num=%s,ptr=%s,%s,%s",
+                    arg_index,
+                    param_index,
+                    param and trace_safe_string(param.name) or "<unreflected>",
+                    param and trace_safe_string(param.type_name) or "<unreflected>",
+                    trace_raw_string(raw),
+                    trace_numeric_value(raw),
+                    trace_pointer_value(raw),
+                    trace_typed_value(raw, param),
+                    trace_enum_symbol(raw, param)
+                )
+            end
+            return table.concat(captured, ";")
+        end
+
+        local function trace_type_name(type_obj)
+            if type_obj == nil then return "<unavailable>" end
+            local full_name = nil
+            local ok = pcall(function() full_name = type_obj:get_full_name() end)
+            if ok and type(full_name) == "string" and full_name ~= "" then
+                return full_name
+            end
+            local short_name = nil
+            ok = pcall(function() short_name = type_obj:get_name() end)
+            if ok and type(short_name) == "string" and short_name ~= "" then
+                return short_name
+            end
+            return trace_safe_string(type_obj)
+        end
+
+        local function probe_input_method(method)
+            local name = "<unavailable>"
+            pcall(function() name = method:get_name() end)
+
+            local param_count = "<unavailable>"
+            local numeric_count = nil
+            local ok_count = pcall(function() numeric_count = method:get_num_params() end)
+            if ok_count and type(numeric_count) == "number" then
+                param_count = tostring(numeric_count)
+            end
+
+            local return_type = nil
+            pcall(function() return_type = method:get_return_type() end)
+            local function_address = nil
+            local function_ok = pcall(function() function_address = method:get_function() end)
+            local native_address = "<unavailable>"
+            if function_ok and function_address ~= nil then
+                native_address = trace_numeric_value(function_address)
+                if native_address == "nil" then
+                    native_address = trace_pointer_value(function_address)
+                end
+            end
+
+            local param_names = nil
+            local param_types = nil
+            local names_ok = pcall(function() param_names = method:get_param_names() end)
+            local types_ok = pcall(function() param_types = method:get_param_types() end)
+            local params = {}
+            if type(numeric_count) == "number" then
+                for index = 1, numeric_count do
+                    local param_name = names_ok and safe_array_value(param_names, index) or nil
+                    local param_type = types_ok and safe_array_value(param_types, index) or nil
+                    params[#params + 1] = {
+                        index = index - 1,
+                        arg_index = index + 2,
+                        name = param_name ~= nil and trace_safe_string(param_name) or "<name-unavailable>",
+                        type_name = param_type ~= nil and trace_type_name(param_type) or "<type-unavailable>",
+                        type_obj = param_type,
+                    }
+                end
+            end
+
+            return {
+                declaring_type = "chainsaw.Cp1021CharacterSelectGuiBehavior",
+                name = name,
+                param_count = numeric_count,
+                param_count_text = param_count,
+                param_offset = 3,
+                return_type = trace_type_name(return_type),
+                native_address = native_address,
+                params = params,
+            }
+        end
+
+        local function same_gui(left, right)
+            if left == nil or right == nil then return false end
+            if left == right then return true end
+            local left_address = get_obj_address_str(left)
+            local right_address = get_obj_address_str(right)
+            return left_address ~= "nil" and left_address == right_address
+        end
+
+        local function get_decision_state(gui)
+            local requested = get_safe_field_int(gui, "<RequestedCharacter>k__BackingField", -1)
+            if requested == -1 then
+                requested = get_safe_int(gui, "get_RequestedCharacter", -1)
+            end
+
+            local step = get_safe_field_int(gui, "<CurrStep>k__BackingField", -1)
+            if step == -1 then
+                step = get_safe_int(gui, "get_CurrStep", -1)
+            end
+
+            local roster = action_type_to_roster_index(requested, gui)
+            local highlight = resolve_highlighted_character_kind(gui)
+            return {
+                gui = gui,
+                gui_address = get_obj_address_str(gui),
+                requested = requested,
+                roster = roster,
+                roster_name = ROSTER_INDEX_TO_NAME[roster] or "None",
+                owned = is_character_owned(roster),
+                highlight = highlight,
+                highlight_name = ROSTER_INDEX_TO_NAME[highlight] or "None",
+                highlight_owned = is_character_owned(highlight),
+                decided = get_safe_field_bool(gui, "_bDecided", nil),
+                curr_step = step,
+                old_unlock = get_safe_field_bool(gui, "_bOldCharaUnlock", false),
+                selected_sub = get_safe_field_int(gui, "_SelectedSubCharacter", -1),
+            }
+        end
+
+        local function find_active_epoch(gui, epoch_stack)
+            for index = #epoch_stack, 1, -1 do
+                local epoch = epoch_stack[index]
+                if same_gui(epoch.gui, gui) then
+                    return epoch
+                end
+            end
+            return nil
+        end
+
+        local function epoch_is_active(epoch, epoch_stack)
+            for index = #epoch_stack, 1, -1 do
+                if epoch_stack[index] == epoch then return true end
+            end
+            return false
+        end
+
+        local function dump_decision_epoch(epoch, post_state)
+            log.info(string.format(
+                "[Merc AP Trace][DECISION_EPOCH] gui=%s requested_before=%d roster_before=%d(%s) owned_before=%s requested_after=%d roster_after=%d(%s) owned_after=%s decided_before=%s decided_after=%s step_before=%d step_after=%d highlight_after=%d(%s) highlight_owned=%s old_unlock_after=%s selected_sub_after=%d input_calls=%d t=%.3f",
+                epoch.gui_address, epoch.requested, epoch.roster, epoch.roster_name, tostring(epoch.owned),
+                post_state.requested, post_state.roster, post_state.roster_name, tostring(post_state.owned),
+                tostring(epoch.decided_before), tostring(post_state.decided), epoch.curr_step, post_state.curr_step,
+                post_state.highlight, post_state.highlight_name, tostring(post_state.highlight_owned),
+                tostring(post_state.old_unlock), post_state.selected_sub, #epoch.input_calls, epoch.timestamp
+            ))
+            for index, input_call in ipairs(epoch.input_calls) do
+                log.info(string.format(
+                    "[Merc AP Trace][DECISION_INPUT] gui=%s call=%d param_count=%s param_offset=%d signatures=%s return_type=%s pre_t=%.3f args=%s post_raw=%s post_num=%s post_typed=%s",
+                    epoch.gui_address, index, tostring(input_call.param_count), input_call.param_offset,
+                    input_call.signatures, input_call.return_type, input_call.timestamp, input_call.args,
+                    input_call.post_raw, input_call.post_num, input_call.post_typed
+                ))
+            end
         end
 
         -- ==================================================================
@@ -1219,6 +1530,466 @@ local function install(ctx)
         -- ==================================================================
         local char_td = sdk.find_type_definition("chainsaw.Cp1021CharacterSelectGuiBehavior")
         if char_td ~= nil then
+            local function startup_method_metadata(method_name)
+                local method = nil
+                pcall(function() method = char_td:get_method(method_name) end)
+                if method == nil then
+                    return "method=" .. method_name .. " native=unavailable static=unavailable return=unavailable params=unavailable"
+                end
+
+                local probe = probe_input_method(method)
+                local static_value = nil
+                local static_ok = pcall(function() static_value = method:is_static() end)
+                local static_text = "unavailable"
+                if static_ok and type(static_value) == "boolean" then
+                    static_text = tostring(static_value)
+                elseif static_ok and type(static_value) == "number" then
+                    static_text = tostring(static_value ~= 0)
+                end
+
+                local params = {}
+                for _, param in ipairs(probe.params) do
+                    params[#params + 1] = string.format(
+                        "%s:%s",
+                        trace_safe_string(param.name),
+                        trace_safe_string(param.type_name)
+                    )
+                end
+                local params_text = "unavailable"
+                if probe.param_count ~= nil then
+                    params_text = table.concat(params, ";")
+                end
+                return string.format(
+                    "method=%s native=%s static=%s return=%s params=[%s]",
+                    method_name, probe.native_address, static_text, probe.return_type, params_text
+                )
+            end
+
+            local function startup_field_offset(field_name)
+                local field = nil
+                local field_ok = pcall(function() field = char_td:get_field(field_name) end)
+                if not field_ok or field == nil then return field_name .. "=unavailable" end
+                local offset = nil
+                local offset_ok = pcall(function() offset = field:get_offset_from_base() end)
+                if not offset_ok or offset == nil then return field_name .. "=unavailable" end
+                return field_name .. "=" .. trace_safe_string(offset)
+            end
+
+            log.info(string.format(
+                "[Merc AP Trace][LATE_METADATA] type=chainsaw.Cp1021CharacterSelectGuiBehavior %s %s fields=[%s;%s;%s;%s]",
+                startup_method_metadata("lateUpdateOnActive"),
+                startup_method_metadata("getCharacterKind"),
+                startup_field_offset("_bDecided"),
+                startup_field_offset("<RequestedCharacter>k__BackingField"),
+                startup_field_offset("_bOldCharaUnlock"),
+                startup_field_offset("_OpenParam")
+            ))
+
+            local live_delegate_diagnostics = {}
+            local live_delegate_native_hooks = {}
+
+            local function live_delegate_generic_args(type_definition, full_name)
+                local generic_args = nil
+                local args_ok = pcall(function() generic_args = type_definition:get_generic_argument_types() end)
+                if args_ok and generic_args ~= nil then
+                    local names = {}
+                    for _, arg_type in ipairs(generic_args) do
+                        names[#names + 1] = trace_type_name(arg_type)
+                    end
+                    if #names > 0 then return table.concat(names, ",") end
+                end
+                local angle_start = type(full_name) == "string" and full_name:find("<", 1, true) or nil
+                local angle_end = type(full_name) == "string" and full_name:match(".*()>") or nil
+                if angle_start ~= nil and angle_end ~= nil and angle_end > angle_start then
+                    return full_name:sub(angle_start + 1, angle_end - 1)
+                end
+                return "unavailable"
+            end
+
+            local function live_delegate_method_metadata(delegate_type, full_name, method)
+                local method_name = "<unavailable>"
+                pcall(function() method_name = method:get_name() end)
+                local static_value = nil
+                local static_ok = pcall(function() static_value = method:is_static() end)
+                local param_count = nil
+                local count_ok = pcall(function() param_count = method:get_num_params() end)
+                local return_type = nil
+                local return_ok = pcall(function() return_type = method:get_return_type() end)
+                local param_types = nil
+                local types_ok = pcall(function() param_types = method:get_param_types() end)
+                local param_names = nil
+                local names_ok = pcall(function() param_names = method:get_param_names() end)
+                local function_address = nil
+                local function_ok = pcall(function() function_address = method:get_function() end)
+                local native_address = "unavailable"
+                if function_ok and function_address ~= nil then
+                    native_address = trace_numeric_value(function_address)
+                    if native_address == "nil" then native_address = trace_pointer_value(function_address) end
+                end
+
+                local params = {}
+                if count_ok and type(param_count) == "number" then
+                    for index = 1, param_count do
+                        params[#params + 1] = string.format(
+                            "index=%d,name=%s,type=%s",
+                            index - 1,
+                            names_ok and trace_safe_string(safe_array_value(param_names, index)) or "unavailable",
+                            types_ok and trace_type_name(safe_array_value(param_types, index)) or "unavailable"
+                        )
+                    end
+                end
+                return {
+                    method = method,
+                    name = method_name,
+                    static = static_ok and static_value or nil,
+                    static_text = static_ok and trace_safe_string(static_value) or "unavailable",
+                    param_count = count_ok and param_count or nil,
+                    params = table.concat(params, ";"),
+                    return_type = return_ok and trace_type_name(return_type) or "unavailable",
+                    native_address = native_address,
+                    param_type = types_ok and safe_array_value(param_types, 1) or nil,
+                    declaring_type = full_name,
+                    generic_args = live_delegate_generic_args(delegate_type, full_name),
+                }
+            end
+
+            local function live_delegate_invoke_metadata(delegate)
+                local delegate_type = nil
+                local type_ok = pcall(function() delegate_type = delegate:get_type_definition() end)
+                if not type_ok or delegate_type == nil then return nil, "type unavailable" end
+                local full_name = nil
+                local full_ok = pcall(function() full_name = delegate_type:get_full_name() end)
+                if not full_ok or type(full_name) ~= "string" or full_name == "" then full_name = "<unavailable>" end
+                local methods = nil
+                local methods_ok = pcall(function() methods = delegate_type:get_methods() end)
+                if not methods_ok or methods == nil then
+                    return { full_name = full_name, generic_args = "unavailable" }, "methods unavailable"
+                end
+                local invoke_methods = {}
+                for _, method in ipairs(methods) do
+                    local method_name = nil
+                    pcall(function() method_name = method:get_name() end)
+                    if method_name == "Invoke" then
+                        invoke_methods[#invoke_methods + 1] = live_delegate_method_metadata(delegate_type, full_name, method)
+                    end
+                end
+                local metadata = {
+                    delegate_type = delegate_type,
+                    full_name = full_name,
+                    generic_args = live_delegate_generic_args(delegate_type, full_name),
+                    invokes = invoke_methods,
+                }
+                if #invoke_methods == 1 then metadata.invoke = invoke_methods[1] end
+                if #invoke_methods == 0 then return metadata, "Invoke unavailable" end
+                if #invoke_methods > 1 then return metadata, "Invoke ambiguous" end
+                return metadata, nil
+            end
+
+            local function live_pointer_key(value)
+                if value == nil then return nil end
+                local key = trace_numeric_value(value)
+                if key == "nil" then key = trace_pointer_value(value) end
+                if key == "nil" or key == "0" then return nil end
+                return key
+            end
+
+            local function live_read_dword(offset, object)
+                local value = nil
+                local ok = pcall(function() value = object:read_dword(offset) end)
+                return value, ok and value ~= nil
+            end
+
+            local function live_read_qword(offset, object)
+                local value = nil
+                local ok = pcall(function() value = object:read_qword(offset) end)
+                return value, ok and value ~= nil
+            end
+
+            dump_live_on_decided_internals = function(delegate, delegate_id)
+                local field_parts = {}
+                local delegate_type = nil
+                pcall(function() delegate_type = delegate:get_type_definition() end)
+                local seen_types = {}
+                local current_type = delegate_type
+                while current_type ~= nil do
+                    local declaring_type = trace_type_name(current_type)
+                    local type_key = declaring_type ~= "<unavailable>" and declaring_type or get_obj_address_str(current_type)
+                    if seen_types[type_key] then break end
+                    seen_types[type_key] = true
+                    local fields = nil
+                    local fields_ok = pcall(function() fields = current_type:get_fields() end)
+                    if fields_ok and fields ~= nil then
+                        for _, field in ipairs(fields) do
+                            local is_static = nil
+                            local static_ok = pcall(function() is_static = field:is_static() end)
+                            if static_ok and is_static == false then
+                                local field_name = "<unavailable>"
+                                pcall(function() field_name = field:get_name() end)
+                                local field_type = nil
+                                pcall(function() field_type = field:get_type() end)
+                                local offset = nil
+                                pcall(function() offset = field:get_offset_from_base() end)
+                                local value = nil
+                                pcall(function() value = field:get_data(delegate) end)
+                                local managed = nil
+                                if type(sdk.to_managed_object) == "function" then
+                                    pcall(function() managed = sdk.to_managed_object(value) end)
+                                end
+                                local managed_text = "unavailable"
+                                if managed ~= nil then
+                                    managed_text = get_obj_address_str(managed) .. "/" .. (get_obj_type_name(managed) ~= "" and get_obj_type_name(managed) or "unavailable")
+                                end
+                                field_parts[#field_parts + 1] = string.format(
+                                    "%s.%s:type=%s,offset=%s,raw=%s,num=%s,ptr=%s,managed=%s",
+                                    declaring_type, field_name, trace_type_name(field_type),
+                                    offset ~= nil and trace_safe_string(offset) or "unavailable",
+                                    trace_raw_string(value), trace_numeric_value(value), trace_pointer_value(value), managed_text
+                                )
+                            end
+                        end
+                    end
+                    local parent = nil
+                    local parent_ok = pcall(function() parent = current_type:get_parent_type() end)
+                    if not parent_ok then break end
+                    current_type = parent
+                end
+                log.info(string.format(
+                    "[Merc AP Trace][CHAR_ON_DECIDED_INTERNALS] delegate=%s fields=[%s]",
+                    delegate_id, #field_parts > 0 and table.concat(field_parts, ";") or "unavailable"
+                ))
+
+                local count, count_ok = live_read_dword(0x10, delegate)
+                count = count_ok and tonumber(count) or nil
+                if count == nil or count < 0 or count > 16 then
+                    log.info(string.format("[Merc AP Trace][CHAR_ON_DECIDED_METHODPTR] delegate=%s unavailable=invocation_count value=%s", delegate_id, trace_safe_string(count)))
+                    return
+                end
+                for index = 0, count - 1 do
+                    local record_offset = 0x18 + index * 0x18
+                    local target, target_ok = live_read_qword(record_offset, delegate)
+                    local method_ptr, method_ok = live_read_qword(record_offset + 8, delegate)
+                    local target_key = target_ok and live_pointer_key(target) or nil
+                    local method_key = method_ok and live_pointer_key(method_ptr) or nil
+                    log.info(string.format(
+                        "[Merc AP Trace][CHAR_ON_DECIDED_METHODPTR] delegate=%s entry=%d target=%s method_ptr=%s invocation_count=%d",
+                        delegate_id, index, target_ok and trace_safe_string(target) or "unavailable",
+                        method_ok and trace_safe_string(method_ptr) or "unavailable", count
+                    ))
+                    if target_key ~= nil then
+                        local target_obj = nil
+                        if type(sdk.to_ptr) == "function" and type(sdk.to_managed_object) == "function" then
+                            pcall(function() target_obj = sdk.to_managed_object(sdk.to_ptr(target)) end)
+                        end
+                        local target_type = nil
+                        if target_obj ~= nil then pcall(function() target_type = target_obj:get_type_definition() end) end
+                        local target_type_name = target_obj and get_obj_type_name(target_obj) or "unavailable"
+                        log.info(string.format(
+                            "[Merc AP Trace][CHAR_ON_DECIDED_TARGET] delegate=%s entry=%d target=%s type=%s",
+                            delegate_id, index, target_obj and get_obj_address_str(target_obj) or target_key, target_type_name
+                        ))
+                        local matched = false
+                        local current_target_type = target_type
+                        local seen_target_types = {}
+                        while current_target_type ~= nil do
+                            local declaring_type = trace_type_name(current_target_type)
+                            local type_key = declaring_type ~= "<unavailable>" and declaring_type or get_obj_address_str(current_target_type)
+                            if seen_target_types[type_key] then break end
+                            seen_target_types[type_key] = true
+                            local methods = nil
+                            local methods_ok = pcall(function() methods = current_target_type:get_methods() end)
+                            if methods_ok and methods ~= nil then
+                                for _, method in ipairs(methods) do
+                                    local function_address = nil
+                                    local function_ok = pcall(function() function_address = method:get_function() end)
+                                    if function_ok and method_key ~= nil and live_pointer_key(function_address) == method_key then
+                                        local metadata = live_delegate_method_metadata(current_target_type, declaring_type, method)
+                                        log.info(string.format(
+                                            "[Merc AP Trace][CHAR_ON_DECIDED_METHOD_MATCH] target=%s declaring=%s method=%s params=[%s] return=%s native=%s",
+                                            target_key, declaring_type, metadata.name, metadata.params, metadata.return_type, metadata.native_address
+                                        ))
+                                        matched = true
+                                    end
+                                end
+                            end
+                            local parent = nil
+                            local parent_ok = pcall(function() parent = current_target_type:get_parent_type() end)
+                            if not parent_ok then break end
+                            current_target_type = parent
+                        end
+                        if not matched then
+                            log.info(string.format(
+                                "[Merc AP Trace][CHAR_ON_DECIDED_METHOD_MATCH] delegate=%s entry=%d target=%s method_ptr=%s unmatched=true",
+                                delegate_id, index, target_key, method_key or "unavailable"
+                            ))
+                        end
+                    end
+                end
+            end
+
+            install_live_on_decided_invoke_hook = function(delegate)
+                local metadata, metadata_error = live_delegate_invoke_metadata(delegate)
+                if metadata == nil then
+                    local unavailable_key = get_obj_address_str(delegate)
+                    if not live_delegate_diagnostics[unavailable_key] then
+                        live_delegate_diagnostics[unavailable_key] = true
+                        log.info("[Merc AP Trace][CHAR_ON_DECIDED_REFLECT] type=unavailable generic_args=unavailable Invoke=unavailable status=type unavailable")
+                    end
+                    return
+                end
+                local diagnostic_key = metadata.full_name or get_obj_address_str(delegate)
+                if live_delegate_diagnostics[diagnostic_key] then return end
+                live_delegate_diagnostics[diagnostic_key] = true
+
+                local invoke = metadata.invoke
+                local mismatch = metadata_error
+                if mismatch == nil and invoke ~= nil then
+                    if invoke.static ~= false then
+                        mismatch = invoke.static == nil and "static unavailable" or "Invoke static"
+                    elseif invoke.param_count ~= 1 then
+                        mismatch = invoke.param_count == nil and "parameter count unavailable" or "parameter count mismatch"
+                    elseif invoke.param_type == nil then
+                        mismatch = "parameter type unavailable"
+                    elseif trace_type_name(invoke.param_type) ~= "chainsaw.Cp1021CharacterSelectMenuActionType" then
+                        mismatch = "parameter type mismatch"
+                    elseif invoke.return_type ~= "System.Void" then
+                        mismatch = invoke.return_type == "unavailable" and "return type unavailable" or "return type mismatch"
+                    end
+                end
+
+                local invoke_text = "unavailable"
+                if invoke ~= nil then
+                    invoke_text = string.format(
+                        "native=%s static=%s return=%s params=%s",
+                        invoke.native_address, invoke.static_text, invoke.return_type,
+                        invoke.params ~= "" and ("[" .. invoke.params .. "]") or "[]"
+                    )
+                end
+                log.info(string.format(
+                    "[Merc AP Trace][CHAR_ON_DECIDED_REFLECT] type=%s generic_args=%s %s status=%s",
+                    metadata.full_name or "unavailable", metadata.generic_args or "unavailable",
+                    invoke_text, mismatch == nil and "valid" or mismatch
+                ))
+                if mismatch ~= nil or invoke == nil or invoke.native_address == "unavailable" then return end
+                if live_delegate_native_hooks[invoke.native_address] then return end
+
+                local delegate_type_name = metadata.full_name
+                local function on_live_invoke_pre(args)
+                    local invoke_this = nil
+                    local action = nil
+                    pcall(function() invoke_this = sdk.to_managed_object(args[2]) end)
+                    pcall(function()
+                        local value = sdk.to_int64(args[3])
+                        if value ~= nil then action = tonumber(value) end
+                    end)
+                    if invoke_this == nil or type(action) ~= "number" then return end
+
+                    local matches = {}
+                    local invoke_address = get_obj_address_str(invoke_this)
+                    for _, info in pairs(tracked_char_guis) do
+                        if info.active == true and info.gui ~= nil then
+                            local open_param = nil
+                            local live_delegate = nil
+                            pcall(function() open_param = info.gui:get_field("_OpenParam") end)
+                            if open_param ~= nil then
+                                pcall(function() live_delegate = open_param:get_field("OnDecided") end)
+                            end
+                            if live_delegate ~= nil and get_obj_address_str(live_delegate) == invoke_address then
+                                matches[#matches + 1] = info.gui
+                            end
+                        end
+                    end
+                    if #matches ~= 1 then return end
+
+                    local gui = matches[1]
+                    if action < 0 or action ~= math.floor(action) then
+                        log.info(string.format("[Merc AP Trace][CHAR_ON_DECIDED_PRE] invalid_action delegate=%s gui=%s action=%s type=%s", invoke_address, get_obj_address_str(gui), tostring(action), delegate_type_name))
+                        return
+                    end
+                    local ok_kind, roster = pcall(function() return gui:call("getCharacterKind", action) end)
+                    local requested = get_safe_field_int(gui, "<RequestedCharacter>k__BackingField", -1)
+                    if requested == -1 then requested = get_safe_int(gui, "get_RequestedCharacter", -1) end
+                    if not ok_kind or type(roster) ~= "number" or roster < 0 or roster > 7 then
+                        log.info(string.format("[Merc AP Trace][CHAR_ON_DECIDED_PRE] invalid_roster delegate=%s gui=%s action=%d roster=%s type=%s", invoke_address, get_obj_address_str(gui), action, tostring(roster), delegate_type_name))
+                        return
+                    end
+                    if requested ~= action then
+                        log.info(string.format("[Merc AP Trace][CHAR_ON_DECIDED_PRE] requested_mismatch delegate=%s gui=%s action=%d requested=%d type=%s", invoke_address, get_obj_address_str(gui), action, requested, delegate_type_name))
+                        return
+                    end
+                    log.info(string.format(
+                        "[Merc AP Trace][CHAR_ON_DECIDED_PRE] delegate=%s gui=%s action=%d requested=%d roster=%d owned=%s decided=%s old_unlock=%s type=%s",
+                        invoke_address, get_obj_address_str(gui), action, requested, roster,
+                        tostring(is_character_owned(roster)), tostring(get_safe_field_bool(gui, "_bDecided", false)),
+                        tostring(get_safe_field_bool(gui, "_bOldCharaUnlock", false)), delegate_type_name
+                    ))
+                end
+
+                local ok_hook = safe_hook_unique(invoke.method, on_live_invoke_pre, function(retval)
+                    return retval
+                end)
+                if ok_hook then live_delegate_native_hooks[invoke.native_address] = true end
+            end
+
+            local input_method_groups = {}
+            local input_group_order = {}
+            local all_char_methods = {}
+            pcall(function() all_char_methods = char_td:get_methods() or {} end)
+            for _, method in ipairs(all_char_methods) do
+                local method_name = nil
+                pcall(function() method_name = method:get_name() end)
+                if method_name == "onInputCheckEvent" then
+                    local probe = probe_input_method(method)
+                    local native_key = probe.native_address
+                    if native_key == "nil" or native_key == "<unavailable>" then
+                        native_key = "method:" .. tostring(method)
+                    else
+                        native_key = "native:" .. native_key
+                    end
+                    local group = input_method_groups[native_key]
+                    if group == nil then
+                        group = {
+                            native_key = native_key,
+                            native_address = probe.native_address,
+                            representative = method,
+                            signatures = {},
+                        }
+                        input_method_groups[native_key] = group
+                        input_group_order[#input_group_order + 1] = group
+                    end
+                    group.signatures[#group.signatures + 1] = probe
+                end
+            end
+
+            for _, group in ipairs(input_group_order) do
+                local signature_names = {}
+                local shared_native = group.native_address ~= "nil"
+                    and group.native_address ~= "<unavailable>"
+                    and #group.signatures > 1
+                for _, probe in ipairs(group.signatures) do
+                    local params = {}
+                    for _, param in ipairs(probe.params) do
+                        params[#params + 1] = string.format(
+                            "index=%d,arg=%d,name=%s,type=%s",
+                            param.index, param.arg_index, param.name, param.type_name
+                        )
+                    end
+                    signature_names[#signature_names + 1] = string.format(
+                        "%s/%s",
+                        probe.name,
+                        probe.param_count_text
+                    )
+                    log.info(string.format(
+                        "[Merc AP Trace][INPUT_REFLECT] declaring=%s method=%s return_type=%s param_count=%s param_offset=%d function_address=%s params=[%s] aliases_share_native=%s",
+                        probe.declaring_type, probe.name, probe.return_type, probe.param_count_text,
+                        probe.param_offset, probe.native_address, table.concat(params, ";"), tostring(shared_native)
+                    ))
+                end
+                group.signature_summary = table.concat(signature_names, ",")
+                group.primary = group.signatures[1]
+                group.param_count = group.primary and group.primary.param_count or nil
+                group.param_offset = group.primary and group.primary.param_offset or 3
+            end
+
             local candidate_methods = {
                 "onInputCheckEvent",
                 "onSelectionChanged",
@@ -1235,29 +2006,89 @@ local function install(ctx)
                 "recieveGuiParam",
             }
 
+            local input_context_stack = {}
+            local late_update_epoch_stack = {}
             for _, mname in ipairs(candidate_methods) do
                 local m = char_td:get_method(mname)
-                if m ~= nil then
+                if m ~= nil or (mname == "onInputCheckEvent" and #input_group_order > 0) then
                     local ok_h = false
                     if mname == "onInputCheckEvent" then
-                        ok_h = safe_hook_unique(m, function(args)
-                            record_call("onInputCheckEvent")
-                        end, function(retval)
-                            local cnt = call_counts["onInputCheckEvent"] or 0
-                            local ret_val = sdk.to_int64(retval)
-                            if cnt <= 5 or last_input_ret ~= ret_val then
-                                last_input_ret = ret_val
-                                local current_gui = find_first_component("chainsaw.Cp1021CharacterSelectGuiBehavior")
-                                local roster_idx = resolve_highlighted_character_kind(current_gui)
-                                local owned = is_character_owned(roster_idx)
-                                log.info(string.format(
-                                    "[Merc AP Trace][INPUT_CHECK] native_ret=%s highlight_roster=%d (%s) owned=%s count=%d t=%.3f",
-                                    tostring(ret_val), roster_idx, ROSTER_INDEX_TO_NAME[roster_idx] or "None", tostring(owned), cnt, os.clock()
-                                ))
+                        for _, input_group in ipairs(input_group_order) do
+                            local function grouped_input_pre(args)
+                                record_call("onInputCheckEvent")
+                                local this_obj = nil
+                                pcall(function() this_obj = sdk.to_managed_object(args[2]) end)
+                                local epoch = find_active_epoch(this_obj, late_update_epoch_stack)
+                                local frame = {
+                                    this_obj = this_obj,
+                                    epoch = epoch,
+                                    input_call = nil,
+                                }
+                                if epoch ~= nil then
+                                    frame.input_call = {
+                                        timestamp = os.clock(),
+                                        args = capture_input_args(args, input_group.primary),
+                                        post_raw = "<not-returned>",
+                                        post_num = "<not-returned>",
+                                        param_count = input_group.param_count,
+                                        param_offset = input_group.param_offset,
+                                        signatures = input_group.signature_summary,
+                                        return_type = input_group.primary.return_type,
+                                        post_typed = "<not-returned>",
+                                    }
+                                    epoch.input_calls[#epoch.input_calls + 1] = frame.input_call
+                                end
+                                input_context_stack[#input_context_stack + 1] = frame
                             end
+
+                            local function grouped_input_post(retval)
+                                local frame = input_context_stack[#input_context_stack]
+                                input_context_stack[#input_context_stack] = nil
+                                if frame ~= nil and frame.input_call ~= nil and frame.epoch ~= nil
+                                    and epoch_is_active(frame.epoch, late_update_epoch_stack) then
+                                    frame.input_call.post_raw = trace_raw_string(retval)
+                                    frame.input_call.post_num = trace_numeric_value(retval)
+                                    frame.input_call.post_typed = trace_typed_value(retval, {
+                                        type_name = frame.input_call.return_type,
+                                    })
+                                end
+                                return retval
+                            end
+
+                            local hooked = safe_hook_unique(input_group.representative, grouped_input_pre, grouped_input_post)
+                            ok_h = ok_h or hooked
+                        end
+                    elseif mname == "lateUpdateOnActive" then
+                        ok_h = safe_hook_unique(m, function(args)
+                            record_call(mname)
+                            local this_obj = nil
+                            pcall(function() this_obj = sdk.to_managed_object(args[2]) end)
+                            local before = get_decision_state(this_obj)
+                            local epoch = {
+                                gui = this_obj,
+                                gui_address = before.gui_address,
+                                requested = before.requested,
+                                roster = before.roster,
+                                roster_name = before.roster_name,
+                                owned = before.owned,
+                                decided_before = before.decided,
+                                curr_step = before.curr_step,
+                                timestamp = os.clock(),
+                                input_calls = {},
+                            }
+                            late_update_epoch_stack[#late_update_epoch_stack + 1] = epoch
+                        end, function(retval)
+                            local epoch = late_update_epoch_stack[#late_update_epoch_stack]
+                            late_update_epoch_stack[#late_update_epoch_stack] = nil
+                            local this_obj = epoch and epoch.gui or nil
+                            local after = get_decision_state(this_obj)
+                            if epoch ~= nil and epoch.decided_before == false and after.decided == true then
+                                dump_decision_epoch(epoch, after)
+                            end
+                            enforce_character_decision_gate(this_obj, "lateUpdateOnActive_post")
                             return retval
                         end)
-                    elseif mname == "lateUpdateOnActive" or mname == "getCharacterKind" then
+                    elseif mname == "getCharacterKind" then
                         ok_h = safe_hook_unique(m, function(args)
                             record_call(mname)
                         end, function(retval)
