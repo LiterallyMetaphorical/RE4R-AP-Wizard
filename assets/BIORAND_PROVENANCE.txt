@@ -19,7 +19,7 @@ HISTORY SQUASHED 2026-08-10: the fork's branch was flattened to a single commit,
                 .cs/.csv/.json, so the SHA-256 below still describes the code
                 that is on the branch today. Keep the old ids for the reasoning
                 they carry; treat 703e59a as the citable source commit.
-Source commit:  6a8ad72 (2026-08-21 welcome desk moved; see the REBUILD entries below)
+Source commit:  634b582 (2026-08-21 release squash; see the REBUILD entries below)
 Previous:       05f581e (2026-08-06: FORCED EVENTS - BioRand takes its event
                 set from the multiworld. The apworld rolls the Village event
                 set at generation time and the launcher pins it in as
@@ -156,6 +156,26 @@ ProductVersion: 1.0.0+05f581e7cdf1c912869903a760539cdebb1c7bac (the launcher
                 writes this into version_stamp.json, and a change here is what
                 triggers the one-time setup cache re-harvest)
 Built with:     .NET SDK 10.0.301
+
+REBUILD 2026-08-21 third (634b582)
+    The welcome note stands up at spawn.
+      * CORRECTION to the previous entry, which was wrong: there is no desk.
+        PlaceFileGimmick places the READABLE only - GimmickTemplate.Get pulls
+        one GameObject carrying a chainsaw.GmReadFile and nothing else. The
+        desk the note used to sit on is VANILLA scenery, the chapter 1
+        typewriter save point, and the original coordinates were chosen to
+        land the note on top of it. Moving the note therefore moved a note,
+        not a desk.
+      * At the new spot that left an interact prompt lying in the dirt at
+        floor height, which every player would walk past (Cam, live).
+      * Y raised about a metre to waist height and Pitch set to 90 so it
+        stands upright, broad face out, instead of lying flat.
+    Offline verify: library builds clean on .NET SDK 10.0.301, 0 warnings;
+    staged and hash-verified by tools/stage_payload.py.
+    NOT YET VERIFIED IN GAME: if it stands on the wrong axis, Roll is the
+    other candidate; if it faces away, Yaw is a single number.
+    exe SHA-256: 7f2d8e616910a86b8a26a3edc7c2d57c0e164c48974ef2b7366f844a3ba322d1
+    Prior exe SHA-256: c7c3852b59151f1ec238a8f92e4f17bafc1c0b6aecbd2e20e5e151bd0d8cfeeb
 
 REBUILD 2026-08-21 second (6a8ad72)
     The welcome desk meets you at the start.
