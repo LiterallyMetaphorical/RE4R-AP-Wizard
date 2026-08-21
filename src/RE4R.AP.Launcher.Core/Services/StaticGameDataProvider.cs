@@ -55,7 +55,7 @@ public sealed class StaticGameDataProvider
             Log(
                 $"Loaded static RE4R AP data from {StaticDataFilePath} " +
                 $"({staticData.Counts.LocationsTotal} locations, {staticData.Counts.GuidLocations} GUID-backed, " +
-                $"{staticData.Counts.NoGuidLocations} no-GUID).");
+                $"{staticData.Counts.NoGuidLocations} no-GUID, {staticData.ShopSlots.Count} merchant shop slots).");
 
             return staticData;
         }
@@ -95,6 +95,7 @@ public sealed class StaticGameDataProvider
         staticData.LocationCodes ??= new List<long>();
         staticData.Locations ??= new Dictionary<long, StaticGameLocation>();
         staticData.Items ??= new Dictionary<long, StaticGameItem>();
+        staticData.ShopSlots ??= new Dictionary<long, StaticShopSlot>();
 
         var actualGuidCount = staticData.Locations.Values.Count(
             entry => !string.IsNullOrWhiteSpace(entry.Guid));
@@ -128,6 +129,25 @@ public sealed class StaticGameDataProvider
         {
             throw new StaticGameDataException(
                 $"The bundled RE4R AP world data items count {staticData.Items.Count} does not match its declared count {staticData.Counts.ItemsTotal}.");
+        }
+
+        if (staticData.ShopSlots.Count != staticData.Counts.ShopSlots)
+        {
+            throw new StaticGameDataException(
+                $"The bundled RE4R AP world data shop slot count {staticData.ShopSlots.Count} does not match its declared count {staticData.Counts.ShopSlots}.");
+        }
+
+        // A shop slot code that is also a world location code would make the
+        // scout and manifest classify the same id two ways; the apworld seeds
+        // its code derivation against the location table, so overlap here
+        // means the two halves of the bundle came from different builds.
+        var collidingShopSlotIds = staticData.ShopSlots.Keys
+            .Where(staticData.Locations.ContainsKey)
+            .ToList();
+        if (collidingShopSlotIds.Count > 0)
+        {
+            throw new StaticGameDataException(
+                $"The bundled RE4R AP world data has {collidingShopSlotIds.Count} shop slot code(s) colliding with world location codes (first: {collidingShopSlotIds[0]}). Rebuild the launcher bundle from one apworld build.");
         }
     }
 
@@ -165,6 +185,7 @@ public sealed class StaticGameDataProvider
             staticData.LocationGroups ??= new Dictionary<string, List<string>>();
             staticData.Locations ??= new Dictionary<long, StaticGameLocation>();
             staticData.Items ??= new Dictionary<long, StaticGameItem>();
+            staticData.ShopSlots ??= new Dictionary<long, StaticShopSlot>();
             return staticData;
         }
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)

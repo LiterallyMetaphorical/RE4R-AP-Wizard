@@ -788,7 +788,7 @@
                         </StackPanel>
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
-                                       Text="Merchant Shop Checks" />
+                                       Text="Archipelago Merchant" />
                             <CheckBox IsChecked="{Binding ShopChecksEnabled}"
                                       Content="Let the merchant sell multiworld checks" />
                             <StackPanel Margin="0,6,0,0"
@@ -797,7 +797,7 @@
                                 <Slider Width="220"
                                         VerticalAlignment="Center"
                                         IsSnapToTickEnabled="True"
-                                        Maximum="24"
+                                        Maximum="20"
                                         Minimum="1"
                                         TickFrequency="1"
                                         Value="{Binding ShopChecks}" />
@@ -807,6 +807,13 @@
                             </StackPanel>
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="On by default, at 16 - one per chapter. The merchant sells this many Archipelago checks in his buy tab, spread across the campaign. Each row shows what it really is and who it belongs to, stays on the shelf until you buy it, then reads SOLD OUT. Prices are fixed by tier - 5,000 filler / 7,000 useful / 9,000 progression - and buying another player's item hands you back a gemstone worth exactly what you paid, so you need the money but never lose it." />
+                            <CheckBox Margin="0,10,0,0"
+                                      IsChecked="{Binding ShuffleMerchantGear}"
+                                      Content="Shuffle the merchant's gear into the multiworld" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Experimental. His weapons, attachments, case sizes and crafting recipes leave the buy tab and become multiworld items - your next gun is a check somewhere out there, maybe in another player's world. Consumable supplies, knife replacements, body armor, tune-ups, selling and trades stay. Expect a different power curve; gear never gates logic, so a seed can always be finished. Turning this on also turns shop checks on, so the emptied shelf sells checks instead of nothing - untick it if you really want a bare shop." />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="While either option is on, the multiworld owns the shop: BioRand's own Random Merchant is switched off when you patch, and its row on the BioRand Options screen says so." />
                         </StackPanel>
                         <StackPanel Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=WrapPanel}, Converter={StaticResource ColumnSnapConverter}, ConverterParameter=550}" Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
@@ -1825,8 +1832,14 @@
                                     </DockPanel>
                                 </Border>
 
+                                <!-- Capped to the visible page height: unbounded, the per-tab
+                                     ScrollViewer below can never scroll, and it swallows the
+                                     mouse wheel even then, so wheel scrolling inside the
+                                     options area died entirely. The binding keeps the old
+                                     grow-with-the-window behaviour without the dead zone. -->
                                 <TabControl Grid.Row="3"
                                             BorderThickness="1"
+                                            MaxHeight="{Binding ViewportHeight, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}}"
                                             IsEnabled="{Binding BioRandOptions.AreOptionsEditable}"
                                             ItemsSource="{Binding BioRandOptions.Pages}">
                                     <TabControl.ItemTemplate>
@@ -1842,6 +1855,28 @@
                                                 <StackPanel>
                                                     <StackPanel Margin="0,0,0,12"
                                                                 Visibility="{Binding IsEnemiesPage, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                        <!-- The headline switch. Everything below it only exists while
+                                                             it is on; off means enemies stay vanilla, and the tab says
+                                                             just that instead of showing a preset named Custom that
+                                                             does nothing. -->
+                                                        <CheckBox Content="Random Enemies"
+                                                                  IsChecked="{Binding DataContext.BioRandOptions.RandomEnemiesOption.BoolValue, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}, Mode=TwoWay}"
+                                                                  IsEnabled="{Binding DataContext.BioRandOptions.RandomEnemiesOption.IsEnabled, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
+                                                                  AutomationProperties.Name="Random Enemies" />
+                                                        <TextBlock Margin="22,2,0,0"
+                                                                   FontSize="11"
+                                                                   Foreground="{DynamicResource SubtleTextBrush}"
+                                                                   TextWrapping="Wrap"
+                                                                   Text="{Binding DataContext.BioRandOptions.RandomEnemiesOption.Description, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}" />
+                                                        <TextBlock Margin="22,2,0,0"
+                                                                   FontSize="11"
+                                                                   FontWeight="SemiBold"
+                                                                   Foreground="{DynamicResource InfoTextBrush}"
+                                                                   TextWrapping="Wrap"
+                                                                   Text="{Binding DataContext.BioRandOptions.RandomEnemiesOption.ForcedNotice, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
+                                                                   Visibility="{Binding DataContext.BioRandOptions.RandomEnemiesOption.HasForcedNotice, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                                        <StackPanel Margin="0,10,0,0"
+                                                                    Visibility="{Binding IsBodyVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                                                         <TextBlock FontWeight="SemiBold"
                                                                    Text="Enemy configuration" />
                                                         <ListBox Margin="0,5,0,0"
@@ -1877,9 +1912,10 @@
                                                                    Foreground="{DynamicResource SubtleTextBrush}"
                                                                    TextWrapping="Wrap"
                                                                    Text="The preset already sets these. Change any one and the preset above becomes Custom. Two of them, Enemy Variety and Enemy Max. Pack Size, are BioRand advanced options and need Show Advanced up in the corner as well." />
+                                                        </StackPanel>
                                                     </StackPanel>
                                                     <ItemsControl ItemsSource="{Binding Groups}"
-                                                                  Visibility="{Binding ShowAdvanced, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                                  Visibility="{Binding ShowRows, Converter={StaticResource BooleanToVisibilityConverter}}">
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
                                                             <StackPanel Margin="0,0,0,10">

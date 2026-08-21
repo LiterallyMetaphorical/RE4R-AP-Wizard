@@ -335,11 +335,12 @@ internal sealed class MainWindow : Window
         left.Children.Add(new Slider
         {
             Minimum = 0,
-            Maximum = 24,
+            Maximum = 20,
             IsSnapToTickEnabled = true,
             TickFrequency = 1,
             [!RangeBase.ValueProperty] = Binding("ShopChecks", BindingMode.TwoWay),
         });
+        left.Children.Add(Check("Shuffle merchant gear into the multiworld", "ShuffleMerchantGear"));
 
         var right = new StackPanel { Spacing = 10, Margin = new Thickness(20, 0, 0, 0) };
         right.Children.Add(Label("Options"));
@@ -475,15 +476,23 @@ internal sealed class MainWindow : Window
         foreach (var page in vm.Pages)
         {
             var panel = new StackPanel { Margin = new Thickness(12), Spacing = 8 };
+            var rowsHost = panel;
             if (page.IsEnemiesPage)
             {
-                panel.Children.Add(EnemyPresetControls(vm));
+                // Random Enemies is the headline switch: the preset card and
+                // every enemy row only render while it is on.
+                panel.Children.Add(RandomEnemiesToggle(vm));
+                var body = new StackPanel { DataContext = vm, Spacing = 8 };
+                body.Bind(IsVisibleProperty, Binding(nameof(BioRandOptionsViewModel.IsEnemyConfigurationVisible)));
+                body.Children.Add(EnemyPresetControls(vm));
+                panel.Children.Add(body);
+                rowsHost = body;
             }
             foreach (var group in page.Groups)
             {
                 if (group.HasTitle)
                 {
-                    panel.Children.Add(new TextBlock { Text = group.Title, FontSize = 17, FontWeight = FontWeight.SemiBold });
+                    rowsHost.Children.Add(new TextBlock { Text = group.Title, FontSize = 17, FontWeight = FontWeight.SemiBold });
                 }
                 foreach (var option in group.Options)
                 {
@@ -549,7 +558,7 @@ internal sealed class MainWindow : Window
                     var forcedNotice = new TextBlock { TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DodgerBlue, [!TextBlock.TextProperty] = Binding("ForcedNotice") };
                     forcedNotice.Bind(IsVisibleProperty, Binding("HasForcedNotice"));
                     optionRow.Children.Add(forcedNotice);
-                    panel.Children.Add(optionRow);
+                    rowsHost.Children.Add(optionRow);
                 }
             }
             tabs.Items.Add(new TabItem
@@ -559,6 +568,28 @@ internal sealed class MainWindow : Window
             });
         }
         return tabs;
+    }
+
+    private static Control RandomEnemiesToggle(BioRandOptionsViewModel vm)
+    {
+        if (vm.RandomEnemiesOption is null)
+        {
+            return new StackPanel();
+        }
+
+        var panel = new StackPanel { DataContext = vm.RandomEnemiesOption, Spacing = 2, Margin = new Thickness(0, 0, 0, 8) };
+        panel.Children.Add(new CheckBox
+        {
+            Content = "Random Enemies",
+            [!ToggleButton.IsCheckedProperty] = Binding("BoolValue", BindingMode.TwoWay),
+            [!IsEnabledProperty] = Binding("IsEnabled"),
+        });
+        var description = new TextBlock { TextWrapping = TextWrapping.Wrap, Opacity = .72, [!TextBlock.TextProperty] = Binding("Description") };
+        panel.Children.Add(description);
+        var forcedNotice = new TextBlock { TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DodgerBlue, [!TextBlock.TextProperty] = Binding("ForcedNotice") };
+        forcedNotice.Bind(IsVisibleProperty, Binding("HasForcedNotice"));
+        panel.Children.Add(forcedNotice);
+        return panel;
     }
 
     private static Control EnemyPresetControls(BioRandOptionsViewModel vm)

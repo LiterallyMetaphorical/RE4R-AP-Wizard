@@ -356,6 +356,76 @@ return function(ctx)
         end
     end
 
+    -- ------------------------------------------------------------- dev probe
+    -- [Live-test probe] With Developer Tools on, every shop open logs what
+    -- the game itself reports for each AP slot row. The buy tab showed no AP
+    -- rows on 2026-08-14 while the pak demonstrably carried all 22 rows, so
+    -- this reads the shelf from the runtime side to say which layer hides
+    -- them. Best-effort by design: every call is guarded, unanswered calls
+    -- log as "-", and the method that answered is named so the follow-up fix
+    -- can use it directly.
+    local PROBE_STOCK_METHODS = { "getCurrStock", "getCurrentStock", "getStock" }
+    local PROBE_MAX_STOCK_METHODS = { "getMaxStock", "getStockMax" }
+    local PROBE_SOLD_OUT_METHODS = { "checkSoldOut", "isSoldOut" }
+
+    local function probe_call(manager, names, item_id)
+        for _, name in ipairs(names) do
+            local value = nil
+            local ok = pcall(function() value = manager:call(name, item_id) end)
+            if ok and value ~= nil then
+                return tostring(value), name
+            end
+        end
+        return "-", nil
+    end
+
+    local function probe_shelf()
+        if bridge.developer_tools_enabled ~= true or merchant.slot_count == 0 then
+            return
+        end
+        local manager = shop_manager()
+        if manager == nil then
+            info("probe: InGameShopManager unavailable")
+            return
+        end
+
+        local difficulty = "?"
+        pcall(function()
+            local campaign = sdk.get_managed_singleton("chainsaw.CampaignManager")
+            if campaign ~= nil then
+                difficulty = tostring(campaign:call("get_CurrentDifficulty"))
+            end
+        end)
+        info(string.format(
+            "probe: shop opened, difficulty=%s, %d AP slot(s)",
+            difficulty, merchant.slot_count))
+
+        local ordered = {}
+        for _, slot in pairs(merchant.slots_by_item) do
+            ordered[#ordered + 1] = slot
+        end
+        table.sort(ordered, function(a, b) return a.index < b.index end)
+        for _, slot in ipairs(ordered) do
+            local stock, stock_via = probe_call(manager, PROBE_STOCK_METHODS, slot.item_id)
+            local max_stock = probe_call(manager, PROBE_MAX_STOCK_METHODS, slot.item_id)
+            local sold_out = probe_call(manager, PROBE_SOLD_OUT_METHODS, slot.item_id)
+            info(string.format(
+                "probe: slot %d standin=%d stock=%s max=%s soldout=%s%s",
+                slot.index, slot.item_id, stock, max_stock, sold_out,
+                stock_via ~= nil and (" (via " .. stock_via .. ")") or ""))
+        end
+
+        -- Baseline: real catalog rows (the parked pool items) so the slot
+        -- readings have something known-good to compare against.
+        for _, baseline_id in ipairs({ 274995456, 275158656, 275478656, 116004800 }) do
+            local stock = probe_call(manager, PROBE_STOCK_METHODS, baseline_id)
+            local sold_out = probe_call(manager, PROBE_SOLD_OUT_METHODS, baseline_id)
+            info(string.format(
+                "probe: baseline item=%d stock=%s soldout=%s",
+                baseline_id, stock, sold_out))
+        end
+    end
+
     -- ---------------------------------------------------------------- saving
     local function request_game_save()
         if not merchant.save_armed then
@@ -417,6 +487,7 @@ return function(ctx)
                 enter_method,
                 function()
                     pcall(reconcile_sold_out)
+                    pcall(probe_shelf)
                     return sdk.PreHookResult.CALL_ORIGINAL
                 end,
                 function(retval) return retval end
@@ -463,6 +534,7 @@ return function(ctx)
     ctx.merchant_configure = merchant_configure
     ctx.merchant_on_connected = merchant_on_connected
     ctx.merchant_reconcile_sold_out = reconcile_sold_out
+    ctx.merchant_probe_shelf = probe_shelf
     -- The operations the hooks trigger, exposed by name: the hooks are only
     -- the triggers, so a purchase can also be driven from Developer Tools or
     -- an offline harness without faking a transaction.

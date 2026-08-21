@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -35,6 +35,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     private bool _deathLink;
     private bool _allowMissableLocations;
     private bool _shuffleKeycards;
+    private bool _shuffleMerchantGear;
     private bool _minimizeBacktracking;
     private bool _randomEvents;
     private int _shopChecks = 16;
@@ -346,6 +347,31 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// D10: the merchant's gear (weapons, attachments, case sizes, recipes)
+    /// leaves the buy tab and shuffles into the multiworld item pool.
+    /// Turning it on also turns shop checks on - a scattered shop with no
+    /// check rows is nearly empty, which reads as broken rather than
+    /// configured. The player can still untick checks afterwards.
+    /// </summary>
+    public bool ShuffleMerchantGear
+    {
+        get => _shuffleMerchantGear;
+        set
+        {
+            if (SetProperty(ref _shuffleMerchantGear, value))
+            {
+                if (value && !ShopChecksEnabled)
+                {
+                    ShopChecksEnabled = true;
+                }
+
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
+
     public bool MinimizeBacktracking
     {
         get => _minimizeBacktracking;
@@ -393,7 +419,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         get => _shopChecks;
         set
         {
-            var clamped = Math.Clamp(value, 0, 24);
+            var clamped = Math.Clamp(value, 0, 20);
             if (SetProperty(ref _shopChecks, clamped))
             {
                 OnPropertyChanged(nameof(ShopChecksLabel));
@@ -736,6 +762,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         DeathLink = draft.DeathLink;
         AllowMissableLocations = draft.AllowMissableLocations;
         ShuffleKeycards = draft.ShuffleKeycards;
+        ShuffleMerchantGear = draft.ShuffleMerchantGear;
         MinimizeBacktracking = draft.MinimizeBacktracking;
         RandomEvents = draft.RandomEvents;
         // A saved 0 means it was switched off; keep the slider on a sensible
@@ -784,6 +811,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
                 draft.DeathLink = DeathLink;
                 draft.AllowMissableLocations = AllowMissableLocations;
                 draft.ShuffleKeycards = ShuffleKeycards;
+                draft.ShuffleMerchantGear = ShuffleMerchantGear;
                 draft.MinimizeBacktracking = MinimizeBacktracking;
                 draft.RandomEvents = RandomEvents;
                 draft.ShopChecks = ShopChecksEnabled ? ShopChecks : 0;
@@ -823,6 +851,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             DeathLink = DeathLink,
             AllowMissableLocations = AllowMissableLocations,
             ShuffleKeycards = ShuffleKeycards,
+            ShuffleMerchantGear = ShuffleMerchantGear,
             MinimizeBacktracking = MinimizeBacktracking,
             RandomEvents = RandomEvents,
             ShopChecks = ShopChecksEnabled ? ShopChecks : 0,

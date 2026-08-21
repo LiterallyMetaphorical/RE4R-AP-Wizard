@@ -22,10 +22,10 @@ local function install(ctx)
     local MARKER_COLOR_PROGRESSION = 0xFF4AB2E0
     local MARKER_COLOR_USEFUL = 0xFFE88B6D
     local MARKER_COLOR_HINT = 0xFFD08BE8
-    -- [D8] Rollback re-grabs: green (#8BE86D), outside the rarity palette and
-    -- the hint colour, because the marker means "your item is lying there
-    -- again", not "this check is worth something".
-    local MARKER_COLOR_REGRAB = 0xFF6DE88B
+    -- [D8] Rollback re-grabs: white, same as a plain marker - the [RE-GRAB]
+    -- prefix is the distinguisher (Cam, live 2026-08-14; the green tried too
+    -- hard). Kept as its own constant so the choice stays revisitable.
+    local MARKER_COLOR_REGRAB = 0xFFFFFFFF
 
     -- Text floats a little above the pickup so it reads at eye level.
     local MARKER_Y_OFFSET = 1.4
@@ -59,10 +59,17 @@ local function install(ctx)
         if type(pick) ~= "string" then
             pick = (type(_G.WORLD_MARKER_DETAIL) == "string" and _G.WORLD_MARKER_DETAIL) or "basic"
         end
+        -- Developer Tools honours the pick outright, ceiling included: the
+        -- ceiling ladder cannot even name the developer tier, so capping to
+        -- it made tier 5 unreachable in every room. The Guidance picker
+        -- offers the same range, so what you pick is what renders.
+        if bridge.developer_tools_enabled == true then
+            return detail_tier_of(pick)
+        end
         -- Absent ceiling = permissive top tier.
         local tier = math.min(detail_tier_of(pick), detail_tier_of(bridge.marker_detail_ceiling or "developer"))
         -- Only the developer tier is a debug affordance.
-        if tier >= DETAIL_TIER.developer and bridge.developer_tools_enabled ~= true then
+        if tier >= DETAIL_TIER.developer then
             tier = DETAIL_TIER.identify
         end
         return tier

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-08-13T22:25:04Z",
+  "generated_at_utc": "2026-08-15T20:20:54Z",
   "game": "Resident Evil 4 Remake",
   "world_version": "0.7.0",
   "placeholder_item_id": 120486400,
@@ -165,10 +165,35 @@
       "Small Key x1"
     ],
     "Useful": [
+      "Blacktail x1",
+      "Bolt Thrower x1",
       "Boot Knife x1",
+      "Broken Butterfly x1",
       "CQBR Assault Rifle x20",
+      "Case: 7x12 x1",
+      "Case: 8x12 x1",
+      "Case: 8x13 x1",
+      "Case: 9x13 x1",
+      "High-power Scope x1",
+      "Killer7 x1",
       "Kitchen Knife x1",
       "LE 5 x60",
+      "Laser Sight x1",
+      "Matilda Stock x1",
+      "Recipe: Attachable Mines x1",
+      "Recipe: Bolts x1",
+      "Recipe: Flash Grenade x1",
+      "Recipe: Heavy Grenade x1",
+      "Recipe: Magnum Ammo x1",
+      "Red9 Stock x1",
+      "Red9 x1",
+      "Riot Gun x1",
+      "SR M1903 x1",
+      "Scope x1",
+      "Stingray x1",
+      "Striker x1",
+      "TMP Stock x1",
+      "TMP x1",
       "W-870 x5"
     ]
   },
@@ -760,9 +785,10 @@
     "locations_total": 460,
     "guid_locations": 460,
     "noguid_locations": 0,
-    "items_total": 127,
+    "items_total": 152,
     "always_locations": 460,
-    "optional_key_locations": 0
+    "optional_key_locations": 0,
+    "shop_slots": 24
   },
   "location_codes": [
     3286922255,
@@ -8588,7 +8614,167 @@
       "note": ""
     }
   },
+  "shop_slots": {
+    "3204520031": {
+      "name": "Merchant Shop Slot 1",
+      "slot": 1,
+      "physical_chapter": 1,
+      "logical_chapter": 2
+    },
+    "2958937158": {
+      "name": "Merchant Shop Slot 2",
+      "slot": 2,
+      "physical_chapter": 9,
+      "logical_chapter": 10
+    },
+    "1551234884": {
+      "name": "Merchant Shop Slot 3",
+      "slot": 3,
+      "physical_chapter": 5,
+      "logical_chapter": 6
+    },
+    "3478878599": {
+      "name": "Merchant Shop Slot 4",
+      "slot": 4,
+      "physical_chapter": 13,
+      "logical_chapter": 14
+    },
+    "277322678": {
+      "name": "Merchant Shop Slot 5",
+      "slot": 5,
+      "physical_chapter": 3,
+      "logical_chapter": 4
+    },
+    "3356087488": {
+      "name": "Merchant Shop Slot 6",
+      "slot": 6,
+      "physical_chapter": 11,
+      "logical_chapter": 12
+    },
+    "1289902959": {
+      "name": "Merchant Shop Slot 7",
+      "slot": 7,
+      "physical_chapter": 7,
+      "logical_chapter": 8
+    },
+    "3786420583": {
+      "name": "Merchant Shop Slot 8",
+      "slot": 8,
+      "physical_chapter": 15,
+      "logical_chapter": 16
+    },
+    "4216072421": {
+      "name": "Merchant Shop Slot 9",
+      "slot": 9,
+      "physical_chapter": 2,
+      "logical_chapter": 3
+    },
+    "194618670": {
+      "name": "Merchant Shop Slot 10",
+      "slot": 10,
+      "physical_chapter": 10,
+      "logical_chapter": 11
+    },
+    "2844203313": {
+      "name": "Merchant Shop Slot 11",
+      "slot": 11,
+      "physical_chapter": 6,
+      "logical_chapter": 7
+    },
+    "3634352994": {
+      "name": "Merchant Shop Slot 12",
+      "slot": 12,
+      "physical_chapter": 14,
+      "logical_chapter": 15
+    },
+    "2622260351": {
+      "name": "Merchant Shop Slot 13",
+      "slot": 13,
+      "physical_chapter": 4,
+      "logical_chapter": 5
+    },
+    "2165839740": {
+      "name": "Merchant Shop Slot 14",
+      "slot": 14,
+      "physical_chapter": 12,
+      "logical_chapter": 13
+    },
+    "809050318": {
+      "name": "Merchant Shop Slot 15",
+      "slot": 15,
+      "physical_chapter": 8,
+      "logical_chapter": 9
+    },
+    "1128030029": {
+      "name": "Merchant Shop Slot 16",
+      "slot": 16,
+      "physical_chapter": 15,
+      "logical_chapter": 16
+    },
+    "1975624912": {
+      "name": "Merchant Shop Slot 17",
+      "slot": 17,
+      "physical_chapter": 1,
+      "logical_chapter": 2
+    },
+    "4009476725": {
+      "name": "Merchant Shop Slot 18",
+      "slot": 18,
+      "physical_chapter": 5,
+      "logical_chapter": 6
+    },
+    "2593205226": {
+      "name": "Merchant Shop Slot 19",
+      "slot": 19,
+      "physical_chapter": 9,
+      "logical_chapter": 10
+    },
+    "2802696602": {
+      "name": "Merchant Shop Slot 20",
+      "slot": 20,
+      "physical_chapter": 13,
+      "logical_chapter": 14
+    },
+    "3406039732": {
+      "name": "Merchant Shop Slot 21",
+      "slot": 21,
+      "physical_chapter": 3,
+      "logical_chapter": 4
+    },
+    "1758368763": {
+      "name": "Merchant Shop Slot 22",
+      "slot": 22,
+      "physical_chapter": 7,
+      "logical_chapter": 8
+    },
+    "1610046566": {
+      "name": "Merchant Shop Slot 23",
+      "slot": 23,
+      "physical_chapter": 11,
+      "logical_chapter": 12
+    },
+    "1437942966": {
+      "name": "Merchant Shop Slot 24",
+      "slot": 24,
+      "physical_chapter": 15,
+      "logical_chapter": 16
+    }
+  },
   "items": {
+    "20665965": {
+      "name": "Red9 Stock x1",
+      "biorand_item_id": 116001600,
+      "biorand_name": "Red9 Stock",
+      "classification": "USEFUL",
+      "count": 1
+    },
+    "24553929": {
+      "name": "Recipe: Flash Grenade x1",
+      "biorand_item_id": 124337600,
+      "biorand_name": "Recipe: Flash Grenade",
+      "classification": "USEFUL",
+      "count": 1
+    },
     "42736575": {
       "name": "Insignia Key x1",
       "biorand_item_id": 119204800,
@@ -8736,6 +8922,13 @@
       "classification": "FILLER",
       "count": 1
     },
+    "626635549": {
+      "name": "High-power Scope x1",
+      "biorand_item_id": 116003200,
+      "biorand_name": "High-power Scope",
+      "classification": "USEFUL",
+      "count": 1
+    },
     "652308034": {
       "name": "Submachine Gun Ammo x50",
       "biorand_item_id": 112806400,
@@ -8778,11 +8971,46 @@
       "classification": "FILLER",
       "count": 2
     },
+    "686624439": {
+      "name": "TMP Stock x1",
+      "biorand_item_id": 116006400,
+      "biorand_name": "TMP Stock",
+      "classification": "USEFUL",
+      "count": 1
+    },
+    "754561484": {
+      "name": "Scope x1",
+      "biorand_item_id": 116000000,
+      "biorand_name": "Scope",
+      "classification": "USEFUL",
+      "count": 1
+    },
+    "771039498": {
+      "name": "SR M1903 x1",
+      "biorand_item_id": 275475456,
+      "biorand_name": "SR M1903",
+      "classification": "USEFUL",
+      "count": 1
+    },
+    "872710715": {
+      "name": "Recipe: Attachable Mines x1",
+      "biorand_item_id": 124334400,
+      "biorand_name": "Recipe: Attachable Mines",
+      "classification": "USEFUL",
+      "count": 1
+    },
     "885416727": {
       "name": "Brown Chicken Egg x1",
       "biorand_item_id": 277081856,
       "biorand_name": "Brown Chicken Egg",
       "classification": "FILLER",
+      "count": 1
+    },
+    "888826940": {
+      "name": "Recipe: Bolts x1",
+      "biorand_item_id": 124329600,
+      "biorand_name": "Recipe: Bolts",
+      "classification": "USEFUL",
       "count": 1
     },
     "915040027": {
@@ -8804,6 +9032,20 @@
       "biorand_item_id": 122406400,
       "biorand_name": "Golden Lynx",
       "classification": "FILLER",
+      "count": 1
+    },
+    "981884737": {
+      "name": "Riot Gun x1",
+      "biorand_item_id": 274997056,
+      "biorand_name": "Riot Gun",
+      "classification": "USEFUL",
+      "count": 1
+    },
+    "1037821037": {
+      "name": "Blacktail x1",
+      "biorand_item_id": 274840256,
+      "biorand_name": "Blacktail",
+      "classification": "USEFUL",
       "count": 1
     },
     "1070734931": {
@@ -9030,6 +9272,13 @@
       "classification": "PROGRESSION",
       "count": 1
     },
+    "2061407981": {
+      "name": "Recipe: Magnum Ammo x1",
+      "biorand_item_id": 124328000,
+      "biorand_name": "Recipe: Magnum Ammo",
+      "classification": "USEFUL",
+      "count": 1
+    },
     "2134491726": {
       "name": "Black Bass x1",
       "biorand_item_id": 114417600,
@@ -9135,6 +9384,13 @@
       "classification": "FILLER",
       "count": 1
     },
+    "2557426438": {
+      "name": "Stingray x1",
+      "biorand_item_id": 275477056,
+      "biorand_name": "Stingray",
+      "classification": "USEFUL",
+      "count": 1
+    },
     "2582217593": {
       "name": "Gunpowder x10",
       "biorand_item_id": 117600000,
@@ -9161,6 +9417,20 @@
       "biorand_item_id": 120819200,
       "biorand_name": "Gold Bangle",
       "classification": "FILLER",
+      "count": 1
+    },
+    "2709354575": {
+      "name": "Bolt Thrower x1",
+      "biorand_item_id": 275795456,
+      "biorand_name": "Bolt Thrower",
+      "classification": "USEFUL",
+      "count": 1
+    },
+    "2763550898": {
+      "name": "Red9 x1",
+      "biorand_item_id": 274838656,
+      "biorand_name": "Red9",
+      "classification": "USEFUL",
       "count": 1
     },
     "2768851234": {
@@ -9191,6 +9461,27 @@
       "classification": "FILLER",
       "count": 15
     },
+    "2828451666": {
+      "name": "Case: 8x13 x1",
+      "biorand_item_id": 124164800,
+      "biorand_name": "Case: 8x13",
+      "classification": "USEFUL",
+      "count": 1
+    },
+    "2834473979": {
+      "name": "Recipe: Heavy Grenade x1",
+      "biorand_item_id": 124336000,
+      "biorand_name": "Recipe: Heavy Grenade",
+      "classification": "USEFUL",
+      "count": 1
+    },
+    "2859524944": {
+      "name": "Case: 8x12 x1",
+      "biorand_item_id": 124163200,
+      "biorand_name": "Case: 8x12",
+      "classification": "USEFUL",
+      "count": 1
+    },
     "2888050195": {
       "name": "Level 3 Keycard x1",
       "biorand_item_id": 119214400,
@@ -9217,6 +9508,13 @@
       "biorand_item_id": 120817600,
       "biorand_name": "Red Gemstone Ring",
       "classification": "FILLER",
+      "count": 1
+    },
+    "3023476029": {
+      "name": "Case: 7x12 x1",
+      "biorand_item_id": 124161600,
+      "biorand_name": "Case: 7x12",
+      "classification": "USEFUL",
       "count": 1
     },
     "3043978533": {
@@ -9338,6 +9636,20 @@
       "classification": "USEFUL",
       "count": 60
     },
+    "3534671013": {
+      "name": "Matilda Stock x1",
+      "biorand_item_id": 116009600,
+      "biorand_name": "Matilda Stock",
+      "classification": "USEFUL",
+      "count": 1
+    },
+    "3567440286": {
+      "name": "Striker x1",
+      "biorand_item_id": 274998656,
+      "biorand_name": "Striker",
+      "classification": "USEFUL",
+      "count": 1
+    },
     "3580942952": {
       "name": "Rifle Ammo x2",
       "biorand_item_id": 112804800,
@@ -9436,11 +9748,32 @@
       "classification": "FILLER",
       "count": 5
     },
+    "4000844222": {
+      "name": "Broken Butterfly x1",
+      "biorand_item_id": 275635456,
+      "biorand_name": "Broken Butterfly",
+      "classification": "USEFUL",
+      "count": 1
+    },
     "4063988846": {
       "name": "First Aid Spray x1",
       "biorand_item_id": 114416000,
       "biorand_name": "First Aid Spray",
       "classification": "FILLER",
+      "count": 1
+    },
+    "4073624936": {
+      "name": "Killer7 x1",
+      "biorand_item_id": 275637056,
+      "biorand_name": "Killer7",
+      "classification": "USEFUL",
+      "count": 1
+    },
+    "4126917699": {
+      "name": "Case: 9x13 x1",
+      "biorand_item_id": 124166400,
+      "biorand_name": "Case: 9x13",
+      "classification": "USEFUL",
       "count": 1
     },
     "4131203438": {
@@ -9464,6 +9797,13 @@
       "classification": "FILLER",
       "count": 5
     },
+    "4228309747": {
+      "name": "Laser Sight x1",
+      "biorand_item_id": 116008000,
+      "biorand_name": "Laser Sight",
+      "classification": "USEFUL",
+      "count": 1
+    },
     "4249727162": {
       "name": "Elegant Headdress x1",
       "biorand_item_id": 120812800,
@@ -9477,6 +9817,13 @@
       "biorand_name": "Handgun Ammo",
       "classification": "FILLER",
       "count": 25
+    },
+    "4288743819": {
+      "name": "TMP x1",
+      "biorand_item_id": 275155456,
+      "biorand_name": "TMP",
+      "classification": "USEFUL",
+      "count": 1
     }
   }
 }

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Text.Json.Nodes;
 using RE4R.AP.Launcher.Core.Models;
 using RE4R.AP.Launcher.Infrastructure;
@@ -33,6 +34,7 @@ public sealed class BioRandOptionsViewModel : ObservableObject
     private bool _isPinnedToPreviousPatch;
     private bool _isUnlockedForChange;
     private bool _randomEventsForced;
+    private bool _merchantOwnedByAp;
     private string _pinnedNotice = string.Empty;
     private string _modeStatusText = "Choose a launch mode to continue.";
 
@@ -384,6 +386,19 @@ public sealed class BioRandOptionsViewModel : ObservableObject
                     {
                         _enemyOptionKeys.Add(definition.Key);
                     }
+
+                    // Random Enemies is promoted to the headline checkbox of
+                    // the Enemies tab (both UIs), so it does not render as an
+                    // ordinary row. It stays registered: presets,
+                    // serialization and the Random Events forcing all address
+                    // it through _itemsByKey.
+                    if (string.Equals(definition.Key, BioRandOptionCatalog.RandomEnemiesKey, StringComparison.Ordinal))
+                    {
+                        RandomEnemiesOption = item;
+                        item.PropertyChanged += OnRandomEnemiesOptionPropertyChanged;
+                        continue;
+                    }
+
                     groupVm.Options.Add(item);
                 }
 
@@ -394,6 +409,36 @@ public sealed class BioRandOptionsViewModel : ObservableObject
         }
 
         AddRandomEventsNote();
+        SyncEnemyPageBodyVisibility();
+    }
+
+    /// <summary>
+    /// The promoted Random Enemies switch. The whole enemy configuration
+    /// block (preset picker, Méndez exclusion, individual rows) only shows
+    /// while it is on; off means enemies stay vanilla.
+    /// </summary>
+    public BioRandOptionItemViewModel? RandomEnemiesOption { get; private set; }
+
+    public bool IsEnemyConfigurationVisible => RandomEnemiesOption?.BoolValue ?? true;
+
+    private void OnRandomEnemiesOptionPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (!string.Equals(e.PropertyName, nameof(BioRandOptionItemViewModel.BoolValue), StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        OnPropertyChanged(nameof(IsEnemyConfigurationVisible));
+        SyncEnemyPageBodyVisibility();
+    }
+
+    private void SyncEnemyPageBodyVisibility()
+    {
+        var enemiesPage = Pages.FirstOrDefault(page => page.IsEnemiesPage);
+        if (enemiesPage is not null)
+        {
+            enemiesPage.IsBodyVisible = IsEnemyConfigurationVisible;
+        }
     }
 
     /// <summary>
@@ -512,6 +557,51 @@ public sealed class BioRandOptionsViewModel : ObservableObject
                 item.ForcedNotice = string.Empty;
             }
         }
+
+        ApplyMerchantForcing();
+    }
+
+    /// <summary>
+    /// True when the player's own settings give the multiworld the merchant
+    /// (shop checks or scattered gear). Same draft-sourced hint as
+    /// <see cref="RandomEventsForced"/>: the room's authoritative answer
+    /// arrives at the scout, and the manifest enforces it either way.
+    /// </summary>
+    public bool MerchantOwnedByAp
+    {
+        get => _merchantOwnedByAp;
+        set
+        {
+            if (SetProperty(ref _merchantOwnedByAp, value))
+            {
+                ApplyMerchantForcing();
+            }
+        }
+    }
+
+    private void ApplyMerchantForcing()
+    {
+        if (!_itemsByKey.TryGetValue(BioRandOptionCatalog.RandomMerchantKey, out var item))
+        {
+            return;
+        }
+
+        if (_merchantOwnedByAp)
+        {
+            // Two owners cannot stock one shop: BioRand's merchant reroll
+            // would put weapons back on a shelf the multiworld just took
+            // over (its added arsenal is not pool-excludable), so the patch
+            // forces it off whenever AP merchant features are on.
+            item.LoadValue(System.Text.Json.Nodes.JsonValue.Create(false));
+            item.IsEnabled = false;
+            item.ForcedNotice =
+                "Off because the multiworld runs this room's merchant (shop checks or scattered gear).";
+        }
+        else
+        {
+            item.IsEnabled = true;
+            item.ForcedNotice = string.Empty;
+        }
     }
 
     /// <summary>Any player tweak means the config is no longer the preset - so say so.</summary>
@@ -537,6 +627,16 @@ public sealed class BioRandOptionsViewModel : ObservableObject
         if (_enemyOptionKeys.Contains(item.Key))
         {
             MarkEnemyPresetCustom();
+        }
+
+        // Ticking Random Enemies on from a bare Custom starts from the
+        // mildest named mix, so the picker names a real configuration
+        // instead of labelling untouched stock values Custom.
+        if (string.Equals(item.Key, BioRandOptionCatalog.RandomEnemiesKey, StringComparison.Ordinal)
+            && item.BoolValue
+            && ReferenceEquals(_selectedEnemyPreset, EnemyConfigurationPresets.Custom))
+        {
+            SelectedEnemyPreset = EnemyConfigurationPresets.Named[0]; // Gentle Remix
         }
 
         if (EnemyConfigurationPresets.MendezPoolKeys.Contains(item.Key, StringComparer.Ordinal))

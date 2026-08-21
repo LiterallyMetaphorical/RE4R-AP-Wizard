@@ -19,7 +19,7 @@ HISTORY SQUASHED 2026-08-10: the fork's branch was flattened to a single commit,
                 .cs/.csv/.json, so the SHA-256 below still describes the code
                 that is on the branch today. Keep the old ids for the reasoning
                 they carry; treat 703e59a as the citable source commit.
-Source commit:  2e59593 (2026-08-13 rebuild; see the REBUILD entry below)
+Source commit:  5a7c369 (2026-08-14 rebuild; see the REBUILD entry below)
 Previous:       05f581e (2026-08-06: FORCED EVENTS - BioRand takes its event
                 set from the multiworld. The apworld rolls the Village event
                 set at generation time and the launcher pins it in as
@@ -151,11 +151,21 @@ Previous:       05f581e (2026-08-06: FORCED EVENTS - BioRand takes its event
                 DLC entitlement needed). Includes b27f7ac (drop-catalog fix)
                 and 90140f0 (purity gates).)
 Publish:        -c Release -r win-x64 --self-contained -p:PublishSingleFile=true (net10.0)
-biorand-re4r.exe SHA-256: 3e87e16b66c5e0b5687df1f4745ad3a19de9feb16f3bb9ea5ff92e3552da318e
+biorand-re4r.exe SHA-256: 35e8892cc71fda2889e39f48169f0526516da5574a45793d17e1cc960c0148c2
 ProductVersion: 1.0.0+05f581e7cdf1c912869903a760539cdebb1c7bac (the launcher
                 writes this into version_stamp.json, and a change here is what
                 triggers the one-time setup cache re-harvest)
 Built with:     .NET SDK 10.0.301
+
+REBUILD 2026-08-14 (5a7c369)
+    The live test's empty AP shelf. The check rows existed in the pak with
+    DefaultStock 1, but stock-enabled rows only ever draw shelf stock from
+    the per-waypoint addition table (every vanilla stocked item starts at 0),
+    so the rows never reached the shelf. Each slot now gets +1 stock at its
+    unlock waypoint and DefaultStock stays 0. Verified offline: regenerated
+    the exact live config/seed and diffed the shop userdata - all 22 slots
+    stocked at their waypoints, rows otherwise unchanged.
+    Prior exe SHA-256: 3e87e16b66c5e0b5687df1f4745ad3a19de9feb16f3bb9ea5ff92e3552da318e
 
 REBUILD 2026-08-13 (2e59593)
     Staged by tools/stage_payload.py, which is now the only supported way to

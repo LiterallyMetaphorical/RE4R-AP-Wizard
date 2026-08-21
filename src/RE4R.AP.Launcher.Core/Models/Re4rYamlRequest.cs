@@ -28,6 +28,8 @@ public sealed class Re4rYamlRequest
     // leaving them at their native island spots (apworld 0.6.0).
     public bool ShuffleKeycards { get; set; }
 
+    public bool ShuffleMerchantGear { get; set; }
+
     // Keep important checks along the main path: hard hexagon deadline plus
     // filler-only side excursions (apworld 0.6.0).
     public bool MinimizeBacktracking { get; set; }

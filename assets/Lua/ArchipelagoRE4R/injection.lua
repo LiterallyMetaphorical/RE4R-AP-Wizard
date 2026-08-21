@@ -2578,11 +2578,17 @@ local function install(ctx)
     -- share.SaveDataManager for a system save so the records persist even if
     -- the player never touches a typewriter. Idempotent: already-bought
     -- weapons are skipped, so this can run on every connect.
+    -- Exactly the weapons the game's ExShop conversion table knows
+    -- (exshopidconvertuserdata.user.2 carries three weapon entries: bonus 6/7/8
+    -- for these ids; verified against every DLC convert file too). The
+    -- Infinite Rocket Launcher is deliberately ABSENT: it has no ExShop entry
+    -- anywhere - it is a normal merchant purchase, not an Extra Content
+    -- unlock - so its lookup returns -1 on every install and there is nothing
+    -- to unlock (live 2026-08-15, twelve in-game retries all -1).
     local BONUS_WEAPON_ITEM_IDS = {
         { id = 276445056, name = "Primal Knife" },
         { id = 275157056, name = "Chicago Sweeper" },
         { id = 275638656, name = "Handcannon" },
-        { id = 276278656, name = "Infinite Rocket Launcher" },
     }
 
     local function inject_ensure_bonus_weapons_unlocked()
@@ -2600,11 +2606,20 @@ local function install(ctx)
         end
 
         local unlocked = 0
+        local unresolved = 0
+        local unresolved_names = {}
         for _, weapon in ipairs(BONUS_WEAPON_ITEM_IDS) do
             local ok, err = pcall(function()
                 local manager = inject_get_managed(record_manager)
                 local bonus_id = manager:call("getItemIdToBonus", weapon.id)
-                if type(bonus_id) ~= "number" then
+                -- -1 is the not-found sentinel. At boot the ExShop records
+                -- are not loaded yet and every lookup misses; the old guard
+                -- only rejected non-numbers, so all four unlocks wrote to -1
+                -- and did nothing (live 2026-08-14). A miss is counted so
+                -- the caller can retry once the game is actually loaded.
+                if type(bonus_id) ~= "number" or bonus_id < 0 then
+                    unresolved = unresolved + 1
+                    unresolved_names[#unresolved_names + 1] = weapon.name
                     return
                 end
                 if manager:call("checkBuyBonus", bonus_id) ~= true then
@@ -2640,7 +2655,16 @@ local function install(ctx)
             end
         end
 
-        return true, unlocked
+        if unresolved > 0 then
+            -- Named so a single stubborn miss identifies itself: a weapon
+            -- still -1 IN-GAME is a wrong item id for its ExShop mapping,
+            -- not load timing (live 2026-08-15, one of the four).
+            log.info(string.format(
+                "[RE4R AP] %d bonus weapon id(s) unresolved (%s); retry pending",
+                unresolved, table.concat(unresolved_names, ", ")))
+        end
+
+        return true, unlocked, unresolved
     end
 
     injection.items = injectable_items

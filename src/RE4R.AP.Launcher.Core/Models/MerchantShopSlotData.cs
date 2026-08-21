@@ -23,6 +23,14 @@ public sealed class MerchantShopSlotData
     public IReadOnlyList<MerchantShopSlot> Slots { get; init; } = Array.Empty<MerchantShopSlot>();
 
     /// <summary>
+    /// Engine item ids of merchant gear the multiworld holds instead of the
+    /// shelf (D10, ShuffleMerchantGear). The fork strips these from the
+    /// shop's stock through the same exclusion the pool-unique buyables use.
+    /// Empty for rooms without the option.
+    /// </summary>
+    public IReadOnlyList<int> ScatteredItemIds { get; init; } = Array.Empty<int>();
+
+    /// <summary>
     /// Credit-check economy per AP classification: the peseta price of a slot
     /// and the gemstone handed back when the purchase is refundable. The
     /// apworld owns these values (shop.SHOP_TIERS); the launcher passes them

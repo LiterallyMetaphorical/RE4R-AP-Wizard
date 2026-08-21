@@ -28,6 +28,13 @@ public sealed class StaticGameData
     [JsonPropertyName("locations")]
     public Dictionary<long, StaticGameLocation> Locations { get; set; } = new();
 
+    // Merchant shop slots (D4), keyed by location code. Deliberately not in
+    // Locations: a room carries between none and all of them depending on
+    // shop_checks, so they stay clear of the exact-count contracts. Empty on
+    // a pre-shop bundle.
+    [JsonPropertyName("shop_slots")]
+    public Dictionary<long, StaticShopSlot> ShopSlots { get; set; } = new();
+
     [JsonPropertyName("items")]
     public Dictionary<long, StaticGameItem> Items { get; set; } = new();
 

@@ -245,15 +245,19 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         // Switching bonus weapons on force-unlocks them on the player's RE4R
         // profile at connect (the game otherwise deletes un-bought bonus
         // weapons from the inventory on death or reload), so it asks first.
+        // Three, not four: the Infinite Rocket Launcher can still be stocked,
+        // but it is a normal merchant purchase with no Extra Content record,
+        // so there is nothing to unlock for it.
         BioRandOptions.ConfirmBonusWeaponsUnlockAsync = () => _dialogService.ConfirmProceedWithWarningAsync(
             "Bonus Weapons Get Force-Unlocked",
-            "This lets the merchant stock the four bonus weapons: Primal Knife, Chicago Sweeper, "
+            "This lets the merchant stock the bonus weapons: Primal Knife, Chicago Sweeper, "
             + "Handcannon and Infinite Rocket Launcher."
             + Environment.NewLine + Environment.NewLine
-            + "If your RE4R profile does not have them all unlocked, connecting in-game will "
-            + "force-unlock them on your profile - permanently, exactly as if you had bought them "
-            + "in the Extra Content Shop. Only those four weapons are touched. Without the unlock, "
-            + "the game deletes these weapons from your inventory on death or reload."
+            + "The first three are Extra Content Shop weapons. If your RE4R profile does not have "
+            + "them unlocked, connecting in-game will force-unlock them on your profile - "
+            + "permanently, exactly as if you had bought them in the Extra Content Shop. Only "
+            + "those three are touched; without the unlock, the game deletes them from your "
+            + "inventory on death or reload. The Infinite Rocket Launcher needs no unlock."
             + Environment.NewLine + Environment.NewLine
             + "Are you sure?",
             proceedLabel: "Force Unlock Them",
@@ -557,6 +561,8 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         // own draft is the best answer available at this point; the patch
         // screen corrects the record once the real one arrives.
         JoinFlow.BioRandOptions.RandomEventsForced = _pendingDraft?.RandomEvents == true;
+        JoinFlow.BioRandOptions.MerchantOwnedByAp = _pendingDraft is { } merchantDraft
+            && (merchantDraft.ShopChecks > 0 || merchantDraft.ShuffleMerchantGear);
 
         CurrentScreen = JoinFlow;
         Action.AppendLog("Opening the join-session flow.");
@@ -1166,6 +1172,15 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             if (raw.Contains("InvalidGame", StringComparison.OrdinalIgnoreCase))
             {
                 return "That slot exists but it isn't a Resident Evil 4 Remake slot. Double-check the slot name with your organizer.";
+            }
+
+            // The room answered but named locations this launcher does not
+            // know. Saying "couldn't reach it" here sent a tester chasing a
+            // sleeping-room fix for a version mismatch (Cam, live 2026-08-14).
+            if (raw.Contains("bundled world data does not know", StringComparison.OrdinalIgnoreCase))
+            {
+                return "The room and this launcher disagree about RE4R's locations, so patching stopped before touching your game. The room was probably generated with a newer RE4R.apworld than this launcher bundles - update the launcher, or regenerate the room with the apworld this launcher ships."
+                    + Environment.NewLine + Environment.NewLine + $"Details: {raw}";
             }
 
             return "Couldn't reach the room at that address. archipelago.gg rooms fall asleep after inactivity, and only opening the ROOM PAGE in a browser wakes them - wake it, double-check the address for typos, then try again."

@@ -53,6 +53,9 @@ public sealed class PendingSessionDraft
     [JsonPropertyName("shuffle_keycards")]
     public bool ShuffleKeycards { get; set; }
 
+    [JsonPropertyName("shuffle_merchant_gear")]
+    public bool ShuffleMerchantGear { get; set; }
+
     [JsonPropertyName("minimize_backtracking")]
     public bool MinimizeBacktracking { get; set; }
 

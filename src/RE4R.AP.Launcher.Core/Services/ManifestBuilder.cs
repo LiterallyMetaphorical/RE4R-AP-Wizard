@@ -41,18 +41,38 @@ public sealed class ManifestBuilder
         var removedByEvents = scoutSession.RandomEvents.Enabled
             ? scoutSession.RandomEvents.RemovedLocationCodes.Count
             : 0;
-        var scoutedCount = scoutSession.Locations.Count;
+
+        // Shop slots (D4) are counted apart from the world total: how many a
+        // room carries varies with shop_checks, and the slot_data block is
+        // the authority on that number. A mismatch between the room's shop
+        // location ids and its slot data means the shop rows cannot all be
+        // built, so it fails loudly here rather than quietly downstream.
+        var scoutedShopSlotCount = scoutSession.Locations.Count(
+            location => staticData.ShopSlots.ContainsKey(location.LocationId));
+        var declaredShopSlotCount = scoutSession.MerchantShop.Enabled
+            ? scoutSession.MerchantShop.Slots.Count
+            : 0;
+        if (scoutedShopSlotCount != declaredShopSlotCount)
+        {
+            throw new ManifestBuildException(
+                $"The room carries {scoutedShopSlotCount} merchant shop location(s) but its slot data describes {declaredShopSlotCount}. The room's shop data does not match its location list.");
+        }
+
+        var scoutedCount = scoutSession.Locations.Count - scoutedShopSlotCount;
         if (scoutedCount == staticData.Counts.LocationsTotal - removedByEvents
             || (staticData.Counts.AlwaysLocations > 0 && scoutedCount == staticData.Counts.AlwaysLocations - removedByEvents))
         {
-            Log(removedByEvents == 0
+            var shopSuffix = scoutedShopSlotCount > 0
+                ? $" Plus {scoutedShopSlotCount} merchant shop check(s)."
+                : string.Empty;
+            Log((removedByEvents == 0
                 ? $"Room has {scoutedCount} RE4R locations."
-                : $"Room has {scoutedCount} RE4R locations ({removedByEvents} removed by the Random Events roll).");
+                : $"Room has {scoutedCount} RE4R locations ({removedByEvents} removed by the Random Events roll).") + shopSuffix);
         }
         else
         {
             throw new ManifestBuildException(
-                $"The AP server returned {scoutedCount} locations, but the bundled RE4R world data expects {staticData.Counts.LocationsTotal - removedByEvents}. The room was probably generated with a different RE4R.apworld version than this launcher bundles.");
+                $"The AP server returned {scoutedCount} world locations, but the bundled RE4R world data expects {staticData.Counts.LocationsTotal - removedByEvents}. The room was probably generated with a different RE4R.apworld version than this launcher bundles.");
         }
 
         Log($"Building manifest for {scoutSession.Locations.Count} locations using BioRand game-version {gameVersion}.");
@@ -61,9 +81,18 @@ public sealed class ManifestBuilder
         var placeholderCount = 0;
         var realRe4rCount = 0;
         var skippedNoGuidCount = 0;
+        var shopSlotSkippedCount = 0;
 
         foreach (var scoutedLocation in scoutSession.Locations.OrderBy(location => location.LocationId))
         {
+            // Shop slots never enter ap-placements: they have no world spot.
+            // The shop plan below carries them into the manifest instead.
+            if (staticData.ShopSlots.ContainsKey(scoutedLocation.LocationId))
+            {
+                shopSlotSkippedCount++;
+                continue;
+            }
+
             if (!staticData.Locations.TryGetValue(scoutedLocation.LocationId, out var staticLocation))
             {
                 throw new ManifestBuildException(
@@ -95,18 +124,19 @@ public sealed class ManifestBuilder
         }
 
         // Every scouted location must land in the manifest either as a GUID
-        // placement or an explicitly counted no-GUID skip; a shortfall means
-        // scouted data silently failed to map.
-        if (placements.Count + skippedNoGuidCount != scoutSession.Locations.Count)
+        // placement, an explicitly counted no-GUID skip, or a shop slot the
+        // shop plan owns; a shortfall means scouted data silently failed to
+        // map.
+        if (placements.Count + skippedNoGuidCount + shopSlotSkippedCount != scoutSession.Locations.Count)
         {
             throw new ManifestBuildException(
-                $"The AP manifest mapped {placements.Count} GUID placements (+{skippedNoGuidCount} no-GUID skips) from {scoutSession.Locations.Count} scouted locations. The bundled world data does not match the room.");
+                $"The AP manifest mapped {placements.Count} GUID placements (+{skippedNoGuidCount} no-GUID skips, +{shopSlotSkippedCount} shop slots) from {scoutSession.Locations.Count} scouted locations. The bundled world data does not match the room.");
         }
 
         Log($"{placements.Count} GUID-backed locations mapped into BioRand ap-placements.");
         Log(
             $"{placeholderCount} placeholder items, {realRe4rCount} real RE4R items, " +
-            $"{skippedNoGuidCount} no-GUID locations skipped.");
+            $"{skippedNoGuidCount} no-GUID locations skipped, {shopSlotSkippedCount} shop slot(s) left to the shop plan.");
         Log("AP manifest JSON is ready for BioRand generation.");
 
         var plannedShopSlots = MerchantShopPlanner.Plan(scoutSession.MerchantShop);
@@ -117,7 +147,12 @@ public sealed class ManifestBuilder
         }
 
         var configJson = BuildConfigJson(
-            placements, normalizedOptions, gameVersion, scoutSession.RandomEvents, plannedShopSlots);
+            placements, normalizedOptions, gameVersion, scoutSession.RandomEvents, plannedShopSlots,
+            scoutSession.MerchantShop.ScatteredItemIds);
+        if (scoutSession.MerchantShop.ScatteredItemIds.Count > 0)
+        {
+            Log($"{scoutSession.MerchantShop.ScatteredItemIds.Count} piece(s) of merchant gear are scattered into the multiworld; the shelf loses them.");
+        }
 
         return new ManifestBuildResult
         {
@@ -163,7 +198,8 @@ public sealed class ManifestBuilder
         BioRandOptions options,
         string gameVersion,
         RandomEventsSlotData randomEvents,
-        IReadOnlyList<MerchantShopPlannedSlot> shopSlots)
+        IReadOnlyList<MerchantShopPlannedSlot> shopSlots,
+        IReadOnlyList<int> scatteredItemIds)
     {
         var placementObject = new JsonObject();
         foreach (var placement in placements)
@@ -232,16 +268,30 @@ public sealed class ManifestBuilder
             root[BioRandOptionCatalog.RandomEventsKey] = false;
         }
 
-        // 4. The AP-aware merchant (D4). Present only when the room actually
-        //    has shop checks: the fork's post-pass no-ops without this section,
-        //    so rooms from older apworlds keep the shop they always had. The
-        //    exclusion list rides along with it because it is the same
-        //    conversation - the merchant stops selling what the multiworld
-        //    placed at the same moment he starts selling checks.
-        if (shopSlots.Count > 0)
+        // 4. The AP-aware merchant (D4/D10). Present when the room has shop
+        //    checks OR scattered gear: the fork's post-pass no-ops without
+        //    this section, so rooms from older apworlds keep the shop they
+        //    always had. The exclusion list rides along because it is the
+        //    same conversation - the merchant stops selling what the
+        //    multiworld holds, whether that is a placed pool item or his own
+        //    scattered arsenal.
+        //
+        //    Two owners cannot stock one shop: BioRand's own merchant reroll
+        //    restocks weapons the multiworld just claimed (its added arsenal
+        //    is not pool-excludable), so it is forced off whenever the AP
+        //    merchant is on. The options screen shows the same forcing.
+        if (shopSlots.Count > 0 || scatteredItemIds.Count > 0)
         {
+            root[BioRandOptionCatalog.RandomMerchantKey] = false;
+            Log("AP merchant active: BioRand's own merchant randomization is forced off.");
+            var excludedIds = new SortedSet<int>(MerchantShopPlanner.PoolUniqueBuyableItemIds);
+            foreach (var itemId in scatteredItemIds)
+            {
+                excludedIds.Add(itemId);
+            }
+
             var excluded = new JsonArray();
-            foreach (var itemId in MerchantShopPlanner.PoolUniqueBuyableItemIds)
+            foreach (var itemId in excludedIds)
             {
                 excluded.Add(JsonValue.Create(itemId));
             }

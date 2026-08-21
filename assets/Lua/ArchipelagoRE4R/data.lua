@@ -1056,6 +1056,9 @@ local function install(ctx)
         roof = "rooftop",
         desk = "desk",
         underwater = "underwater",
+        -- Guid-override-only kind (never synthesized); lowercase here where
+        -- the parser title-cases it for location names.
+        ["china-cabinet"] = "china cabinet",
     }
 
     local function get_container_gloss(container)

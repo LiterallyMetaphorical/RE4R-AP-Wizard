@@ -183,17 +183,30 @@ public sealed class ArchipelagoScoutClient
             var merchantShop = ParseMerchantShopSlotData(connectedPacket);
             if (merchantShop.Enabled)
             {
-                Log($"The merchant sells {merchantShop.Slots.Count} Archipelago check(s) in this room.");
+                var scatterSuffix = merchantShop.ScatteredItemIds.Count > 0
+                    ? $" {merchantShop.ScatteredItemIds.Count} piece(s) of his gear are scattered into the multiworld."
+                    : string.Empty;
+                Log($"The merchant sells {merchantShop.Slots.Count} Archipelago check(s) in this room.{scatterSuffix}");
             }
 
             // Since apworld 0.4.0 the room's location count varies with the
             // RandomizeGatedKeys option, so scout exactly what the room
             // declares (missing + checked from Connected) instead of the full
             // bundled list - the server rejects unknown location ids.
-            var roomLocationIds = GetRoomLocationIds(connectedPacket, requestedLocationIds);
-            Log(roomLocationIds.Length == requestedLocationIds.Length
-                ? $"Scouting {roomLocationIds.Length} locations"
-                : $"Scouting {roomLocationIds.Length} of {requestedLocationIds.Length} bundled locations (the rest are vanilla/preserved spots that are not part of this multiworld).");
+            var roomLocationIds = GetRoomLocationIds(
+                connectedPacket, requestedLocationIds, request.ShopSlotLocationIds);
+            var knownShopSlotIds = new HashSet<long>(request.ShopSlotLocationIds);
+            var roomShopSlotCount = roomLocationIds.Count(knownShopSlotIds.Contains);
+            var roomWorldCount = roomLocationIds.Length - roomShopSlotCount;
+            var scoutingMessage = roomWorldCount == requestedLocationIds.Length
+                ? $"Scouting {roomWorldCount} locations"
+                : $"Scouting {roomWorldCount} of {requestedLocationIds.Length} bundled locations (the rest are vanilla/preserved spots that are not part of this multiworld).";
+            if (roomShopSlotCount > 0)
+            {
+                scoutingMessage += $" Plus {roomShopSlotCount} merchant shop check(s).";
+            }
+
+            Log(scoutingMessage);
             await SendMessagesAsync(
                 socket,
                 new object[]
@@ -831,7 +844,24 @@ public sealed class ArchipelagoScoutClient
             }
         }
 
-        if (slots.Count == 0)
+        // [D10] Gear the multiworld holds instead of the shelf. Present
+        // (possibly empty) whenever the apworld emits the section.
+        var scatteredItemIds = new List<int>();
+        if (block.TryGetProperty("scattered_item_ids", out var scatteredElement)
+            && scatteredElement.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var element in scatteredElement.EnumerateArray())
+            {
+                if (element.ValueKind == JsonValueKind.Number
+                    && element.TryGetInt32(out var itemId)
+                    && itemId > 0)
+                {
+                    scatteredItemIds.Add(itemId);
+                }
+            }
+        }
+
+        if (slots.Count == 0 && scatteredItemIds.Count == 0)
         {
             return MerchantShopSlotData.Disabled;
         }
@@ -841,10 +871,14 @@ public sealed class ArchipelagoScoutClient
             Enabled = true,
             Slots = slots,
             Tiers = tiers,
+            ScatteredItemIds = scatteredItemIds,
         };
     }
 
-    private static long[] GetRoomLocationIds(JsonElement connectedPacket, long[] knownLocationIds)
+    private static long[] GetRoomLocationIds(
+        JsonElement connectedPacket,
+        long[] knownLocationIds,
+        IReadOnlyCollection<long> shopSlotLocationIds)
     {
         var roomIds = new SortedSet<long>();
         foreach (var propertyName in new[] { "missing_locations", "checked_locations" })
@@ -871,7 +905,10 @@ public sealed class ArchipelagoScoutClient
             return knownLocationIds;
         }
 
+        // Shop slots are known ids too, but only for recognising what the
+        // room declares - the fallback above never requests them.
         var knownIds = new HashSet<long>(knownLocationIds);
+        knownIds.UnionWith(shopSlotLocationIds);
         var unknownIds = roomIds.Where(locationId => !knownIds.Contains(locationId)).ToList();
         if (unknownIds.Count > 0)
         {

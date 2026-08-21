@@ -202,6 +202,12 @@ local function install(ctx)
     local function draw_recovery_content()
         local say = ctx.ap_say
         imgui.text("A check that will not send is a bug - please report it.")
+        -- The zip itself is a launcher feature (session record + logs +
+        -- crash dump), but this tab is where a stuck player looks first, so
+        -- it says where the button lives (Cam, live 2026-08-14).
+        imgui.text("The launcher's Generate Bug Report button (bottom of its")
+        imgui.text("window) zips the logs and session record to attach in Discord.")
+        imgui.text("")
         imgui.text("Force Check marks it done and releases the item it held.")
 
         local rows = build_nearby_location_rows()

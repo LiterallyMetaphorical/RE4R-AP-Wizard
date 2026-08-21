@@ -527,14 +527,22 @@ public sealed class LaunchWorkflowService
                     Password = request.Password,
                     GameName = staticData.Game,
                     LocationIds = staticData.LocationCodes,
+                    ShopSlotLocationIds = staticData.ShopSlots.Keys.ToArray(),
                 },
                 cancellationToken);
 
             var realOwnCount = 0;
             var placeholderCount = 0;
             var skippedNoGuidCount = 0;
+            var shopSlotCount = 0;
             foreach (var location in result.Locations)
             {
+                if (staticData.ShopSlots.ContainsKey(location.LocationId))
+                {
+                    shopSlotCount++;
+                    continue;
+                }
+
                 if (!staticData.Locations.TryGetValue(location.LocationId, out var staticLocation)
                     || string.IsNullOrWhiteSpace(staticLocation.Guid))
                 {
@@ -555,7 +563,8 @@ public sealed class LaunchWorkflowService
             Log(
                 $"Scout summary: {result.Locations.Count} assignments received, " +
                 $"{realOwnCount} own RE4R items, {placeholderCount} placeholder items for other players, " +
-                $"{skippedNoGuidCount} no-GUID locations that will be skipped by the BioRand manifest.");
+                $"{skippedNoGuidCount} no-GUID locations that will be skipped by the BioRand manifest, " +
+                $"{shopSlotCount} merchant shop check(s).");
             return result;
         }
         catch (ArchipelagoScoutException ex)
@@ -1257,8 +1266,8 @@ public sealed class LaunchWorkflowService
                     var roomLocationsPath = Path.Combine(gameDataDirectoryPath, "ap_room_locations.json");
                     // allow_bonus_items comes from the session record's options
                     // (the options actually patched, replayed on re-patch), so
-                    // the in-game mod knows to force-unlock the four bonus
-                    // weapons before a save/load can strip them.
+                    // the in-game mod knows to force-unlock the Extra Content
+                    // bonus weapons before a save/load can strip them.
                     // [D4] The merchant's AP rows. The mod recognises a
                     // purchase by its stand-in item id, so it needs the same
                     // slot -> stand-in assignment the fork patched into the

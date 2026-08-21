@@ -1,7 +1,17 @@
 {
   "version": 1,
-  "item_count": 127,
+  "item_count": 152,
   "items": {
+    "20665965": {
+      "name": "Red9 Stock x1",
+      "re4r_item_id": 116001600,
+      "count": 1
+    },
+    "24553929": {
+      "name": "Recipe: Flash Grenade x1",
+      "re4r_item_id": 124337600,
+      "count": 1
+    },
     "42736575": {
       "name": "Insignia Key x1",
       "re4r_item_id": 119204800,
@@ -107,6 +117,11 @@
       "re4r_item_id": 120827200,
       "count": 1
     },
+    "626635549": {
+      "name": "High-power Scope x1",
+      "re4r_item_id": 116003200,
+      "count": 1
+    },
     "652308034": {
       "name": "Submachine Gun Ammo x50",
       "re4r_item_id": 112806400,
@@ -137,9 +152,34 @@
       "re4r_item_id": 117600000,
       "count": 2
     },
+    "686624439": {
+      "name": "TMP Stock x1",
+      "re4r_item_id": 116006400,
+      "count": 1
+    },
+    "754561484": {
+      "name": "Scope x1",
+      "re4r_item_id": 116000000,
+      "count": 1
+    },
+    "771039498": {
+      "name": "SR M1903 x1",
+      "re4r_item_id": 275475456,
+      "count": 1
+    },
+    "872710715": {
+      "name": "Recipe: Attachable Mines x1",
+      "re4r_item_id": 124334400,
+      "count": 1
+    },
     "885416727": {
       "name": "Brown Chicken Egg x1",
       "re4r_item_id": 277081856,
+      "count": 1
+    },
+    "888826940": {
+      "name": "Recipe: Bolts x1",
+      "re4r_item_id": 124329600,
       "count": 1
     },
     "915040027": {
@@ -155,6 +195,16 @@
     "972234972": {
       "name": "Golden Lynx x1",
       "re4r_item_id": 122406400,
+      "count": 1
+    },
+    "981884737": {
+      "name": "Riot Gun x1",
+      "re4r_item_id": 274997056,
+      "count": 1
+    },
+    "1037821037": {
+      "name": "Blacktail x1",
+      "re4r_item_id": 274840256,
       "count": 1
     },
     "1070734931": {
@@ -317,6 +367,11 @@
       "re4r_item_id": 119225600,
       "count": 1
     },
+    "2061407981": {
+      "name": "Recipe: Magnum Ammo x1",
+      "re4r_item_id": 124328000,
+      "count": 1
+    },
     "2134491726": {
       "name": "Black Bass x1",
       "re4r_item_id": 114417600,
@@ -392,6 +447,11 @@
       "re4r_item_id": 277078656,
       "count": 1
     },
+    "2557426438": {
+      "name": "Stingray x1",
+      "re4r_item_id": 275477056,
+      "count": 1
+    },
     "2582217593": {
       "name": "Gunpowder x10",
       "re4r_item_id": 117600000,
@@ -410,6 +470,16 @@
     "2613939803": {
       "name": "Gold Bangle x1",
       "re4r_item_id": 120819200,
+      "count": 1
+    },
+    "2709354575": {
+      "name": "Bolt Thrower x1",
+      "re4r_item_id": 275795456,
+      "count": 1
+    },
+    "2763550898": {
+      "name": "Red9 x1",
+      "re4r_item_id": 274838656,
       "count": 1
     },
     "2768851234": {
@@ -432,6 +502,21 @@
       "re4r_item_id": 112800000,
       "count": 15
     },
+    "2828451666": {
+      "name": "Case: 8x13 x1",
+      "re4r_item_id": 124164800,
+      "count": 1
+    },
+    "2834473979": {
+      "name": "Recipe: Heavy Grenade x1",
+      "re4r_item_id": 124336000,
+      "count": 1
+    },
+    "2859524944": {
+      "name": "Case: 8x12 x1",
+      "re4r_item_id": 124163200,
+      "count": 1
+    },
     "2888050195": {
       "name": "Level 3 Keycard x1",
       "re4r_item_id": 119214400,
@@ -450,6 +535,11 @@
     "2996421434": {
       "name": "Red Gemstone Ring x1",
       "re4r_item_id": 120817600,
+      "count": 1
+    },
+    "3023476029": {
+      "name": "Case: 7x12 x1",
+      "re4r_item_id": 124161600,
       "count": 1
     },
     "3043978533": {
@@ -537,6 +627,16 @@
       "re4r_item_id": 275158656,
       "count": 60
     },
+    "3534671013": {
+      "name": "Matilda Stock x1",
+      "re4r_item_id": 116009600,
+      "count": 1
+    },
+    "3567440286": {
+      "name": "Striker x1",
+      "re4r_item_id": 274998656,
+      "count": 1
+    },
     "3580942952": {
       "name": "Rifle Ammo x2",
       "re4r_item_id": 112804800,
@@ -607,9 +707,24 @@
       "re4r_item_id": 112804800,
       "count": 5
     },
+    "4000844222": {
+      "name": "Broken Butterfly x1",
+      "re4r_item_id": 275635456,
+      "count": 1
+    },
     "4063988846": {
       "name": "First Aid Spray x1",
       "re4r_item_id": 114416000,
+      "count": 1
+    },
+    "4073624936": {
+      "name": "Killer7 x1",
+      "re4r_item_id": 275637056,
+      "count": 1
+    },
+    "4126917699": {
+      "name": "Case: 9x13 x1",
+      "re4r_item_id": 124166400,
       "count": 1
     },
     "4131203438": {
@@ -627,6 +742,11 @@
       "re4r_item_id": 117600000,
       "count": 5
     },
+    "4228309747": {
+      "name": "Laser Sight x1",
+      "re4r_item_id": 116008000,
+      "count": 1
+    },
     "4249727162": {
       "name": "Elegant Headdress x1",
       "re4r_item_id": 120812800,
@@ -636,6 +756,11 @@
       "name": "Handgun Ammo x25",
       "re4r_item_id": 112800000,
       "count": 25
+    },
+    "4288743819": {
+      "name": "TMP x1",
+      "re4r_item_id": 275155456,
+      "count": 1
     }
   }
 }

@@ -52,7 +52,12 @@ local function install(ctx)
                 "Developer - + the location code from the spoiler log",
             }
             local ceiling_tier = detail_tier_index[bridge.marker_detail_ceiling or "developer"] or 5
-            local max_tier = math.min(ceiling_tier, bridge.developer_tools_enabled and 5 or 4)
+            -- Developer Tools unlocks the developer tier PAST the YAML
+            -- ceiling. The ceiling ladder cannot even name that tier (it tops
+            -- out at identify), so capping to it made tier 5 unreachable in
+            -- every room; the ceiling still caps the spoiler tiers for
+            -- everyone without Developer Tools.
+            local max_tier = bridge.developer_tools_enabled and 5 or math.min(ceiling_tier, 4)
             local detail_options = {}
             for i = 1, max_tier do detail_options[i] = detail_labels[i] end
             local cur_name = bridge.world_markers_detail
@@ -70,7 +75,7 @@ local function install(ctx)
                 imgui.text("    This room's host capped how much markers may say.")
             end
 
-            imgui.text("    A green [RE-GRAB] marker means you died before saving and one")
+            imgui.text("    A [RE-GRAB] marker means you died before saving and one")
             imgui.text("    of your own items is lying back in the world. The check already")
             imgui.text("    sent; this is just your item waiting to be picked up again.")
 

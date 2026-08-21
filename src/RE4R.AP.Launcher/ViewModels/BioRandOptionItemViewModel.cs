@@ -195,6 +195,7 @@ public sealed class BioRandOptionGroupViewModel
 public sealed class BioRandOptionPageViewModel : ObservableObject
 {
     private bool _showAdvanced;
+    private bool _isBodyVisible = true;
 
     public required string Title { get; init; }
 
@@ -213,9 +214,30 @@ public sealed class BioRandOptionPageViewModel : ObservableObject
             if (SetProperty(ref _showAdvanced, value))
             {
                 OnPropertyChanged(nameof(ShowAdvanced));
+                OnPropertyChanged(nameof(ShowRows));
             }
         }
     }
+
+    /// <summary>
+    /// False on the Enemies page while Random Enemies is off: everything below
+    /// the promoted checkbox hides, because none of it does anything then.
+    /// Always true elsewhere; the owning view model keeps it in sync.
+    /// </summary>
+    public bool IsBodyVisible
+    {
+        get => _isBodyVisible;
+        set
+        {
+            if (SetProperty(ref _isBodyVisible, value))
+            {
+                OnPropertyChanged(nameof(ShowRows));
+            }
+        }
+    }
+
+    /// <summary>What the option rows actually gate on: both toggles at once.</summary>
+    public bool ShowRows => ShowAdvanced && _isBodyVisible;
 
     public ObservableCollection<BioRandOptionGroupViewModel> Groups { get; } = new();
 }
