@@ -31,6 +31,7 @@ public sealed class BioRandOptionsViewModel : ObservableObject
     // and this holds the synthesized preset (its promise line included).
     private EnemyCrowdPoint? _selectedCrowdPoint;
     private EnemyRosterStep? _selectedRosterStep;
+    private EnemyVitalityPoint? _selectedVitalityPoint;
     private EnemyConfigurationPreset? _activeDialPreset;
     private bool _isSyncingDials;
     private bool _gearScattered;
@@ -73,7 +74,7 @@ public sealed class BioRandOptionsViewModel : ObservableObject
                 if (!_isSyncingDials)
                 {
                     _activeDialPreset = null;
-                    SyncDialsFrom(null, null);
+                    SyncDialsFrom(null, null, null);
                 }
 
                 OnPropertyChanged(nameof(EnemyPresetDescription));
@@ -81,7 +82,7 @@ public sealed class BioRandOptionsViewModel : ObservableObject
             }
 
             _activeDialPreset = null;
-            SyncDialsFrom(value.CrowdKey, value.RosterKey);
+            SyncDialsFrom(value.CrowdKey, value.RosterKey, value.VitalityKey);
             ApplyEnemyPreset(value);
         }
     }
@@ -93,6 +94,21 @@ public sealed class BioRandOptionsViewModel : ObservableObject
     public IReadOnlyList<EnemyCrowdPoint> CrowdPoints => EnemyConfigurationPresets.CrowdPoints;
 
     public IReadOnlyList<EnemyRosterStep> RosterSteps => EnemyConfigurationPresets.RosterSteps;
+
+    public IReadOnlyList<EnemyVitalityPoint> VitalityPoints => EnemyConfigurationPresets.VitalityPoints;
+
+    /// <summary>Vitality dial (how tough each enemy is). Null while hand-tweaked values make the mix Custom.</summary>
+    public EnemyVitalityPoint? SelectedVitalityPoint
+    {
+        get => _selectedVitalityPoint;
+        set
+        {
+            if (SetProperty(ref _selectedVitalityPoint, value) && !_isSyncingDials)
+            {
+                ApplyDialCombination();
+            }
+        }
+    }
 
     /// <summary>Crowd dial (how busy fights are). Null while hand-tweaked values make the mix Custom.</summary>
     public EnemyCrowdPoint? SelectedCrowdPoint
@@ -172,7 +188,7 @@ public sealed class BioRandOptionsViewModel : ObservableObject
         return -1;
     }
 
-    private void SyncDialsFrom(string? crowdKey, string? rosterKey)
+    private void SyncDialsFrom(string? crowdKey, string? rosterKey, string? vitalityKey)
     {
         _isSyncingDials = true;
         try
@@ -183,6 +199,9 @@ public sealed class BioRandOptionsViewModel : ObservableObject
             SelectedRosterStep = rosterKey is null
                 ? null
                 : EnemyConfigurationPresets.RosterSteps.FirstOrDefault(r => r.Key == rosterKey);
+            SelectedVitalityPoint = vitalityKey is null
+                ? null
+                : EnemyConfigurationPresets.VitalityPoints.FirstOrDefault(v => v.Key == vitalityKey);
         }
         finally
         {
@@ -192,13 +211,15 @@ public sealed class BioRandOptionsViewModel : ObservableObject
 
     private void ApplyDialCombination()
     {
-        if (_selectedCrowdPoint is not { } crowd || _selectedRosterStep is not { } roster)
+        if (_selectedCrowdPoint is not { } crowd
+            || _selectedRosterStep is not { } roster
+            || _selectedVitalityPoint is not { } vitality)
         {
             return;
         }
 
-        var combination = EnemyConfigurationPresets.BuildCombination(crowd.Key, roster.Key);
-        if (EnemyConfigurationPresets.FindPair(crowd.Key, roster.Key) is { } pair)
+        var combination = EnemyConfigurationPresets.BuildCombination(crowd.Key, roster.Key, vitality.Key);
+        if (EnemyConfigurationPresets.FindPair(crowd.Key, roster.Key, vitality.Key) is { } pair)
         {
             _activeDialPreset = null;
             SelectedEnemyPreset = pair;
@@ -940,35 +961,31 @@ public sealed class BioRandOptionsViewModel : ObservableObject
             _itemsByKey.TryGetValue(pair.Key, out var item) && ValuesMatch(item, pair.Value)))
             ?? EnemyConfigurationPresets.Custom;
 
-        // Not a named pair: the values may still be an off-ladder dial mix
-        // (25 combinations, cheap to try), which restores the dials on reload.
+        // Not a named pair: the values may still be an off-ladder dial mix.
+        // Each axis detects independently against its own fragment, so a
+        // hand-tweak on one axis blanks only what it actually touched away
+        // from; all three found means the dials restore on reload.
         EnemyConfigurationPreset? dialed = null;
+        string? crowdKey = preset.CrowdKey;
+        string? rosterKey = preset.RosterKey;
+        string? vitalityKey = preset.VitalityKey;
         if (ReferenceEquals(preset, EnemyConfigurationPresets.Custom))
         {
-            foreach (var crowd in EnemyConfigurationPresets.CrowdPoints)
+            JsonNode? Getter(string key) => _itemsByKey.TryGetValue(key, out var item) ? item.ToJsonNode() : null;
+            var crowd = EnemyConfigurationPresets.DetectCrowdPoint(Getter);
+            var roster = EnemyConfigurationPresets.DetectRosterStep(Getter);
+            var vitality = EnemyConfigurationPresets.DetectVitalityPoint(Getter);
+            crowdKey = crowd?.Key;
+            rosterKey = roster?.Key;
+            vitalityKey = vitality?.Key;
+            if (crowd != null && roster != null && vitality != null)
             {
-                foreach (var roster in EnemyConfigurationPresets.RosterSteps)
-                {
-                    var candidate = EnemyConfigurationPresets.BuildCombination(crowd.Key, roster.Key);
-                    if (candidate.Values.All(pair =>
-                        _itemsByKey.TryGetValue(pair.Key, out var item) && ValuesMatch(item, pair.Value)))
-                    {
-                        dialed = candidate;
-                        break;
-                    }
-                }
-
-                if (dialed != null)
-                {
-                    break;
-                }
+                dialed = EnemyConfigurationPresets.BuildCombination(crowd.Key, roster.Key, vitality.Key);
             }
         }
 
         _activeDialPreset = dialed;
-        SyncDialsFrom(
-            dialed?.CrowdKey ?? preset.CrowdKey,
-            dialed?.RosterKey ?? preset.RosterKey);
+        SyncDialsFrom(crowdKey, rosterKey, vitalityKey);
 
         if (!ReferenceEquals(_selectedEnemyPreset, preset))
         {
@@ -981,11 +998,12 @@ public sealed class BioRandOptionsViewModel : ObservableObject
 
     private void MarkEnemyPresetCustom()
     {
-        var dialsWereSet = _selectedCrowdPoint != null || _selectedRosterStep != null || _activeDialPreset != null;
+        var dialsWereSet = _selectedCrowdPoint != null || _selectedRosterStep != null
+            || _selectedVitalityPoint != null || _activeDialPreset != null;
         if (dialsWereSet)
         {
             _activeDialPreset = null;
-            SyncDialsFrom(null, null);
+            SyncDialsFrom(null, null, null);
         }
 
         if (ReferenceEquals(_selectedEnemyPreset, EnemyConfigurationPresets.Custom))

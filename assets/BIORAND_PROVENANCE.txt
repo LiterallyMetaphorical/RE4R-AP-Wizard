@@ -19,7 +19,7 @@ HISTORY SQUASHED 2026-08-10: the fork's branch was flattened to a single commit,
                 .cs/.csv/.json, so the SHA-256 below still describes the code
                 that is on the branch today. Keep the old ids for the reasoning
                 they carry; treat 703e59a as the citable source commit.
-Source commit:  5a7c369 (2026-08-14 rebuild; see the REBUILD entry below)
+Source commit:  725dba8 (2026-08-16 second rebuild; see the REBUILD entries below)
 Previous:       05f581e (2026-08-06: FORCED EVENTS - BioRand takes its event
                 set from the multiworld. The apworld rolls the Village event
                 set at generation time and the launcher pins it in as
@@ -156,6 +156,37 @@ ProductVersion: 1.0.0+05f581e7cdf1c912869903a760539cdebb1c7bac (the launcher
                 writes this into version_stamp.json, and a change here is what
                 triggers the one-time setup cache re-harvest)
 Built with:     .NET SDK 10.0.301
+
+REBUILD 2026-08-16 second (725dba8)
+    The class lock (Cam's call: Familiar/Varied locked, Wild+ free, cows
+    exempt). With ap-class-lock in the config, SetClassPool intersects each
+    spawn's pool with its vanilla occupant's class members plus the exempt
+    classes; identityless vanilla kinds (designed bosses, NPCs) stay
+    unfiltered and an emptied pool keeps the vanilla enemy. LogEnemy grows a
+    trailing rolled/kept provenance marker (census splits on it; old-format
+    parsers unaffected, the marker rides the tolerant tail). Verified
+    offline: locked-Familiar census on the harvested cache (seed 4242)
+    rolled ONLY within-class identities (fodder families, 9 brutes /
+    7 chainsaws / 3 garradors in vanilla heavy spots, 114 exempt cows,
+    zero boss or dread kinds rolled); the kept column is exactly the
+    designed encounters.
+    exe SHA-256: b26a9b3cf828907a3ecc84e681712503c3e2c77e07850f1fc697910971dad78f
+    Prior exe SHA-256: 6f39dc27495b32e272849005e369a726da66ea22f56f52517f4246aa0c6f5630
+
+REBUILD 2026-08-16 (01f8782)
+    Enemy spawn gates (ENEMY_CLASS_DESIGN.md). When the manifest carries an
+    ap-enemy-gates section, a post-pass behind EnemyModifier echoes every
+    rolled spawn in a gated class (controller GUID + spawn-param component)
+    into ap_enemy_gates.json for the launcher/mod; the mod then holds those
+    spawns until the named AP item is possessed. Dormant without the config
+    section, and vanilla spawns are never listed. Also adds tools/
+    enemy_census.py (headless roster tallies; the numbers behind the enemy
+    preset retune). Verified offline: a Menacing-ratio config on the
+    harvested cache (seed 4242) emitted 29 dread spawns across 28 distinct
+    controllers, zero orphans, all GUIDs well-formed, including a chapter 1
+    village regenerador (the exact case the gate exists for).
+    exe SHA-256: 6f39dc27495b32e272849005e369a726da66ea22f56f52517f4246aa0c6f5630
+    Prior exe SHA-256: 35e8892cc71fda2889e39f48169f0526516da5574a45793d17e1cc960c0148c2
 
 REBUILD 2026-08-14 (5a7c369)
     The live test's empty AP shelf. The check rows existed in the pak with

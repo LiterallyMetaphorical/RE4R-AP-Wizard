@@ -134,6 +134,30 @@ return function(ctx)
     -- rollback can re-queue items already injected. Reset on (re)connect, then
     -- rebuilt by the server's on-connect ReceivedItems replay.
     local received_ledger = {}
+    -- [EnemyGates] "Has the server EVER delivered AP item X to this slot?"
+    -- Answered from received_ledger, which the on-connect replay rebuilds in
+    -- full (own-world finds included), so possession survives reboots without
+    -- any extra persistence. The cache only ever turns ids on; a miss rescans
+    -- because the ledger grows during play.
+    local received_ap_item_cache = {}
+    local function ap_has_received_ap_item(ap_item_id)
+        local wanted = tonumber(ap_item_id)
+        if wanted == nil then
+            return false
+        end
+        wanted = math.floor(wanted)
+        if received_ap_item_cache[wanted] then
+            return true
+        end
+        for _, led in pairs(received_ledger) do
+            local item = tonumber(led and led.item)
+            if item ~= nil then
+                received_ap_item_cache[math.floor(item)] = true
+            end
+        end
+        return received_ap_item_cache[wanted] == true
+    end
+    ctx.ap_has_received_ap_item = ap_has_received_ap_item
     -- index -> consecutive failed-inject tick count (poison retry bookkeeping).
     local inject_failure_counts = {}
     -- [Phase 3] AP location ids already submitted this socket (avoid re-spamming).
@@ -1498,6 +1522,8 @@ return function(ctx)
         pending = {}
         pending_by_index = {}
         received_ledger = {} -- [F8] fresh identity: rebuilt from the on-connect replay
+        received_ap_item_cache = {} -- [EnemyGates] follows the ledger's identity: a
+        -- stale cache would carry possession across seed/slot switches
         inject_failure_counts = {}
         st.item_delivery_resume_not_before = nil
         st.item_delivery_stability_logged = false
@@ -1558,6 +1584,16 @@ return function(ctx)
                         local ok_merchant, merchant_err = pcall(configure_merchant, payload.merchant_shop)
                         if not ok_merchant then
                             warn("merchant shop configure failed: " .. tostring(merchant_err))
+                        end
+                    end
+                    -- [EnemyGates] Possession-keyed spawn admission: the
+                    -- generator's rolled-spawn echo rides the same room file.
+                    -- Absent in older rooms -> nothing is ever gated.
+                    local configure_enemy_gates = ctx.enemy_gate_configure or _G.enemy_gate_configure
+                    if type(configure_enemy_gates) == "function" then
+                        local ok_gates, gates_err = pcall(configure_enemy_gates, payload.enemy_gates)
+                        if not ok_gates then
+                            warn("enemy gate configure failed: " .. tostring(gates_err))
                         end
                     end
                 else

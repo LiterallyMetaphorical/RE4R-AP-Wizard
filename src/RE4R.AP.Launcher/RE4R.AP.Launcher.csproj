@@ -97,7 +97,7 @@
          taskbar unless a Window sets its own Icon. -->
     <ApplicationIcon>app.ico</ApplicationIcon>
     <!-- Release identity; shown in the version stamp the patcher writes. -->
-    <Version>0.4.0-alpha</Version>
+    <Version>0.5.0-alpha</Version>
   </PropertyGroup>
 
   <!-- Publish as a single self-contained exe so the distributable folder is just

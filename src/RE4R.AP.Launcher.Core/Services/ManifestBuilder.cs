@@ -375,6 +375,45 @@ public sealed class ManifestBuilder
             Log($"Enemy spawn gates: {enabledItemGates.Count} class gate(s) sent to the generator.");
         }
 
+        // 4d. The class lock (Cam, 2026-08-16): at locked roster steps each
+        //     spawn may only reroll within its vanilla occupant's class, so
+        //     the threat map stays the designed campaign's while identity
+        //     shuffles. Exempt classes stay eligible everywhere (the
+        //     wandering cow rule). The lock is part of a NAMED step's
+        //     promise: the step is detected from the composed values, so
+        //     hand-tuned Custom states never emit it.
+        if (randomEnemiesOn)
+        {
+            var rosterStep = EnemyConfigurationPresets.DetectRosterStep(key => root[key]);
+            if (rosterStep is { ClassLock: true })
+            {
+                var lockClasses = new JsonObject();
+                foreach (var (classKey, members) in EnemyConfigurationPresets.ClassMembers)
+                {
+                    var memberArray = new JsonArray();
+                    foreach (var member in members)
+                    {
+                        memberArray.Add(JsonValue.Create(member));
+                    }
+
+                    lockClasses[classKey] = memberArray;
+                }
+
+                var exempt = new JsonArray();
+                foreach (var exemptClass in EnemyConfigurationPresets.ClassLockExemptClasses)
+                {
+                    exempt.Add(JsonValue.Create(exemptClass));
+                }
+
+                root["ap-class-lock"] = new JsonObject
+                {
+                    ["classes"] = lockClasses,
+                    ["exempt"] = exempt,
+                };
+                Log($"Class lock active ({rosterStep.Label}): spawns reroll within their vanilla class.");
+            }
+        }
+
         return root.ToJsonString(new JsonSerializerOptions
         {
             WriteIndented = true,

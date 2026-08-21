@@ -611,10 +611,14 @@ internal sealed class MainWindow : Window
         roster.Children.Add(Label("Roster"));
         roster.Children.Add(Combo(nameof(BioRandOptionsViewModel.RosterSteps), nameof(BioRandOptionsViewModel.SelectedRosterStep), "Label"));
         dials.Children.Add(roster);
+        var vitality = new StackPanel { Spacing = 2, Width = 200 };
+        vitality.Children.Add(Label("Vitality"));
+        vitality.Children.Add(Combo(nameof(BioRandOptionsViewModel.VitalityPoints), nameof(BioRandOptionsViewModel.SelectedVitalityPoint), "Label"));
+        dials.Children.Add(vitality);
         panel.Children.Add(dials);
         panel.Children.Add(new TextBlock
         {
-            Text = "Crowd is how busy fights are, Roster is how scary the mix is. Blank dials mean hand-tuned rows.",
+            Text = "Crowd is how busy fights are, Roster is how scary the mix is, Vitality is how tough each enemy is. Blank dials mean hand-tuned rows.",
             TextWrapping = TextWrapping.Wrap,
             Opacity = .65,
         });

@@ -1937,12 +1937,28 @@
                                                                           SelectedItem="{Binding DataContext.BioRandOptions.SelectedRosterStep, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}, Mode=TwoWay}"
                                                                           AutomationProperties.Name="Roster" />
                                                             </StackPanel>
+                                                            <StackPanel Width="230"
+                                                                        Margin="14,0,0,0">
+                                                                <TextBlock FontWeight="SemiBold"
+                                                                           Text="Vitality" />
+                                                                <TextBlock FontSize="11"
+                                                                           Foreground="{DynamicResource SubtleTextBrush}"
+                                                                           TextWrapping="Wrap"
+                                                                           Text="How tough each enemy is." />
+                                                                <ComboBox Margin="0,4,0,0"
+                                                                          HorizontalAlignment="Stretch"
+                                                                          DisplayMemberPath="Label"
+                                                                          IsEnabled="{Binding DataContext.BioRandOptions.AreOptionsEditable, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
+                                                                          ItemsSource="{Binding DataContext.BioRandOptions.VitalityPoints, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
+                                                                          SelectedItem="{Binding DataContext.BioRandOptions.SelectedVitalityPoint, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}, Mode=TwoWay}"
+                                                                          AutomationProperties.Name="Vitality" />
+                                                            </StackPanel>
                                                         </StackPanel>
                                                         <TextBlock Margin="0,4,0,0"
                                                                    FontSize="11"
                                                                    Foreground="{DynamicResource SubtleTextBrush}"
                                                                    TextWrapping="Wrap"
-                                                                   Text="Every preset above is a pair of these two dials, and any other pairing works too. Blank dials mean hand-tuned rows below." />
+                                                                   Text="Every preset above is one setting of these three dials, and any other mix works too. Blank dials mean hand-tuned rows below." />
                                                         <TextBlock Margin="0,6,0,0"
                                                                    MaxWidth="640"
                                                                    HorizontalAlignment="Left"
