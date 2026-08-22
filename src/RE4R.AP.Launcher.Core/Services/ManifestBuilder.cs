@@ -440,6 +440,18 @@ public sealed class ManifestBuilder
         if (randomWeaponStats is bool weaponStats)
         {
             root[BioRandOptionCatalog.RandomWeaponStatsKey] = weaponStats;
+
+            // Random Weapon Upgrades REQUIRES weapon stats - WeaponModifier
+            // throws rather than degrading. Upgrades defaults on and stats
+            // defaults off, so pinning stats off from the YAML and leaving
+            // upgrades alone was a guaranteed patch failure on a default seed:
+            // "BioRand failed internally (exit code -532462766)". Pinning one
+            // half of a dependent pair is not pinning it.
+            if (!weaponStats)
+            {
+                root[BioRandOptionCatalog.RandomWeaponUpgradesKey] = false;
+                Log("Random Weapon Stats is off, so Random Weapon Upgrades is forced off with it - BioRand refuses upgrades without stats.");
+            }
         }
 
         // 4b2. [Starting Arsenal] The weapons the multiworld precollected

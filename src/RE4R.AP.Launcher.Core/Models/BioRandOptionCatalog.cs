@@ -56,6 +56,12 @@ public static class BioRandOptionCatalog
     public const string RandomMerchantKey = "random-merchant";
     public const string RandomMerchantPricesKey = "random-merchant-prices";
     public const string RandomWeaponStatsKey = "random-weapon-stats";
+    // BioRand refuses the combination outright: WeaponModifier throws
+    // "'Random Weapon Upgrades' requires 'Random Upgraded Weapon Stats' to be
+    // enabled". Upgrades defaults ON, stats defaults OFF, so pinning stats from
+    // the YAML without pinning this too killed EVERY default seed at patch time
+    // (Arkad, 2026-08-21).
+    public const string RandomWeaponUpgradesKey = "random-weapon-upgrades";
     // The per-chapter restock schedule (~60 scale options). Its consumer is
     // the same modifier random-merchant gates, so it is inert while the
     // Archipelago merchant owns the shop.
