@@ -1586,7 +1586,9 @@ local function install(ctx)
             ))
 
             local live_delegate_diagnostics = {}
+            local live_delegate_metadata_cache = {}
             local live_delegate_native_hooks = {}
+            local live_delegate_hook_errors = {}
 
             local function live_delegate_generic_args(type_definition, full_name)
                 local generic_args = nil
@@ -1622,10 +1624,22 @@ local function install(ctx)
                 local function_address = nil
                 local function_ok = pcall(function() function_address = method:get_function() end)
                 local native_address = "unavailable"
+                local native_numeric = nil
                 if function_ok and function_address ~= nil then
                     native_address = trace_numeric_value(function_address)
                     if native_address == "nil" then native_address = trace_pointer_value(function_address) end
+                    pcall(function() native_numeric = tonumber(sdk.to_int64(function_address)) end)
+                    if native_numeric == nil then pcall(function() native_numeric = tonumber(function_address) end) end
                 end
+                local normalized_static = nil
+                if static_ok then
+                    if type(static_value) == "boolean" then
+                        normalized_static = static_value
+                    elseif type(static_value) == "number" and (static_value == 0 or static_value == 1) then
+                        normalized_static = static_value == 1
+                    end
+                end
+                local static_text = normalized_static == nil and "unavailable" or tostring(normalized_static)
 
                 local params = {}
                 if count_ok and type(param_count) == "number" then
@@ -1641,12 +1655,13 @@ local function install(ctx)
                 return {
                     method = method,
                     name = method_name,
-                    static = static_ok and static_value or nil,
-                    static_text = static_ok and trace_safe_string(static_value) or "unavailable",
+                    static = normalized_static,
+                    static_text = static_text,
                     param_count = count_ok and param_count or nil,
                     params = table.concat(params, ";"),
                     return_type = return_ok and trace_type_name(return_type) or "unavailable",
                     native_address = native_address,
+                    native_numeric = native_numeric,
                     param_type = types_ok and safe_array_value(param_types, 1) or nil,
                     declaring_type = full_name,
                     generic_args = live_delegate_generic_args(delegate_type, full_name),
@@ -1837,8 +1852,13 @@ local function install(ctx)
                     return
                 end
                 local diagnostic_key = metadata.full_name or get_obj_address_str(delegate)
-                if live_delegate_diagnostics[diagnostic_key] then return end
-                live_delegate_diagnostics[diagnostic_key] = true
+                local cached = live_delegate_metadata_cache[diagnostic_key]
+                if cached ~= nil then
+                    metadata = cached.metadata
+                    metadata_error = cached.error
+                else
+                    live_delegate_metadata_cache[diagnostic_key] = { metadata = metadata, error = metadata_error }
+                end
 
                 local invoke = metadata.invoke
                 local mismatch = metadata_error
@@ -1853,6 +1873,10 @@ local function install(ctx)
                         mismatch = "parameter type mismatch"
                     elseif invoke.return_type ~= "System.Void" then
                         mismatch = invoke.return_type == "unavailable" and "return type unavailable" or "return type mismatch"
+                    elseif invoke.native_numeric ~= 5369594608 then
+                        mismatch = invoke.native_numeric == nil
+                            and "native address unavailable"
+                            or string.format("native address mismatch expected=%d actual=%s", 5369594608, tostring(invoke.native_numeric))
                     end
                 end
 
@@ -1864,70 +1888,216 @@ local function install(ctx)
                         invoke.params ~= "" and ("[" .. invoke.params .. "]") or "[]"
                     )
                 end
-                log.info(string.format(
-                    "[Merc AP Trace][CHAR_ON_DECIDED_REFLECT] type=%s generic_args=%s %s status=%s",
-                    metadata.full_name or "unavailable", metadata.generic_args or "unavailable",
-                    invoke_text, mismatch == nil and "valid" or mismatch
-                ))
+                if not live_delegate_diagnostics[diagnostic_key] then
+                    live_delegate_diagnostics[diagnostic_key] = true
+                    log.info(string.format(
+                        "[Merc AP Trace][CHAR_ON_DECIDED_REFLECT] type=%s generic_args=%s %s status=%s",
+                        metadata.full_name or "unavailable", metadata.generic_args or "unavailable",
+                        invoke_text, mismatch == nil and "valid" or mismatch
+                    ))
+                end
                 if mismatch ~= nil or invoke == nil or invoke.native_address == "unavailable" then return end
                 if live_delegate_native_hooks[invoke.native_address] then return end
 
                 local delegate_type_name = metadata.full_name
                 local function on_live_invoke_pre(args)
+                    local function read_confirmed_decided(target_gui)
+                        local value = nil
+                        local ok_read = pcall(function() value = target_gui:get_field("_bDecided") end)
+                        if not ok_read or value == nil then return nil end
+                        if type(value) == "boolean" then return value end
+                        if type(value) == "number" and (value == 0 or value == 1) then return value == 1 end
+                        return nil
+                    end
+                    local candidates = {}
+                    for _, info in pairs(tracked_char_guis) do
+                        if info.gui ~= nil then
+                            local gui = info.gui
+                            local curr_step = get_safe_field_int(gui, "<CurrStep>k__BackingField", -1)
+                            if curr_step == -1 then curr_step = get_safe_int(gui, "get_CurrStep", -1) end
+                            local requested = get_safe_field_int(gui, "<RequestedCharacter>k__BackingField", -1)
+                            if requested == -1 then requested = get_safe_int(gui, "get_RequestedCharacter", -1) end
+                            local open_param = nil
+                            local live_delegate = nil
+                            pcall(function() open_param = gui:get_field("_OpenParam") end)
+                            if open_param ~= nil then
+                                pcall(function() live_delegate = open_param:get_field("OnDecided") end)
+                            end
+                            if curr_step == 1 and requested >= 1 and requested <= 8 and requested == math.floor(requested)
+                                and open_param ~= nil and live_delegate ~= nil then
+                                candidates[#candidates + 1] = {
+                                    gui = gui,
+                                    requested = requested,
+                                    live_delegate = live_delegate,
+                                    decided = read_confirmed_decided(gui),
+                                }
+                            end
+                        end
+                    end
+                    if #candidates == 0 then return sdk.PreHookResult.CALL_ORIGINAL end
+                    local decided_candidates = {}
+                    for _, candidate in ipairs(candidates) do
+                        if candidate.decided == true then decided_candidates[#decided_candidates + 1] = candidate end
+                    end
+                    if #candidates ~= 1 then
+                        if #decided_candidates == 1 then
+                            log.info("[Merc AP Trace][CHAR_ON_DECIDED_NO_MATCH] reason=multiple_candidates")
+                        end
+                        return sdk.PreHookResult.CALL_ORIGINAL
+                    end
+                    local candidate = candidates[1]
+                    if candidate.decided ~= true then return sdk.PreHookResult.CALL_ORIGINAL end
+                    local raw_arg2 = nil
+                    local raw_arg4 = nil
+                    local raw_arg5 = nil
+                    pcall(function() raw_arg2 = args[2] end)
+                    pcall(function() raw_arg4 = args[4] end)
+                    pcall(function() raw_arg5 = args[5] end)
+                    local raw_managed_arg2 = nil
+                    pcall(function() raw_managed_arg2 = sdk.to_managed_object(raw_arg2) end)
+                    log.info(string.format(
+                        "[Merc AP Trace][CHAR_ON_DECIDED_RAW_PRE] gui=%s requested=%d delegate=%s args2_raw=%s args2_num=%s args2_ptr=%s args2_managed=%s args2_type=%s args3_raw=%s args3_num=%s args4_raw=%s args4_num=%s args5_raw=%s args5_num=%s",
+                        get_obj_address_str(candidate.gui), candidate.requested, get_obj_address_str(candidate.live_delegate),
+                        trace_raw_string(raw_arg2), trace_numeric_value(raw_arg2), trace_pointer_value(raw_arg2),
+                        raw_managed_arg2 == nil and "nil" or get_obj_address_str(raw_managed_arg2),
+                        raw_managed_arg2 == nil and "nil" or get_obj_type_name(raw_managed_arg2),
+                        trace_raw_string(args[3]), trace_numeric_value(args[3]),
+                        trace_raw_string(raw_arg4), trace_numeric_value(raw_arg4),
+                        trace_raw_string(raw_arg5), trace_numeric_value(raw_arg5)
+                    ))
                     local invoke_this = nil
                     local action = nil
-                    pcall(function() invoke_this = sdk.to_managed_object(args[2]) end)
+                    pcall(function() invoke_this = sdk.to_managed_object(raw_arg2) end)
+                    if invoke_this == nil then
+                        log.info("[Merc AP Trace][CHAR_ON_DECIDED_NO_MATCH] reason=invoke_this_decode_failed")
+                        return sdk.PreHookResult.CALL_ORIGINAL
+                    end
                     pcall(function()
                         local value = sdk.to_int64(args[3])
                         if value ~= nil then action = tonumber(value) end
                     end)
-                    if invoke_this == nil or type(action) ~= "number" then return end
+                    if type(action) ~= "number" then
+                        log.info("[Merc AP Trace][CHAR_ON_DECIDED_NO_MATCH] reason=action_decode_failed")
+                        return sdk.PreHookResult.CALL_ORIGINAL
+                    end
 
                     local matches = {}
                     local invoke_address = get_obj_address_str(invoke_this)
-                    for _, info in pairs(tracked_char_guis) do
-                        if info.active == true and info.gui ~= nil then
-                            local open_param = nil
-                            local live_delegate = nil
-                            pcall(function() open_param = info.gui:get_field("_OpenParam") end)
-                            if open_param ~= nil then
-                                pcall(function() live_delegate = open_param:get_field("OnDecided") end)
-                            end
-                            if live_delegate ~= nil and get_obj_address_str(live_delegate) == invoke_address then
-                                matches[#matches + 1] = info.gui
-                            end
-                        end
+                    if get_obj_address_str(candidate.live_delegate) == invoke_address then
+                        matches[#matches + 1] = candidate.gui
                     end
-                    if #matches ~= 1 then return end
+                    if #matches ~= 1 then
+                        log.info("[Merc AP Trace][CHAR_ON_DECIDED_NO_MATCH] reason=delegate_identity_mismatch")
+                        return sdk.PreHookResult.CALL_ORIGINAL
+                    end
 
                     local gui = matches[1]
                     if action < 0 or action ~= math.floor(action) then
                         log.info(string.format("[Merc AP Trace][CHAR_ON_DECIDED_PRE] invalid_action delegate=%s gui=%s action=%s type=%s", invoke_address, get_obj_address_str(gui), tostring(action), delegate_type_name))
-                        return
+                        return sdk.PreHookResult.CALL_ORIGINAL
                     end
+                    local requested = candidate.requested
                     local ok_kind, roster = pcall(function() return gui:call("getCharacterKind", action) end)
-                    local requested = get_safe_field_int(gui, "<RequestedCharacter>k__BackingField", -1)
-                    if requested == -1 then requested = get_safe_int(gui, "get_RequestedCharacter", -1) end
-                    if not ok_kind or type(roster) ~= "number" or roster < 0 or roster > 7 then
+                    if not ok_kind or type(roster) ~= "number" or roster < 0 or roster > 7 or roster ~= math.floor(roster) then
                         log.info(string.format("[Merc AP Trace][CHAR_ON_DECIDED_PRE] invalid_roster delegate=%s gui=%s action=%d roster=%s type=%s", invoke_address, get_obj_address_str(gui), action, tostring(roster), delegate_type_name))
-                        return
+                        return sdk.PreHookResult.CALL_ORIGINAL
                     end
                     if requested ~= action then
                         log.info(string.format("[Merc AP Trace][CHAR_ON_DECIDED_PRE] requested_mismatch delegate=%s gui=%s action=%d requested=%d type=%s", invoke_address, get_obj_address_str(gui), action, requested, delegate_type_name))
-                        return
+                        log.info("[Merc AP Gating] OnDecided action mismatch")
+                        return sdk.PreHookResult.CALL_ORIGINAL
                     end
+                    local owned = is_character_owned(roster)
+                    local decided = get_safe_field_bool(gui, "_bDecided", nil)
+                    local old_unlock = get_safe_field_bool(gui, "_bOldCharaUnlock", nil)
                     log.info(string.format(
                         "[Merc AP Trace][CHAR_ON_DECIDED_PRE] delegate=%s gui=%s action=%d requested=%d roster=%d owned=%s decided=%s old_unlock=%s type=%s",
                         invoke_address, get_obj_address_str(gui), action, requested, roster,
-                        tostring(is_character_owned(roster)), tostring(get_safe_field_bool(gui, "_bDecided", false)),
-                        tostring(get_safe_field_bool(gui, "_bOldCharaUnlock", false)), delegate_type_name
+                        tostring(owned), tostring(decided), tostring(old_unlock), delegate_type_name
                     ))
+                    if not should_enforce_gating() or owned then return sdk.PreHookResult.CALL_ORIGINAL end
+                    local function read_direct_bool(field_name)
+                        local value = nil
+                        local ok_read = pcall(function() value = gui:get_field(field_name) end)
+                        if not ok_read or value == nil then return nil end
+                        if type(value) == "boolean" then return value end
+                        if type(value) == "number" and (value == 0 or value == 1) then return value == 1 end
+                        return nil
+                    end
+                    local original_decided = read_direct_bool("_bDecided")
+                    local original_old_unlock = read_direct_bool("_bOldCharaUnlock")
+                    if original_decided ~= true or original_old_unlock == nil then
+                        log.info("[Merc AP Gating] OnDecided state unavailable")
+                        return sdk.PreHookResult.CALL_ORIGINAL
+                    end
+                    local function rollback_on_decided_state()
+                        pcall(function() gui:set_field("_bDecided", original_decided) end)
+                        pcall(function() gui:set_field("_bOldCharaUnlock", original_old_unlock) end)
+                        local restored_decided = read_direct_bool("_bDecided")
+                        local restored_old_unlock = read_direct_bool("_bOldCharaUnlock")
+                        return restored_decided == original_decided and restored_old_unlock == original_old_unlock
+                    end
+                    local function state_write_failed()
+                        if rollback_on_decided_state() then
+                            log.info("[Merc AP Gating] OnDecided state unavailable")
+                            return sdk.PreHookResult.CALL_ORIGINAL
+                        end
+                        log.info("[Merc AP Gating] OnDecided rollback failure")
+                        return sdk.PreHookResult.SKIP_ORIGINAL
+                    end
+                    local old_unlock_write_ok = pcall(function() gui:set_field("_bOldCharaUnlock", false) end)
+                    local after_old_unlock = read_direct_bool("_bOldCharaUnlock")
+                    if not old_unlock_write_ok or after_old_unlock ~= false then
+                        return state_write_failed()
+                    end
+                    local decided_write_ok = pcall(function() gui:set_field("_bDecided", false) end)
+                    local after_decided = read_direct_bool("_bDecided")
+                    local after_both_old_unlock = read_direct_bool("_bOldCharaUnlock")
+                    if not decided_write_ok or after_decided ~= false or after_both_old_unlock ~= false then
+                        return state_write_failed()
+                    end
+                    log.info(string.format(
+                        "[Merc AP Gating] character OnDecided suppressed: delegate=%s action=%d roster=%d name=%s",
+                        invoke_address, action, roster, ROSTER_INDEX_TO_NAME[roster]
+                    ))
+                    return sdk.PreHookResult.SKIP_ORIGINAL
                 end
 
-                local ok_hook = safe_hook_unique(invoke.method, on_live_invoke_pre, function(retval)
-                    return retval
+                local function_address = nil
+                local function_ok = pcall(function() function_address = invoke.method:get_function() end)
+                if not function_ok or function_address == nil then return end
+                local hook_key = tostring(function_address or invoke.method)
+                if hooked_functions[hook_key] then
+                    if not live_delegate_hook_errors[hook_key] then
+                        live_delegate_hook_errors[hook_key] = true
+                        log.info(string.format(
+                            "[Merc AP Trace][CHAR_ON_DECIDED_HOOK_ERROR] type=%s native=%s reason=function pointer already occupied",
+                            delegate_type_name, invoke.native_address
+                        ))
+                    end
+                    return
+                end
+                local hook_ok, hook_error = pcall(function()
+                    sdk.hook(invoke.method, on_live_invoke_pre, function(retval)
+                        return retval
+                    end)
                 end)
-                if ok_hook then live_delegate_native_hooks[invoke.native_address] = true end
+                if not hook_ok then
+                    if not live_delegate_hook_errors[hook_key] then
+                        live_delegate_hook_errors[hook_key] = true
+                        log.info(string.format(
+                            "[Merc AP Trace][CHAR_ON_DECIDED_HOOK_ERROR] type=%s native=%s reason=%s",
+                            delegate_type_name, invoke.native_address, trace_safe_string(hook_error)
+                        ))
+                    end
+                    return
+                end
+                hooked_functions[hook_key] = true
+                live_delegate_native_hooks[invoke.native_address] = true
+                log.info(string.format(
+                    "[Merc AP Trace][CHAR_ON_DECIDED_HOOK_REGISTERED] type=%s native=%s static=false",
+                    delegate_type_name, invoke.native_address
+                ))
             end
 
             local input_method_groups = {}
