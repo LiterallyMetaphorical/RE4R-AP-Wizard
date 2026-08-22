@@ -952,9 +952,10 @@ return function(ctx)
             return
         end
 
-        local to_send, keys
+        local to_send
         for _, entry in ipairs(bridge.pending_checks) do
-            local lid = entry and tonumber(entry.location_id)
+            local lid = type(entry) == "table" and type(entry.key) == "string"
+                and tonumber(entry.location_id) or nil
             if lid ~= nil then
                 lid = math.floor(lid)
                 -- [GatedKeys] Vanilla/preserved spots exist in the shipped maps but
@@ -969,9 +970,7 @@ return function(ctx)
                 elseif not sent_location_checks[lid] then
                     sent_location_checks[lid] = true
                     to_send = to_send or {}
-                    keys = keys or {}
                     to_send[#to_send + 1] = lid
-                    keys[#keys + 1] = entry.key
                 end
             end
         end
@@ -979,25 +978,13 @@ return function(ctx)
         if to_send ~= nil then
             local ok_send, e = pcall(function() ap:LocationChecks(to_send) end)
             if ok_send then
-                -- [Phase 3 Group 2] Optimistically mark the locations checked in the
-                -- durable per-seed set (acknowledged_guid_keys -- what the UI reads) and
-                -- persist, mirroring the 2c watermark. Idempotent server-side, so a
-                -- later resend never dupes.
-                local marked = false
-                for _, k in ipairs(keys) do
-                    if type(k) == "string" and not bridge.acknowledged_guid_keys[k] then
-                        bridge.acknowledged_guid_keys[k] = true
-                        marked = true
-                        -- [Phase 5 Group 3] session Checks-Sent counter for the status window
-                        bridge.checks_sent_session = (bridge.checks_sent_session or 0) + 1
-                    end
-                end
                 -- [Non-lead pickups] A location collected while someone other
                 -- than the campaign lead is playing granted its item into an
                 -- inventory the game DISCARDS at section end (proven live:
                 -- Ashley's grid and even Storage are gone when Leon returns).
                 -- Remember it, so the own-find skip below does not later
                 -- assume the player still has what they picked up.
+                local non_lead_marked = false
                 local is_default = ctx.inject_is_default_character_active
                     or _G.inject_is_default_character_active
                 if type(is_default) == "function" then
@@ -1006,14 +993,15 @@ return function(ctx)
                         for _, lid in ipairs(to_send) do
                             bridge.non_lead_checked_locations[lid] = true
                         end
-                        marked = true
+                        non_lead_marked = true
                         info(string.format(
                             "%d location(s) collected by a non-lead character - their items will be delivered when the lead returns",
                             #to_send))
                     end
                 end
+                bridge.checks_sent_session = (bridge.checks_sent_session or 0) + #to_send
                 bridge.state_dirty = true
-                if marked and type(ctx.save_session_state) == "function" then
+                if non_lead_marked and type(ctx.save_session_state) == "function" then
                     ctx.save_session_state()
                 end
                 info(string.format("LocationChecks sent: %d location(s)", #to_send))
@@ -1032,19 +1020,20 @@ return function(ctx)
     -- for RE2R's game-state re-scan.
     local function resend_checked_locations()
         local bridge = ctx.bridge
-        if ap == nil or bridge == nil or type(bridge.acknowledged_guid_keys) ~= "table" then
+        if ap == nil or bridge == nil then
             return
         end
+        bridge.acknowledged_guid_keys = bridge.acknowledged_guid_keys or {}
+        bridge.mercenaries_completed_locations = bridge.mercenaries_completed_locations or {}
         local resolve = ctx.get_location_display_entry or _G.get_location_display_entry
-        if type(resolve) ~= "function" then return end
 
-        local ids
+        local ids, seen_ids
         for key in pairs(bridge.acknowledged_guid_keys) do
             local bar = type(key) == "string" and string.find(key, "|", 1, true) or nil
             if bar ~= nil then
                 local stage = tonumber(string.sub(key, 1, bar - 1))
                 local guid = string.sub(key, bar + 1)
-                if stage ~= nil then
+                if stage ~= nil and type(resolve) == "function" then
                     local ok, entry = pcall(resolve, stage, guid)
                     local lid = ok and type(entry) == "table" and tonumber(entry.location_id)
                     if lid ~= nil then
@@ -1052,10 +1041,29 @@ return function(ctx)
                         -- [GatedKeys] Persisted keys from an older world version can
                         -- resolve to locations this room does not have -- skip those.
                         if room_location_ids == nil or room_location_ids[lid] then
-                            ids = ids or {}
-                            ids[#ids + 1] = lid
-                            sent_location_checks[lid] = true -- the drain won't re-send these
+                            seen_ids = seen_ids or {}
+                            if not seen_ids[lid] then
+                                seen_ids[lid] = true
+                                ids = ids or {}
+                                ids[#ids + 1] = lid
+                                sent_location_checks[lid] = true -- the drain won't re-send these
+                            end
                         end
+                    end
+                end
+            end
+        end
+        for raw_id in pairs(bridge.mercenaries_completed_locations) do
+            local lid = tonumber(raw_id)
+            if lid ~= nil then
+                lid = math.floor(lid)
+                if room_location_ids == nil or room_location_ids[lid] then
+                    seen_ids = seen_ids or {}
+                    if not seen_ids[lid] then
+                        seen_ids[lid] = true
+                        ids = ids or {}
+                        ids[#ids + 1] = lid
+                        sent_location_checks[lid] = true
                     end
                 end
             end
@@ -1087,16 +1095,47 @@ return function(ctx)
         end
 
         if is_merc_only and bridge.victory_sent ~= true and type(bridge.checked_locations) == "table" then
-            local all_done = true
-            for char_idx = 0, 7 do
-                for stage_idx = 0, 3 do
-                    local loc_id = 440001000 + char_idx * 16 + stage_idx * 4
-                    if bridge.checked_locations[loc_id] ~= true then
+            local required = {}
+            local merc_data = type(slot_data) == "table" and type(slot_data.mercenaries) == "table"
+                and slot_data.mercenaries or nil
+            local locations = merc_data and merc_data.locations
+            local canonical_characters = {
+                "Leon", "Leon (Pinstripe)", "Luis", "Krauser",
+                "HUNK", "Ada", "Ada (Dress)", "Wesker",
+            }
+            local canonical_stages = { "Village", "Castle", "Island", "Docks" }
+            local required_seen = {}
+            local mappings_complete = type(locations) == "table"
+            if mappings_complete then
+                for _, character_name in ipairs(canonical_characters) do
+                    local character_locations = locations[character_name]
+                    if type(character_locations) ~= "table" then
+                        mappings_complete = false
+                        break
+                    end
+                    for _, stage_name in ipairs(canonical_stages) do
+                        local stage_locations = character_locations[stage_name]
+                        local loc_id = type(stage_locations) == "table" and tonumber(stage_locations.A) or nil
+                        if loc_id == nil or loc_id ~= math.floor(loc_id) or loc_id <= 0
+                            or required_seen[loc_id] then
+                            mappings_complete = false
+                            break
+                        end
+                        loc_id = math.floor(loc_id)
+                        required_seen[loc_id] = true
+                        required[#required + 1] = loc_id
+                    end
+                    if not mappings_complete then break end
+                end
+            end
+            local all_done = mappings_complete and #required == 32 and room_location_ids ~= nil
+            if all_done then
+                for _, loc_id in ipairs(required) do
+                    if room_location_ids[loc_id] ~= true or bridge.checked_locations[loc_id] ~= true then
                         all_done = false
                         break
                     end
                 end
-                if not all_done then break end
             end
             if all_done then
                 bridge.victory_pending = true
@@ -1249,6 +1288,49 @@ return function(ctx)
         ap:ConnectSlot(st.slot, st.password, ITEMS_HANDLING, CLIENT_TAGS, CLIENT_VERSION)
     end
 
+    local function reconcile_server_checked_locations(locations, authoritative)
+        local bridge = ctx.bridge
+        if bridge == nil then return end
+        if authoritative then bridge.checked_locations = {} end
+        bridge.checked_locations = bridge.checked_locations or {}
+        bridge.pending_checks = bridge.pending_checks or {}
+        bridge.pending_check_keys = bridge.pending_check_keys or {}
+        bridge.acknowledged_guid_keys = bridge.acknowledged_guid_keys or {}
+        bridge.mercenaries_completed_locations = bridge.mercenaries_completed_locations or {}
+        local changed = authoritative
+        if type(locations) == "table" then
+            for _, raw_id in pairs(locations) do
+                local location_id = tonumber(raw_id)
+                if location_id ~= nil then
+                    location_id = math.floor(location_id)
+                    if bridge.checked_locations[location_id] ~= true then
+                        bridge.checked_locations[location_id] = true
+                        changed = true
+                    end
+                    for index = #bridge.pending_checks, 1, -1 do
+                        local pending_entry = bridge.pending_checks[index]
+                        local pending_id = type(pending_entry) == "table" and tonumber(pending_entry.location_id) or nil
+                        if pending_id ~= nil and math.floor(pending_id) == location_id then
+                            local key = pending_entry.key
+                            if type(key) == "string" and string.sub(key, 1, 5) == "merc:" then
+                                bridge.mercenaries_completed_locations[location_id] = true
+                            elseif type(key) == "string" then
+                                bridge.acknowledged_guid_keys[key] = true
+                            end
+                            if type(key) == "string" then bridge.pending_check_keys[key] = nil end
+                            table.remove(bridge.pending_checks, index)
+                            changed = true
+                        end
+                    end
+                end
+            end
+        end
+        if changed then
+            bridge.state_dirty = true
+            if type(ctx.save_session_state) == "function" then ctx.save_session_state() end
+        end
+    end
+
     local function on_slot_connected(slot_data)
         info("SLOT CONNECTED as '" .. st.slot .. "' -- bare-connect SUCCESS")
         set_conn_status("connected", "Connected (" .. st.slot .. ")")
@@ -1257,6 +1339,7 @@ return function(ctx)
         st.slot_connected = true
         st.port_recovery_dismissed_kind = nil
         close_port_recovery()
+        if ctx.bridge then ctx.bridge.checked_locations = {} end
         -- [DeathLink] Read the slot's death_link setting (added to fill_slot_data in the
         -- apworld). Accept boolean true or numeric/string 1. Reset the per-connection
         -- death state so a reconnect can't strand a queued death or a stale edge.
@@ -1394,6 +1477,7 @@ return function(ctx)
         -- scout below. missing+checked from the Connected packet is exactly the
         -- slot's created location list for its options.
         room_location_ids = nil
+        if ctx.bridge then ctx.bridge.room_location_ids = nil end
         skipped_non_room_lids = {}
         do
             -- File first: the launcher wrote this room's exact id set at patch
@@ -1444,6 +1528,29 @@ return function(ctx)
                     end
                 end
             end
+            local merc_data = type(slot_data) == "table" and type(slot_data.mercenaries) == "table"
+                and slot_data.mercenaries or nil
+            local merc_locations = merc_data and merc_data.locations
+            if type(merc_locations) == "table" then
+                for _, character_locations in pairs(merc_locations) do
+                    if type(character_locations) == "table" then
+                        for _, stage_locations in pairs(character_locations) do
+                            if type(stage_locations) == "table" then
+                                for _, raw_id in pairs(stage_locations) do
+                                    local numeric_id = tonumber(raw_id)
+                                    if numeric_id ~= nil and numeric_id == math.floor(numeric_id) and numeric_id > 0 then
+                                        if not set[numeric_id] then
+                                            set[numeric_id] = true
+                                            total = total + 1
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+                if total > 0 then source = source .. "+slot mercenaries" end
+            end
             if total > 0 then
                 room_location_ids = set
                 info(string.format("room location set: %d location(s) via %s", total, source))
@@ -1451,10 +1558,13 @@ return function(ctx)
                 warn("room location set unavailable (no launcher file, AP getters empty) -- location scouting is skipped this session")
             end
         end
+        if ctx.bridge then ctx.bridge.room_location_ids = room_location_ids end
         local set_ap_session_identity = ctx.set_ap_session_identity
+        local session_identity_ready = false
         if type(set_ap_session_identity) == "function" then
             local stage = ctx.bridge and ctx.bridge.last_state and ctx.bridge.last_state.current_stage
             set_ap_session_identity(st.seed, st.slot, stage)
+            session_identity_ready = true
             info(string.format(
                 "session identity set: seed='%s' slot='%s' numeric_slot=%s -> %s (last_received_index=%s)",
                 st.seed, st.slot, tostring(st.numeric_slot),
@@ -1466,9 +1576,23 @@ return function(ctx)
         else
             warn("ctx.set_ap_session_identity unavailable -- session watermark not keyed")
         end
+        if session_identity_ready then
+            local ok_checked, checked = pcall(function() return ap:get_checked_locations() end)
+            if ok_checked and type(checked) == "table" then
+                reconcile_server_checked_locations(checked, true)
+            else
+                warn("authoritative checked-location query unavailable")
+            end
+        else
+            warn("authoritative checked-location query skipped: session identity unavailable")
+        end
         -- [Phase 3 Group 2] Reconcile: resend the full persisted checked set now that
         -- the per-seed session (incl. acknowledged_guid_keys) has been loaded.
-        resend_checked_locations()
+        if session_identity_ready then
+            resend_checked_locations()
+        else
+            warn("persisted check resend skipped: session identity unavailable")
+        end
         -- [Phase 4] Refresh seed-aware location classifications for the progression UI.
         scout_all_locations()
     end
@@ -1584,6 +1708,7 @@ return function(ctx)
 
     local function on_location_checked(locations)
         local n = (type(locations) == "table") and #locations or 0
+        reconcile_server_checked_locations(locations, false)
         info("server-confirmed checked locations: " .. n)
     end
 
