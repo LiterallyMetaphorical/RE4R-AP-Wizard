@@ -133,6 +133,9 @@ return function(ctx)
     local received_ledger = {}
     -- index -> consecutive failed-inject tick count (poison retry bookkeeping).
     local inject_failure_counts = {}
+    -- Merc item indexes whose identity is unresolved; keep warning bounded while
+    -- retaining them at queue head for a later datapack/map retry.
+    local unresolved_merc_items_logged = {}
     -- [Phase 3] AP location ids already submitted this socket (avoid re-spamming).
     local sent_location_checks = {}
     -- [GatedKeys] The ROOM's actual location id set (missing + checked from the
@@ -142,8 +145,139 @@ return function(ctx)
     -- and LocationChecks send is filtered to this set; nil = unavailable ->
     -- fall back to the permissive pre-0.4.0 behavior.
     local room_location_ids = nil
+    -- [Mercenaries] Authoritative per-connection Mercenaries location ids from
+    -- slot_data.mercenaries.locations. Nil means slot data did not provide an
+    -- authoritative mapping; an empty table means it provided one with no valid ids.
+    local merc_location_ids = nil
+    local merc_session_enabled = false
     -- [GatedKeys] lids we already explained in the log (once per session).
     local skipped_non_room_lids = {}
+
+    local function positive_integral(value)
+        local number = type(value) == "number" and value or nil
+        if number == nil or number ~= number or number == math.huge or number == -math.huge
+            or number <= 0 or number ~= math.floor(number) then
+            return nil
+        end
+        return number
+    end
+
+    local function is_integral_number(value)
+        return type(value) == "number"
+            and value == value
+            and value ~= math.huge
+            and value ~= -math.huge
+            and value == math.floor(value)
+    end
+
+    local function valid_received_index(index, watermark)
+        return is_integral_number(index) and index > watermark
+    end
+
+    local function room_location_contains(location_set, location_id)
+        if type(location_set) ~= "table" then return false end
+        if location_set[location_id] == true or location_set[tostring(location_id)] == true then
+            return true
+        end
+        for _, raw_id in pairs(location_set) do
+            if tonumber(raw_id) == location_id then return true end
+        end
+        return false
+    end
+
+    -- Build only from the AP-authoritative character -> stage -> rank mapping.
+    -- Never infer Mercenaries locations from numeric ranges or display names.
+    local function build_merc_location_ids(slot_data)
+        local merc_data = type(slot_data) == "table" and slot_data.mercenaries or nil
+        local locations = type(merc_data) == "table" and merc_data.locations or nil
+        if type(locations) ~= "table" then
+            return nil, "slot_data.mercenaries.locations missing"
+        end
+
+        local result = {}
+        for character_name, character_locations in pairs(locations) do
+            if type(character_locations) ~= "table" then
+                return nil, "invalid Mercenaries character mapping '" .. tostring(character_name) .. "'"
+            end
+            for stage_name, stage_locations in pairs(character_locations) do
+                if type(stage_locations) ~= "table" then
+                    return nil, "invalid Mercenaries stage mapping '" .. tostring(stage_name) .. "'"
+                end
+                for rank_name, raw_id in pairs(stage_locations) do
+                    local location_id = positive_integral(raw_id)
+                    if location_id == nil then
+                        return nil, string.format(
+                            "invalid Mercenaries location at %s/%s/%s",
+                            tostring(character_name), tostring(stage_name), tostring(rank_name))
+                    end
+                    if result[location_id] then
+                        return nil, "duplicate Mercenaries location id " .. tostring(location_id)
+                    end
+                    result[location_id] = true
+                end
+            end
+        end
+        local count = 0
+        for _ in pairs(result) do count = count + 1 end
+        if count == 0 then return nil, "Mercenaries location mapping is empty" end
+        return result
+    end
+
+    local function mercenaries_enabled(slot_data)
+        if type(slot_data) ~= "table" then return false end
+        local mode = slot_data.game_mode
+        if mode == "mercenaries_only" or mode == "campaign_and_mercenaries" then
+            return true
+        end
+        local merc_data = type(slot_data.mercenaries) == "table" and slot_data.mercenaries or nil
+        return merc_data ~= nil and merc_data.enabled == true
+    end
+
+    local function is_legacy_merc_item_id(item_id)
+        -- Backwards compatibility for pre-kind datapack maps only.
+        return is_integral_number(item_id)
+            and item_id >= 440000001
+            and item_id <= 440000099
+    end
+
+    local function get_item_source(item_id, mapping)
+        if type(mapping) == "table" then
+            if mapping.kind == "merc_character"
+                or mapping.kind == "merc_stage"
+                or mapping.kind == "merc_filler" then
+                return "MERCENARIES"
+            end
+            if mapping.kind ~= nil and mapping.kind ~= "" then return "CAMPAIGN" end
+            if is_legacy_merc_item_id(item_id) then return "MERCENARIES" end
+            return "CAMPAIGN"
+        end
+
+        -- This fallback is not primary classification and must never override an
+        -- existing non-empty mapping.kind.
+        if is_legacy_merc_item_id(item_id) then
+            return "MERCENARIES"
+        end
+        return "UNKNOWN"
+    end
+
+    local function get_location_source(location_id)
+        local number = tonumber(location_id)
+        if number == nil or number <= 0 then return "NON_LOCATION" end
+        if number ~= number or number == math.huge or number == -math.huge
+            or number ~= math.floor(number) then
+            return "UNKNOWN"
+        end
+        if merc_location_ids ~= nil and merc_location_ids[number] == true then
+            return "MERCENARIES"
+        end
+        if room_location_ids ~= nil
+            and room_location_contains(room_location_ids, number) then
+            if merc_location_ids ~= nil or not merc_session_enabled then
+                return "CAMPAIGN"
+            end
+        end
+        return "UNKNOWN"
+    end
 
     local function trim(s)
         if type(s) ~= "string" then return "" end
@@ -722,7 +856,7 @@ return function(ctx)
             local entry = pending[1]
             local idx = entry.index
 
-            if type(idx) ~= "number" then
+            if not is_integral_number(idx) then
                 warn("dropping queued item with non-integer index")
                 pop_head(nil)
                 processed = processed + 1
@@ -733,15 +867,31 @@ return function(ctx)
                 break -- gap: wait for the missing index (flush any lazy advances)
             else
                 local mapping = ap_item_map[entry.item]
-                local is_merc_item = (mapping ~= nil and (mapping.kind == "merc_character" or mapping.kind == "merc_stage" or mapping.kind == "merc_filler"))
-                    or (type(entry.item) == "number" and entry.item >= 440000001 and entry.item <= 440000099)
-                local is_merc_location = (type(entry.location) == "number" and entry.location >= 440001000 and entry.location <= 440001127)
+                local received_item_source = get_item_source(entry.item, mapping)
+                local received_location_source = get_location_source(entry.location)
+                local non_lead = type(bridge.non_lead_checked_locations) == "table"
+                    and bridge.non_lead_checked_locations[entry.location] == true
+                local is_own_find = received_item_source == "CAMPAIGN"
+                    and received_location_source == "CAMPAIGN"
+                    and entry.player == st.numeric_slot
+                    and not non_lead
 
-                if is_merc_item then
+                if received_item_source == "MERCENARIES" then
                     -- Mercenaries unlock item: update ownership immediately, never inject into campaign inventory
-                    if type(ctx.handle_merc_item_received) == "function" then
-                        ctx.handle_merc_item_received(mapping and mapping.name or "")
+                    local handle_merc = ctx.handle_merc_item_received or _G.handle_merc_item_received
+                    local known_name = type(mapping) == "table"
+                        and type(mapping.name) == "string" and mapping.name ~= ""
+                    if not known_name or type(handle_merc) ~= "function" then
+                        if not unresolved_merc_items_logged[idx] then
+                            unresolved_merc_items_logged[idx] = true
+                            warn(string.format(
+                                "Merc item idx=%d has unresolved identity; retaining ordered queue",
+                                idx))
+                        end
+                        break
                     end
+                    unresolved_merc_items_logged[idx] = nil
+                    handle_merc(mapping.name)
                     bridge.last_received_index = idx
                     need_flush = true
                     pop_head(idx)
@@ -751,10 +901,7 @@ return function(ctx)
                 elseif runtime_domain == "MERCENARIES" then
                     -- In Mercenaries mode: defer campaign physical items until returned to campaign
                     break
-                elseif entry.player == st.numeric_slot
-                    and type(entry.location) == "number" and entry.location > 0
-                    and not is_merc_location
-                    and bridge.non_lead_checked_locations[entry.location] ~= true then
+                elseif is_own_find then
                     -- own-world physical pickup: BioRand already granted it in campaign
                     info(string.format("own-find skip idx=%d ap=%s location=%d",
                         idx, tostring(entry.item), entry.location))
@@ -883,8 +1030,7 @@ return function(ctx)
                             -- to Storage (a case-full signal the pickup toast can't know about).
                             if st.in_sync_burst then
                                 bump_sync_summary(1, is_restore)
-                            elseif is_self_find and type(entry.location) == "number"
-                                and entry.location > 0 and not to_storage then
+                            elseif is_own_find and not to_storage then
                                 -- A genuine own-world physical pickup is already toasted by
                                 -- detector's unified "Collected X" toast, so suppress the dupe.
                                 -- Server/self grants (!getitem, !collect) carry location <= 0
@@ -1332,6 +1478,13 @@ return function(ctx)
     end
 
     local function on_slot_connected(slot_data)
+        merc_session_enabled = mercenaries_enabled(slot_data)
+        local validated_merc_locations, merc_location_error = build_merc_location_ids(slot_data)
+        merc_location_ids = validated_merc_locations
+        if merc_location_ids == nil and (merc_session_enabled
+            or merc_location_error ~= "slot_data.mercenaries.locations missing") then
+            warn("Mercenaries location mapping unavailable: " .. tostring(merc_location_error))
+        end
         info("SLOT CONNECTED as '" .. st.slot .. "' -- bare-connect SUCCESS")
         set_conn_status("connected", "Connected (" .. st.slot .. ")")
         -- Whatever the recovery dialog was worried about, it is resolved.
@@ -1414,11 +1567,15 @@ return function(ctx)
             end
             -- Replay received ledger for Mercenaries unlocks
             local handle_item = ctx.handle_merc_item_received or _G.handle_merc_item_received
+            local replay_watermark = (ctx.bridge and tonumber(ctx.bridge.last_received_index)) or -1
             if type(handle_item) == "function" and type(received_ledger) == "table" then
-                for _, rec in pairs(received_ledger) do
-                    if type(rec) == "table" and rec.item ~= nil then
+                for index, rec in pairs(received_ledger) do
+                    if valid_received_index(index, replay_watermark)
+                        and type(rec) == "table" and rec.item ~= nil then
                         local mapping = ap_item_map[rec.item]
-                        if mapping and mapping.name then
+                        if get_item_source(rec.item, mapping) == "MERCENARIES"
+                            and type(mapping) == "table"
+                            and type(mapping.name) == "string" and mapping.name ~= "" then
                             handle_item(mapping.name)
                         end
                     end
@@ -1459,6 +1616,7 @@ return function(ctx)
         pending_by_index = {}
         received_ledger = {} -- [F8] fresh identity: rebuilt from the on-connect replay
         inject_failure_counts = {}
+        unresolved_merc_items_logged = {}
         st.item_delivery_resume_not_before = nil
         st.item_delivery_stability_logged = false
         sent_location_checks = {} -- new socket: let the persisted checks resend once
@@ -1559,6 +1717,11 @@ return function(ctx)
             end
         end
         if ctx.bridge then ctx.bridge.room_location_ids = room_location_ids end
+        if merc_location_ids ~= nil then
+            local merc_count = 0
+            for _ in pairs(merc_location_ids) do merc_count = merc_count + 1 end
+            info(string.format("Mercenaries location set: %d location(s)", merc_count))
+        end
         local set_ap_session_identity = ctx.set_ap_session_identity
         local session_identity_ready = false
         if type(set_ap_session_identity) == "function" then
@@ -1618,29 +1781,30 @@ return function(ctx)
 
         -- [Mercenaries] Abstract ownership reconciliation side-channel:
         -- Immediately and idempotently unlock any received Merc character/stage items,
-        -- completely independent of campaign inventory safety, active domain, or watermarks.
+        -- completely independent of campaign inventory safety and active domain. Only
+        -- fresh, integral indexes with a known mapping name qualify here.
         local handle_merc = ctx.handle_merc_item_received or _G.handle_merc_item_received
         if type(handle_merc) == "function" then
+            local side_channel_indexes = {}
             for _, item in ipairs(items) do
-                local item_id = item.item
-                if item_id ~= nil then
+                local item_id = type(item) == "table" and item.item or nil
+                local index = type(item) == "table" and item.index or nil
+                if item_id ~= nil and valid_received_index(index, watermark)
+                    and not side_channel_indexes[index] then
                     local mapping = ap_item_map[item_id]
-                    if mapping and mapping.name then
-                        local is_merc = (mapping.kind == "merc_character" or mapping.kind == "merc_stage" or mapping.kind == "merc_filler")
-                            or (type(item_id) == "number" and item_id >= 440000001 and item_id <= 440000099)
-                            or (mapping.name:find("^Mercenaries Stage:") ~= nil)
-                            or (mapping.name:find("^Mercenaries Character:") ~= nil)
-                        if is_merc then
-                            handle_merc(mapping.name)
-                        end
+                    if get_item_source(item_id, mapping) == "MERCENARIES"
+                        and type(mapping) == "table"
+                        and type(mapping.name) == "string" and mapping.name ~= "" then
+                        side_channel_indexes[index] = true
+                        handle_merc(mapping.name)
                     end
                 end
             end
         end
 
         for _, item in ipairs(items) do
-            local idx = item.index
-            if type(idx) == "number" then
+            local idx = type(item) == "table" and item.index or nil
+            if is_integral_number(idx) then
                 -- [F8] Ledger every delivered item (independent of the watermark) so
                 -- a save rollback can re-queue items already popped from `pending`.
                 received_ledger[idx] = {

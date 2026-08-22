@@ -1228,52 +1228,217 @@ local function install(ctx)
     -- inert and nothing needs cleaning up afterwards.
     local key_item_snapshot = {}
     local key_item_snapshot_logged = false
-    local key_item_read_dump_logged = false
+    local key_item_accessor_method = nil
+    local key_item_accessor_schema = nil
+    local key_item_accessor_resolved = false
+    local key_item_accessor_diagnostic_logged = false
+    local KEY_ITEM_CONTROLLER_TYPE_NAME = "chainsaw.KeyItemInventoryController"
+    local KEY_ITEM_ACCESSOR_NAMES = { "getItems", "getInventoryItems" }
 
-    -- Candidate accessors for "what key items are held". The class is not
-    -- documented anywhere in this repo, so probe the plausible names and dump the
-    -- real member list once if every guess misses.
-    -- The real names, read off a live member dump (2026-08-06): the controller
-    -- exposes getItems/getInventoryItems, NOT the get_Items/getItemList shapes
-    -- guessed here originally - so this probe always missed and the boot
-    -- snapshot was silently empty every run.
-    local KEY_ITEM_LIST_ACCESSORS = {
-        "getItems", "getInventoryItems",
-        "get_ItemList", "getItemList", "get_Items", "get_KeyItemList", "get_ItemDataList",
-    }
-    local KEY_ITEM_LIST_FIELDS = {
-        "_ItemList", "_Items", "_KeyItemList", "_ItemDataList", "<ItemList>k__BackingField",
-    }
-
-    local function inject_dump_key_controller_members(controller)
-        if key_item_read_dump_logged then
+    local function inject_log_missing_key_item_accessor()
+        if key_item_accessor_diagnostic_logged then
             return
         end
-        key_item_read_dump_logged = true
-        local controller_type = inject_get_value_type(controller)
-        if controller_type == nil then
-            log.error("[RE4R AP] key-item mirror: controller type unavailable")
-            return
+        key_item_accessor_diagnostic_logged = true
+        log.error(string.format(
+            "[RE4R AP] key-item mirror: no proven zero-arg collection accessor on %s",
+            KEY_ITEM_CONTROLLER_TYPE_NAME))
+    end
+
+    -- Only invoke exact, reflected engine methods. Guessed string accessors
+    -- previously made every snapshot read fail silently.
+    local function inject_is_key_item_collection_return(type_def)
+        local type_name = inject_get_type_name(type_def)
+        if type(type_name) ~= "string" then
+            return nil, true
         end
-        local names = {}
-        local ok_methods = pcall(function()
-            for _, method in ipairs(controller_type:get_methods()) do
-                local name = method:get_name()
-                if string.find(name, "tem", 1, true) or string.find(name, "ist", 1, true) then
-                    names[#names + 1] = "m:" .. name
+        type_name = string.gsub(type_name, "%s+", "")
+
+        local element_type_name = nil
+        local collection_kind = nil
+        if string.sub(type_name, -2) == "[]" then
+            collection_kind = "array"
+            element_type_name = string.sub(type_name, 1, -3)
+        else
+            local open = string.find(type_name, "<", 1, true)
+            local close = string.sub(type_name, -1) == ">" and #type_name or nil
+            if open == nil or close == nil or close <= open then
+                return nil, false
+            end
+            local base_name = string.sub(type_name, 1, open - 1)
+            base_name = string.gsub(base_name, "`%d+$", "")
+            local collection_names = {
+                ["System.Collections.Generic.List"] = true,
+                ["System.Collections.Generic.IList"] = true,
+                ["System.Collections.Generic.IReadOnlyList"] = true,
+                ["System.Collections.ObjectModel.ReadOnlyCollection"] = true,
+            }
+            if not collection_names[base_name] then
+                return nil, false
+            end
+            collection_kind = base_name
+            element_type_name = string.sub(type_name, open + 1, close - 1)
+        end
+
+        if type(element_type_name) ~= "string" or element_type_name == "" then
+            return nil, false
+        end
+        element_type_name = string.gsub(element_type_name, "%s+", "")
+
+        if element_type_name == "chainsaw.Item" then
+            return {
+                collection_kind = collection_kind,
+                element_type_name = element_type_name,
+                kind = "raw_item",
+            }
+        end
+
+        -- Wrapper acceptance is deliberately narrow: prove one known Item field
+        -- on the exact element type and validate that field's declared type.
+        local element_type = sdk.find_type_definition(element_type_name)
+        if element_type == nil then
+            return nil, true
+        end
+        local fields = inject_safe_call(function() return element_type:get_fields() end)
+        if type(fields) ~= "table" then
+            return nil, true
+        end
+        local wrapper_field_names = { "Item", "<Item>k__BackingField", "_Item" }
+        local field_type_lookup_failed = false
+        for _, wanted_field_name in ipairs(wrapper_field_names) do
+            for _, field in ipairs(fields) do
+                local field_name = inject_safe_call(function() return field:get_name() end)
+                if field_name == wanted_field_name then
+                    local field_type = inject_safe_call(function() return field:get_type() end)
+                    if field_type == nil then
+                        field_type_lookup_failed = true
+                        field_type = inject_safe_call(function()
+                            return field:get_type_definition()
+                        end)
+                    end
+                    if inject_get_type_name(field_type) == "chainsaw.Item" then
+                        return {
+                            collection_kind = collection_kind,
+                            element_type_name = element_type_name,
+                            field_name = wanted_field_name,
+                            kind = "item_wrapper",
+                        }
+                    end
                 end
             end
+        end
+        return nil, field_type_lookup_failed
+    end
+
+    local function inject_is_key_item_type_in_hierarchy(controller_type, declaring_type)
+        local declaring_name = inject_get_type_name(declaring_type)
+        local is_a = inject_safe_call(function()
+            return controller_type:is_a(declaring_type)
         end)
-        local ok_fields = pcall(function()
-            for _, field in ipairs(controller_type:get_fields()) do
-                names[#names + 1] = "f:" .. field:get_name()
+        if is_a == true then
+            return true
+        end
+        local current_type = controller_type
+        while current_type ~= nil do
+            if inject_get_type_name(current_type) == declaring_name then
+                return true
             end
+            current_type = inject_get_parent_type(current_type)
+        end
+        return false
+    end
+
+    local function inject_resolve_key_item_accessor()
+        if key_item_accessor_resolved then
+            return key_item_accessor_method, key_item_accessor_schema
+        end
+
+        local controller_type = sdk.find_type_definition(KEY_ITEM_CONTROLLER_TYPE_NAME)
+        if controller_type == nil then
+            return nil
+        end
+        local methods = inject_safe_call(function() return controller_type:get_methods() end)
+        if type(methods) ~= "table" then
+            return nil
+        end
+
+        local transient_reflection_failure = false
+        for _, wanted_name in ipairs(KEY_ITEM_ACCESSOR_NAMES) do
+            for _, method in ipairs(methods) do
+                local ok_name, method_name = pcall(function() return method:get_name() end)
+                if not ok_name then
+                    transient_reflection_failure = true
+                    method_name = nil
+                end
+                if tostring(method_name) == wanted_name then
+                    local ok_declaring, declaring_type = pcall(function()
+                        return method:get_declaring_type()
+                    end)
+                    local ok_count, param_count = pcall(function() return method:get_num_params() end)
+                    local ok_return, return_type = pcall(function() return method:get_return_type() end)
+                    local ok_static, is_static = pcall(function() return method:is_static() end)
+                    if not ok_declaring or not ok_count or not ok_return or not ok_static
+                        or declaring_type == nil or param_count == nil or return_type == nil
+                        or is_static == nil then
+                        transient_reflection_failure = true
+                    elseif inject_is_key_item_type_in_hierarchy(controller_type, declaring_type)
+                        and param_count == 0
+                        and is_static == false then
+                        local schema, schema_transient = inject_is_key_item_collection_return(return_type)
+                        if schema ~= nil then
+                            key_item_accessor_method = method
+                            key_item_accessor_schema = schema
+                            key_item_accessor_resolved = true
+                            return method, schema
+                        end
+                        if schema_transient then
+                            transient_reflection_failure = true
+                        end
+                    end
+                end
+            end
+        end
+
+        if transient_reflection_failure then
+            return nil
+        end
+        key_item_accessor_resolved = true
+        inject_log_missing_key_item_accessor()
+        return nil
+    end
+
+    local function inject_read_engine_item_id(entry)
+        local entry_managed = inject_get_managed(entry)
+        if entry_managed == nil or inject_get_value_type_name(entry) ~= "chainsaw.Item" then
+            return nil
+        end
+        local item_id = tonumber(inject_safe_call(function()
+            return entry_managed:get_field("_ItemId")
+        end))
+        if item_id == nil or item_id <= 0 or item_id ~= math.floor(item_id) then
+            return nil
+        end
+        return math.floor(item_id)
+    end
+
+    local function inject_read_key_item_entry_id(entry, schema)
+        if type(schema) ~= "table" then
+            return nil
+        end
+        if schema.kind == "raw_item" then
+            return inject_read_engine_item_id(entry)
+        end
+        if schema.kind ~= "item_wrapper" then
+            return nil
+        end
+        local entry_managed = inject_get_managed(entry)
+        if entry_managed == nil or inject_get_value_type_name(entry) ~= schema.element_type_name then
+            return nil
+        end
+        local item = inject_safe_call(function()
+            return entry_managed:get_field(schema.field_name)
         end)
-        log.error(string.format(
-            "[RE4R AP] key-item mirror: no known accessor on %s (methods_ok=%s fields_ok=%s) members: %s",
-            tostring(inject_get_value_type_name(controller)),
-            tostring(ok_methods), tostring(ok_fields),
-            table.concat(names, ", ")))
+        return inject_read_engine_item_id(item)
     end
 
     -- Read the live key-item ids out of whichever key controller is registered.
@@ -1303,47 +1468,30 @@ local function install(ctx)
             return nil
         end
 
-        local list = nil
-        for _, accessor in ipairs(KEY_ITEM_LIST_ACCESSORS) do
-            list = inject_safe_call(function() return controller_managed:call(accessor) end)
-            if list ~= nil then break end
+        local accessor_method, accessor_schema = inject_resolve_key_item_accessor()
+        if accessor_method == nil or accessor_schema == nil then
+            return nil
         end
+        local list = inject_safe_call(function()
+            return accessor_method:call(controller_managed)
+        end)
         if list == nil then
-            for _, field_name in ipairs(KEY_ITEM_LIST_FIELDS) do
-                list = inject_safe_call(function() return controller_managed:get_field(field_name) end)
-                if list ~= nil then break end
-            end
-        end
-        if list == nil then
-            inject_dump_key_controller_members(controller)
             return nil
         end
 
         local count = inject_get_collection_count(list)
-        if type(count) ~= "number" then
+        if type(count) ~= "number" or count < 0 or count > 128 or count ~= math.floor(count) then
             return nil
         end
 
         local ids = {}
-        for index = 0, math.min(math.floor(count), 128) - 1 do
+        for index = 0, count - 1 do
             local entry = inject_get_collection_item(list, index)
-            if entry ~= nil then
-                -- The entry may be the item itself or a holder with _ItemId.
-                local item_id = nil
-                for _, getter in ipairs({ "get_ItemId", "get_ItemID", "get_Id" }) do
-                    item_id = tonumber(inject_safe_call(function() return entry:call(getter) end))
-                    if item_id ~= nil then break end
-                end
-                if item_id == nil then
-                    for _, field_name in ipairs({ "_ItemId", "_ItemID", "ItemId", "ItemID" }) do
-                        item_id = tonumber(inject_safe_call(function() return entry:get_field(field_name) end))
-                        if item_id ~= nil then break end
-                    end
-                end
-                if item_id ~= nil and item_id > 0 then
-                    ids[#ids + 1] = math.floor(item_id)
-                end
+            local item_id = inject_read_key_item_entry_id(entry, accessor_schema)
+            if item_id == nil then
+                return nil
             end
+            ids[#ids + 1] = item_id
         end
         return ids
     end
@@ -2271,46 +2419,45 @@ local function install(ctx)
         local ids = {}
         local inventory_manager = sdk.get_managed_singleton("chainsaw.InventoryManager")
         if inventory_manager == nil then
-            return ids
+            return nil
         end
         inventory_manager = inject_try_add_ref(inventory_manager)
         local manager_managed = inject_get_managed(inventory_manager)
         if manager_managed == nil then
-            return ids
+            return nil
         end
         local save_table = inject_safe_call(function()
             return manager_managed:get_field("_InventorySaveDataTable")
         end)
         local key = inject_create_context_id(4, 2, 1, 4000)
         if save_table == nil or key == nil then
-            return ids
+            return nil
         end
         local save_data = inject_direct_dictionary_lookup(save_table, key)
         local save_managed = inject_get_managed(save_data)
         if save_managed == nil then
-            return ids
+            return nil
         end
         local items = inject_safe_call(function()
             return save_managed:get_field("Items")
         end)
         local total = inject_get_collection_count(items)
-        if type(total) ~= "number" then
-            return ids
+        if type(total) ~= "number" or total < 0 or total > 64 or total ~= math.floor(total) then
+            return nil
         end
-        for index = 0, math.min(total, 64) - 1 do
+        for index = 0, total - 1 do
             local entry_managed = inject_get_managed(inject_get_collection_item(items, index))
-            if entry_managed ~= nil then
-                local item_value = inject_safe_call(function()
-                    return entry_managed:get_field("Item")
-                end)
-                local item_managed = inject_get_managed(item_value)
-                local item_id = item_managed ~= nil and tonumber(inject_safe_call(function()
-                    return item_managed:get_field("_ItemId")
-                end)) or nil
-                if type(item_id) == "number" and item_id > 0 then
-                    table.insert(ids, item_id)
-                end
+            if entry_managed == nil then
+                return nil
             end
+            local item_value = inject_safe_call(function()
+                return entry_managed:get_field("Item")
+            end)
+            local item_id = inject_read_engine_item_id(item_value)
+            if item_id == nil then
+                return nil
+            end
+            table.insert(ids, item_id)
         end
         return ids
     end
@@ -2325,8 +2472,28 @@ local function install(ctx)
     local key_mirror_pending = {}
     local key_mirror_attempts = 0
     local key_mirror_delivered = 0
+    local key_mirror_retry_stop_logged = false
+    local KEY_MIRROR_MAX_ATTEMPTS = 30
+
+    local function reset_key_mirror_takeover_state()
+        key_mirror_was_default = true
+        key_mirror_pending = {}
+        key_mirror_attempts = 0
+        key_mirror_delivered = 0
+        key_mirror_retry_stop_logged = false
+    end
 
     re.on_frame(function()
+        local get_runtime_domain = ctx.get_runtime_domain or _G.get_runtime_domain
+        local ok_domain, runtime_domain = false, nil
+        if type(get_runtime_domain) == "function" then
+            ok_domain, runtime_domain = pcall(get_runtime_domain)
+        end
+        if not ok_domain or runtime_domain ~= "CAMPAIGN" then
+            reset_key_mirror_takeover_state()
+            return
+        end
+
         local now = os.clock()
         if now - key_mirror_last_clock < 2.0 then
             return
@@ -2346,26 +2513,30 @@ local function install(ctx)
                             "[RE4R AP] key-item mirror: snapshot holds %d key item(s)", #ids))
                     end
                 end
-                key_mirror_was_default = true
-                key_mirror_pending = {}
-                key_mirror_attempts = 0
-                key_mirror_delivered = 0
+                reset_key_mirror_takeover_state()
                 return
             end
 
-            -- Non-lead character. Build the pending list once per takeover:
-            -- the boot snapshot wins when it exists, and the lead's save-data
-            -- table covers a boot straight into the section.
+            -- Non-lead character. Build pending list once per takeover. Current
+            -- save data wins: a prior campaign snapshot must not cross a save
+            -- boundary. Snapshot remains fallback only while save data is unavailable.
             if key_mirror_was_default then
                 key_mirror_was_default = false
                 key_mirror_attempts = 0
                 key_mirror_delivered = 0
+                key_mirror_retry_stop_logged = false
                 key_mirror_pending = {}
-                local source = key_item_snapshot
-                local origin = "boot snapshot"
-                if #source == 0 then
-                    source = inject_read_lead_key_items_from_savedata()
+                local source = nil
+                local origin = nil
+                local savedata_ids = inject_read_lead_key_items_from_savedata()
+                if type(savedata_ids) == "table" then
+                    source = savedata_ids
                     origin = "lead save data"
+                elseif type(key_item_snapshot) == "table" then
+                    source = key_item_snapshot
+                    origin = "campaign snapshot"
+                else
+                    source = {}
                 end
                 for _, item_id in ipairs(source) do
                     table.insert(key_mirror_pending, item_id)
@@ -2381,8 +2552,19 @@ local function install(ctx)
 
             -- Retry until everything lands. The takeover can be observed
             -- before the new character's controllers finish registering, and
-            -- the old fire-once version lost the whole mirror to that race.
+            -- the old fire-once version lost the whole mirror to that race. Stop
+            -- after bounded registration time instead of probing forever.
             if #key_mirror_pending > 0 then
+                if key_mirror_attempts >= KEY_MIRROR_MAX_ATTEMPTS then
+                    if not key_mirror_retry_stop_logged then
+                        key_mirror_retry_stop_logged = true
+                        log.error(string.format(
+                            "[RE4R AP] key-item mirror: controllers did not register after %d attempts; stopping",
+                            KEY_MIRROR_MAX_ATTEMPTS))
+                    end
+                    key_mirror_pending = {}
+                    return
+                end
                 key_mirror_attempts = key_mirror_attempts + 1
                 local still_pending = {}
                 for _, item_id in ipairs(key_mirror_pending) do
@@ -2402,6 +2584,16 @@ local function install(ctx)
                     end
                 end
                 key_mirror_pending = still_pending
+                if #key_mirror_pending > 0 and key_mirror_attempts >= KEY_MIRROR_MAX_ATTEMPTS then
+                    if not key_mirror_retry_stop_logged then
+                        key_mirror_retry_stop_logged = true
+                        log.error(string.format(
+                            "[RE4R AP] key-item mirror: controllers did not register after %d attempts; stopping",
+                            KEY_MIRROR_MAX_ATTEMPTS))
+                    end
+                    key_mirror_pending = {}
+                    return
+                end
                 if #key_mirror_pending == 0 then
                     log.info("[RE4R AP] key-item mirror: complete")
                     -- Say it out loud. Key items appearing in another
