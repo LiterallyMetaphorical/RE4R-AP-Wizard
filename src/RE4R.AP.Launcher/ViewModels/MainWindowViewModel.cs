@@ -897,7 +897,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         PatchLaunch.Title = "Patch + Launch";
         PatchLaunch.Description =
             $"Joining {request.ServerAddress} as slot {request.SlotName}. " +
-            "Running the scout, manifest, BioRand, and Lua mod install workflow. " +
+            "Running the scout and required game workflow. " +
             "RE4R connects to Archipelago by itself once launched.";
         CurrentScreen = PatchLaunch;
         await ExecutePatchLaunchAsync(request);
@@ -933,12 +933,6 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             return null;
         }
 
-        if (string.IsNullOrWhiteSpace(Setup.SelectedGameVersion))
-        {
-            SetError("Choose a BioRand game version in the Setup section before starting.");
-            return null;
-        }
-
         if (string.IsNullOrWhiteSpace(trimmedServerAddress))
         {
             SetError("Enter the AP server address before continuing.");
@@ -949,51 +943,6 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         {
             SetError("Enter the AP slot name before continuing.");
             return null;
-        }
-
-        if (!_inspection.SeparateWaysDetected)
-        {
-            var proceedWithoutDlc = await _dialogService.ConfirmProceedWithWarningAsync(
-                "Separate Ways DLC Not Detected",
-                "The Separate Ways DLC is required - other players' items appear in your world using "
-                + "its Archipelago-logo model. It could not be detected next to your RE4R install; "
-                + "it's free on Steam if you're missing it." +
-                Environment.NewLine + Environment.NewLine +
-                "If your DLC is installed in a non-standard location, patching anyway is safe.",
-                proceedLabel: "Patch Anyway",
-                cancelLabel: "Cancel");
-            if (!proceedWithoutDlc)
-            {
-                Action.AppendLog("Workflow stopped because Separate Ways DLC was not confirmed.");
-                Action.StatusText = "Waiting for DLC confirmation.";
-                return null;
-            }
-        }
-
-        // The Treasure Map expansion ADDS treasure spawns rather than just
-        // marking them, and 36 check locations sit on those spawns. Without it
-        // they never appear, so they can never be collected - and if the
-        // multiworld put a key item on one, the seed cannot be finished.
-        if (!_inspection.TreasureMapDetected)
-        {
-            var proceedWithoutTreasureMap = await _dialogService.ConfirmProceedWithWarningAsync(
-                "Treasure Map Expansion Not Detected",
-                "The Treasure Map: Expansion DLC is required. It does not just mark treasures on "
-                + "your map, it adds treasures that are not in the game without it, and 36 of your "
-                + "multiworld checks sit on those exact spots."
-                + Environment.NewLine + Environment.NewLine
-                + "Without the DLC those 36 checks never appear, so you cannot collect them. If the "
-                + "multiworld put a key item on one, nobody can finish the seed."
-                + Environment.NewLine + Environment.NewLine
-                + "If your DLC is installed in a non-standard location, patching anyway is safe.",
-                proceedLabel: "Patch Anyway",
-                cancelLabel: "Cancel");
-            if (!proceedWithoutTreasureMap)
-            {
-                Action.AppendLog("Workflow stopped because the Treasure Map expansion was not confirmed.");
-                Action.StatusText = "Waiting for DLC confirmation.";
-                return null;
-            }
         }
 
         await PersistSettingsAsync(trimmedServerAddress, trimmedSlotName);
@@ -1011,6 +960,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             OverrideRecordedOptions = BioRandOptions.IsUnlockedForChange,
             IsHostedSession = isHostedSession,
             NotifyAsync = message => _dialogService.ShowNotificationAsync("RE4R AP Launcher", message),
+            ConfirmCampaignSafetyAsync = ConfirmCampaignSafetyAsync,
             ConfirmOverwriteDifferentSeedAsync = prompt => _dialogService.ConfirmOverwriteDifferentSeedAsync(prompt),
             ChooseResumeActionAsync = prompt => _dialogService.ChooseResumeActionAsync(prompt),
             ConfirmForeignPatchPaksAsync = ConfirmForeignPatchPaksAsync,
@@ -1058,6 +1008,47 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         _settings = await _settingsStore.LoadAsync();
         await RefreshInstallInspectionAsync();
         await RefreshSessionStateAsync();
+    }
+
+    private async Task<bool> ConfirmCampaignSafetyAsync()
+    {
+        if (!_inspection.SeparateWaysDetected)
+        {
+            var proceedWithoutDlc = await _dialogService.ConfirmProceedWithWarningAsync(
+                "Separate Ways DLC Not Detected",
+                "The Separate Ways DLC is required - other players' items appear in your world using "
+                + "its Archipelago-logo model. It could not be detected next to your RE4R install; "
+                + "it's free on Steam if you're missing it."
+                + Environment.NewLine + Environment.NewLine
+                + "If your DLC is installed in a non-standard location, patching anyway is safe.",
+                proceedLabel: "Patch Anyway",
+                cancelLabel: "Cancel");
+            if (!proceedWithoutDlc)
+            {
+                Action.AppendLog("Workflow stopped because Separate Ways DLC was not confirmed.");
+                return false;
+            }
+        }
+
+        if (!_inspection.TreasureMapDetected)
+        {
+            var proceedWithoutTreasureMap = await _dialogService.ConfirmProceedWithWarningAsync(
+                "Treasure Map Expansion Not Detected",
+                "The Treasure Map: Expansion DLC is required. It adds treasures that are not in the game without it, and 36 of your multiworld checks sit on those exact spots."
+                + Environment.NewLine + Environment.NewLine
+                + "Without the DLC those 36 checks never appear, so you cannot collect them. If the multiworld put a key item on one, nobody can finish the seed."
+                + Environment.NewLine + Environment.NewLine
+                + "If your DLC is installed in a non-standard location, patching anyway is safe.",
+                proceedLabel: "Patch Anyway",
+                cancelLabel: "Cancel");
+            if (!proceedWithoutTreasureMap)
+            {
+                Action.AppendLog("Workflow stopped because the Treasure Map expansion was not confirmed.");
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private async Task RetryPatchLaunchAsync()
@@ -1540,7 +1531,8 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             warnings.Add("Your last patch didn't finish. Run the patch again to fix it - that's safe: it rebuilds the same world, with the same items in the same places.");
         }
 
-        if (!string.IsNullOrWhiteSpace(_inspection.Fingerprint.FingerprintHash)
+        if (!string.Equals(currentRecord.GameMode, "mercenaries_only", StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(_inspection.Fingerprint.FingerprintHash)
             && !string.IsNullOrWhiteSpace(currentRecord.GameFingerprintAtPatch.FingerprintHash)
             && !string.Equals(
                 _inspection.Fingerprint.FingerprintHash,

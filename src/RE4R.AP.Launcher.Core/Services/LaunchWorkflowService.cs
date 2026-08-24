@@ -63,14 +63,25 @@ public sealed class LaunchWorkflowService
             var prerequisites = await ValidatePrerequisitesAsync(request, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
 
-            var settings = await _settingsStore.LoadAsync(cancellationToken);
-            NotifyStepStarting(request, WorkflowStep.CheckSetup);
-            var setupResult = await EnsureSetupAsync(request, settings, cancellationToken);
-            cancellationToken.ThrowIfCancellationRequested();
-
             NotifyStepStarting(request, WorkflowStep.ScoutApServer);
             var scoutResult = await ScoutAsync(request, prerequisites.StaticData, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
+
+            var isMercOnly = IsMercenariesOnly(scoutResult);
+            LauncherSettings? settings = null;
+            BioRandSetupResult? setupResult = null;
+            if (!isMercOnly)
+            {
+                NotifyStepStarting(request, WorkflowStep.CheckSetup);
+                await ValidateCampaignPrerequisitesAsync(request);
+                settings = await _settingsStore.LoadAsync(cancellationToken);
+                setupResult = await EnsureSetupAsync(request, settings!, cancellationToken);
+                if (setupResult is not null)
+                {
+                    settings = await _settingsStore.LoadAsync(cancellationToken);
+                }
+                cancellationToken.ThrowIfCancellationRequested();
+            }
 
             NotifyStepStarting(request, WorkflowStep.CheckExistingSession);
             var sessionDecision = await EvaluateSessionAsync(
@@ -98,11 +109,26 @@ public sealed class LaunchWorkflowService
             InstallResult? luaInstallResult = null;
             var resumedExistingSession = false;
             SessionRecord sessionRecord;
+            IReadOnlyList<SessionRecord>? previousActiveRecords = null;
+            if (isMercOnly)
+            {
+                // Capture metadata before a re-patch breadcrumb replaces the
+                // prior record. Deletion is deferred until Lua install passes.
+                previousActiveRecords = await _sessionRecordStore.LoadOpenSessionsAsync(cancellationToken);
+            }
 
             if (sessionDecision.ResumeValidated)
             {
+                if (isMercOnly)
+                {
+                    await RemovePreviousActiveBioRandPatchFilesAsync(previousActiveRecords!, cancellationToken);
+                }
                 resumedExistingSession = true;
                 sessionRecord = sessionDecision.SessionRecord!;
+                if (isMercOnly)
+                {
+                    sessionRecord.BioRandPatchFiles = new List<StagedFileEntry>();
+                }
                 sessionRecord.LastOpenedAtUtc = _utcNow();
                 // Mutable metadata refresh: the room may have moved since the
                 // last patch (archipelago.gg port churn); identity is seed+slot.
@@ -138,7 +164,6 @@ public sealed class LaunchWorkflowService
                     Log("Re-patching with the NEW options you selected: your multiworld checks stay identical, but the rest of the world is re-rolled. Start a new game.");
                 }
 
-                var isMercOnly = IsMercenariesOnly(scoutResult);
                 if (isMercOnly)
                 {
                     Log("Mercenaries Only mode active: skipping BioRand generation and campaign patch files.");
@@ -148,7 +173,7 @@ public sealed class LaunchWorkflowService
                         GuidPlacementCount = 0,
                         PlaceholderItemCount = 0,
                         RealRe4rItemCount = 0,
-                        SkippedNoGuidLocationCount = scoutResult.Locations.Count,
+                        SkippedNoGuidLocationCount = 0,
                     };
                     generationResult = new BioRandGenerationResult
                     {
@@ -165,12 +190,18 @@ public sealed class LaunchWorkflowService
                     var bioRandSeed = 0;
 
                     var breadcrumb = BuildInProgressRecord(request, scoutResult, prerequisites, effectiveOptions, bioRandSeed, priorRecord);
-                    await _sessionRecordStore.SaveAsync(breadcrumb, cancellationToken);
+                    // Do not replace a prior campaign record with this empty
+                    // Mercenaries Only breadcrumb. Its patch metadata must stay
+                    // recoverable until Lua succeeds and cleanup completes.
 
                     NotifyStepStarting(request, WorkflowStep.InstallLuaModFiles);
                     luaInstallResult = await InstallLuaModFilesAsync(request, cancellationToken);
                     if (luaInstallResult.Cancelled)
                     {
+                        await RestoreRecordAfterCancelledInstallAsync(
+                            priorRecord,
+                            breadcrumb.SessionKey,
+                            cancellationToken);
                         return new LaunchWorkflowResult
                         {
                             Success = false,
@@ -193,6 +224,8 @@ public sealed class LaunchWorkflowService
                             WorkflowStep.InstallLuaModFiles,
                             BuildInstallVerificationFailureMessage("Lua mod install", luaInstallResult));
                     }
+
+                    await RemovePreviousActiveBioRandPatchFilesAsync(previousActiveRecords!, cancellationToken);
 
                     sessionRecord = await BuildSessionRecordAsync(
                         request,
@@ -313,10 +346,13 @@ public sealed class LaunchWorkflowService
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            await NotifyAsync(
-                request,
-                WorkflowStep.SaveFileSafetyWarning,
-                "Make sure you are using a save file started on this AP seed before launching RE4R.");
+            if (!isMercOnly)
+            {
+                await NotifyAsync(
+                    request,
+                    WorkflowStep.SaveFileSafetyWarning,
+                    "Make sure you are using a save file started on this AP seed before launching RE4R.");
+            }
 
             NotifyStepStarting(request, WorkflowStep.WriteSessionRecord);
             sessionRecord.LastOpenedAtUtc = _utcNow();
@@ -334,7 +370,13 @@ public sealed class LaunchWorkflowService
             // The relaunch line is the whole ballgame: REFramework only loads
             // the Archipelago scripts at game start, so a player who patches
             // while RE4R is running sees "nothing works" and reports a bug.
-            var finalMessage = request.IsHostedSession
+            var finalMessage = isMercOnly
+                ? "Your game is ready for Mercenaries Only.\n\n"
+                    + "1. If RE4R is running, quit it completely.\n"
+                    + "2. Start RE4R from Steam - it connects to the multiworld automatically.\n"
+                    + "3. Press Insert in-game to open the Archipelago window.\n\n"
+                    + "No campaign world patch or campaign save is required."
+                : request.IsHostedSession
                 ? "Your game is patched and ready.\n\n"
                     + "1. If RE4R is running, quit it completely.\n"
                     + "2. Start RE4R from Steam - it connects to the multiworld automatically.\n"
@@ -420,12 +462,6 @@ public sealed class LaunchWorkflowService
         }
         Log($"AP slot name entered: {request.SlotName}.");
 
-        if (string.IsNullOrWhiteSpace(request.GameVersion))
-        {
-            throw new WorkflowException(WorkflowStep.ValidateSettings, "No BioRand game-version was selected. Pick the detected version or choose one manually in Setup and try again.");
-        }
-        Log($"BioRand game-version selected: {request.GameVersion}.");
-
         try
         {
             Log("Checking bundled static world data.");
@@ -435,14 +471,9 @@ public sealed class LaunchWorkflowService
                 cancellationToken);
             Log($"Static world data hash: {staticDataHash}.");
 
-            Log("Checking bundled BioRand executable.");
-            var bioRandVersionDescriptor = _bioRandProcessRunner.GetBioRandVersionDescriptor();
-            Log($"BioRand binary resolved as {bioRandVersionDescriptor}.");
-
             return new PrerequisiteValidationResult(
                 StaticData: staticData,
-                StaticDataHash: staticDataHash,
-                BioRandVersionDescriptor: bioRandVersionDescriptor);
+                StaticDataHash: staticDataHash);
         }
         catch (StaticGameDataException ex)
         {
@@ -451,10 +482,36 @@ public sealed class LaunchWorkflowService
                 ex.Message,
                 ex);
         }
+    }
+
+    private async Task ValidateCampaignPrerequisitesAsync(LaunchWorkflowRequest request)
+    {
+        if (request.ConfirmCampaignSafetyAsync is not null
+            && !await request.ConfirmCampaignSafetyAsync())
+        {
+            throw new WorkflowException(
+                WorkflowStep.CheckSetup,
+                "Campaign prerequisites were not confirmed. Review the campaign safety warnings and try again.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.GameVersion))
+        {
+            throw new WorkflowException(
+                WorkflowStep.CheckSetup,
+                "No BioRand game-version was selected. Pick the detected version or choose one manually in Setup and try again.");
+        }
+
+        Log($"BioRand game-version selected: {request.GameVersion}.");
+        try
+        {
+            Log("Checking bundled BioRand executable.");
+            var bioRandVersionDescriptor = _bioRandProcessRunner.GetBioRandVersionDescriptor();
+            Log($"BioRand binary resolved as {bioRandVersionDescriptor}.");
+        }
         catch (BioRandProcessException ex)
         {
             throw new WorkflowException(
-                WorkflowStep.ValidateSettings,
+                WorkflowStep.CheckSetup,
                 ex.Message,
                 ex);
         }
@@ -583,6 +640,83 @@ public sealed class LaunchWorkflowService
             .ToList();
     }
 
+    private async Task RemovePreviousActiveBioRandPatchFilesAsync(
+        IReadOnlyList<SessionRecord> activeRecords,
+        CancellationToken cancellationToken)
+    {
+        foreach (var record in activeRecords)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if ((!string.Equals(record.Status, "active", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(record.Status, "patch_in_progress", StringComparison.OrdinalIgnoreCase))
+                || record.BioRandPatchFiles.Count == 0)
+            {
+                continue;
+            }
+
+            foreach (var patchFile in record.BioRandPatchFiles)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!TryGetRecordedBioRandPatchPath(record, patchFile, out var fullPath))
+                {
+                    Log($"Skipped unsafe or non-BioRand recorded patch path {patchFile.RelativePath} while switching to Mercenaries Only.");
+                    continue;
+                }
+
+                try
+                {
+                    if (!File.Exists(fullPath))
+                    {
+                        continue;
+                    }
+
+                    File.Delete(fullPath);
+                    Log($"Removed previous launcher-managed BioRand patch file {patchFile.RelativePath} for Mercenaries Only.");
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    throw new WorkflowException(
+                        WorkflowStep.InstallLuaModFiles,
+                        $"Could not remove previous BioRand patch file {patchFile.RelativePath}. Close RE4R and try again.",
+                        ex);
+                }
+            }
+        }
+    }
+
+    private static bool TryGetRecordedBioRandPatchPath(
+        SessionRecord record,
+        StagedFileEntry patchFile,
+        out string fullPath)
+    {
+        fullPath = string.Empty;
+        if (string.IsNullOrWhiteSpace(record.InstallPathAtPatch)
+            || string.IsNullOrWhiteSpace(patchFile.RelativePath)
+            || Path.IsPathRooted(patchFile.RelativePath))
+        {
+            return false;
+        }
+
+        var relativePath = patchFile.RelativePath
+            .Replace('/', Path.DirectorySeparatorChar)
+            .Replace('\\', Path.DirectorySeparatorChar);
+        var fileName = Path.GetFileName(relativePath);
+        if (!fileName.StartsWith("re_chunk_", StringComparison.OrdinalIgnoreCase)
+            || !fileName.EndsWith(".pak", StringComparison.OrdinalIgnoreCase)
+            || !fileName.Contains(".pak.patch_", StringComparison.OrdinalIgnoreCase)
+            || relativePath.Contains($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var root = Path.GetFullPath(record.InstallPathAtPatch)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            + Path.DirectorySeparatorChar;
+        fullPath = Path.GetFullPath(Path.Combine(record.InstallPathAtPatch, relativePath));
+        return fullPath.StartsWith(root, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(Path.GetDirectoryName(fullPath)?.TrimEnd(Path.DirectorySeparatorChar), root.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase);
+    }
+
     private async Task<ArchipelagoScoutSessionResult> ScoutAsync(
         LaunchWorkflowRequest request,
         StaticGameData staticData,
@@ -625,10 +759,17 @@ public sealed class LaunchWorkflowService
                 }
             }
 
-            Log(
-                $"Scout summary: {result.Locations.Count} assignments received, " +
-                $"{realOwnCount} own RE4R items, {placeholderCount} placeholder items for other players, " +
-                $"{skippedNoGuidCount} no-GUID locations that will be skipped by the BioRand manifest.");
+            if (IsMercenariesOnly(result))
+            {
+                Log($"Scout summary: {result.Locations.Count} assignments received for Mercenaries Only; no BioRand manifest will be built.");
+            }
+            else
+            {
+                Log(
+                    $"Scout summary: {result.Locations.Count} assignments received, " +
+                    $"{realOwnCount} own RE4R items, {placeholderCount} placeholder items for other players, " +
+                    $"{skippedNoGuidCount} no-GUID locations that will be skipped by the BioRand manifest.");
+            }
             return result;
         }
         catch (ArchipelagoScoutException ex)
@@ -711,6 +852,18 @@ public sealed class LaunchWorkflowService
                 ResumeValidated: false);
         }
 
+        // A mode change changes whether campaign BioRand files are valid. Never
+        // resume a campaign record as Mercenaries Only (or vice versa).
+        if (IsMercenariesOnly(scoutResult)
+            != string.Equals(sameSessionRecord.GameMode, "mercenaries_only", StringComparison.OrdinalIgnoreCase))
+        {
+            Log("Existing session mode changed. Re-patching instead of resuming the previous mode.");
+            return new SessionDecisionResult(
+                SessionKey: sessionKey,
+                SessionRecord: sameSessionRecord,
+                ResumeValidated: false);
+        }
+
         if (request.ChooseResumeActionAsync is null)
         {
             throw new WorkflowException(
@@ -747,6 +900,7 @@ public sealed class LaunchWorkflowService
             sameSessionRecord,
             prerequisites,
             request,
+            IsMercenariesOnly(scoutResult),
             cancellationToken);
 
         if (!resumeValidation.IsValid)
@@ -769,9 +923,11 @@ public sealed class LaunchWorkflowService
         SessionRecord sessionRecord,
         PrerequisiteValidationResult prerequisites,
         LaunchWorkflowRequest request,
+        bool mercenariesOnly,
         CancellationToken cancellationToken)
     {
-        if (!string.Equals(
+        if (!mercenariesOnly
+            && !string.Equals(
                 sessionRecord.GameFingerprintAtPatch.FingerprintHash,
                 request.CurrentGameFingerprint.FingerprintHash,
                 StringComparison.Ordinal))
@@ -779,7 +935,10 @@ public sealed class LaunchWorkflowService
             Log("Resume check: game fingerprint mismatch.");
             return new ResumeValidationResult(false, "The game fingerprint changed since the last patch.");
         }
-        Log("Resume check: game fingerprint matches the last patch.");
+        if (!mercenariesOnly)
+        {
+            Log("Resume check: game fingerprint matches the last patch.");
+        }
 
         if (!string.Equals(sessionRecord.WorldVersion, prerequisites.StaticData.WorldVersion, StringComparison.Ordinal))
         {
@@ -795,11 +954,10 @@ public sealed class LaunchWorkflowService
         }
         Log("Resume check: bundled static data hash matches the last patch.");
 
-        var patchFilesValid = await VerifyInstalledFilesAsync(
-            request.Re4rInstallPath,
-            sessionRecord.BioRandPatchFiles,
-            cancellationToken);
-        if (!patchFilesValid)
+        if (!mercenariesOnly && !await VerifyInstalledFilesAsync(
+                request.Re4rInstallPath,
+                sessionRecord.BioRandPatchFiles,
+                cancellationToken))
         {
             return new ResumeValidationResult(false, "BioRand patch files no longer match the recorded hashes.");
         }
@@ -979,7 +1137,7 @@ public sealed class LaunchWorkflowService
         BioRandGenerationResult generationResult,
         InstallResult patchInstallResult,
         InstallResult luaInstallResult,
-        LauncherSettings settings,
+        LauncherSettings? settings,
         BioRandOptions effectiveOptions,
         int bioRandSeed,
         SessionRecord? priorRecord,
@@ -996,6 +1154,7 @@ public sealed class LaunchWorkflowService
 
         var luaFiles = await BuildLuaSessionFilesAsync(cancellationToken).ConfigureAwait(false);
 
+        var isMercOnly = IsMercenariesOnly(scoutResult);
         return new SessionRecord
         {
             SessionKey = ComputeSessionKey(request, scoutResult),
@@ -1007,6 +1166,7 @@ public sealed class LaunchWorkflowService
             HostedPort = request.IsHostedSession ? TryExtractPort(scoutResult.NormalizedServer) : null,
             SlotName = request.SlotName,
             SeedName = scoutResult.SeedName,
+            GameMode = scoutResult.GameMode,
             Status = "active",
             CreatedAtUtc = priorRecord?.CreatedAtUtc ?? _utcNow(),
             LastOpenedAtUtc = _utcNow(),
@@ -1015,16 +1175,16 @@ public sealed class LaunchWorkflowService
             StaticDataHash = prerequisites.StaticDataHash,
             InstallPathAtPatch = request.Re4rInstallPath,
             GameFingerprintAtPatch = GameFingerprint.Sanitize(request.CurrentGameFingerprint),
-            BioRandVersionAtPatch = generationResult.BioRandVersionDescriptor,
-            BioRandGameVersionAtPatch = request.GameVersion,
-            SetupGameFingerprintAtPatch = settings.SetupGameFingerprint,
-            SetupCompletedAtUtc = settings.SetupCompletedAtUtc,
-            SetupBioRandVersionAtPatch = settings.SetupBioRandVersion,
-            PlaceholderItemId = prerequisites.StaticData.PlaceholderItemId,
+            BioRandVersionAtPatch = isMercOnly ? "N/A" : generationResult.BioRandVersionDescriptor,
+            BioRandGameVersionAtPatch = isMercOnly ? "N/A" : request.GameVersion,
+            SetupGameFingerprintAtPatch = isMercOnly ? "N/A" : settings?.SetupGameFingerprint ?? "N/A",
+            SetupCompletedAtUtc = isMercOnly ? null : settings?.SetupCompletedAtUtc,
+            SetupBioRandVersionAtPatch = isMercOnly ? "N/A" : settings?.SetupBioRandVersion ?? "N/A",
+            PlaceholderItemId = isMercOnly ? 0 : prerequisites.StaticData.PlaceholderItemId,
             ScoutedLocationCount = scoutResult.Locations.Count,
             GuidManifestLocationCount = manifestResult.GuidPlacementCount,
             NoGuidSkippedLocationCount = manifestResult.SkippedNoGuidLocationCount,
-            BioRandSeed = bioRandSeed,
+            BioRandSeed = isMercOnly ? 0 : bioRandSeed,
             BioRandOptions = BioRandOptions.Sanitize(effectiveOptions),
             BioRandPatchFiles = patchFiles,
             LuaCopyFiles = luaFiles,
@@ -1045,6 +1205,7 @@ public sealed class LaunchWorkflowService
         int bioRandSeed,
         SessionRecord? priorRecord)
     {
+        var isMercOnly = IsMercenariesOnly(scoutResult);
         return new SessionRecord
         {
             SessionKey = ComputeSessionKey(request, scoutResult),
@@ -1055,6 +1216,7 @@ public sealed class LaunchWorkflowService
             IsHostedSession = request.IsHostedSession,
             SlotName = request.SlotName,
             SeedName = scoutResult.SeedName,
+            GameMode = scoutResult.GameMode,
             Status = "patch_in_progress",
             CreatedAtUtc = priorRecord?.CreatedAtUtc ?? _utcNow(),
             LastOpenedAtUtc = _utcNow(),
@@ -1063,8 +1225,13 @@ public sealed class LaunchWorkflowService
             StaticDataHash = prerequisites.StaticDataHash,
             InstallPathAtPatch = request.Re4rInstallPath,
             GameFingerprintAtPatch = GameFingerprint.Sanitize(request.CurrentGameFingerprint),
-            BioRandGameVersionAtPatch = request.GameVersion,
-            BioRandSeed = bioRandSeed,
+            BioRandVersionAtPatch = isMercOnly ? "N/A" : string.Empty,
+            BioRandGameVersionAtPatch = isMercOnly ? "N/A" : request.GameVersion,
+            SetupGameFingerprintAtPatch = isMercOnly ? "N/A" : string.Empty,
+            SetupCompletedAtUtc = null,
+            SetupBioRandVersionAtPatch = isMercOnly ? "N/A" : string.Empty,
+            PlaceholderItemId = isMercOnly ? 0 : prerequisites.StaticData.PlaceholderItemId,
+            BioRandSeed = isMercOnly ? 0 : bioRandSeed,
             BioRandOptions = BioRandOptions.Sanitize(effectiveOptions),
         };
     }
@@ -1147,15 +1314,19 @@ public sealed class LaunchWorkflowService
                 continue;
             }
 
-            var fullPath = Path.Combine(record.InstallPathAtPatch, patchFile.RelativePath);
+            if (!TryGetRecordedBioRandPatchPath(record, patchFile, out var fullPath))
+            {
+                Log($"Skipped unsafe or non-BioRand recorded patch path {patchFile.RelativePath} during vanilla restore.");
+                continue;
+            }
             try
             {
                 if (File.Exists(fullPath))
                 {
                     File.Delete(fullPath);
                     Log($"Removed BioRand patch file {patchFile.RelativePath} to restore vanilla RE4R.");
+                    removed++;
                 }
-                removed++;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -1484,8 +1655,7 @@ public sealed class LaunchWorkflowService
 
     private sealed record PrerequisiteValidationResult(
         StaticGameData StaticData,
-        string StaticDataHash,
-        string BioRandVersionDescriptor);
+        string StaticDataHash);
 
     private sealed record SessionDecisionResult(
         bool Cancelled = false,

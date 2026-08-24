@@ -62,6 +62,7 @@ local function install(ctx)
     local STATE_RESULT_PIPELINE = "RESULT_PIPELINE"
     local STATE_RESULT_READY = "RESULT_READY"
     local STATE_RESULT_CONSUMED = "RESULT_CONSUMED"
+    local STATE_RESULT_REJECTED = "RESULT_REJECTED"
 
     local merc_state = {
         lifecycle = STATE_IDLE,
@@ -70,6 +71,10 @@ local function install(ctx)
         consumed_result_epoch = -1,
         ready_result_epoch = -1,
         result_payload = nil,
+        last_valid_run_identity = nil,
+        expected_result_identity = nil,
+        result_identity_retry_count = 0,
+        result_identity_failure_epoch = -1,
     }
 
     local ownership = {
@@ -444,6 +449,43 @@ local function install(ctx)
     end
     export("get_mercenaries_checklist", get_mercenaries_checklist)
 
+    -- Capture run identity from the live controller before result GUI fields can
+    -- lag or retain a previous run's OpenParam.
+    local function get_live_result_identity()
+        local ok, identity = pcall(function()
+            local controller = get_merc_controller()
+            if controller == nil then return nil end
+            local stage_kind = get_safe_int(controller, "get_StageKind", -1)
+            if stage_kind < 0 then stage_kind = get_safe_field_int(controller, "_StageKind", -1) end
+            local chara_kind = get_safe_field_int(controller, "_PlayerCharacterKind", -1)
+            local costume_id = get_safe_field_int(controller, "_PlayerCharacterCostumeId", -1)
+            if type(stage_kind) ~= "number" or stage_kind ~= math.floor(stage_kind)
+                or STAGE_KIND_NAMES[stage_kind] == nil then
+                return nil
+            end
+            if type(chara_kind) ~= "number" or chara_kind ~= math.floor(chara_kind)
+                or type(costume_id) ~= "number" or costume_id ~= math.floor(costume_id)
+                or CHAR_COSTUME_TO_ROSTER[string.format("%d:%d", chara_kind, costume_id)] == nil then
+                return nil
+            end
+            return {
+                stage_kind = stage_kind,
+                chara_kind = chara_kind,
+                costume_id = costume_id,
+            }
+        end)
+        return ok and identity or nil
+    end
+
+    local function copy_result_identity(identity)
+        if type(identity) ~= "table" then return nil end
+        return {
+            stage_kind = identity.stage_kind,
+            chara_kind = identity.chara_kind,
+            costume_id = identity.costume_id,
+        }
+    end
+
     local function get_current_merc_play_info()
         local ok, result = pcall(function()
             local controller = get_merc_controller()
@@ -489,6 +531,7 @@ local function install(ctx)
     export("get_current_merc_play_info", get_current_merc_play_info)
 
     local result_error_counts = {}
+    local MAX_RESULT_IDENTITY_RETRIES = 5
     local function bounded_result_error(epoch, kind, detail)
         local key = tostring(epoch) .. ":" .. tostring(kind)
         local count = (result_error_counts[key] or 0) + 1
@@ -498,10 +541,37 @@ local function install(ctx)
         end
     end
 
+    local function reject_result_identity(detail)
+        local epoch = merc_state.result_epoch
+        if merc_state.result_identity_failure_epoch ~= epoch then
+            merc_state.result_identity_failure_epoch = epoch
+            log.warn(string.format(
+                "[Merc AP] result score checks rejected: no matching run identity (%s)",
+                tostring(detail)))
+        end
+        merc_state.lifecycle = STATE_RESULT_REJECTED
+        merc_state.result_payload = nil
+    end
+
     local function read_open_param_int(open_param, getter_name, field_name, fallback)
         local value = get_safe_int(open_param, getter_name, fallback)
         if value ~= fallback then return value end
         return get_safe_field_int(open_param, field_name, fallback)
+    end
+
+    local function read_open_param_identity(open_param)
+        local stage_kind = read_open_param_int(open_param, "get_Stage", "Stage", -1)
+        local chara_kind = read_open_param_int(open_param, "get_PlChara", "PlChara", -1)
+        local costume_id = read_open_param_int(open_param, "get_PlCostumeId", "PlCostumeId", -1)
+        if STAGE_KIND_NAMES[stage_kind] == nil then return nil, "invalid Stage" end
+        if CHAR_COSTUME_TO_ROSTER[string.format("%d:%d", chara_kind, costume_id)] == nil then
+            return nil, "invalid PlChara/costume mapping"
+        end
+        return {
+            stage_kind = stage_kind,
+            chara_kind = chara_kind,
+            costume_id = costume_id,
+        }
     end
 
     local function read_total_score(open_param)
@@ -515,13 +585,12 @@ local function install(ctx)
 
     local function build_result_payload(open_param)
         if open_param == nil then return nil, "OpenParam unavailable" end
-        local stage_kind = read_open_param_int(open_param, "get_Stage", "Stage", -1)
-        local chara_kind = read_open_param_int(open_param, "get_PlChara", "PlChara", -1)
-        if STAGE_KIND_NAMES[stage_kind] == nil then return nil, "invalid Stage" end
-
-        local costume_id = read_open_param_int(open_param, "get_PlCostumeId", "PlCostumeId", -1)
+        local identity, identity_error = read_open_param_identity(open_param)
+        if identity == nil then return nil, identity_error end
+        local stage_kind = identity.stage_kind
+        local chara_kind = identity.chara_kind
+        local costume_id = identity.costume_id
         local roster = CHAR_COSTUME_TO_ROSTER[string.format("%d:%d", chara_kind, costume_id)]
-        if roster == nil then return nil, "invalid PlChara/costume mapping" end
 
         local rank = read_open_param_int(open_param, "get_Rank", "Rank", -1)
         local rank_name = SCORE_RANK_NAMES[rank]
@@ -609,6 +678,11 @@ local function install(ctx)
     end
 
     local function poll_result_pipeline()
+        if merc_state.lifecycle == STATE_RESULT_PIPELINE
+            and merc_state.expected_result_identity == nil then
+            reject_result_identity("live identity unavailable")
+            return
+        end
         local result_gui = get_result_gui_behavior()
         if result_gui == nil then return end
         local open_param = nil
@@ -619,6 +693,27 @@ local function install(ctx)
         end
 
         if merc_state.lifecycle == STATE_RESULT_PIPELINE then
+            local expected = merc_state.expected_result_identity
+            local open_identity, identity_error = read_open_param_identity(open_param)
+            if open_identity == nil then
+                merc_state.result_identity_retry_count = merc_state.result_identity_retry_count + 1
+                if merc_state.result_identity_retry_count <= MAX_RESULT_IDENTITY_RETRIES then
+                    return
+                end
+                reject_result_identity(identity_error)
+                return
+            end
+            if open_identity.stage_kind ~= expected.stage_kind
+                or open_identity.chara_kind ~= expected.chara_kind
+                or open_identity.costume_id ~= expected.costume_id then
+                merc_state.result_identity_retry_count = merc_state.result_identity_retry_count + 1
+                if merc_state.result_identity_retry_count <= MAX_RESULT_IDENTITY_RETRIES then
+                    return
+                end
+                reject_result_identity(string.format(
+                    "OpenParam remained stale after %d retries", MAX_RESULT_IDENTITY_RETRIES))
+                return
+            end
             local payload, payload_error = build_result_payload(open_param)
             if payload == nil then
                 bounded_result_error(merc_state.result_epoch, "payload", payload_error)
@@ -653,6 +748,9 @@ local function install(ctx)
         if merc_manager == nil then
             merc_state.last_is_result = false
             if merc_state.lifecycle ~= STATE_RESULT_CONSUMED then merc_state.lifecycle = STATE_IDLE end
+            merc_state.last_valid_run_identity = nil
+            merc_state.expected_result_identity = nil
+            merc_state.result_identity_retry_count = 0
             return
         end
 
@@ -661,11 +759,34 @@ local function install(ctx)
             merc_state.result_epoch = merc_state.result_epoch + 1
             merc_state.ready_result_epoch = -1
             merc_state.result_payload = nil
+            -- Freeze identity captured during active gameplay. Do not query the
+            -- controller at this edge: game transition can already have torn it down.
+            merc_state.expected_result_identity = copy_result_identity(
+                merc_state.last_valid_run_identity)
+            merc_state.result_identity_retry_count = 0
             merc_state.lifecycle = STATE_RESULT_PIPELINE
             log.info(string.format("[Merc AP] result pipeline entered: epoch=%d", merc_state.result_epoch))
         elseif not is_result then
+            local routine = get_safe_int(merc_manager, "get_Routine", -1)
+            if merc_state.last_is_result then
+                -- Result transition ends prior run. Do not reuse its identity for
+                -- a later result; next active run repopulates cache.
+                merc_state.last_valid_run_identity = nil
+            else
+                -- Preserve cache across transient invalid-controller gaps. A valid
+                -- controller identity is authoritative even when Routine getter is
+                -- unavailable; clear only after both active routine and controller end.
+                local live_identity = get_live_result_identity()
+                if live_identity ~= nil then
+                    merc_state.last_valid_run_identity = live_identity
+                elseif routine < 0 and get_merc_controller() == nil then
+                    merc_state.last_valid_run_identity = nil
+                end
+            end
             merc_state.lifecycle = STATE_IDLE
             merc_state.result_payload = nil
+            merc_state.expected_result_identity = nil
+            merc_state.result_identity_retry_count = 0
         end
         merc_state.last_is_result = is_result
 
@@ -690,13 +811,13 @@ local function install(ctx)
     local hooks_installed = false
     local hooked_functions = {}
     local decision_delegates = {}
-    local decision_hooked_native_keys = {}
+    local decision_hooked_function_keys = {}
+    local decision_unresolved_logged = false
     local on_decided_pre
 
     local DECISION_DELEGATE_TYPE =
         "System.Action`1<chainsaw.Cp1021CharacterSelectMenuActionType>"
     local DECISION_ACTION_TYPE = "chainsaw.Cp1021CharacterSelectMenuActionType"
-    local DECISION_INVOKE_NATIVE = 5369594608
 
     local function safe_hook_unique(method, pre, post)
         if method == nil then return false end
@@ -766,12 +887,27 @@ local function install(ctx)
         local ok_return = pcall(function() return_type = method:get_return_type() end)
         if not ok_return or get_type_full_name(return_type) ~= "System.Void" then return false end
 
-        local native = nil
-        local ok_native = pcall(function() native = method:get_function() end)
-        local native_int64 = nil
-        local ok_native_int64 = ok_native and pcall(function() native_int64 = sdk.to_int64(native) end)
-        if not ok_native_int64 or tonumber(native_int64) ~= DECISION_INVOKE_NATIVE then return false end
         return true
+    end
+
+    -- Native addresses are runtime data only: use them for hook dedupe/logging,
+    -- never as semantic method validation.
+    local function get_decision_function_key(method)
+        local function_ptr = nil
+        pcall(function() function_ptr = method:get_function() end)
+        local native_int64 = nil
+        if function_ptr ~= nil and pcall(function() native_int64 = sdk.to_int64(function_ptr) end)
+            and native_int64 ~= nil then
+            return tostring(native_int64), tostring(native_int64)
+        end
+        return tostring(method), tostring(function_ptr or method)
+    end
+
+    local function log_decision_unresolved(detail)
+        if decision_unresolved_logged then return end
+        decision_unresolved_logged = true
+        log.warn("[Merc AP Gating] OnDecided Invoke unresolved; keeping vanilla character selection ("
+            .. tostring(detail) .. ")")
     end
 
     local function get_live_on_decided(gui)
@@ -785,15 +921,16 @@ local function install(ctx)
     end
 
     local function install_decision_invoke_hook(invoke_method)
-        if decision_hooked_native_keys[tostring(DECISION_INVOKE_NATIVE)] then return true end
+        local function_key, function_log = get_decision_function_key(invoke_method)
+        if decision_hooked_function_keys[function_key] then return true end
         local ok, hook_result = pcall(function()
             return sdk.hook(invoke_method, on_decided_pre, function(retval) return retval end)
         end)
         if not ok or hook_result == false then
-            log.warn("[Merc AP Gating] OnDecided hook failed")
+            log_decision_unresolved("hook failed for function " .. function_log)
             return false
         end
-        decision_hooked_native_keys[tostring(DECISION_INVOKE_NATIVE)] = true
+        decision_hooked_function_keys[function_key] = true
         return true
     end
 
@@ -877,7 +1014,10 @@ local function install(ctx)
                 invoke_count = invoke_count + 1
             end
         end
-        if invoke_count ~= 1 or invoke_method == nil then return end
+        if invoke_count ~= 1 or invoke_method == nil then
+            log_decision_unresolved("expected exactly one semantic Invoke overload")
+            return
+        end
         if not install_decision_invoke_hook(invoke_method) then return end
         decision_delegates[delegate_id] = { delegate = delegate, gui = gui }
     end

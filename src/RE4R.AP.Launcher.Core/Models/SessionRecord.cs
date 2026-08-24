@@ -35,6 +35,13 @@ public sealed class SessionRecord
     [JsonPropertyName("seed_name")]
     public string SeedName { get; set; } = string.Empty;
 
+    /// <summary>
+    /// AP-authored room mode. Missing legacy values default to campaign for
+    /// safety.
+    /// </summary>
+    [JsonPropertyName("game_mode")]
+    public string GameMode { get; set; } = "campaign";
+
     // One of: "patch_in_progress" (breadcrumb written before game files are
     // touched; survives a crash mid-patch), "active", "superseded", "finished".
     [JsonPropertyName("status")]

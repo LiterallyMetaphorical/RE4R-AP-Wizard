@@ -3,8 +3,9 @@
 -- can reach ctx (injection / runtime / per-seed session store).
 --
 -- Phase 2d: received items -> in-game injection.
---   * on_items_received enqueues each item by its absolute item.index, filtering
---     index <= the persisted watermark (bridge.last_received_index) and dupes.
+--   * on_items_received validates each absolute item.index independently from the
+--     ordered delivery watermark, reconstructs Mercenaries ownership for every
+--     known mapped Merc item, and queues only indexes newer than the watermark.
 --   * the poll tick drains the queue, gated on runtime.lua safe-state, in strict
 --     contiguous index order, bounded per tick.
 --   * own-world physical pickups (item.player == our numeric slot AND
@@ -170,8 +171,17 @@ return function(ctx)
             and value == math.floor(value)
     end
 
-    local function valid_received_index(index, watermark)
-        return is_integral_number(index) and index > watermark
+    -- Packet/replay validity is separate from ordered delivery eligibility. A
+    -- replayed old Merc item still reconstructs ownership; only physical delivery
+    -- is gated by the persisted contiguous watermark.
+    local function valid_received_index(index)
+        return is_integral_number(index) and index >= 0
+    end
+
+    local function is_new_received_index(index, watermark)
+        return valid_received_index(index)
+            and is_integral_number(watermark)
+            and index > watermark
     end
 
     local function room_location_contains(location_set, location_id)
@@ -839,7 +849,7 @@ return function(ctx)
         if not st.in_sync_burst then
             local new_pending = 0
             for _, e in ipairs(pending) do
-                if type(e.index) == "number" and e.index > bridge.last_received_index then
+                if is_new_received_index(e.index, bridge.last_received_index) then
                     new_pending = new_pending + 1
                     if new_pending > threshold then st.in_sync_burst = true break end
                 end
@@ -856,7 +866,7 @@ return function(ctx)
             local entry = pending[1]
             local idx = entry.index
 
-            if not is_integral_number(idx) then
+            if not valid_received_index(idx) then
                 warn("dropping queued item with non-integer index")
                 pop_head(nil)
                 processed = processed + 1
@@ -1071,7 +1081,7 @@ return function(ctx)
         if st.in_sync_burst then
             local more_new = false
             for _, e in ipairs(pending) do
-                if type(e.index) == "number" and e.index > bridge.last_received_index then
+                if is_new_received_index(e.index, bridge.last_received_index) then
                     more_new = true break
                 end
             end
@@ -1565,22 +1575,6 @@ return function(ctx)
             if type(install_hooks) == "function" then
                 install_hooks()
             end
-            -- Replay received ledger for Mercenaries unlocks
-            local handle_item = ctx.handle_merc_item_received or _G.handle_merc_item_received
-            local replay_watermark = (ctx.bridge and tonumber(ctx.bridge.last_received_index)) or -1
-            if type(handle_item) == "function" and type(received_ledger) == "table" then
-                for index, rec in pairs(received_ledger) do
-                    if valid_received_index(index, replay_watermark)
-                        and type(rec) == "table" and rec.item ~= nil then
-                        local mapping = ap_item_map[rec.item]
-                        if get_item_source(rec.item, mapping) == "MERCENARIES"
-                            and type(mapping) == "table"
-                            and type(mapping.name) == "string" and mapping.name ~= "" then
-                            handle_item(mapping.name)
-                        end
-                    end
-                end
-            end
         end
         -- Capture our NUMERIC slot + seed and establish the per-seed session
 
@@ -1614,7 +1608,7 @@ return function(ctx)
         end
         pending = {}
         pending_by_index = {}
-        received_ledger = {} -- [F8] fresh identity: rebuilt from the on-connect replay
+        received_ledger = {} -- [F8] fresh identity: rebuilt from ReceivedItems packets
         inject_failure_counts = {}
         unresolved_merc_items_logged = {}
         st.item_delivery_resume_not_before = nil
@@ -1779,17 +1773,17 @@ return function(ctx)
         local watermark = (bridge and tonumber(bridge.last_received_index)) or -1
         local queued, lo, hi = 0, nil, nil
 
-        -- [Mercenaries] Abstract ownership reconciliation side-channel:
-        -- Immediately and idempotently unlock any received Merc character/stage items,
-        -- completely independent of campaign inventory safety and active domain. Only
-        -- fresh, integral indexes with a known mapping name qualify here.
+        -- [Mercenaries] Ownership reconstruction side-channel: every valid packet
+        -- index with a known Merc mapping name qualifies, including old replayed
+        -- indexes. Per-packet dedupe prevents repeated entries from spamming the
+        -- handler; ownership handler itself remains idempotent.
         local handle_merc = ctx.handle_merc_item_received or _G.handle_merc_item_received
         if type(handle_merc) == "function" then
             local side_channel_indexes = {}
             for _, item in ipairs(items) do
                 local item_id = type(item) == "table" and item.item or nil
                 local index = type(item) == "table" and item.index or nil
-                if item_id ~= nil and valid_received_index(index, watermark)
+                if item_id ~= nil and valid_received_index(index)
                     and not side_channel_indexes[index] then
                     local mapping = ap_item_map[item_id]
                     if get_item_source(item_id, mapping) == "MERCENARIES"
@@ -1804,7 +1798,7 @@ return function(ctx)
 
         for _, item in ipairs(items) do
             local idx = type(item) == "table" and item.index or nil
-            if is_integral_number(idx) then
+            if valid_received_index(idx) then
                 -- [F8] Ledger every delivered item (independent of the watermark) so
                 -- a save rollback can re-queue items already popped from `pending`.
                 received_ledger[idx] = {
@@ -1813,7 +1807,7 @@ return function(ctx)
                     location = item.location,
                     flags = item.flags,
                 }
-                if idx > watermark and not pending_by_index[idx] then
+                if is_new_received_index(idx, watermark) and not pending_by_index[idx] then
                     pending[#pending + 1] = {
                         index = idx,
                         item = item.item,
@@ -1912,7 +1906,6 @@ return function(ctx)
             info("DeathLink: bounce had no DeathLink tag -- ignored")
             return
         end
-
         local data = bounce.data
         if type(data) ~= "table" then
             info("DeathLink: bounce data is " .. type(data) .. ", not a table -- ignored")
@@ -2108,7 +2101,11 @@ return function(ctx)
     -- rising edge of the player's IsDead flag; apply a queued incoming death once we
     -- reach a safe gameplay state.
     local function poll_deathlink()
-        if not st.death_link_enabled then return end
+        if not st.death_link_enabled then
+            st.dl_pending_incoming = nil
+            st.dl_last_dead = false
+            return
+        end
 
         local get_is_dead = ctx.get_player_is_dead
         if type(get_is_dead) == "function" then

@@ -33,6 +33,13 @@ public sealed class LaunchWorkflowRequest
 
     public Func<string, Task>? NotifyAsync { get; set; }
 
+    /// <summary>
+    /// Asked after scouting, and only for Campaign or Campaign + Mercenaries
+    /// rooms. Mercenaries Only must remain able to pass the universal gate
+    /// without campaign-specific requirements.
+    /// </summary>
+    public Func<Task<bool>>? ConfirmCampaignSafetyAsync { get; set; }
+
     public Func<ExistingSessionConflictPrompt, Task<bool>>? ConfirmOverwriteDifferentSeedAsync { get; set; }
 
     public Func<ResumeSessionPrompt, Task<ResumeSessionDecision>>? ChooseResumeActionAsync { get; set; }
