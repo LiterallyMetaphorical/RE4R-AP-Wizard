@@ -490,6 +490,52 @@ local function install(ctx)
         return CHECK_OVERLAY_HEADER_HEIGHT + ((line_count - 1) * CHECK_OVERLAY_HEADER_MAIN_Y_OFFSET)
     end
 
+    -- Mercenary identity can disappear briefly while its runtime domain remains
+    -- active. Keep that state honest: show its aggregate progress, never a pair
+    -- inferred from an old controller result. This is shared by header, menu AP,
+    -- and toast placement so all three agree about occupied screen space.
+    local function get_active_merc_header()
+        local get_merc_info = ctx.get_current_merc_play_info or _G.get_current_merc_play_info
+        local ok_info, merc_info = false, nil
+        if type(get_merc_info) == "function" then
+            ok_info, merc_info = pcall(get_merc_info)
+        end
+        local stage_idx = type(merc_info) == "table" and tonumber(merc_info.stage_idx) or nil
+        local char_idx = type(merc_info) == "table" and tonumber(merc_info.char_idx) or nil
+        if stage_idx ~= nil and stage_idx >= 0 and char_idx ~= nil and char_idx >= 0
+            and trim_string(merc_info.stage_name) ~= "" and trim_string(merc_info.char_name) ~= "" then
+            return {
+                kind = "pair",
+                info = merc_info,
+                display_height = CHECK_OVERLAY_HEADER_HEIGHT + (2 * CHECK_OVERLAY_HEADER_MAIN_Y_OFFSET),
+            }
+        end
+
+        local get_domain = ctx.get_runtime_domain or _G.get_runtime_domain
+        local ok_domain, runtime_domain = false, nil
+        if type(get_domain) == "function" then
+            ok_domain, runtime_domain = pcall(get_domain)
+        end
+        if runtime_domain ~= "MERCENARIES" then
+            return nil
+        end
+
+        local get_checklist = ctx.get_mercenaries_checklist or _G.get_mercenaries_checklist
+        local ok_checklist, checklist = false, nil
+        if type(get_checklist) == "function" then
+            ok_checklist, checklist = pcall(get_checklist)
+        end
+        if type(checklist) == "table" and checklist.enabled == true then
+            return {
+                kind = "global",
+                checklist = checklist,
+                display_height = CHECK_OVERLAY_HEADER_HEIGHT + CHECK_OVERLAY_HEADER_MAIN_Y_OFFSET,
+            }
+        end
+
+        return nil
+    end
+
     -- Player-position -> section resolution is throttled: native transform reads
     -- and the label scan run at most every 0.25s, not per frame.
     local current_section_cache = {
@@ -531,23 +577,28 @@ local function install(ctx)
     end
 
     local function draw_check_progress_overlay()
-        local get_merc_info = ctx.get_current_merc_play_info or _G.get_current_merc_play_info
-        local merc_info = (type(get_merc_info) == "function") and get_merc_info() or nil
-
-        if merc_info ~= nil and merc_info.stage_idx >= 0 then
-            local header_text = string.format(
-                "The Mercenaries | %s - %s | %d/%d Checked",
-                merc_info.stage_name,
-                merc_info.char_name,
-                merc_info.done,
-                merc_info.total
-            )
-            local ranks_text = merc_info.ranks_str
+        local merc_header = get_active_merc_header()
+        if merc_header ~= nil then
+            local header_text
+            local ranks_text = nil
+            if merc_header.kind == "pair" then
+                local merc_info = merc_header.info
+                header_text = string.format(
+                    "The Mercenaries | %s - %s | %d/%d Checked",
+                    merc_info.stage_name,
+                    merc_info.char_name,
+                    merc_info.done,
+                    merc_info.total
+                )
+                ranks_text = merc_info.ranks_str or ""
+            else
+                header_text = string.format(
+                    "The Mercenaries | %d/%d Checked",
+                    tonumber(merc_header.checklist.found) or 0,
+                    tonumber(merc_header.checklist.total) or 0
+                )
+            end
             local ap_client_text, ap_client_color = build_ap_client_overlay_text()
-
-            local header_line_count = 1 + ((ranks_text ~= nil and ranks_text ~= "") and 1 or 0) + (ap_client_text ~= nil and 1 or 0)
-            local header_display_height = CHECK_OVERLAY_HEADER_HEIGHT + ((header_line_count - 1) * CHECK_OVERLAY_HEADER_MAIN_Y_OFFSET)
-
 
             local header_window_width = math.max(
                 CHECK_OVERLAY_HEADER_MIN_WIDTH,
@@ -561,7 +612,7 @@ local function install(ctx)
                 1
             )
             imgui.set_next_window_size(
-                Vector2f.new(header_window_width, header_display_height),
+                Vector2f.new(header_window_width, merc_header.display_height),
                 1
             )
             set_next_overlay_window_bg_alpha(0.0)
@@ -575,7 +626,7 @@ local function install(ctx)
                 header_window_width
             )
 
-            if ranks_text ~= nil and ranks_text ~= "" then
+            if ranks_text ~= nil then
                 draw_centered_overlay_segments(
                     {
                         { text = ranks_text, color = CHECK_OVERLAY_TEXT_COLOR_PROGRESS },
@@ -729,6 +780,10 @@ local function install(ctx)
     -- port recovery dialog - a player staring at a menu is precisely who needs
     -- to know the server is unreachable).
     local function draw_ap_status_menu_overlay()
+        if get_active_merc_header() ~= nil then
+            return -- Merc header already carries this line
+        end
+
         local state = bridge.last_state or {}
         if state.is_playable and type(state.current_stage) == "number" then
             return -- the in-game header already carries this line
@@ -759,7 +814,13 @@ local function install(ctx)
 
     local function draw_check_notification_overlays_polished()
         local state = bridge.last_state or {}
-        if not state.is_playable or type(state.current_stage) ~= "number" then
+        local get_domain = ctx.get_runtime_domain or _G.get_runtime_domain
+        local ok_domain, runtime_domain = false, nil
+        if type(get_domain) == "function" then
+            ok_domain, runtime_domain = pcall(get_domain)
+        end
+        local is_merc_runtime = ok_domain and runtime_domain == "MERCENARIES"
+        if not is_merc_runtime and (not state.is_playable or type(state.current_stage) ~= "number") then
             return
         end
 
@@ -778,7 +839,11 @@ local function install(ctx)
         local FADE_OUT_MS = 650
         local life_ms = tonumber(CHECK_NOTIFICATION_DURATION_MS) or 4500
 
-        local base_y = CHECK_OVERLAY_MARGIN_Y + get_check_overlay_header_display_height(state.current_stage) + CHECK_OVERLAY_GAP_Y
+        local merc_header = is_merc_runtime and get_active_merc_header() or nil
+        local header_display_height = is_merc_runtime
+            and (merc_header ~= nil and merc_header.display_height or 0)
+            or get_check_overlay_header_display_height(state.current_stage)
+        local base_y = CHECK_OVERLAY_MARGIN_Y + header_display_height + CHECK_OVERLAY_GAP_Y
 
         for index, notification in ipairs(notifications) do
             local toast_alpha = 1.0
@@ -993,6 +1058,7 @@ local function install(ctx)
     export("build_pickup_probe_detail_text", build_pickup_probe_detail_text)
     export("get_active_check_notifications", get_active_check_notifications)
     export("get_check_overlay_header_display_height", get_check_overlay_header_display_height)
+    export("get_active_merc_header", get_active_merc_header)
     export("draw_check_progress_overlay", draw_check_progress_overlay)
     export("draw_ap_status_menu_overlay", draw_ap_status_menu_overlay)
     export("draw_check_notification_overlays_polished", draw_check_notification_overlays_polished)

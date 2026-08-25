@@ -470,12 +470,17 @@ local function install(ctx)
         return set[location_id] == true or set[tostring(location_id)] == true
     end
 
+    local function is_merc_location_completed(location_id)
+        if location_id == nil then return false end
+        return get_location_checked(bridge.checked_locations or {}, location_id)
+            or get_location_checked(bridge.mercenaries_completed_locations or {}, location_id)
+    end
+
     local function get_mercenaries_checklist()
         local slot_data = ctx.slot_data or bridge.slot_data
         local merc_data = type(slot_data) == "table" and slot_data.mercenaries or nil
         local score_checks_mode = get_score_checks_mode(slot_data)
         local rank_names = get_active_rank_names(score_checks_mode)
-        local checked_set = bridge.checked_locations or {}
         local stages = {}
         local grand_found, grand_total = 0, 0
 
@@ -489,7 +494,7 @@ local function install(ctx)
                 local char_found = 0
                 for _, rank_name in ipairs(rank_names) do
                     local location_id = get_merc_location_id(char_name, stage_name, rank_name, slot_data)
-                    local checked = location_id ~= nil and get_location_checked(checked_set, location_id)
+                    local checked = is_merc_location_completed(location_id)
                     if checked then
                         char_found = char_found + 1
                         stage_found = stage_found + 1
@@ -583,7 +588,6 @@ local function install(ctx)
             local char_name = roster and roster.name or "Unknown"
             local slot_data = ctx.slot_data or bridge.slot_data
             local rank_names = get_active_rank_names(get_score_checks_mode(slot_data))
-            local checked_set = bridge.checked_locations or {}
             local done, rank_summary = 0, {}
 
             for _, rank_name in ipairs(rank_names) do
@@ -591,7 +595,7 @@ local function install(ctx)
                 if char_index >= 0 and STAGE_KIND_NAMES[stage_index] ~= nil then
                     location_id = get_merc_location_id(char_name, stage_name, rank_name, slot_data)
                 end
-                local checked = location_id ~= nil and get_location_checked(checked_set, location_id)
+                local checked = is_merc_location_completed(location_id)
                 if checked then
                     done = done + 1
                     rank_summary[#rank_summary + 1] = "[" .. rank_name .. ": OK]"

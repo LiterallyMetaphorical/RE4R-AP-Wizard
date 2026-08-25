@@ -778,63 +778,6 @@ return function(ctx)
             return
         end
 
-        local get_runtime_state = ctx.get_runtime_state
-        local inject_item_to_inventory = ctx.inject_item_to_inventory
-        local inject_command_succeeded = ctx.inject_command_succeeded
-        local inject_get_expected_commit_count = ctx.inject_get_expected_commit_count
-        local record_local_injection_suppression = ctx.record_local_injection_suppression
-        if type(get_runtime_state) ~= "function"
-            or type(inject_item_to_inventory) ~= "function"
-            or type(inject_command_succeeded) ~= "function" then
-            return
-        end
-
-        local runtime_state = get_runtime_state()
-        local runtime_clock = os.clock()
-        if not safe_to_inject(runtime_state) then
-            st.item_delivery_resume_not_before = runtime_clock + INVENTORY_STABILITY_SECONDS
-            st.item_delivery_stability_logged = false
-            return -- busy state: defer the whole drain, do not advance
-        end
-        -- [Character gate] The Ashley section runs its own inventories and
-        -- DISCARDS them when it ends - live 2026-07-30, items put in her main
-        -- grid and even in Storage were gone once Leon returned. Delivering
-        -- there would report an item received that the player never keeps, so
-        -- hold the whole queue until the campaign lead is back. Lossless: the
-        -- watermark does not advance, exactly like the busy-state defer above.
-        local is_default_character = ctx.inject_is_default_character_active
-            or _G.inject_is_default_character_active
-        if type(is_default_character) == "function" then
-            local ok_character, default_active = pcall(is_default_character)
-            if ok_character and not default_active then
-                if not st.item_delivery_character_logged then
-                    st.item_delivery_character_logged = true
-                    info("another character is playing (their inventory is discarded at section end) - holding received items until the campaign lead returns")
-                end
-                return -- do not advance
-            end
-            if ok_character and default_active and st.item_delivery_character_logged then
-                st.item_delivery_character_logged = false
-                info("campaign lead is back - resuming received-item delivery")
-            end
-        end
-        local resume_not_before = tonumber(st.item_delivery_resume_not_before)
-        if resume_not_before ~= nil and runtime_clock < resume_not_before then
-            if not st.item_delivery_stability_logged then
-                info(string.format(
-                    "inventory transition ended; deferring received items for %.1fs stability window",
-                    INVENTORY_STABILITY_SECONDS
-                ))
-                st.item_delivery_stability_logged = true
-            end
-            return
-        end
-        if resume_not_before ~= nil then
-            info("inventory state stable; resuming received-item delivery")
-            st.item_delivery_resume_not_before = nil
-            st.item_delivery_stability_logged = false
-        end
-
         table.sort(pending, function(a, b) return a.index < b.index end)
 
         local function pop_head(idx)
@@ -861,6 +804,12 @@ return function(ctx)
         if type(ctx.get_runtime_domain) == "function" then
             runtime_domain = ctx.get_runtime_domain()
         end
+        local campaign_delivery_ready = false
+        local get_runtime_state
+        local inject_item_to_inventory
+        local inject_command_succeeded
+        local inject_get_expected_commit_count
+        local record_local_injection_suppression
 
         while #pending > 0 and injected < MAX_INJECTS_PER_TICK and processed < MAX_ITEMS_PER_TICK do
             local entry = pending[1]
@@ -878,13 +827,6 @@ return function(ctx)
             else
                 local mapping = ap_item_map[entry.item]
                 local received_item_source = get_item_source(entry.item, mapping)
-                local received_location_source = get_location_source(entry.location)
-                local non_lead = type(bridge.non_lead_checked_locations) == "table"
-                    and bridge.non_lead_checked_locations[entry.location] == true
-                local is_own_find = received_item_source == "CAMPAIGN"
-                    and received_location_source == "CAMPAIGN"
-                    and entry.player == st.numeric_slot
-                    and not non_lead
 
                 if received_item_source == "MERCENARIES" then
                     -- Mercenaries unlock item: update ownership immediately, never inject into campaign inventory
@@ -906,21 +848,130 @@ return function(ctx)
                     need_flush = true
                     pop_head(idx)
                     processed = processed + 1
+                    -- [Overlay] Mercenaries ownership grants use the same received-item
+                    -- presentation as campaign grants, but never suppress self-finds: the
+                    -- Merc handler has no physical pickup toast to cover them.
+                    do
+                        local item_label = mapping.name
+                        local classification = classify_flags(entry.flags)
+                        local item_color = get_check_overlay_classification_color(classification)
+                        local sender = (type(entry.player) == "number"
+                            and entry.player > 0 and entry.player ~= st.numeric_slot)
+                            and ap_player_name(entry.player) or nil
+                        local title, title_segments
+                        if sender ~= nil then
+                            title = sender .. " sent you " .. item_label
+                            title_segments = {
+                                { text = truncate_overlay_text(sender, 18),
+                                  color = CHECK_OVERLAY_TEXT_COLOR_PLAYER, entity = "player" },
+                                { text = "sent you", color = CHECK_OVERLAY_TEXT_COLOR_FILLER },
+                                { text = truncate_overlay_text(item_label, 32),
+                                  color = item_color, entity = "item" },
+                            }
+                        else
+                            title = "Received " .. item_label
+                            title_segments = {
+                                { text = "Received", color = CHECK_OVERLAY_TEXT_COLOR_FILLER },
+                                { text = truncate_overlay_text(item_label, 32),
+                                  color = item_color, entity = "item" },
+                            }
+                        end
+                        local detail
+                        if mapping.kind == "merc_character" or mapping.kind == "merc_stage" then
+                            detail = "unlocked for The Mercenaries"
+                        end
+                        if st.in_sync_burst then
+                            bump_sync_summary(1, false)
+                        else
+                            enqueue_toast(title, detail, classification, "received", title_segments)
+                        end
+                    end
                     info(string.format("merc item received idx=%d ap=%s [%s]",
                         idx, tostring(entry.item), mapping and mapping.name or "merc_item"))
                 elseif runtime_domain == "MERCENARIES" then
                     -- In Mercenaries mode: defer campaign physical items until returned to campaign
                     break
-                elseif is_own_find then
-                    -- own-world physical pickup: BioRand already granted it in campaign
-                    info(string.format("own-find skip idx=%d ap=%s location=%d",
-                        idx, tostring(entry.item), entry.location))
-                    bridge.last_received_index = idx
-                    need_flush = true -- re-processing a skip is harmless; flush lazily
-                    pop_head(idx)
-                    processed = processed + 1
                 else
-                    -- Campaign physical item delivery
+                    -- Campaign-only inventory protections. Mercenaries grants reach their
+                    -- virtual ownership handler without any of these gates.
+                    if not campaign_delivery_ready then
+                        get_runtime_state = ctx.get_runtime_state
+                        inject_item_to_inventory = ctx.inject_item_to_inventory
+                        inject_command_succeeded = ctx.inject_command_succeeded
+                        inject_get_expected_commit_count = ctx.inject_get_expected_commit_count
+                        record_local_injection_suppression = ctx.record_local_injection_suppression
+                        if type(get_runtime_state) ~= "function"
+                            or type(inject_item_to_inventory) ~= "function"
+                            or type(inject_command_succeeded) ~= "function" then
+                            return
+                        end
+
+                        local runtime_state = get_runtime_state()
+                        local runtime_clock = os.clock()
+                        if not safe_to_inject(runtime_state) then
+                            st.item_delivery_resume_not_before = runtime_clock + INVENTORY_STABILITY_SECONDS
+                            st.item_delivery_stability_logged = false
+                            return -- busy state: defer the whole drain, do not advance
+                        end
+                        -- [Character gate] The Ashley section runs its own inventories and
+                        -- DISCARDS them when it ends - live 2026-07-30, items put in her main
+                        -- grid and even in Storage were gone once Leon returned. Delivering
+                        -- there would report an item received that the player never keeps, so
+                        -- hold the whole queue until the campaign lead is back. Lossless: the
+                        -- watermark does not advance, exactly like the busy-state defer above.
+                        local is_default_character = ctx.inject_is_default_character_active
+                            or _G.inject_is_default_character_active
+                        if type(is_default_character) == "function" then
+                            local ok_character, default_active = pcall(is_default_character)
+                            if ok_character and not default_active then
+                                if not st.item_delivery_character_logged then
+                                    st.item_delivery_character_logged = true
+                                    info("another character is playing (their inventory is discarded at section end) - holding received items until the campaign lead returns")
+                                end
+                                return -- do not advance
+                            end
+                            if ok_character and default_active and st.item_delivery_character_logged then
+                                st.item_delivery_character_logged = false
+                                info("campaign lead is back - resuming received-item delivery")
+                            end
+                        end
+                        local resume_not_before = tonumber(st.item_delivery_resume_not_before)
+                        if resume_not_before ~= nil and runtime_clock < resume_not_before then
+                            if not st.item_delivery_stability_logged then
+                                info(string.format(
+                                    "inventory transition ended; deferring received items for %.1fs stability window",
+                                    INVENTORY_STABILITY_SECONDS
+                                ))
+                                st.item_delivery_stability_logged = true
+                            end
+                            return
+                        end
+                        if resume_not_before ~= nil then
+                            info("inventory state stable; resuming received-item delivery")
+                            st.item_delivery_resume_not_before = nil
+                            st.item_delivery_stability_logged = false
+                        end
+                        campaign_delivery_ready = true
+                    end
+
+                    local received_location_source = get_location_source(entry.location)
+                    local non_lead = type(bridge.non_lead_checked_locations) == "table"
+                        and bridge.non_lead_checked_locations[entry.location] == true
+                    local is_own_find = received_item_source == "CAMPAIGN"
+                        and received_location_source == "CAMPAIGN"
+                        and entry.player == st.numeric_slot
+                        and not non_lead
+
+                    if is_own_find then
+                        -- own-world physical pickup: BioRand already granted it in campaign
+                        info(string.format("own-find skip idx=%d ap=%s location=%d",
+                            idx, tostring(entry.item), entry.location))
+                        bridge.last_received_index = idx
+                        need_flush = true -- re-processing a skip is harmless; flush lazily
+                        pop_head(idx)
+                        processed = processed + 1
+                    else
+                        -- Campaign physical item delivery
                     if mapping == nil or type(mapping.re4r_item_id) ~= "number" or mapping.re4r_item_id <= 0 then
                         -- Map is confirmed loaded (gated above), so this id is genuinely
                         -- unknown -> skip it (loud) so it can't block later items forever.
@@ -1097,6 +1148,8 @@ return function(ctx)
     -- slot-connected, tracking which ids we've sent this socket so we don't
     -- re-spam every frame. LocationChecks is idempotent server-side, so a resend
     -- never dupes (verified against the bundled server).
+    local reconcile_server_checked_locations
+
     local function drain_location_checks()
         local bridge = ctx.bridge
         if ap == nil or bridge == nil or type(bridge.pending_checks) ~= "table" then
@@ -1134,6 +1187,21 @@ return function(ctx)
         if to_send ~= nil then
             local ok_send, e = pcall(function() ap:LocationChecks(to_send) end)
             if ok_send then
+                -- [Mercenaries] Apply successful local acknowledgements immediately so
+                -- score UI converges before the server's LocationChecked event. Campaign
+                -- locations stay untouched here; their authoritative callback remains the
+                -- sole local reconciliation path.
+                if merc_location_ids ~= nil and type(reconcile_server_checked_locations) == "function" then
+                    local merc_checked = {}
+                    for _, lid in ipairs(to_send) do
+                        if merc_location_ids[lid] == true then
+                            merc_checked[#merc_checked + 1] = lid
+                        end
+                    end
+                    if #merc_checked > 0 then
+                        reconcile_server_checked_locations(merc_checked, false)
+                    end
+                end
                 -- [Non-lead pickups] A location collected while someone other
                 -- than the campaign lead is playing granted its item into an
                 -- inventory the game DISCARDS at section end (proven live:
@@ -1205,6 +1273,7 @@ return function(ctx)
                                 sent_location_checks[lid] = true -- the drain won't re-send these
                             end
                         end
+                    end
                     end
                 end
             end
@@ -1444,7 +1513,7 @@ return function(ctx)
         ap:ConnectSlot(st.slot, st.password, ITEMS_HANDLING, CLIENT_TAGS, CLIENT_VERSION)
     end
 
-    local function reconcile_server_checked_locations(locations, authoritative)
+    reconcile_server_checked_locations = function(locations, authoritative)
         local bridge = ctx.bridge
         if bridge == nil then return end
         if authoritative then bridge.checked_locations = {} end
