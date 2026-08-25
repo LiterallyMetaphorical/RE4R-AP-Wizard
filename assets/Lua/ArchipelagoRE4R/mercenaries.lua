@@ -129,6 +129,90 @@ local function install(ctx)
         return left_id ~= "nil" and left_id == right_id
     end
 
+    local function get_type_full_name(type_def)
+        if type_def == nil then return nil end
+        local ok, name = pcall(function() return type_def:get_full_name() end)
+        if ok and type(name) == "string" then return name end
+        return nil
+    end
+
+    local function get_obj_type_name(obj)
+        if obj == nil then return "" end
+        local ok, type_def = pcall(function() return obj:get_type_definition() end)
+        if not ok or type_def == nil then return "" end
+        local ok_name, name = pcall(function() return type_def:get_full_name() end)
+        return ok_name and type(name) == "string" and name or ""
+    end
+
+    local function reflection_sequence_to_table(sequence)
+        if sequence == nil then
+            return nil, "nil sequence"
+        end
+
+        local out = {}
+        local ok, err = pcall(function()
+            for _, value in ipairs(sequence) do
+                out[#out + 1] = value
+            end
+        end)
+
+        if ok and #out > 0 then
+            return out
+        end
+        if ok and type(sequence) == "table" then
+            return out
+        end
+
+        -- Compatibility fallback 1: pairs
+        local pairs_out = {}
+        local ok_pairs, err_pairs = pcall(function()
+            for _, value in pairs(sequence) do
+                pairs_out[#pairs_out + 1] = value
+            end
+        end)
+        if ok_pairs and #pairs_out > 0 then
+            return pairs_out
+        end
+
+        -- Compatibility fallback 2: length + indexed access
+        local ok_len, len = pcall(function() return #sequence end)
+        if ok_len and type(len) == "number" and len >= 0 then
+            if len == 0 then
+                return {}
+            end
+            local index_out = {}
+            local ok_idx = pcall(function()
+                for i = 1, len do
+                    local elem = sequence[i]
+                    if elem ~= nil then
+                        index_out[#index_out + 1] = elem
+                    end
+                end
+            end)
+            if ok_idx and #index_out > 0 then
+                return index_out
+            end
+            local index0_out = {}
+            local ok_idx0 = pcall(function()
+                for i = 0, len - 1 do
+                    local elem = sequence[i]
+                    if elem ~= nil then
+                        index0_out[#index0_out + 1] = elem
+                    end
+                end
+            end)
+            if ok_idx0 and #index0_out > 0 then
+                return index0_out
+            end
+        end
+
+        if ok then
+            return out
+        end
+
+        return nil, tostring(err or err_pairs or "iteration failed")
+    end
+
     local function get_merc_manager()
         local type_def = sdk.find_type_definition("chainsaw.MercenariesManager")
         if type_def ~= nil then
@@ -572,13 +656,348 @@ local function install(ctx)
         }
     end
 
+    local score_get_value_method = nil
+    local score_get_value_resolved = false
+    local score_diag_logged = false
+    local total_score_diagnostic_logged = false
+    local cached_score_accessor = nil
+    local cached_score_accessor_type_name = nil
+
+    local function is_valid_score_get_value(method)
+        if method == nil then return false end
+        local ok_name, name = pcall(function() return method:get_name() end)
+        if not ok_name or name ~= "get_Value" then return false end
+
+        local ok_static, is_static = pcall(function() return method:is_static() end)
+        if not ok_static or is_static ~= false then return false end
+
+        local ok_count, count = pcall(function() return method:get_num_params() end)
+        if not ok_count or count ~= 0 then return false end
+
+        local return_type = nil
+        local ok_return = pcall(function() return_type = method:get_return_type() end)
+        if not ok_return or get_type_full_name(return_type) ~= "System.Int32" then return false end
+
+        return true
+    end
+
+    local function resolve_score_get_value()
+        if score_get_value_resolved then
+            return score_get_value_method
+        end
+
+        local type_def = sdk.find_type_definition("chainsaw.SimpleAntiMemoryCheatInteger")
+        if type_def == nil then
+            score_get_value_resolved = true
+            score_get_value_method = nil
+            return nil, "chainsaw.SimpleAntiMemoryCheatInteger type not found"
+        end
+
+        local method = nil
+        local ok_m = pcall(function() method = type_def:get_method("get_Value()") end)
+        if not ok_m or method == nil or not is_valid_score_get_value(method) then
+            pcall(function() method = type_def:get_method("get_Value") end)
+        end
+
+        if method ~= nil and is_valid_score_get_value(method) then
+            score_get_value_method = method
+            score_get_value_resolved = true
+            return score_get_value_method
+        end
+
+        local ok_methods, raw_methods = pcall(function() return type_def:get_methods() end)
+        if ok_methods and raw_methods ~= nil then
+            local methods_list = reflection_sequence_to_table(raw_methods)
+            if methods_list ~= nil then
+                for _, candidate in ipairs(methods_list) do
+                    if is_valid_score_get_value(candidate) then
+                        score_get_value_method = candidate
+                        score_get_value_resolved = true
+                        return score_get_value_method
+                    end
+                end
+            end
+        end
+
+        score_get_value_resolved = true
+        score_get_value_method = nil
+        return nil, "SimpleAntiMemoryCheatInteger.get_Value method not found"
+    end
+
+    local function is_valid_open_param_score_method(method)
+        if method == nil then return false end
+        local ok_static, is_static = pcall(function() return method:is_static() end)
+        if not ok_static or is_static ~= false then return false end
+
+        local ok_count, count = pcall(function() return method:get_num_params() end)
+        if not ok_count or count ~= 0 then return false end
+
+        local return_type = nil
+        local ok_return = pcall(function() return_type = method:get_return_type() end)
+        if not ok_return or get_type_full_name(return_type) ~= "chainsaw.SimpleAntiMemoryCheatInteger" then
+            return false
+        end
+
+        local name = nil
+        pcall(function() name = method:get_name() end)
+        if name == nil then return false end
+
+        return true, name
+    end
+
+    local function is_valid_open_param_score_field(field)
+        if field == nil then return false end
+        local ok_static, is_static = pcall(function() return field:is_static() end)
+        if not ok_static or is_static ~= false then return false end
+
+        local field_type = nil
+        local ok_type = pcall(function() field_type = field:get_type() end)
+        if not ok_type or get_type_full_name(field_type) ~= "chainsaw.SimpleAntiMemoryCheatInteger" then
+            return false
+        end
+
+        local name = nil
+        pcall(function() name = field:get_name() end)
+        if name == nil then return false end
+
+        return true, name
+    end
+
+    local function log_score_diagnostics_once(open_param_type, open_param_type_name)
+        if score_diag_logged then return end
+        score_diag_logged = true
+
+        log.info(string.format("[Merc AP ScoreDiag] open_param_type=%s", tostring(open_param_type_name)))
+
+        if open_param_type == nil then return end
+
+        local ok_m, raw_m = pcall(function() return open_param_type:get_methods() end)
+        if ok_m and raw_m ~= nil then
+            local methods = reflection_sequence_to_table(raw_m)
+            if methods ~= nil then
+                for _, m in ipairs(methods) do
+                    local m_name = nil
+                    pcall(function() m_name = m:get_name() end)
+                    if m_name ~= nil and (m_name:find("Score") or m_name:find("Total") or m_name:find("Rank")) then
+                        local num_p = 0
+                        pcall(function() num_p = m:get_num_params() end)
+                        local ret_t = nil
+                        pcall(function() ret_t = m:get_return_type() end)
+                        local ret_name = get_type_full_name(ret_t) or "unknown"
+                        local is_stat = false
+                        pcall(function() is_stat = m:is_static() end)
+                        log.info(string.format(
+                            "[Merc AP ScoreDiag] method name=%s static=%s params=%d return=%s",
+                            tostring(m_name), tostring(is_stat), num_p or 0, tostring(ret_name)
+                        ))
+                    end
+                end
+            end
+        end
+
+        local ok_f, raw_f = pcall(function() return open_param_type:get_fields() end)
+        if ok_f and raw_f ~= nil then
+            local fields = reflection_sequence_to_table(raw_f)
+            if fields ~= nil then
+                for _, f in ipairs(fields) do
+                    local f_name = nil
+                    pcall(function() f_name = f:get_name() end)
+                    if f_name ~= nil and (f_name:find("Score") or f_name:find("Total") or f_name:find("Rank")) then
+                        local f_t = nil
+                        pcall(function() f_t = f:get_type() end)
+                        local f_t_name = get_type_full_name(f_t) or "unknown"
+                        local is_stat = false
+                        pcall(function() is_stat = f:is_static() end)
+                        log.info(string.format(
+                            "[Merc AP ScoreDiag] field name=%s static=%s type=%s",
+                            tostring(f_name), tostring(is_stat), tostring(f_t_name)
+                        ))
+                    end
+                end
+            end
+        end
+    end
+
+    local function resolve_open_param_score_accessor(open_param_type)
+        if open_param_type == nil then return nil end
+
+        local method_candidates = {}
+        local field_candidates = {}
+
+        -- 1. Scan methods
+        local ok_m, raw_m = pcall(function() return open_param_type:get_methods() end)
+        if ok_m and raw_m ~= nil then
+            local methods = reflection_sequence_to_table(raw_m)
+            if methods ~= nil then
+                for _, m in ipairs(methods) do
+                    local is_valid, m_name = is_valid_open_param_score_method(m)
+                    if is_valid then
+                        local prio = 3
+                        if m_name == "get_TotalScore" or m_name == "get_TotalScore()" then
+                            prio = 1
+                        elseif m_name:find("TotalScore") then
+                            prio = 2
+                        end
+                        method_candidates[#method_candidates + 1] = {
+                            method = m,
+                            name = m_name,
+                            priority = prio,
+                        }
+                    end
+                end
+            end
+        end
+
+        if #method_candidates == 0 then
+            local ok_direct, direct_m = pcall(function() return open_param_type:get_method("get_TotalScore()") end)
+            if not ok_direct or direct_m == nil or not is_valid_open_param_score_method(direct_m) then
+                pcall(function() direct_m = open_param_type:get_method("get_TotalScore") end)
+            end
+            if direct_m ~= nil and is_valid_open_param_score_method(direct_m) then
+                method_candidates[#method_candidates + 1] = {
+                    method = direct_m,
+                    name = "get_TotalScore",
+                    priority = 1,
+                }
+            end
+        end
+
+        -- 2. Scan fields
+        local ok_f, raw_f = pcall(function() return open_param_type:get_fields() end)
+        if ok_f and raw_f ~= nil then
+            local fields = reflection_sequence_to_table(raw_f)
+            if fields ~= nil then
+                for _, f in ipairs(fields) do
+                    local is_valid, f_name = is_valid_open_param_score_field(f)
+                    if is_valid then
+                        local prio = 5
+                        if f_name == "TotalScore" then
+                            prio = 1
+                        elseif f_name == "<TotalScore>k__BackingField" then
+                            prio = 2
+                        elseif f_name == "_TotalScore" then
+                            prio = 3
+                        elseif f_name:find("TotalScore") then
+                            prio = 4
+                        end
+                        field_candidates[#field_candidates + 1] = {
+                            field = f,
+                            name = f_name,
+                            priority = prio,
+                        }
+                    end
+                end
+            end
+        end
+
+        if #field_candidates == 0 then
+            local field_names = { "TotalScore", "<TotalScore>k__BackingField", "_TotalScore" }
+            for prio, fname in ipairs(field_names) do
+                local ok_direct, direct_f = pcall(function() return open_param_type:get_field(fname) end)
+                if ok_direct and direct_f ~= nil and is_valid_open_param_score_field(direct_f) then
+                    field_candidates[#field_candidates + 1] = {
+                        field = direct_f,
+                        name = fname,
+                        priority = prio,
+                    }
+                end
+            end
+        end
+
+        table.sort(method_candidates, function(a, b) return a.priority < b.priority end)
+        table.sort(field_candidates, function(a, b) return a.priority < b.priority end)
+
+        local selected_method = #method_candidates > 0 and method_candidates[1].method or nil
+        local selected_method_name = #method_candidates > 0 and method_candidates[1].name or nil
+        local selected_field_name = #field_candidates > 0 and field_candidates[1].name or nil
+
+        if selected_method == nil and selected_field_name == nil then
+            return nil
+        end
+
+        return {
+            method = selected_method,
+            method_name = selected_method_name,
+            field_name = selected_field_name,
+            member_type = "chainsaw.SimpleAntiMemoryCheatInteger",
+        }
+    end
+
     local function read_total_score(open_param)
-        local score_object = nil
-        local ok_getter = pcall(function() score_object = open_param:call("get_TotalScore") end)
-        if not ok_getter or score_object == nil then return nil end
-        local ok_value, value = pcall(function() return score_object:call("get_Value()") end)
-        if ok_value and type(value) == "number" then return value end
-        return nil
+        if open_param == nil then return nil, "OpenParam unavailable" end
+
+        local open_param_type = nil
+        pcall(function() open_param_type = open_param:get_type_definition() end)
+        local open_param_type_name = get_type_full_name(open_param_type)
+        if open_param_type_name == nil or open_param_type_name == "" then
+            open_param_type_name = get_obj_type_name(open_param)
+        end
+        if open_param_type_name == nil or open_param_type_name == "" then
+            open_param_type_name = "chainsaw.Cp1021GameClearResultGuiBehavior.OpenParam"
+        end
+
+        log_score_diagnostics_once(open_param_type, open_param_type_name)
+
+        if cached_score_accessor == nil or cached_score_accessor_type_name ~= open_param_type_name then
+            cached_score_accessor = resolve_open_param_score_accessor(open_param_type)
+            cached_score_accessor_type_name = open_param_type_name
+        end
+
+        local accessor = cached_score_accessor
+        if accessor == nil then
+            return nil, string.format("no valid SimpleAntiMemoryCheatInteger accessor on %s", open_param_type_name)
+        end
+
+        local score_container = nil
+        local accessor_source = nil
+        local accessor_member = nil
+
+        -- A. Try method accessor
+        if accessor.method ~= nil then
+            local ok_call, res = pcall(function() return accessor.method:call(open_param) end)
+            if ok_call and res ~= nil then
+                score_container = res
+                accessor_source = "method"
+                accessor_member = accessor.method_name or "get_TotalScore"
+            end
+        end
+
+        -- B. Try field accessor
+        if score_container == nil and accessor.field_name ~= nil then
+            local ok_f, val = pcall(function() return open_param:get_field(accessor.field_name) end)
+            if ok_f and val ~= nil then
+                score_container = val
+                accessor_source = "field"
+                accessor_member = accessor.field_name
+            end
+        end
+
+        if score_container == nil then
+            return nil, string.format("TotalScore container returned nil via %s", tostring(accessor_member or "accessor"))
+        end
+
+        if not total_score_diagnostic_logged then
+            total_score_diagnostic_logged = true
+            log.info(string.format(
+                "[Merc AP] TotalScore accessor ready: source=%s member=%s member_type=chainsaw.SimpleAntiMemoryCheatInteger container_type=%s",
+                tostring(accessor_source), tostring(accessor_member), type(score_container)
+            ))
+        end
+
+        local getter, resolve_err = resolve_score_get_value()
+        if getter == nil then
+            return nil, resolve_err or "SimpleAntiMemoryCheatInteger.get_Value unavailable"
+        end
+
+        local ok_value, value = pcall(function() return getter:call(score_container) end)
+        if not ok_value then
+            return nil, "get_Value invocation failed"
+        end
+        if type(value) ~= "number" then
+            return nil, "get_Value returned non-number"
+        end
+
+        return value
     end
 
     local function build_result_payload(open_param)
@@ -594,8 +1013,8 @@ local function install(ctx)
         local rank_name = SCORE_RANK_NAMES[rank]
         if rank_name == nil then return nil, "invalid rank mapping" end
 
-        local total_score = read_total_score(open_param)
-        if total_score == nil then return nil, "TotalScore:get_Value failed" end
+        local total_score, score_error = read_total_score(open_param)
+        if total_score == nil then return nil, score_error or "TotalScore:get_Value failed" end
         return {
             char_name = roster.name,
             stage_name = STAGE_KIND_NAMES[stage_kind],
@@ -784,14 +1203,6 @@ local function install(ctx)
         return ownership.enabled == true and ownership.ready == true
     end
 
-    local function get_obj_type_name(obj)
-        if obj == nil then return "" end
-        local ok, type_def = pcall(function() return obj:get_type_definition() end)
-        if not ok or type_def == nil then return "" end
-        local ok_name, name = pcall(function() return type_def:get_full_name() end)
-        return ok_name and type(name) == "string" and name or ""
-    end
-
     local hooks_installed = false
     local hooked_functions = {}
     local decision_delegates = {}
@@ -839,20 +1250,15 @@ local function install(ctx)
         return nil
     end
 
-    local function get_type_full_name(type_def)
-        if type_def == nil then return nil end
-        local ok, name = pcall(function() return type_def:get_full_name() end)
-        if ok and type(name) == "string" then return name end
-        return nil
-    end
-
     local function get_method_parameter_types(method)
-        local param_types = nil
-        pcall(function() param_types = method:get_param_types() end)
-        if type(param_types) ~= "table" then
-            pcall(function() param_types = method:get_parameter_types() end)
+        if method == nil then return nil end
+        local raw_params = nil
+        local ok = pcall(function() raw_params = method:get_param_types() end)
+        if not ok or raw_params == nil then
+            return nil
         end
-        return param_types
+        local params, _ = reflection_sequence_to_table(raw_params)
+        return params
     end
 
     local function is_exact_decision_invoke(method)
@@ -877,11 +1283,17 @@ local function install(ctx)
     -- Native addresses are runtime data only: use them for hook dedupe/logging,
     -- never as semantic method validation.
     local function get_decision_function_key(method)
+        if method == nil then return "nil", "nil" end
         local function_ptr = nil
         pcall(function() function_ptr = method:get_function() end)
         local native_int64 = nil
         if function_ptr ~= nil and pcall(function() native_int64 = sdk.to_int64(function_ptr) end)
             and native_int64 ~= nil then
+            local hex_str = nil
+            local ok_hex = pcall(function() hex_str = string.format("0x%X", native_int64) end)
+            if ok_hex and type(hex_str) == "string" then
+                return tostring(native_int64), hex_str
+            end
             return tostring(native_int64), tostring(native_int64)
         end
         return tostring(method), tostring(function_ptr or method)
@@ -905,17 +1317,17 @@ local function install(ctx)
     end
 
     local function install_decision_invoke_hook(invoke_method)
+        if invoke_method == nil then return false, "nil" end
         local function_key, function_log = get_decision_function_key(invoke_method)
-        if decision_hooked_function_keys[function_key] then return true end
+        if decision_hooked_function_keys[function_key] then return true, function_log end
         local ok, hook_result = pcall(function()
             return sdk.hook(invoke_method, on_decided_pre, function(retval) return retval end)
         end)
         if not ok or hook_result == false then
-            log_decision_unresolved("hook failed for function " .. function_log)
-            return false
+            return false, function_log
         end
         decision_hooked_function_keys[function_key] = true
-        return true
+        return true, function_log
     end
 
     on_decided_pre = function(args)
@@ -982,28 +1394,132 @@ local function install(ctx)
         local delegate_type_name = get_obj_type_name(delegate)
         if delegate_type_name ~= DECISION_DELEGATE_TYPE then return end
         local delegate_id = get_obj_address_str(delegate)
-        local delegate_type = nil
-        pcall(function() delegate_type = delegate:get_type_definition() end)
-        if delegate_type == nil then return end
-
-        local invoke_method = nil
-        local invoke_count = 0
-        local methods = nil
-        pcall(function() methods = delegate_type:get_methods() end)
-        for _, method in ipairs(methods or {}) do
-            local name = nil
-            pcall(function() name = method:get_name() end)
-            if name == "Invoke" and is_exact_decision_invoke(method) then
-                invoke_method = method
-                invoke_count = invoke_count + 1
-            end
-        end
-        if invoke_count ~= 1 or invoke_method == nil then
-            log_decision_unresolved("expected exactly one semantic Invoke overload")
+        if decision_delegates[delegate_id] ~= nil and decision_delegates[delegate_id].gui == gui then
             return
         end
-        if not install_decision_invoke_hook(invoke_method) then return end
+
+        local delegate_type = nil
+        pcall(function() delegate_type = delegate:get_type_definition() end)
+        if delegate_type == nil then
+            log_decision_unresolved("failed to get delegate type definition")
+            return
+        end
+
+        local ok_methods, methods_raw = pcall(function()
+            return delegate_type:get_methods()
+        end)
+
+        local semantic_candidates = {}
+        local resolution_mode = "enumerated"
+        local methods_container_type = type(methods_raw)
+
+        if ok_methods and methods_raw ~= nil then
+            local methods_list, enum_err = reflection_sequence_to_table(methods_raw)
+            if methods_list ~= nil then
+                for _, method in ipairs(methods_list) do
+                    local name = nil
+                    pcall(function() name = method:get_name() end)
+                    if name == "Invoke" and is_exact_decision_invoke(method) then
+                        semantic_candidates[#semantic_candidates + 1] = method
+                    end
+                end
+                if #semantic_candidates == 0 then
+                    local fallback_method = nil
+                    local ok_fb = pcall(function()
+                        fallback_method = delegate_type:get_method(
+                            "Invoke(" .. DECISION_ACTION_TYPE .. ")"
+                        )
+                    end)
+                    if ok_fb and fallback_method ~= nil and is_exact_decision_invoke(fallback_method) then
+                        semantic_candidates[#semantic_candidates + 1] = fallback_method
+                        resolution_mode = "prototype_fallback"
+                    else
+                        log_decision_unresolved("no semantic Invoke candidate")
+                        return
+                    end
+                end
+            else
+                local fallback_method = nil
+                local ok_fb = pcall(function()
+                    fallback_method = delegate_type:get_method(
+                        "Invoke(" .. DECISION_ACTION_TYPE .. ")"
+                    )
+                end)
+                if ok_fb and fallback_method ~= nil and is_exact_decision_invoke(fallback_method) then
+                    semantic_candidates[#semantic_candidates + 1] = fallback_method
+                    resolution_mode = "prototype_fallback"
+                else
+                    log_decision_unresolved("sequence iteration error: " .. tostring(enum_err))
+                    return
+                end
+            end
+        else
+            local fallback_method = nil
+            local ok_fb = pcall(function()
+                fallback_method = delegate_type:get_method(
+                    "Invoke(" .. DECISION_ACTION_TYPE .. ")"
+                )
+            end)
+            if ok_fb and fallback_method ~= nil and is_exact_decision_invoke(fallback_method) then
+                semantic_candidates[#semantic_candidates + 1] = fallback_method
+                resolution_mode = "prototype_fallback"
+            else
+                local err_reason = not ok_methods and ("get_methods pcall error: " .. tostring(methods_raw))
+                    or "get_methods returned nil"
+                log_decision_unresolved(err_reason)
+                return
+            end
+        end
+
+        local semantic_count = #semantic_candidates
+        local unique_targets_by_key = {}
+        local target_keys_order = {}
+        for _, method in ipairs(semantic_candidates) do
+            local function_key, function_log = get_decision_function_key(method)
+            if unique_targets_by_key[function_key] == nil then
+                unique_targets_by_key[function_key] = {
+                    method = method,
+                    log_name = function_log,
+                    count = 1,
+                }
+                target_keys_order[#target_keys_order + 1] = function_key
+            else
+                unique_targets_by_key[function_key].count = unique_targets_by_key[function_key].count + 1
+            end
+        end
+
+        local unique_targets = #target_keys_order
+        local hooks_ready = 0
+        local diag_functions = {}
+        local hook_errors = {}
+
+        for _, key in ipairs(target_keys_order) do
+            local target = unique_targets_by_key[key]
+            local ok_hook, fn_log = install_decision_invoke_hook(target.method)
+            if ok_hook then
+                hooks_ready = hooks_ready + 1
+                diag_functions[#diag_functions + 1] = fn_log
+            else
+                hook_errors[#hook_errors + 1] = fn_log
+            end
+        end
+
+        if hooks_ready < 1 then
+            local err_detail = "no semantic Invoke target could be hooked"
+            if #hook_errors > 0 then
+                err_detail = err_detail .. " (failed: " .. table.concat(hook_errors, ", ") .. ")"
+            end
+            log_decision_unresolved(err_detail)
+            return
+        end
+
         decision_delegates[delegate_id] = { delegate = delegate, gui = gui }
+
+        local diag_str = #diag_functions > 0 and (" functions=" .. table.concat(diag_functions, ",")) or ""
+        log.info(string.format(
+            "[Merc AP Gating] OnDecided Invoke hooks ready: methods_container=%s semantic_methods=%d unique_functions=%d hooks_ready=%d resolution=%s%s",
+            methods_container_type, semantic_count, unique_targets, hooks_ready, resolution_mode, diag_str
+        ))
     end
 
     local is_unlock_query_stack = {}
