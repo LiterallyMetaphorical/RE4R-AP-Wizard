@@ -73,7 +73,6 @@ local function install(ctx)
         result_payload = nil,
         last_valid_run_identity = nil,
         expected_result_identity = nil,
-        result_identity_retry_count = 0,
         result_identity_failure_epoch = -1,
     }
 
@@ -531,7 +530,6 @@ local function install(ctx)
     export("get_current_merc_play_info", get_current_merc_play_info)
 
     local result_error_counts = {}
-    local MAX_RESULT_IDENTITY_RETRIES = 5
     local function bounded_result_error(epoch, kind, detail)
         local key = tostring(epoch) .. ":" .. tostring(kind)
         local count = (result_error_counts[key] or 0) + 1
@@ -694,24 +692,13 @@ local function install(ctx)
 
         if merc_state.lifecycle == STATE_RESULT_PIPELINE then
             local expected = merc_state.expected_result_identity
-            local open_identity, identity_error = read_open_param_identity(open_param)
+            local open_identity = read_open_param_identity(open_param)
             if open_identity == nil then
-                merc_state.result_identity_retry_count = merc_state.result_identity_retry_count + 1
-                if merc_state.result_identity_retry_count <= MAX_RESULT_IDENTITY_RETRIES then
-                    return
-                end
-                reject_result_identity(identity_error)
                 return
             end
             if open_identity.stage_kind ~= expected.stage_kind
                 or open_identity.chara_kind ~= expected.chara_kind
                 or open_identity.costume_id ~= expected.costume_id then
-                merc_state.result_identity_retry_count = merc_state.result_identity_retry_count + 1
-                if merc_state.result_identity_retry_count <= MAX_RESULT_IDENTITY_RETRIES then
-                    return
-                end
-                reject_result_identity(string.format(
-                    "OpenParam remained stale after %d retries", MAX_RESULT_IDENTITY_RETRIES))
                 return
             end
             local payload, payload_error = build_result_payload(open_param)
@@ -750,7 +737,6 @@ local function install(ctx)
             if merc_state.lifecycle ~= STATE_RESULT_CONSUMED then merc_state.lifecycle = STATE_IDLE end
             merc_state.last_valid_run_identity = nil
             merc_state.expected_result_identity = nil
-            merc_state.result_identity_retry_count = 0
             return
         end
 
@@ -763,7 +749,6 @@ local function install(ctx)
             -- controller at this edge: game transition can already have torn it down.
             merc_state.expected_result_identity = copy_result_identity(
                 merc_state.last_valid_run_identity)
-            merc_state.result_identity_retry_count = 0
             merc_state.lifecycle = STATE_RESULT_PIPELINE
             log.info(string.format("[Merc AP] result pipeline entered: epoch=%d", merc_state.result_epoch))
         elseif not is_result then
@@ -786,7 +771,6 @@ local function install(ctx)
             merc_state.lifecycle = STATE_IDLE
             merc_state.result_payload = nil
             merc_state.expected_result_identity = nil
-            merc_state.result_identity_retry_count = 0
         end
         merc_state.last_is_result = is_result
 
