@@ -189,6 +189,9 @@ dotnet publish src/RE4R.AP.Launcher.Linux/RE4R.AP.Launcher.Linux.csproj \
 ./re4r-ap-launcher
 ```
 
+## Disclosure 
+Application code is AI-assisted with manual review. All player-facing assets, including art like the Archipelago 3D Model & "AP Wizard Guy" mascot, were human-created.
+
 ## License
 
 MIT, the same license BioRand uses. See [LICENSE](LICENSE).
