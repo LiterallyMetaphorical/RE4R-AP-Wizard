@@ -154,6 +154,14 @@ return function(ctx)
     -- [GatedKeys] lids we already explained in the log (once per session).
     local skipped_non_room_lids = {}
 
+    local drain_location_checks
+    local resend_checked_locations
+    local reconcile_server_checked_locations
+    local scout_all_locations
+    local maybe_send_victory
+    local poll_deathlink
+    local poll_port_recovery
+
     local function positive_integral(value)
         local number = type(value) == "number" and value or nil
         if number == nil or number ~= number or number == math.huge or number == -math.huge
@@ -1141,6 +1149,7 @@ return function(ctx)
 
         if need_flush then persist() end -- flush lazy own-find skip advances
     end
+    end
 
     -- [Phase 3 Group 1] Submit detected location checks to the AP server. The
     -- detector fills ctx.bridge.pending_checks; each entry now carries a resolved
@@ -1148,9 +1157,7 @@ return function(ctx)
     -- slot-connected, tracking which ids we've sent this socket so we don't
     -- re-spam every frame. LocationChecks is idempotent server-side, so a resend
     -- never dupes (verified against the bundled server).
-    local reconcile_server_checked_locations
-
-    local function drain_location_checks()
+    drain_location_checks = function()
         local bridge = ctx.bridge
         if ap == nil or bridge == nil or type(bridge.pending_checks) ~= "table" then
             return
@@ -1242,7 +1249,7 @@ return function(ctx)
     -- each to its AP location_id via the display map and re-submit. Idempotent, so this
     -- recovers a check made while disconnected or a send that didn't land -- our stand-in
     -- for RE2R's game-state re-scan.
-    local function resend_checked_locations()
+    resend_checked_locations = function()
         local bridge = ctx.bridge
         if ap == nil or bridge == nil then
             return
@@ -1277,7 +1284,6 @@ return function(ctx)
                     end
                 end
             end
-        end
         for raw_id in pairs(bridge.mercenaries_completed_locations) do
             local lid = tonumber(raw_id)
             if lid ~= nil then
@@ -1309,7 +1315,7 @@ return function(ctx)
     -- condition (ArchipelagoRE4R.lua, untouched) sets bridge.victory_pending at stage
     -- 59223; here we send StatusUpdate(GOAL) exactly once while connected, then latch
     -- victory_sent + persist (replacing the Python client's goal_achieved + ack_victory).
-    local function maybe_send_victory()
+    maybe_send_victory = function()
         local bridge = ctx.bridge
         if ap == nil or bridge == nil then return end
 
@@ -1422,7 +1428,7 @@ return function(ctx)
     -- seed-aware AP ItemFlags. Mirrors the Python client's _refresh_location_classifications:
     -- one LocationScouts(all ids, create_as_hint=0); the reply lands in on_location_info,
     -- which fills bridge.location_classifications (the table data.lua's warning logic reads).
-    local function scout_all_locations()
+    scout_all_locations = function()
         local bridge = ctx.bridge
         if ap == nil or bridge == nil then return end
         if room_location_ids == nil then
@@ -1815,12 +1821,18 @@ return function(ctx)
         -- [Phase 3 Group 2] Reconcile: resend the full persisted checked set now that
         -- the per-seed session (incl. acknowledged_guid_keys) has been loaded.
         if session_identity_ready then
-            resend_checked_locations()
+            local ok_resend, resend_error = pcall(resend_checked_locations)
+            if not ok_resend then
+                err("persisted check resend on connect errored: " .. tostring(resend_error))
+            end
         else
             warn("persisted check resend skipped: session identity unavailable")
         end
         -- [Phase 4] Refresh seed-aware location classifications for the progression UI.
-        scout_all_locations()
+        local ok_scout, scout_error = pcall(scout_all_locations)
+        if not ok_scout then
+            err("location scouting on connect errored: " .. tostring(scout_error))
+        end
     end
 
     local function on_slot_refused(reasons)
@@ -2169,7 +2181,7 @@ return function(ctx)
     -- [DeathLink] Per-tick pump (called after ap:poll): send our own death on the
     -- rising edge of the player's IsDead flag; apply a queued incoming death once we
     -- reach a safe gameplay state.
-    local function poll_deathlink()
+    poll_deathlink = function()
         if not st.death_link_enabled then
             st.dl_pending_incoming = nil
             st.dl_last_dead = false
@@ -2410,7 +2422,7 @@ return function(ctx)
     -- connected and nothing has answered for PORT_UNREACHABLE_SECONDS, offer the
     -- dialog. This is the check that actually fires for a dead port, because
     -- lua-apclientpp retries the socket itself and never re-enters connect().
-    local function poll_port_recovery()
+    poll_port_recovery = function()
         if ap == nil or st.slot_connected then return end
         if ctx.bridge ~= nil and ctx.bridge.port_recovery_dialog ~= nil then return end
         -- Dismissed watchdog warnings stay dismissed. open_port_recovery also
@@ -2447,18 +2459,80 @@ return function(ctx)
     ctx.ap_dismiss_port_recovery = ap_dismiss_port_recovery
 
     load_ap_item_map()
+
+    do
+        local runtime_helper_names = {
+            "drain_location_checks",
+            "resend_checked_locations",
+            "reconcile_server_checked_locations",
+            "scout_all_locations",
+            "maybe_send_victory",
+            "poll_deathlink",
+            "poll_port_recovery",
+        }
+        local runtime_helper_types = {}
+        for _, name in ipairs(runtime_helper_names) do
+            local helper = ({
+                drain_location_checks = drain_location_checks,
+                resend_checked_locations = resend_checked_locations,
+                reconcile_server_checked_locations = reconcile_server_checked_locations,
+                scout_all_locations = scout_all_locations,
+                maybe_send_victory = maybe_send_victory,
+                poll_deathlink = poll_deathlink,
+                poll_port_recovery = poll_port_recovery,
+            })[name]
+            local helper_type = type(helper)
+            if helper_type ~= "function" then
+                err("runtime helper binding invalid: " .. name .. "=" .. helper_type)
+                return
+            end
+            runtime_helper_types[#runtime_helper_types + 1] = name .. "=" .. helper_type
+        end
+        info("runtime helper bindings ready: " .. table.concat(runtime_helper_types, ", "))
+    end
     connect()
 
     local last_retry_clock = 0
+    local poll_error_states = {}
+    local last_poll_error_summary = 0
+    local function report_poll_error(stage, failure)
+        local detail = tostring(failure)
+        local key = stage .. "\0" .. detail
+        local state = poll_error_states[key]
+        if state == nil then
+            state = { count = 0 }
+            poll_error_states[key] = state
+        end
+        state.count = state.count + 1
+        if state.count == 1 then
+            err("poll stage '" .. stage .. "' failed: " .. detail)
+            return
+        end
+        local now = os.clock()
+        if now - last_poll_error_summary >= 5.0 then
+            last_poll_error_summary = now
+            err(string.format("poll stage '%s' repeated error (%d times): %s",
+                stage, state.count, detail))
+        end
+    end
+    local function run_poll_stage(name, fn)
+        local ok, e = pcall(fn)
+        if not ok then report_poll_error(name, e) end
+    end
+
     re.on_pre_application_entry("UpdateBehavior", function()
         local ok, e = pcall(function()
             if ap ~= nil then
-                ap:poll()
-                drain_received_items()
-                drain_location_checks()
-                maybe_send_victory()
-                poll_deathlink()
-                poll_port_recovery()
+                local poll_ok, poll_error = pcall(function() ap:poll() end)
+                if not poll_ok then
+                    report_poll_error("ap:poll", poll_error)
+                    return
+                end
+                run_poll_stage("drain_received_items", drain_received_items)
+                run_poll_stage("drain_location_checks", drain_location_checks)
+                run_poll_stage("maybe_send_victory", maybe_send_victory)
+                run_poll_stage("poll_deathlink", poll_deathlink)
+                run_poll_stage("poll_port_recovery", poll_port_recovery)
                 return
             end
             local now = os.clock()
@@ -2467,9 +2541,7 @@ return function(ctx)
                 connect()
             end
         end)
-        if not ok then
-            err("poll loop error: " .. tostring(e))
-        end
+        if not ok then report_poll_error("poll loop", e) end
     end)
 
     info("apclient.lua initialized (Phase 2d: received items -> injection).")
