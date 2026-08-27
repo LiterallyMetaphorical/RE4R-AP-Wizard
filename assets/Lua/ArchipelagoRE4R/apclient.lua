@@ -3,8 +3,9 @@
 -- can reach ctx (injection / runtime / per-seed session store).
 --
 -- Phase 2d: received items -> in-game injection.
---   * on_items_received enqueues each item by its absolute item.index, filtering
---     index <= the persisted watermark (bridge.last_received_index) and dupes.
+--   * on_items_received validates each absolute item.index independently from the
+--     ordered delivery watermark, reconstructs Mercenaries ownership for every
+--     known mapped Merc item, and queues only indexes newer than the watermark.
 --   * the poll tick drains the queue, gated on runtime.lua safe-state, in strict
 --     contiguous index order, bounded per tick.
 --   * own-world physical pickups (item.player == our numeric slot AND
@@ -133,6 +134,9 @@ return function(ctx)
     local received_ledger = {}
     -- index -> consecutive failed-inject tick count (poison retry bookkeeping).
     local inject_failure_counts = {}
+    -- Merc item indexes whose identity is unresolved; keep warning bounded while
+    -- retaining them at queue head for a later datapack/map retry.
+    local unresolved_merc_items_logged = {}
     -- [Phase 3] AP location ids already submitted this socket (avoid re-spamming).
     local sent_location_checks = {}
     -- [GatedKeys] The ROOM's actual location id set (missing + checked from the
@@ -142,8 +146,156 @@ return function(ctx)
     -- and LocationChecks send is filtered to this set; nil = unavailable ->
     -- fall back to the permissive pre-0.4.0 behavior.
     local room_location_ids = nil
+    -- [Mercenaries] Authoritative per-connection Mercenaries location ids from
+    -- slot_data.mercenaries.locations. Nil means slot data did not provide an
+    -- authoritative mapping; an empty table means it provided one with no valid ids.
+    local merc_location_ids = nil
+    local merc_session_enabled = false
     -- [GatedKeys] lids we already explained in the log (once per session).
     local skipped_non_room_lids = {}
+
+    local drain_location_checks
+    local resend_checked_locations
+    local reconcile_server_checked_locations
+    local scout_all_locations
+    local maybe_send_victory
+    local poll_deathlink
+    local poll_port_recovery
+
+    local function positive_integral(value)
+        local number = type(value) == "number" and value or nil
+        if number == nil or number ~= number or number == math.huge or number == -math.huge
+            or number <= 0 or number ~= math.floor(number) then
+            return nil
+        end
+        return number
+    end
+
+    local function is_integral_number(value)
+        return type(value) == "number"
+            and value == value
+            and value ~= math.huge
+            and value ~= -math.huge
+            and value == math.floor(value)
+    end
+
+    -- Packet/replay validity is separate from ordered delivery eligibility. A
+    -- replayed old Merc item still reconstructs ownership; only physical delivery
+    -- is gated by the persisted contiguous watermark.
+    local function valid_received_index(index)
+        return is_integral_number(index) and index >= 0
+    end
+
+    local function is_new_received_index(index, watermark)
+        return valid_received_index(index)
+            and is_integral_number(watermark)
+            and index > watermark
+    end
+
+    local function room_location_contains(location_set, location_id)
+        if type(location_set) ~= "table" then return false end
+        if location_set[location_id] == true or location_set[tostring(location_id)] == true then
+            return true
+        end
+        for _, raw_id in pairs(location_set) do
+            if tonumber(raw_id) == location_id then return true end
+        end
+        return false
+    end
+
+    -- Build only from the AP-authoritative character -> stage -> rank mapping.
+    -- Never infer Mercenaries locations from numeric ranges or display names.
+    local function build_merc_location_ids(slot_data)
+        local merc_data = type(slot_data) == "table" and slot_data.mercenaries or nil
+        local locations = type(merc_data) == "table" and merc_data.locations or nil
+        if type(locations) ~= "table" then
+            return nil, "slot_data.mercenaries.locations missing"
+        end
+
+        local result = {}
+        for character_name, character_locations in pairs(locations) do
+            if type(character_locations) ~= "table" then
+                return nil, "invalid Mercenaries character mapping '" .. tostring(character_name) .. "'"
+            end
+            for stage_name, stage_locations in pairs(character_locations) do
+                if type(stage_locations) ~= "table" then
+                    return nil, "invalid Mercenaries stage mapping '" .. tostring(stage_name) .. "'"
+                end
+                for rank_name, raw_id in pairs(stage_locations) do
+                    local location_id = positive_integral(raw_id)
+                    if location_id == nil then
+                        return nil, string.format(
+                            "invalid Mercenaries location at %s/%s/%s",
+                            tostring(character_name), tostring(stage_name), tostring(rank_name))
+                    end
+                    if result[location_id] then
+                        return nil, "duplicate Mercenaries location id " .. tostring(location_id)
+                    end
+                    result[location_id] = true
+                end
+            end
+        end
+        local count = 0
+        for _ in pairs(result) do count = count + 1 end
+        if count == 0 then return nil, "Mercenaries location mapping is empty" end
+        return result
+    end
+
+    local function mercenaries_enabled(slot_data)
+        if type(slot_data) ~= "table" then return false end
+        local mode = slot_data.game_mode
+        if mode == "mercenaries_only" or mode == "campaign_and_mercenaries" then
+            return true
+        end
+        local merc_data = type(slot_data.mercenaries) == "table" and slot_data.mercenaries or nil
+        return merc_data ~= nil and merc_data.enabled == true
+    end
+
+    local function is_legacy_merc_item_id(item_id)
+        -- Backwards compatibility for pre-kind datapack maps only.
+        return is_integral_number(item_id)
+            and item_id >= 440000001
+            and item_id <= 440000099
+    end
+
+    local function get_item_source(item_id, mapping)
+        if type(mapping) == "table" then
+            if mapping.kind == "merc_character"
+                or mapping.kind == "merc_stage"
+                or mapping.kind == "merc_filler" then
+                return "MERCENARIES"
+            end
+            if mapping.kind ~= nil and mapping.kind ~= "" then return "CAMPAIGN" end
+            if is_legacy_merc_item_id(item_id) then return "MERCENARIES" end
+            return "CAMPAIGN"
+        end
+
+        -- This fallback is not primary classification and must never override an
+        -- existing non-empty mapping.kind.
+        if is_legacy_merc_item_id(item_id) then
+            return "MERCENARIES"
+        end
+        return "UNKNOWN"
+    end
+
+    local function get_location_source(location_id)
+        local number = tonumber(location_id)
+        if number == nil or number <= 0 then return "NON_LOCATION" end
+        if number ~= number or number == math.huge or number == -math.huge
+            or number ~= math.floor(number) then
+            return "UNKNOWN"
+        end
+        if merc_location_ids ~= nil and merc_location_ids[number] == true then
+            return "MERCENARIES"
+        end
+        if room_location_ids ~= nil
+            and room_location_contains(room_location_ids, number) then
+            if merc_location_ids ~= nil or not merc_session_enabled then
+                return "CAMPAIGN"
+            end
+        end
+        return "UNKNOWN"
+    end
 
     local function trim(s)
         if type(s) ~= "string" then return "" end
@@ -244,8 +396,10 @@ return function(ctx)
                     re4r_item_id = engine_id,
                     count = math.max(1, count),
                     name = (type(value.name) == "string" and value.name ~= "") and value.name or nil,
+                    kind = (type(value.kind) == "string" and value.kind ~= "") and value.kind or nil,
                 }
                 n = n + 1
+
             end
         end
         st.item_map_loaded = n > 0
@@ -632,63 +786,6 @@ return function(ctx)
             return
         end
 
-        local get_runtime_state = ctx.get_runtime_state
-        local inject_item_to_inventory = ctx.inject_item_to_inventory
-        local inject_command_succeeded = ctx.inject_command_succeeded
-        local inject_get_expected_commit_count = ctx.inject_get_expected_commit_count
-        local record_local_injection_suppression = ctx.record_local_injection_suppression
-        if type(get_runtime_state) ~= "function"
-            or type(inject_item_to_inventory) ~= "function"
-            or type(inject_command_succeeded) ~= "function" then
-            return
-        end
-
-        local runtime_state = get_runtime_state()
-        local runtime_clock = os.clock()
-        if not safe_to_inject(runtime_state) then
-            st.item_delivery_resume_not_before = runtime_clock + INVENTORY_STABILITY_SECONDS
-            st.item_delivery_stability_logged = false
-            return -- busy state: defer the whole drain, do not advance
-        end
-        -- [Character gate] The Ashley section runs its own inventories and
-        -- DISCARDS them when it ends - live 2026-07-30, items put in her main
-        -- grid and even in Storage were gone once Leon returned. Delivering
-        -- there would report an item received that the player never keeps, so
-        -- hold the whole queue until the campaign lead is back. Lossless: the
-        -- watermark does not advance, exactly like the busy-state defer above.
-        local is_default_character = ctx.inject_is_default_character_active
-            or _G.inject_is_default_character_active
-        if type(is_default_character) == "function" then
-            local ok_character, default_active = pcall(is_default_character)
-            if ok_character and not default_active then
-                if not st.item_delivery_character_logged then
-                    st.item_delivery_character_logged = true
-                    info("another character is playing (their inventory is discarded at section end) - holding received items until the campaign lead returns")
-                end
-                return -- do not advance
-            end
-            if ok_character and default_active and st.item_delivery_character_logged then
-                st.item_delivery_character_logged = false
-                info("campaign lead is back - resuming received-item delivery")
-            end
-        end
-        local resume_not_before = tonumber(st.item_delivery_resume_not_before)
-        if resume_not_before ~= nil and runtime_clock < resume_not_before then
-            if not st.item_delivery_stability_logged then
-                info(string.format(
-                    "inventory transition ended; deferring received items for %.1fs stability window",
-                    INVENTORY_STABILITY_SECONDS
-                ))
-                st.item_delivery_stability_logged = true
-            end
-            return
-        end
-        if resume_not_before ~= nil then
-            info("inventory state stable; resuming received-item delivery")
-            st.item_delivery_resume_not_before = nil
-            st.item_delivery_stability_logged = false
-        end
-
         table.sort(pending, function(a, b) return a.index < b.index end)
 
         local function pop_head(idx)
@@ -703,7 +800,7 @@ return function(ctx)
         if not st.in_sync_burst then
             local new_pending = 0
             for _, e in ipairs(pending) do
-                if type(e.index) == "number" and e.index > bridge.last_received_index then
+                if is_new_received_index(e.index, bridge.last_received_index) then
                     new_pending = new_pending + 1
                     if new_pending > threshold then st.in_sync_burst = true break end
                 end
@@ -711,11 +808,22 @@ return function(ctx)
         end
 
         local injected, processed, need_flush = 0, 0, false
+        local runtime_domain = "CAMPAIGN"
+        if type(ctx.get_runtime_domain) == "function" then
+            runtime_domain = ctx.get_runtime_domain()
+        end
+        local campaign_delivery_ready = false
+        local get_runtime_state
+        local inject_item_to_inventory
+        local inject_command_succeeded
+        local inject_get_expected_commit_count
+        local record_local_injection_suppression
+
         while #pending > 0 and injected < MAX_INJECTS_PER_TICK and processed < MAX_ITEMS_PER_TICK do
             local entry = pending[1]
             local idx = entry.index
 
-            if type(idx) ~= "number" then
+            if not valid_received_index(idx) then
                 warn("dropping queued item with non-integer index")
                 pop_head(nil)
                 processed = processed + 1
@@ -724,34 +832,168 @@ return function(ctx)
                 processed = processed + 1
             elseif idx ~= bridge.last_received_index + 1 then
                 break -- gap: wait for the missing index (flush any lazy advances)
-            elseif entry.player == st.numeric_slot
-                and type(entry.location) == "number" and entry.location > 0
-                -- ...unless a non-lead character made that pickup: the item
-                -- went into an inventory the game then threw away, so it owes
-                -- delivery to the lead exactly like a foreign gift would.
-                and bridge.non_lead_checked_locations[entry.location] ~= true then
-                -- own-world physical pickup: BioRand already granted it in-game.
-                info(string.format("own-find skip idx=%d ap=%s location=%d",
-                    idx, tostring(entry.item), entry.location))
-                bridge.last_received_index = idx
-                need_flush = true -- re-processing a skip is harmless; flush lazily
-                pop_head(idx)
-                processed = processed + 1
             else
                 local mapping = ap_item_map[entry.item]
-                if mapping == nil or type(mapping.re4r_item_id) ~= "number" or mapping.re4r_item_id <= 0 then
-                    -- Map is confirmed loaded (gated above), so this id is genuinely
-                    -- unknown -> skip it (loud) so it can't block later items forever.
-                    err(string.format(
-                        "POISON: AP item id %s (idx %d) not in ap_item_map -> SKIPPING (item lost)",
-                        tostring(entry.item), idx))
+                local received_item_source = get_item_source(entry.item, mapping)
+
+                if received_item_source == "MERCENARIES" then
+                    -- Mercenaries unlock item: update ownership immediately, never inject into campaign inventory
+                    local handle_merc = ctx.handle_merc_item_received or _G.handle_merc_item_received
+                    local known_name = type(mapping) == "table"
+                        and type(mapping.name) == "string" and mapping.name ~= ""
+                    if not known_name or type(handle_merc) ~= "function" then
+                        if not unresolved_merc_items_logged[idx] then
+                            unresolved_merc_items_logged[idx] = true
+                            warn(string.format(
+                                "Merc item idx=%d has unresolved identity; retaining ordered queue",
+                                idx))
+                        end
+                        break
+                    end
+                    unresolved_merc_items_logged[idx] = nil
+                    handle_merc(mapping.name)
                     bridge.last_received_index = idx
-                    inject_failure_counts[idx] = nil
+                    need_flush = true
                     pop_head(idx)
                     processed = processed + 1
-                    need_flush = false
-                    if not persist() then break end
+                    -- [Overlay] Mercenaries ownership grants use the same received-item
+                    -- presentation as campaign grants, but never suppress self-finds: the
+                    -- Merc handler has no physical pickup toast to cover them.
+                    do
+                        local item_label = mapping.name
+                        local classification = classify_flags(entry.flags)
+                        local item_color = get_check_overlay_classification_color(classification)
+                        local sender = (type(entry.player) == "number"
+                            and entry.player > 0 and entry.player ~= st.numeric_slot)
+                            and ap_player_name(entry.player) or nil
+                        local title, title_segments
+                        if sender ~= nil then
+                            title = sender .. " sent you " .. item_label
+                            title_segments = {
+                                { text = truncate_overlay_text(sender, 18),
+                                  color = CHECK_OVERLAY_TEXT_COLOR_PLAYER, entity = "player" },
+                                { text = "sent you", color = CHECK_OVERLAY_TEXT_COLOR_FILLER },
+                                { text = truncate_overlay_text(item_label, 32),
+                                  color = item_color, entity = "item" },
+                            }
+                        else
+                            title = "Received " .. item_label
+                            title_segments = {
+                                { text = "Received", color = CHECK_OVERLAY_TEXT_COLOR_FILLER },
+                                { text = truncate_overlay_text(item_label, 32),
+                                  color = item_color, entity = "item" },
+                            }
+                        end
+                        local detail
+                        if mapping.kind == "merc_character" or mapping.kind == "merc_stage" then
+                            detail = "unlocked for The Mercenaries"
+                        end
+                        if st.in_sync_burst then
+                            bump_sync_summary(1, false)
+                        else
+                            enqueue_toast(title, detail, classification, "received", title_segments)
+                        end
+                    end
+                    info(string.format("merc item received idx=%d ap=%s [%s]",
+                        idx, tostring(entry.item), mapping and mapping.name or "merc_item"))
+                elseif runtime_domain == "MERCENARIES" then
+                    -- In Mercenaries mode: defer campaign physical items until returned to campaign
+                    break
                 else
+                    -- Campaign-only inventory protections. Mercenaries grants reach their
+                    -- virtual ownership handler without any of these gates.
+                    if not campaign_delivery_ready then
+                        get_runtime_state = ctx.get_runtime_state
+                        inject_item_to_inventory = ctx.inject_item_to_inventory
+                        inject_command_succeeded = ctx.inject_command_succeeded
+                        inject_get_expected_commit_count = ctx.inject_get_expected_commit_count
+                        record_local_injection_suppression = ctx.record_local_injection_suppression
+                        if type(get_runtime_state) ~= "function"
+                            or type(inject_item_to_inventory) ~= "function"
+                            or type(inject_command_succeeded) ~= "function" then
+                            return
+                        end
+
+                        local runtime_state = get_runtime_state()
+                        local runtime_clock = os.clock()
+                        if not safe_to_inject(runtime_state) then
+                            st.item_delivery_resume_not_before = runtime_clock + INVENTORY_STABILITY_SECONDS
+                            st.item_delivery_stability_logged = false
+                            return -- busy state: defer the whole drain, do not advance
+                        end
+                        -- [Character gate] The Ashley section runs its own inventories and
+                        -- DISCARDS them when it ends - live 2026-07-30, items put in her main
+                        -- grid and even in Storage were gone once Leon returned. Delivering
+                        -- there would report an item received that the player never keeps, so
+                        -- hold the whole queue until the campaign lead is back. Lossless: the
+                        -- watermark does not advance, exactly like the busy-state defer above.
+                        local is_default_character = ctx.inject_is_default_character_active
+                            or _G.inject_is_default_character_active
+                        if type(is_default_character) == "function" then
+                            local ok_character, default_active = pcall(is_default_character)
+                            if ok_character and not default_active then
+                                if not st.item_delivery_character_logged then
+                                    st.item_delivery_character_logged = true
+                                    info("another character is playing (their inventory is discarded at section end) - holding received items until the campaign lead returns")
+                                end
+                                return -- do not advance
+                            end
+                            if ok_character and default_active and st.item_delivery_character_logged then
+                                st.item_delivery_character_logged = false
+                                info("campaign lead is back - resuming received-item delivery")
+                            end
+                        end
+                        local resume_not_before = tonumber(st.item_delivery_resume_not_before)
+                        if resume_not_before ~= nil and runtime_clock < resume_not_before then
+                            if not st.item_delivery_stability_logged then
+                                info(string.format(
+                                    "inventory transition ended; deferring received items for %.1fs stability window",
+                                    INVENTORY_STABILITY_SECONDS
+                                ))
+                                st.item_delivery_stability_logged = true
+                            end
+                            return
+                        end
+                        if resume_not_before ~= nil then
+                            info("inventory state stable; resuming received-item delivery")
+                            st.item_delivery_resume_not_before = nil
+                            st.item_delivery_stability_logged = false
+                        end
+                        campaign_delivery_ready = true
+                    end
+
+                    local received_location_source = get_location_source(entry.location)
+                    local non_lead = type(bridge.non_lead_checked_locations) == "table"
+                        and bridge.non_lead_checked_locations[entry.location] == true
+                    local is_own_find = received_item_source == "CAMPAIGN"
+                        and received_location_source == "CAMPAIGN"
+                        and entry.player == st.numeric_slot
+                        and not non_lead
+
+                    if is_own_find then
+                        -- own-world physical pickup: BioRand already granted it in campaign
+                        info(string.format("own-find skip idx=%d ap=%s location=%d",
+                            idx, tostring(entry.item), entry.location))
+                        bridge.last_received_index = idx
+                        need_flush = true -- re-processing a skip is harmless; flush lazily
+                        pop_head(idx)
+                        processed = processed + 1
+                    else
+                        -- Campaign physical item delivery
+                    if mapping == nil or type(mapping.re4r_item_id) ~= "number" or mapping.re4r_item_id <= 0 then
+                        -- Map is confirmed loaded (gated above), so this id is genuinely
+                        -- unknown -> skip it (loud) so it can't block later items forever.
+                        err(string.format(
+                            "POISON: AP item id %s (idx %d) not in ap_item_map -> SKIPPING (item lost)",
+                            tostring(entry.item), idx))
+                        bridge.last_received_index = idx
+                        inject_failure_counts[idx] = nil
+                        pop_head(idx)
+                        processed = processed + 1
+                        need_flush = false
+                        if not persist() then break end
+                    else
+
                     local status = tostring(inject_item_to_inventory(mapping.re4r_item_id, mapping.count))
                     if inject_command_succeeded(status) then
                         if type(inject_get_expected_commit_count) == "function"
@@ -857,8 +1099,7 @@ return function(ctx)
                             -- to Storage (a case-full signal the pickup toast can't know about).
                             if st.in_sync_burst then
                                 bump_sync_summary(1, is_restore)
-                            elseif is_self_find and type(entry.location) == "number"
-                                and entry.location > 0 and not to_storage then
+                            elseif is_own_find and not to_storage then
                                 -- A genuine own-world physical pickup is already toasted by
                                 -- detector's unified "Collected X" toast, so suppress the dupe.
                                 -- Server/self grants (!getitem, !collect) carry location <= 0
@@ -887,9 +1128,11 @@ return function(ctx)
                             break -- keep the failing item at the head; do not advance
                         end
                     end
+                    end
                 end
             end
         end
+
 
         -- [Overlay] End the sync burst once nothing new remains to deliver (a gap
         -- still counts as new -> stay latched until it fills). Leaves the "Synced N"
@@ -897,7 +1140,7 @@ return function(ctx)
         if st.in_sync_burst then
             local more_new = false
             for _, e in ipairs(pending) do
-                if type(e.index) == "number" and e.index > bridge.last_received_index then
+                if is_new_received_index(e.index, bridge.last_received_index) then
                     more_new = true break
                 end
             end
@@ -906,6 +1149,7 @@ return function(ctx)
 
         if need_flush then persist() end -- flush lazy own-find skip advances
     end
+    end
 
     -- [Phase 3 Group 1] Submit detected location checks to the AP server. The
     -- detector fills ctx.bridge.pending_checks; each entry now carries a resolved
@@ -913,7 +1157,7 @@ return function(ctx)
     -- slot-connected, tracking which ids we've sent this socket so we don't
     -- re-spam every frame. LocationChecks is idempotent server-side, so a resend
     -- never dupes (verified against the bundled server).
-    local function drain_location_checks()
+    drain_location_checks = function()
         local bridge = ctx.bridge
         if ap == nil or bridge == nil or type(bridge.pending_checks) ~= "table" then
             return
@@ -924,9 +1168,10 @@ return function(ctx)
             return
         end
 
-        local to_send, keys
+        local to_send
         for _, entry in ipairs(bridge.pending_checks) do
-            local lid = entry and tonumber(entry.location_id)
+            local lid = type(entry) == "table" and type(entry.key) == "string"
+                and tonumber(entry.location_id) or nil
             if lid ~= nil then
                 lid = math.floor(lid)
                 -- [GatedKeys] Vanilla/preserved spots exist in the shipped maps but
@@ -941,9 +1186,7 @@ return function(ctx)
                 elseif not sent_location_checks[lid] then
                     sent_location_checks[lid] = true
                     to_send = to_send or {}
-                    keys = keys or {}
                     to_send[#to_send + 1] = lid
-                    keys[#keys + 1] = entry.key
                 end
             end
         end
@@ -951,17 +1194,19 @@ return function(ctx)
         if to_send ~= nil then
             local ok_send, e = pcall(function() ap:LocationChecks(to_send) end)
             if ok_send then
-                -- [Phase 3 Group 2] Optimistically mark the locations checked in the
-                -- durable per-seed set (acknowledged_guid_keys -- what the UI reads) and
-                -- persist, mirroring the 2c watermark. Idempotent server-side, so a
-                -- later resend never dupes.
-                local marked = false
-                for _, k in ipairs(keys) do
-                    if type(k) == "string" and not bridge.acknowledged_guid_keys[k] then
-                        bridge.acknowledged_guid_keys[k] = true
-                        marked = true
-                        -- [Phase 5 Group 3] session Checks-Sent counter for the status window
-                        bridge.checks_sent_session = (bridge.checks_sent_session or 0) + 1
+                -- [Mercenaries] Apply successful local acknowledgements immediately so
+                -- score UI converges before the server's LocationChecked event. Campaign
+                -- locations stay untouched here; their authoritative callback remains the
+                -- sole local reconciliation path.
+                if merc_location_ids ~= nil and type(reconcile_server_checked_locations) == "function" then
+                    local merc_checked = {}
+                    for _, lid in ipairs(to_send) do
+                        if merc_location_ids[lid] == true then
+                            merc_checked[#merc_checked + 1] = lid
+                        end
+                    end
+                    if #merc_checked > 0 then
+                        reconcile_server_checked_locations(merc_checked, false)
                     end
                 end
                 -- [Non-lead pickups] A location collected while someone other
@@ -970,6 +1215,7 @@ return function(ctx)
                 -- Ashley's grid and even Storage are gone when Leon returns).
                 -- Remember it, so the own-find skip below does not later
                 -- assume the player still has what they picked up.
+                local non_lead_marked = false
                 local is_default = ctx.inject_is_default_character_active
                     or _G.inject_is_default_character_active
                 if type(is_default) == "function" then
@@ -978,14 +1224,15 @@ return function(ctx)
                         for _, lid in ipairs(to_send) do
                             bridge.non_lead_checked_locations[lid] = true
                         end
-                        marked = true
+                        non_lead_marked = true
                         info(string.format(
                             "%d location(s) collected by a non-lead character - their items will be delivered when the lead returns",
                             #to_send))
                     end
                 end
+                bridge.checks_sent_session = (bridge.checks_sent_session or 0) + #to_send
                 bridge.state_dirty = true
-                if marked and type(ctx.save_session_state) == "function" then
+                if non_lead_marked and type(ctx.save_session_state) == "function" then
                     ctx.save_session_state()
                 end
                 info(string.format("LocationChecks sent: %d location(s)", #to_send))
@@ -1002,21 +1249,22 @@ return function(ctx)
     -- each to its AP location_id via the display map and re-submit. Idempotent, so this
     -- recovers a check made while disconnected or a send that didn't land -- our stand-in
     -- for RE2R's game-state re-scan.
-    local function resend_checked_locations()
+    resend_checked_locations = function()
         local bridge = ctx.bridge
-        if ap == nil or bridge == nil or type(bridge.acknowledged_guid_keys) ~= "table" then
+        if ap == nil or bridge == nil then
             return
         end
+        bridge.acknowledged_guid_keys = bridge.acknowledged_guid_keys or {}
+        bridge.mercenaries_completed_locations = bridge.mercenaries_completed_locations or {}
         local resolve = ctx.get_location_display_entry or _G.get_location_display_entry
-        if type(resolve) ~= "function" then return end
 
-        local ids
+        local ids, seen_ids
         for key in pairs(bridge.acknowledged_guid_keys) do
             local bar = type(key) == "string" and string.find(key, "|", 1, true) or nil
             if bar ~= nil then
                 local stage = tonumber(string.sub(key, 1, bar - 1))
                 local guid = string.sub(key, bar + 1)
-                if stage ~= nil then
+                if stage ~= nil and type(resolve) == "function" then
                     local ok, entry = pcall(resolve, stage, guid)
                     local lid = ok and type(entry) == "table" and tonumber(entry.location_id)
                     if lid ~= nil then
@@ -1024,10 +1272,29 @@ return function(ctx)
                         -- [GatedKeys] Persisted keys from an older world version can
                         -- resolve to locations this room does not have -- skip those.
                         if room_location_ids == nil or room_location_ids[lid] then
-                            ids = ids or {}
-                            ids[#ids + 1] = lid
-                            sent_location_checks[lid] = true -- the drain won't re-send these
+                            seen_ids = seen_ids or {}
+                            if not seen_ids[lid] then
+                                seen_ids[lid] = true
+                                ids = ids or {}
+                                ids[#ids + 1] = lid
+                                sent_location_checks[lid] = true -- the drain won't re-send these
+                            end
                         end
+                    end
+                    end
+                end
+            end
+        for raw_id in pairs(bridge.mercenaries_completed_locations) do
+            local lid = tonumber(raw_id)
+            if lid ~= nil then
+                lid = math.floor(lid)
+                if room_location_ids == nil or room_location_ids[lid] then
+                    seen_ids = seen_ids or {}
+                    if not seen_ids[lid] then
+                        seen_ids[lid] = true
+                        ids = ids or {}
+                        ids[#ids + 1] = lid
+                        sent_location_checks[lid] = true
                     end
                 end
             end
@@ -1048,10 +1315,66 @@ return function(ctx)
     -- condition (ArchipelagoRE4R.lua, untouched) sets bridge.victory_pending at stage
     -- 59223; here we send StatusUpdate(GOAL) exactly once while connected, then latch
     -- victory_sent + persist (replacing the Python client's goal_achieved + ack_victory).
-    local function maybe_send_victory()
+    maybe_send_victory = function()
         local bridge = ctx.bridge
         if ap == nil or bridge == nil then return end
+
+        local is_merc_only = false
+        local slot_data = ctx.slot_data or bridge.slot_data
+        if type(slot_data) == "table" and slot_data.game_mode == "mercenaries_only" then
+            is_merc_only = true
+        end
+
+        if is_merc_only and bridge.victory_sent ~= true and type(bridge.checked_locations) == "table" then
+            local required = {}
+            local merc_data = type(slot_data) == "table" and type(slot_data.mercenaries) == "table"
+                and slot_data.mercenaries or nil
+            local locations = merc_data and merc_data.locations
+            local canonical_characters = {
+                "Leon", "Leon (Pinstripe)", "Luis", "Krauser",
+                "HUNK", "Ada", "Ada (Dress)", "Wesker",
+            }
+            local canonical_stages = { "Village", "Castle", "Island", "Docks" }
+            local required_seen = {}
+            local mappings_complete = type(locations) == "table"
+            if mappings_complete then
+                for _, character_name in ipairs(canonical_characters) do
+                    local character_locations = locations[character_name]
+                    if type(character_locations) ~= "table" then
+                        mappings_complete = false
+                        break
+                    end
+                    for _, stage_name in ipairs(canonical_stages) do
+                        local stage_locations = character_locations[stage_name]
+                        local loc_id = type(stage_locations) == "table" and tonumber(stage_locations.A) or nil
+                        if loc_id == nil or loc_id ~= math.floor(loc_id) or loc_id <= 0
+                            or required_seen[loc_id] then
+                            mappings_complete = false
+                            break
+                        end
+                        loc_id = math.floor(loc_id)
+                        required_seen[loc_id] = true
+                        required[#required + 1] = loc_id
+                    end
+                    if not mappings_complete then break end
+                end
+            end
+            local all_done = mappings_complete and #required == 32 and room_location_ids ~= nil
+            if all_done then
+                for _, loc_id in ipairs(required) do
+                    if room_location_ids[loc_id] ~= true or bridge.checked_locations[loc_id] ~= true then
+                        all_done = false
+                        break
+                    end
+                end
+            end
+            if all_done then
+                bridge.victory_pending = true
+            end
+        end
+
         if bridge.victory_pending ~= true or bridge.victory_sent == true then return end
+
         -- Fully connected only; otherwise leave the latch to re-fire on reconnect.
         local ok_state, state = pcall(function() return ap:get_state() end)
         if not ok_state or state ~= AP.State.SLOT_CONNECTED then return end
@@ -1074,21 +1397,38 @@ return function(ctx)
         -- latched + persisted above) -- so it gets the centre-screen celebration with no
         -- risk of ever becoming noise. The toast stays as well: it's what the Message Log
         -- captures from, so the goal is still recoverable after the banner fades.
-        local trigger_celebration = ctx.trigger_celebration or _G.trigger_celebration
-        if type(trigger_celebration) == "function" then
-            trigger_celebration("GOAL COMPLETE", {
-                "Saddler's dead. Ashley's safe.",
-                "Reported to Archipelago.",
-            })
+        local is_merc_only = false
+        local slot_data = ctx.slot_data or bridge.slot_data
+        if type(slot_data) == "table" and slot_data.game_mode == "mercenaries_only" then
+            is_merc_only = true
         end
-        enqueue_toast("Goal Complete!", "Saddler's dead. Ashley's safe.", "PROGRESSION", "goal")
+
+        local trigger_celebration = ctx.trigger_celebration or _G.trigger_celebration
+        if is_merc_only then
+            if type(trigger_celebration) == "function" then
+                trigger_celebration("MERCENARIES COMPLETE", {
+                    "Rank A achieved on all 32 loadouts.",
+                    "Reported to Archipelago.",
+                })
+            end
+            enqueue_toast("Goal Complete!", "Rank A achieved on all 32 loadouts.", "PROGRESSION", "goal")
+        else
+            if type(trigger_celebration) == "function" then
+                trigger_celebration("GOAL COMPLETE", {
+                    "Saddler's dead. Ashley's safe.",
+                    "Reported to Archipelago.",
+                })
+            end
+            enqueue_toast("Goal Complete!", "Saddler's dead. Ashley's safe.", "PROGRESSION", "goal")
+        end
     end
+
 
     -- [Phase 4] Scout every location once on connect so the progression-warning UI gets
     -- seed-aware AP ItemFlags. Mirrors the Python client's _refresh_location_classifications:
     -- one LocationScouts(all ids, create_as_hint=0); the reply lands in on_location_info,
     -- which fills bridge.location_classifications (the table data.lua's warning logic reads).
-    local function scout_all_locations()
+    scout_all_locations = function()
         local bridge = ctx.bridge
         if ap == nil or bridge == nil then return end
         if room_location_ids == nil then
@@ -1179,7 +1519,57 @@ return function(ctx)
         ap:ConnectSlot(st.slot, st.password, ITEMS_HANDLING, CLIENT_TAGS, CLIENT_VERSION)
     end
 
+    reconcile_server_checked_locations = function(locations, authoritative)
+        local bridge = ctx.bridge
+        if bridge == nil then return end
+        if authoritative then bridge.checked_locations = {} end
+        bridge.checked_locations = bridge.checked_locations or {}
+        bridge.pending_checks = bridge.pending_checks or {}
+        bridge.pending_check_keys = bridge.pending_check_keys or {}
+        bridge.acknowledged_guid_keys = bridge.acknowledged_guid_keys or {}
+        bridge.mercenaries_completed_locations = bridge.mercenaries_completed_locations or {}
+        local changed = authoritative
+        if type(locations) == "table" then
+            for _, raw_id in pairs(locations) do
+                local location_id = tonumber(raw_id)
+                if location_id ~= nil then
+                    location_id = math.floor(location_id)
+                    if bridge.checked_locations[location_id] ~= true then
+                        bridge.checked_locations[location_id] = true
+                        changed = true
+                    end
+                    for index = #bridge.pending_checks, 1, -1 do
+                        local pending_entry = bridge.pending_checks[index]
+                        local pending_id = type(pending_entry) == "table" and tonumber(pending_entry.location_id) or nil
+                        if pending_id ~= nil and math.floor(pending_id) == location_id then
+                            local key = pending_entry.key
+                            if type(key) == "string" and string.sub(key, 1, 5) == "merc:" then
+                                bridge.mercenaries_completed_locations[location_id] = true
+                            elseif type(key) == "string" then
+                                bridge.acknowledged_guid_keys[key] = true
+                            end
+                            if type(key) == "string" then bridge.pending_check_keys[key] = nil end
+                            table.remove(bridge.pending_checks, index)
+                            changed = true
+                        end
+                    end
+                end
+            end
+        end
+        if changed then
+            bridge.state_dirty = true
+            if type(ctx.save_session_state) == "function" then ctx.save_session_state() end
+        end
+    end
+
     local function on_slot_connected(slot_data)
+        merc_session_enabled = mercenaries_enabled(slot_data)
+        local validated_merc_locations, merc_location_error = build_merc_location_ids(slot_data)
+        merc_location_ids = validated_merc_locations
+        if merc_location_ids == nil and (merc_session_enabled
+            or merc_location_error ~= "slot_data.mercenaries.locations missing") then
+            warn("Mercenaries location mapping unavailable: " .. tostring(merc_location_error))
+        end
         info("SLOT CONNECTED as '" .. st.slot .. "' -- bare-connect SUCCESS")
         set_conn_status("connected", "Connected (" .. st.slot .. ")")
         -- Whatever the recovery dialog was worried about, it is resolved.
@@ -1187,6 +1577,7 @@ return function(ctx)
         st.slot_connected = true
         st.port_recovery_dismissed_kind = nil
         close_port_recovery()
+        if ctx.bridge then ctx.bridge.checked_locations = {} end
         -- [DeathLink] Read the slot's death_link setting (added to fill_slot_data in the
         -- apworld). Accept boolean true or numeric/string 1. Reset the per-connection
         -- death state so a reconnect can't strand a queued death or a stale edge.
@@ -1247,7 +1638,21 @@ return function(ctx)
                 end
             end
         end
+        -- [Mercenaries] Initialize Mercenaries runtime slot data and virtual gating
+        do
+            ctx.slot_data = slot_data
+            if ctx.bridge then ctx.bridge.slot_data = slot_data end
+            local init_merc = ctx.init_merc_ownership or _G.init_merc_ownership
+            if type(init_merc) == "function" then
+                init_merc(slot_data)
+            end
+            local install_hooks = ctx.install_merc_virtual_gating_hooks or _G.install_merc_virtual_gating_hooks
+            if type(install_hooks) == "function" then
+                install_hooks()
+            end
+        end
         -- Capture our NUMERIC slot + seed and establish the per-seed session
+
         -- identity so the durable watermark keys to session_<seed>__<slot>.json
         -- and loads on connect. Clear any stale queue from a prior connection.
         local ok_num, num = pcall(function() return ap:get_player_number() end)
@@ -1278,8 +1683,9 @@ return function(ctx)
         end
         pending = {}
         pending_by_index = {}
-        received_ledger = {} -- [F8] fresh identity: rebuilt from the on-connect replay
+        received_ledger = {} -- [F8] fresh identity: rebuilt from ReceivedItems packets
         inject_failure_counts = {}
+        unresolved_merc_items_logged = {}
         st.item_delivery_resume_not_before = nil
         st.item_delivery_stability_logged = false
         sent_location_checks = {} -- new socket: let the persisted checks resend once
@@ -1298,6 +1704,7 @@ return function(ctx)
         -- scout below. missing+checked from the Connected packet is exactly the
         -- slot's created location list for its options.
         room_location_ids = nil
+        if ctx.bridge then ctx.bridge.room_location_ids = nil end
         skipped_non_room_lids = {}
         do
             -- File first: the launcher wrote this room's exact id set at patch
@@ -1348,6 +1755,29 @@ return function(ctx)
                     end
                 end
             end
+            local merc_data = type(slot_data) == "table" and type(slot_data.mercenaries) == "table"
+                and slot_data.mercenaries or nil
+            local merc_locations = merc_data and merc_data.locations
+            if type(merc_locations) == "table" then
+                for _, character_locations in pairs(merc_locations) do
+                    if type(character_locations) == "table" then
+                        for _, stage_locations in pairs(character_locations) do
+                            if type(stage_locations) == "table" then
+                                for _, raw_id in pairs(stage_locations) do
+                                    local numeric_id = tonumber(raw_id)
+                                    if numeric_id ~= nil and numeric_id == math.floor(numeric_id) and numeric_id > 0 then
+                                        if not set[numeric_id] then
+                                            set[numeric_id] = true
+                                            total = total + 1
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+                if total > 0 then source = source .. "+slot mercenaries" end
+            end
             if total > 0 then
                 room_location_ids = set
                 info(string.format("room location set: %d location(s) via %s", total, source))
@@ -1355,10 +1785,18 @@ return function(ctx)
                 warn("room location set unavailable (no launcher file, AP getters empty) -- location scouting is skipped this session")
             end
         end
+        if ctx.bridge then ctx.bridge.room_location_ids = room_location_ids end
+        if merc_location_ids ~= nil then
+            local merc_count = 0
+            for _ in pairs(merc_location_ids) do merc_count = merc_count + 1 end
+            info(string.format("Mercenaries location set: %d location(s)", merc_count))
+        end
         local set_ap_session_identity = ctx.set_ap_session_identity
+        local session_identity_ready = false
         if type(set_ap_session_identity) == "function" then
             local stage = ctx.bridge and ctx.bridge.last_state and ctx.bridge.last_state.current_stage
             set_ap_session_identity(st.seed, st.slot, stage)
+            session_identity_ready = true
             info(string.format(
                 "session identity set: seed='%s' slot='%s' numeric_slot=%s -> %s (last_received_index=%s)",
                 st.seed, st.slot, tostring(st.numeric_slot),
@@ -1370,11 +1808,31 @@ return function(ctx)
         else
             warn("ctx.set_ap_session_identity unavailable -- session watermark not keyed")
         end
+        if session_identity_ready then
+            local ok_checked, checked = pcall(function() return ap:get_checked_locations() end)
+            if ok_checked and type(checked) == "table" then
+                reconcile_server_checked_locations(checked, true)
+            else
+                warn("authoritative checked-location query unavailable")
+            end
+        else
+            warn("authoritative checked-location query skipped: session identity unavailable")
+        end
         -- [Phase 3 Group 2] Reconcile: resend the full persisted checked set now that
         -- the per-seed session (incl. acknowledged_guid_keys) has been loaded.
-        resend_checked_locations()
+        if session_identity_ready then
+            local ok_resend, resend_error = pcall(resend_checked_locations)
+            if not ok_resend then
+                err("persisted check resend on connect errored: " .. tostring(resend_error))
+            end
+        else
+            warn("persisted check resend skipped: session identity unavailable")
+        end
         -- [Phase 4] Refresh seed-aware location classifications for the progression UI.
-        scout_all_locations()
+        local ok_scout, scout_error = pcall(scout_all_locations)
+        if not ok_scout then
+            err("location scouting on connect errored: " .. tostring(scout_error))
+        end
     end
 
     local function on_slot_refused(reasons)
@@ -1395,9 +1853,33 @@ return function(ctx)
         local bridge = ctx.bridge
         local watermark = (bridge and tonumber(bridge.last_received_index)) or -1
         local queued, lo, hi = 0, nil, nil
+
+        -- [Mercenaries] Ownership reconstruction side-channel: every valid packet
+        -- index with a known Merc mapping name qualifies, including old replayed
+        -- indexes. Per-packet dedupe prevents repeated entries from spamming the
+        -- handler; ownership handler itself remains idempotent.
+        local handle_merc = ctx.handle_merc_item_received or _G.handle_merc_item_received
+        if type(handle_merc) == "function" then
+            local side_channel_indexes = {}
+            for _, item in ipairs(items) do
+                local item_id = type(item) == "table" and item.item or nil
+                local index = type(item) == "table" and item.index or nil
+                if item_id ~= nil and valid_received_index(index)
+                    and not side_channel_indexes[index] then
+                    local mapping = ap_item_map[item_id]
+                    if get_item_source(item_id, mapping) == "MERCENARIES"
+                        and type(mapping) == "table"
+                        and type(mapping.name) == "string" and mapping.name ~= "" then
+                        side_channel_indexes[index] = true
+                        handle_merc(mapping.name)
+                    end
+                end
+            end
+        end
+
         for _, item in ipairs(items) do
-            local idx = item.index
-            if type(idx) == "number" then
+            local idx = type(item) == "table" and item.index or nil
+            if valid_received_index(idx) then
                 -- [F8] Ledger every delivered item (independent of the watermark) so
                 -- a save rollback can re-queue items already popped from `pending`.
                 received_ledger[idx] = {
@@ -1406,7 +1888,7 @@ return function(ctx)
                     location = item.location,
                     flags = item.flags,
                 }
-                if idx > watermark and not pending_by_index[idx] then
+                if is_new_received_index(idx, watermark) and not pending_by_index[idx] then
                     pending[#pending + 1] = {
                         index = idx,
                         item = item.item,
@@ -1465,6 +1947,7 @@ return function(ctx)
 
     local function on_location_checked(locations)
         local n = (type(locations) == "table") and #locations or 0
+        reconcile_server_checked_locations(locations, false)
         info("server-confirmed checked locations: " .. n)
     end
 
@@ -1504,7 +1987,6 @@ return function(ctx)
             info("DeathLink: bounce had no DeathLink tag -- ignored")
             return
         end
-
         local data = bounce.data
         if type(data) ~= "table" then
             info("DeathLink: bounce data is " .. type(data) .. ", not a table -- ignored")
@@ -1699,8 +2181,12 @@ return function(ctx)
     -- [DeathLink] Per-tick pump (called after ap:poll): send our own death on the
     -- rising edge of the player's IsDead flag; apply a queued incoming death once we
     -- reach a safe gameplay state.
-    local function poll_deathlink()
-        if not st.death_link_enabled then return end
+    poll_deathlink = function()
+        if not st.death_link_enabled then
+            st.dl_pending_incoming = nil
+            st.dl_last_dead = false
+            return
+        end
 
         local get_is_dead = ctx.get_player_is_dead
         if type(get_is_dead) == "function" then
@@ -1936,7 +2422,7 @@ return function(ctx)
     -- connected and nothing has answered for PORT_UNREACHABLE_SECONDS, offer the
     -- dialog. This is the check that actually fires for a dead port, because
     -- lua-apclientpp retries the socket itself and never re-enters connect().
-    local function poll_port_recovery()
+    poll_port_recovery = function()
         if ap == nil or st.slot_connected then return end
         if ctx.bridge ~= nil and ctx.bridge.port_recovery_dialog ~= nil then return end
         -- Dismissed watchdog warnings stay dismissed. open_port_recovery also
@@ -1973,18 +2459,80 @@ return function(ctx)
     ctx.ap_dismiss_port_recovery = ap_dismiss_port_recovery
 
     load_ap_item_map()
+
+    do
+        local runtime_helper_names = {
+            "drain_location_checks",
+            "resend_checked_locations",
+            "reconcile_server_checked_locations",
+            "scout_all_locations",
+            "maybe_send_victory",
+            "poll_deathlink",
+            "poll_port_recovery",
+        }
+        local runtime_helper_types = {}
+        for _, name in ipairs(runtime_helper_names) do
+            local helper = ({
+                drain_location_checks = drain_location_checks,
+                resend_checked_locations = resend_checked_locations,
+                reconcile_server_checked_locations = reconcile_server_checked_locations,
+                scout_all_locations = scout_all_locations,
+                maybe_send_victory = maybe_send_victory,
+                poll_deathlink = poll_deathlink,
+                poll_port_recovery = poll_port_recovery,
+            })[name]
+            local helper_type = type(helper)
+            if helper_type ~= "function" then
+                err("runtime helper binding invalid: " .. name .. "=" .. helper_type)
+                return
+            end
+            runtime_helper_types[#runtime_helper_types + 1] = name .. "=" .. helper_type
+        end
+        info("runtime helper bindings ready: " .. table.concat(runtime_helper_types, ", "))
+    end
     connect()
 
     local last_retry_clock = 0
+    local poll_error_states = {}
+    local last_poll_error_summary = 0
+    local function report_poll_error(stage, failure)
+        local detail = tostring(failure)
+        local key = stage .. "\0" .. detail
+        local state = poll_error_states[key]
+        if state == nil then
+            state = { count = 0 }
+            poll_error_states[key] = state
+        end
+        state.count = state.count + 1
+        if state.count == 1 then
+            err("poll stage '" .. stage .. "' failed: " .. detail)
+            return
+        end
+        local now = os.clock()
+        if now - last_poll_error_summary >= 5.0 then
+            last_poll_error_summary = now
+            err(string.format("poll stage '%s' repeated error (%d times): %s",
+                stage, state.count, detail))
+        end
+    end
+    local function run_poll_stage(name, fn)
+        local ok, e = pcall(fn)
+        if not ok then report_poll_error(name, e) end
+    end
+
     re.on_pre_application_entry("UpdateBehavior", function()
         local ok, e = pcall(function()
             if ap ~= nil then
-                ap:poll()
-                drain_received_items()
-                drain_location_checks()
-                maybe_send_victory()
-                poll_deathlink()
-                poll_port_recovery()
+                local poll_ok, poll_error = pcall(function() ap:poll() end)
+                if not poll_ok then
+                    report_poll_error("ap:poll", poll_error)
+                    return
+                end
+                run_poll_stage("drain_received_items", drain_received_items)
+                run_poll_stage("drain_location_checks", drain_location_checks)
+                run_poll_stage("maybe_send_victory", maybe_send_victory)
+                run_poll_stage("poll_deathlink", poll_deathlink)
+                run_poll_stage("poll_port_recovery", poll_port_recovery)
                 return
             end
             local now = os.clock()
@@ -1993,9 +2541,7 @@ return function(ctx)
                 connect()
             end
         end)
-        if not ok then
-            err("poll loop error: " .. tostring(e))
-        end
+        if not ok then report_poll_error("poll loop", e) end
     end)
 
     info("apclient.lua initialized (Phase 2d: received items -> injection).")

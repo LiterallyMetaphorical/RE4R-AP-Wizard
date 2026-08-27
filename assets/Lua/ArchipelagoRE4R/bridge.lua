@@ -46,6 +46,7 @@ local function install(ctx)
             tutorial_shown = bridge.tutorial_shown == true,
             -- [Phase 3] durable per-seed checked set ("stage|guid" -> true).
             acknowledged_guid_keys = bridge.acknowledged_guid_keys,
+            mercenaries_completed_locations = bridge.mercenaries_completed_locations or {},
             -- [F8] per-guid, per-save-version received-item watermarks.
             save_reconcile = bridge.save_reconcile_map or {},
             -- [Non-lead pickups] Locations collected by a character whose
@@ -67,6 +68,7 @@ local function install(ctx)
         bridge.last_received_index = -1
         bridge.tutorial_shown = false
         bridge.acknowledged_guid_keys = {}
+        bridge.mercenaries_completed_locations = {}
         bridge.save_reconcile_map = {}
         bridge.non_lead_checked_locations = {}
 
@@ -92,6 +94,14 @@ local function install(ctx)
                 for k, v in pairs(payload.acknowledged_guid_keys) do
                     if type(k) == "string" and v == true then
                         bridge.acknowledged_guid_keys[k] = true
+                    end
+                end
+            end
+            if type(payload.mercenaries_completed_locations) == "table" then
+                for location_id, completed in pairs(payload.mercenaries_completed_locations) do
+                    local numeric_id = tonumber(location_id)
+                    if numeric_id ~= nil and completed == true then
+                        bridge.mercenaries_completed_locations[math.floor(numeric_id)] = true
                     end
                 end
             end

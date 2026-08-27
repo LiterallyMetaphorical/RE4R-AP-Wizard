@@ -67,6 +67,8 @@ local function install(ctx)
         non_lead_checked_locations = {},
         pending_checks = {},
         pending_check_keys = {},
+        checked_locations = {},
+        mercenaries_completed_locations = {},
         next_pending_check_id = 1,
         pending_pickup_accepts = {},
         next_pending_pickup_accept_id = 1,
@@ -204,6 +206,8 @@ local function install(ctx)
         bridge.state_dirty = false
         bridge.pending_checks = {}
         bridge.pending_check_keys = {}
+        bridge.checked_locations = {}
+        bridge.mercenaries_completed_locations = {}
         bridge.pending_pickup_accepts = {}
         bridge.next_pending_pickup_accept_id = 1
         bridge.pickup_probe = nil

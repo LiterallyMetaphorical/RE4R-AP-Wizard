@@ -223,12 +223,40 @@ local function install(ctx)
         return contained == true
     end
 
+    local function is_mercenaries_active()
+        local slot_data = ctx.slot_data or bridge.slot_data
+        if type(slot_data) == "table" and slot_data.game_mode == "mercenaries_only" then
+            return true
+        end
+        local get_domain = ctx.get_runtime_domain or _G.get_runtime_domain
+        if type(get_domain) == "function" then
+            local ok_d, dom = pcall(get_domain)
+            if ok_d and dom == "MERCENARIES" then
+                return true
+            end
+        end
+        local get_ctrl = ctx.get_merc_controller or _G.get_merc_controller
+        if type(get_ctrl) == "function" then
+            local ok_c, ctrl = pcall(get_ctrl)
+            if ok_c and ctrl ~= nil then
+                return true
+            end
+        end
+        return false
+    end
+
     local function draw_world_check_markers()
+        -- Mercenaries mode does not have campaign world pickup markers
+        if is_mercenaries_active() then
+            return
+        end
+
         -- YAML ceiling: check_guidance "off" disables ALL world guidance,
         -- including hinted markers (the ceiling is absolute).
         if bridge.check_guidance_ceiling == "off" then
             return
         end
+
         -- Ambient [AP] markers and purchased [HINT] markers gate separately:
         -- a player who opted out of ambient guidance still sees hints they
         -- (or teammates) explicitly bought, unless they turn those off too.

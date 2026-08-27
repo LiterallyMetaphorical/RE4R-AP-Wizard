@@ -514,6 +514,30 @@
 
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Game Mode" />
+                            <ComboBox Width="240"
+                                      HorizontalAlignment="Left"
+                                      ItemsSource="{Binding GameModeOptions}"
+                                      SelectedItem="{Binding SelectedGameMode, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Campaign: standard Leon story multiworld with BioRand. Campaign + Mercenaries: combined multiworld with campaign checks and Mercenaries scores. Mercenaries Only: standalone Mercenaries multiworld (no campaign, no BioRand needed)." />
+                        </StackPanel>
+
+                        <StackPanel Style="{StaticResource OptionCardStyle}"
+                                    Visibility="{Binding IsMercenariesEnabled, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Mercenaries Score Checks" />
+                            <ComboBox Width="240"
+                                      HorizontalAlignment="Left"
+                                      ItemsSource="{Binding MercenariesScoreChecksOptions}"
+                                      SelectedItem="{Binding SelectedMercenariesScoreChecks, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Standard: Rank A + S (64 checks). A Only: Rank A only (32 checks). Full: All ranks A, S, S+, S++ (128 checks)." />
+                        </StackPanel>
+
+
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="Difficulty" />
                             <ComboBox Width="220"
                                       HorizontalAlignment="Left"

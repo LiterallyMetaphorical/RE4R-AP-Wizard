@@ -5,8 +5,10 @@ dofile("reframework\\autorun\\ArchipelagoRE4R\\data.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\runtime.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\injection.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\detector.lua")(ctx)
+dofile("reframework\\autorun\\ArchipelagoRE4R\\mercenaries.lua")(ctx)
 
 local bridge = ctx.bridge
+
 
 local function now_unix_ms()
     return os.time() * 1000
@@ -325,7 +327,14 @@ re.on_pre_application_entry("UpdateBehavior", function()
         local now_clock = os.clock()
         local runtime_state = nil
 
-        if now_clock - bridge.last_scan_clock >= SCAN_INTERVAL_SECONDS then
+        if type(ctx.update_mercenaries_state) == "function" then
+            ctx.update_mercenaries_state()
+        end
+
+        local get_domain = ctx.get_runtime_domain or _G.get_runtime_domain
+        local is_merc = (type(get_domain) == "function" and get_domain() == "MERCENARIES")
+
+        if not is_merc and now_clock - bridge.last_scan_clock >= SCAN_INTERVAL_SECONDS then
             bridge.last_scan_clock = now_clock
             runtime_state = get_runtime_state()
             process_pending_warp(runtime_state)
@@ -337,6 +346,7 @@ re.on_pre_application_entry("UpdateBehavior", function()
                 prune_pending_pickup_accepts(runtime_state.current_stage)
             end
         end
+
 
         if now_clock - last_state_process_clock < WRITE_INTERVAL_SECONDS then
             return
@@ -394,48 +404,59 @@ if #injectable_items > 0 then
 end
 
 re.on_frame(function()
-    -- Destroy intercepted placeholder drops outside their own accept hook.
-    pump_placeholder_despawns()
-    -- Capture toasts into the durable Message Log before the overlay prunes them.
-    capture_message_log_entries()
-    -- Then mirror fresh toasts onto the game's native activity-log rail (mode-
-    -- gated inside; ui_overlay skips records it marks rendered_natively).
-    dispatch_native_toasts()
-    -- World-space check markers first; the HUD windows layer over them.
-    draw_world_check_markers()
-    draw_check_progress_overlay()
-    -- Outside gameplay the header draws nothing, so the AP connection
-    -- status gets its own line at the menus and during loads.
-    draw_ap_status_menu_overlay()
-    draw_check_notification_overlays_polished()
-    -- After the toast rail so the goal banner layers over it.
-    draw_celebration_overlay()
-    draw_progression_warning_dialog()
-    -- Connection recovery sits above everything else: it is only ever
-    -- visible when the session cannot reach its own multiworld.
-    draw_port_recovery_dialog()
-    -- First-seed welcome: armed on the first playable Chapter 1 tick.
-    maybe_show_tutorial()
-    draw_tutorial_dialog()
-    draw_main_window()
+    local ok, err = pcall(function()
+        -- Destroy intercepted placeholder drops outside their own accept hook.
+        pump_placeholder_despawns()
+        -- Capture toasts into the durable Message Log before the overlay prunes them.
+        capture_message_log_entries()
+        -- Then mirror fresh toasts onto the game's native activity-log rail (mode-
+        -- gated inside; ui_overlay skips records it marks rendered_natively).
+        dispatch_native_toasts()
+        -- World-space check markers first; the HUD windows layer over them.
+        draw_world_check_markers()
+        draw_check_progress_overlay()
+        -- Outside gameplay the header draws nothing, so the AP connection
+        -- status gets its own line at the menus and during loads.
+        draw_ap_status_menu_overlay()
+        draw_check_notification_overlays_polished()
+        -- After the toast rail so the goal banner layers over it.
+        draw_celebration_overlay()
+        draw_progression_warning_dialog()
+        -- Connection recovery sits above everything else: it is only ever
+        -- visible when the session cannot reach its own multiworld.
+        draw_port_recovery_dialog()
+        -- First-seed welcome: armed on the first playable Chapter 1 tick.
+        maybe_show_tutorial()
+        draw_tutorial_dialog()
+        draw_main_window()
+    end)
+    if not ok then
+        log.error("[ArchipelagoRE4R] on_frame render error: " .. tostring(err))
+    end
 end)
 
 re.on_draw_ui(function()
-    -- Bootstrap toggles ONLY. Everything a player configures (markers and
-    -- their detail) moved into the window's Guidance tab, because this menu
-    -- is REFramework's and new players never open it (2026-07-31).
-    local changed_main, main_value = imgui.checkbox("Show Archipelago RE4R Window", bridge.main_window_enabled)
-    if changed_main then
-        bridge.main_window_enabled = main_value
-    end
-
-    local changed_dev, dev_value = imgui.checkbox("Developer Tools (Debug tab)", bridge.developer_tools_enabled)
-    if changed_dev then
-        bridge.developer_tools_enabled = dev_value
-        if dev_value and type(sync_warp_inputs_to_current_state) == "function" then
-            sync_warp_inputs_to_current_state()
+    local ok, err = pcall(function()
+        -- Bootstrap toggles ONLY. Everything a player configures (markers and
+        -- their detail) moved into the window's Guidance tab, because this menu
+        -- is REFramework's and new players never open it (2026-07-31).
+        local changed_main, main_value = imgui.checkbox("Show Archipelago RE4R Window", bridge.main_window_enabled)
+        if changed_main then
+            bridge.main_window_enabled = main_value
         end
-    end
 
-    imgui.text("Marker settings live in the window's Guidance tab (press Insert).")
+        local changed_dev, dev_value = imgui.checkbox("Developer Tools (Debug tab)", bridge.developer_tools_enabled)
+        if changed_dev then
+            bridge.developer_tools_enabled = dev_value
+            if dev_value and type(sync_warp_inputs_to_current_state) == "function" then
+                sync_warp_inputs_to_current_state()
+            end
+        end
+
+        imgui.text("Marker settings live in the window's Guidance tab (press Insert).")
+    end)
+    if not ok then
+        log.error("[ArchipelagoRE4R] on_draw_ui render error: " .. tostring(err))
+    end
 end)
+

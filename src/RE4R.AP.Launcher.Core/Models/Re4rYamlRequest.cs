@@ -36,5 +36,12 @@ public sealed class Re4rYamlRequest
     // default; the launcher pins the rolled set into BioRand at patch time.
     public bool RandomEvents { get; set; }
 
+    // Game mode: campaign, campaign_and_mercenaries, mercenaries_only (apworld 0.8.0)
+    public string GameMode { get; set; } = "campaign";
+
+    // Mercenaries score check density: a_only, standard, full (apworld 0.8.0)
+    public string MercenariesScoreChecks { get; set; } = "standard";
+
     public IReadOnlyCollection<string> UnlockedTypewriterStageIds { get; set; } = Array.Empty<string>();
 }
+

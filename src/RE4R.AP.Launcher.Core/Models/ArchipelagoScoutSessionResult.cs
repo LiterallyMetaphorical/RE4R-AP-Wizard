@@ -24,4 +24,10 @@ public sealed class ArchipelagoScoutSessionResult
     /// rooms whose apworld predates the option.
     /// </summary>
     public RandomEventsSlotData RandomEvents { get; init; } = RandomEventsSlotData.Disabled;
+
+    /// <summary>
+    /// Game mode: campaign, campaign_and_mercenaries, mercenaries_only (apworld 0.8.0).
+    /// </summary>
+    public string GameMode { get; init; } = "campaign";
 }
+

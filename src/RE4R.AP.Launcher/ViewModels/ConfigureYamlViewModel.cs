@@ -28,6 +28,8 @@ public sealed class ConfigureYamlViewModel : ObservableObject
 
     private string _slotName = string.Empty;
     private string _slotNameError = string.Empty;
+    private string _selectedGameMode = "Campaign";
+    private string _selectedMercenariesScoreChecks = "Standard (Rank A + S)";
     private string _selectedDifficulty = "Standard";
     private int _progressionBalancing = 70;
     private CheckGuidanceOption _selectedCheckGuidance = CheckGuidanceOptionList[0];
@@ -39,6 +41,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     private bool _tutorial = true;
     private string _yamlPreview = "Enter your slot name to generate the YAML preview.";
     private string _statusText = "Choose your RE4R settings - they save automatically as you edit.";
+
     private ICommand? _backToLandingCommand;
     private bool _isOrganizerContext;
     private bool _isRestoring;
@@ -71,7 +74,12 @@ public sealed class ConfigureYamlViewModel : ObservableObject
 
     public ObservableCollection<TypewriterOptionViewModel> TypewriterOptions { get; } = new();
 
+    public IReadOnlyList<string> GameModeOptions { get; } = ["Campaign", "Campaign + Mercenaries", "Mercenaries Only"];
+
+    public IReadOnlyList<string> MercenariesScoreChecksOptions { get; } = ["Standard (Rank A + S)", "A Only (32 checks)", "Full (Rank A + S + S+ + S++)"];
+
     public IReadOnlyList<string> DifficultyOptions { get; } = ["Standard", "Hardcore", "Assisted", "Professional"];
+
 
     // Mirrors ArchipelagoRE4R/options.py CheckGuidance (off/markers/markers_rarity).
     // The friendly label is shown in the dropdown; Value is written to the YAML.
@@ -115,7 +123,40 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         }
     }
 
+    public string SelectedGameMode
+    {
+        get => _selectedGameMode;
+        set
+        {
+            if (SetProperty(ref _selectedGameMode, value))
+            {
+                OnPropertyChanged(nameof(IsMercenariesEnabled));
+                OnPropertyChanged(nameof(IsCampaignEnabled));
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
+
+    public string SelectedMercenariesScoreChecks
+    {
+        get => _selectedMercenariesScoreChecks;
+        set
+        {
+            if (SetProperty(ref _selectedMercenariesScoreChecks, value))
+            {
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
+
+    public bool IsMercenariesEnabled => !string.Equals(SelectedGameMode, "Campaign", StringComparison.OrdinalIgnoreCase);
+
+    public bool IsCampaignEnabled => !string.Equals(SelectedGameMode, "Mercenaries Only", StringComparison.OrdinalIgnoreCase);
+
     public string SlotNameError
+
     {
         get => _slotNameError;
         private set
@@ -591,6 +632,26 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     private void ApplyDraftCore(PendingSessionDraft draft)
     {
         SlotName = draft.SlotName;
+        if (!string.IsNullOrWhiteSpace(draft.GameMode))
+        {
+            SelectedGameMode = draft.GameMode switch
+            {
+                "campaign_and_mercenaries" or "Campaign + Mercenaries" => "Campaign + Mercenaries",
+                "mercenaries_only" or "Mercenaries Only" => "Mercenaries Only",
+                _ => "Campaign"
+            };
+        }
+
+        if (!string.IsNullOrWhiteSpace(draft.MercenariesScoreChecks))
+        {
+            SelectedMercenariesScoreChecks = draft.MercenariesScoreChecks switch
+            {
+                "a_only" or "A Only (32 checks)" => "A Only (32 checks)",
+                "full" or "Full (Rank A + S + S+ + S++)" => "Full (Rank A + S + S+ + S++)",
+                _ => "Standard (Rank A + S)"
+            };
+        }
+
         if (DifficultyOptions.Contains(draft.Difficulty))
         {
             SelectedDifficulty = draft.Difficulty;
@@ -641,6 +702,8 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             await _draftStore.UpdateAsync(draft =>
             {
                 draft.SlotName = SlotName.Trim();
+                draft.GameMode = SelectedGameMode;
+                draft.MercenariesScoreChecks = SelectedMercenariesScoreChecks;
                 draft.Difficulty = SelectedDifficulty;
                 draft.ProgressionBalancing = ProgressionBalancing;
                 draft.CheckGuidance = SelectedCheckGuidance.Value;
@@ -674,6 +737,18 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         return new Re4rYamlRequest
         {
             SlotName = SlotName.Trim(),
+            GameMode = SelectedGameMode switch
+            {
+                "Campaign + Mercenaries" => "campaign_and_mercenaries",
+                "Mercenaries Only" => "mercenaries_only",
+                _ => "campaign"
+            },
+            MercenariesScoreChecks = SelectedMercenariesScoreChecks switch
+            {
+                "A Only (32 checks)" => "a_only",
+                "Full (Rank A + S + S+ + S++)" => "full",
+                _ => "standard"
+            },
             Difficulty = SelectedDifficulty.Trim().ToLowerInvariant(),
             ProgressionBalancing = ProgressionBalancing,
             CheckGuidance = SelectedCheckGuidance.Value,
