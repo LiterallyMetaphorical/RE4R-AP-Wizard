@@ -518,7 +518,11 @@ public sealed class ManifestBuilder
                     ["chapter-ordinal"] = check.ChapterOrdinal,
                     ["price-spinel"] = check.PriceSpinel,
                     ["tier"] = check.Tier,
-                    ["display-name"] = check.DisplayName,
+                    // Same naming rule as the shelf (Cam, 2026-09-02: parity
+                    // between the tabs): your own item reads plainly, someone
+                    // else's names its owner. The fork bakes this verbatim
+                    // behind the [AP] tag.
+                    ["display-name"] = BuildRowName(check.DisplayName, check.PlayerName, check.Remote),
                     ["player-name"] = check.PlayerName,
                     ["remote"] = check.Remote,
                     ["item-id"] = check.ItemId,
@@ -729,16 +733,24 @@ public sealed class ManifestBuilder
     /// kept short enough to sit in a shop row.
     /// </summary>
     private static string BuildShopRowName(MerchantShopSlot slot)
+        => BuildRowName(slot.DisplayName, slot.PlayerName, slot.Remote);
+
+    /// <summary>
+    /// The one naming rule for a check on either merchant tab. Shared so the
+    /// shelf and the trade window can never drift apart in how they name the
+    /// same kind of thing.
+    /// </summary>
+    private static string BuildRowName(string? displayName, string? playerName, bool remote)
     {
-        var itemName = string.IsNullOrWhiteSpace(slot.DisplayName)
+        var itemName = string.IsNullOrWhiteSpace(displayName)
             ? "Archipelago Item"
-            : slot.DisplayName.Trim();
-        if (!slot.Remote || string.IsNullOrWhiteSpace(slot.PlayerName))
+            : displayName.Trim();
+        if (!remote || string.IsNullOrWhiteSpace(playerName))
         {
             return itemName;
         }
 
-        return $"{slot.PlayerName.Trim()}'s {itemName}";
+        return $"{playerName.Trim()}'s {itemName}";
     }
 
     private void Log(string message)
