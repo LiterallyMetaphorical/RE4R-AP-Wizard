@@ -19,7 +19,7 @@ HISTORY SQUASHED 2026-08-10: the fork's branch was flattened to a single commit,
                 .cs/.csv/.json, so the SHA-256 below still describes the code
                 that is on the branch today. Keep the old ids for the reasoning
                 they carry; treat 703e59a as the citable source commit.
-Source commit:  54d1853 (2026-08-31 spike revert; see the REBUILD entries below)
+Source commit:  bc6a2a1 (2026-09-02 one shop prefab per stand-in; see the REBUILD entries below)
 Previous:       05f581e (2026-08-06: FORCED EVENTS - BioRand takes its event
                 set from the multiworld. The apworld rolls the Village event
                 set at generation time and the launcher pins it in as
@@ -156,6 +156,72 @@ ProductVersion: 1.0.0+54d1853dcacd403b6c94f1aa55d681fafe870bdc (the launcher
                 writes this into version_stamp.json, and a change here is what
                 triggers the one-time setup cache re-harvest)
 Built with:     .NET SDK 10.0.301
+
+REBUILD 2026-09-02 third (bc6a2a1)
+    One shop prefab per stand-in.
+      * RepointStandinShopModels: every stand-in row used to point at the
+        one minted ingameshop_itemmodel_ap_check_00.pfb, verified in the
+        patched pak; the shop showed the AP logo model for exactly one
+        stand-in per session on the shelf and for none on the trade tab.
+        Now one file per stand-in, file and GameObject named after the
+        item id, minted only where absent so either tab can ask first.
+      * Pairs with mod 2026.09.02-68 (apworld b62c173): model probe and
+        icon rect/UV measurements on both tabs. Re-patch required; seeds
+        unchanged (apworld bytes identical).
+    Offline verify: library builds clean, 0 warnings; staged and
+    hash-verified by tools/stage_payload.py.
+    exe SHA-256: 69d32c51882879cf8695c9a1dc1da2898092490703370b874b9c0f6938878b8d
+    Prior exe SHA-256: fe67ffb9a7f91beb630f95f383f3032e064e7ccf7f4a8ba852140dd80facc600
+
+REBUILD 2026-09-02 second (1f01b44)
+    Give the trade tiles a model, and one name rule for both tabs.
+      * ApplyTradeTab: trade stand-ins get the shelf's full model recipe
+        (AO shop-model entry copy + repoint to the minted AP prefab), so the
+        tab instantiates a model for them at all; the mod swaps a local
+        tile to its real item and frames the AP logo on the rest. The prefab
+        mint is guarded, once per patch whichever tab asks first.
+      * BakeTradeText no longer appends the owner: the launcher shapes
+        both tabs' names with one rule (own item plain, "<player>'s <item>"
+        for a remote one) and the fork bakes it behind the [AP] tag.
+      * Pairs with mod 2026.09.02-67 (apworld 7bed242): buy-panel captions
+        for local checks via registerCaptionSetting (diagnostic logged),
+        trade model swap/placement, Emerald icon diagnostic. Re-patch
+        required; seeds unchanged (apworld bytes identical).
+    Offline verify: library builds clean, 0 warnings; staged and
+    hash-verified by tools/stage_payload.py.
+    exe SHA-256: fe67ffb9a7f91beb630f95f383f3032e064e7ccf7f4a8ba852140dd80facc600
+    Prior exe SHA-256: 1644e6642edfe8e0c10c487f73a0b825b9e876487919ea82ba260fda286dbf83
+
+REBUILD 2026-09-02 (aaa67e6)
+    Give the empty trade slot something honest to say.
+      * BakeTradeText: the per-slot baseline is now the EMPTY-slot text
+        ("[AP] Nothing to Trade" / "Nothing to Trade here yet, Stranger -
+        come find me again later for more."), baked ONCE at the GUIDs the
+        launcher carries in ap-trade-shop (empty-name-msg-guid /
+        empty-caption-msg-guid) so the mod can point a parked slot back
+        at it. A manifest without them bakes at fresh GUIDs (pre-fix look).
+      * Check captions are the buy tab's line; "Merchant" capitalised on
+        both tabs (Cam, 2026-09-02).
+      * Pairs with mod 2026.09.02-66 (apworld 9e54a1a): empty slots are
+        PARKED as already-received (Option A), text dressing routed to the
+        item message manager, stable assignment, Invalid-read guard.
+        Needs a re-patch; seeds unchanged (apworld bytes identical).
+    Offline verify: library builds clean, 0 warnings; staged and
+    hash-verified by tools/stage_payload.py.
+    exe SHA-256: 1644e6642edfe8e0c10c487f73a0b825b9e876487919ea82ba260fda286dbf83
+    Prior exe SHA-256: 8744832f28ef87af6c770ff6a3ff91112d1fccede36deaaa94a70c5dc76e84c0
+
+REBUILD 2026-09-01 (1b73404) - RECORDED LATE
+    Two rebuilds went unrecorded here on 2026-09-01: af00f80 "Take over
+    the Trade tab" (the fork's ApplyTradeTab: strip every vanilla one-shot
+    row, mint 7 check slots at reward ids 0-6, gems, Velvet Blue, Gold
+    Token, baked text; exe prefix b289462b per HANDOFF_SESSION_20260831.md,
+    full hash not kept) and then 1b73404 "Give the starting scope its
+    Start discovery" (the starting-arsenal scope fix), which is the exe
+    below and the payload Cam's -59 to -65 sessions ran on.
+    exe SHA-256: 8744832f28ef87af6c770ff6a3ff91112d1fccede36deaaa94a70c5dc76e84c0
+    Prior exe SHA-256: b289462b (prefix only; af00f80), before that
+                       8fbfdc566e5fe5d960efe23b5a9180a348543e6281240532bf475af9b14aa2e3
 
 REBUILD 2026-08-31 (54d1853) - SPIKE REVERTED, CLEAN AGAIN
     The 45-slot experiment is done and its build is out of circulation.

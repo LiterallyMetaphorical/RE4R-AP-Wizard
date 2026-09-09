@@ -62,6 +62,15 @@ return function(ctx)
         -- binds - which silently disables the whole tab for the run.
         bound_ok = false,
         bind_attempts = 0,
+        -- reward id -> slot record, filled at bind. What lets the icon and
+        -- text passes tell "one of ours, currently empty" from "not ours".
+        slot_by_reward_id = {},
+        -- The fork baked ONE empty-slot text at these GUIDs (derived by the
+        -- launcher, carried by the room file). A slot with nothing to show
+        -- points at it, so an emptied slot never keeps the name of the check
+        -- it just sold. Nil in a room file that predates them.
+        empty_name_msg_guid = nil,
+        empty_caption_msg_guid = nil,
     }
     ctx.trade = trade
 
@@ -71,6 +80,29 @@ return function(ctx)
 
     local function shop_manager()
         return sdk.get_managed_singleton("chainsaw.InGameShopManager")
+    end
+
+    -- getRewardProgress is an ENUM, not a counter: Invalid (-1), None (0),
+    -- Recieved (1). None and Recieved are the two states a slot can be in;
+    -- Invalid means the tab does not have that id RIGHT NOW (not built yet
+    -- on a new game, torn down between saves). Invalid is returned as nil so
+    -- nothing downstream can fold it into a baseline: the old
+    -- `math.floor(tonumber(value) or 0)` kept the -1, and a table coming back
+    -- would then have read "advanced -1 -> 0" - the claim branch, on every
+    -- slot holding a check, sending checks nobody bought.
+    local function read_progress(mgr, reward_id)
+        local value
+        local ok = pcall(function()
+            value = mgr:call("getRewardProgress", reward_id)
+        end)
+        if not ok then
+            return nil
+        end
+        local numeric = tonumber(value)
+        if numeric == nil or numeric < 0 then
+            return nil
+        end
+        return math.floor(numeric)
     end
 
     -- ------------------------------------------------------- game-thread pump
@@ -112,12 +144,22 @@ return function(ctx)
         trade.checks_by_reward_id = {}
         trade.checks_by_location = {}
         trade.progress = {}
+        trade.slot_by_reward_id = {}
         trade.slot_count = 0
         trade.check_count = 0
         trade.backlog = 0
+        trade.empty_name_msg_guid = nil
+        trade.empty_caption_msg_guid = nil
 
         if type(payload) ~= "table" or payload.enabled ~= true then
             return
+        end
+
+        if type(payload.empty_name_msg_guid) == "string" and payload.empty_name_msg_guid ~= "" then
+            trade.empty_name_msg_guid = payload.empty_name_msg_guid
+        end
+        if type(payload.empty_caption_msg_guid) == "string" and payload.empty_caption_msg_guid ~= "" then
+            trade.empty_caption_msg_guid = payload.empty_caption_msg_guid
         end
 
         if type(payload.slots) == "table" then
@@ -145,11 +187,13 @@ return function(ctx)
         -- restock. Velvet Blue and the Gold Token are deliberately absent -
         -- both are _RecieveType 1, genuinely unlimited, and never need one.
         trade.gem_item_ids = {}
+        trade.gem_item_set = {}
         if type(payload.gems) == "table" then
             for _, gem in pairs(payload.gems) do
                 local gem_id = math.floor(tonumber(gem and gem.item_id) or 0)
                 if gem_id > 0 then
                     trade.gem_item_ids[#trade.gem_item_ids + 1] = gem_id
+                    trade.gem_item_set[gem_id] = true
                 end
             end
             table.sort(trade.gem_item_ids)
@@ -195,8 +239,9 @@ return function(ctx)
         trade.check_count = #trade.checks
 
         info(string.format(
-            "room file: %d check(s) across %d display slot(s)",
-            trade.check_count, trade.slot_count))
+            "room file: %d check(s) across %d display slot(s)%s",
+            trade.check_count, trade.slot_count,
+            trade.empty_name_msg_guid and "" or " (no empty-slot text in this room file)"))
     end
 
     -- ------------------------------------------------------------ reward table
@@ -245,10 +290,12 @@ return function(ctx)
         end
 
         local bound = 0
+        trade.slot_by_reward_id = {}
         for index, slot in ipairs(trade.slots) do
             local reward_id = index - 1
             if reward_id_exists(reward_id) then
                 slot.reward_id = reward_id
+                trade.slot_by_reward_id[reward_id] = slot
                 bound = bound + 1
             else
                 slot.reward_id = nil
@@ -276,15 +323,20 @@ return function(ctx)
         --
         -- Whatever a loaded save already had claimed is still absorbed here, so
         -- the mid-run reconnect case behaves the same as before.
+        --
+        -- The sweep is logged. It is the answer to "does a pak-baked
+        -- _Progress seed the save" if that experiment is ever run, and it
+        -- shows which slots a loaded save already had closed.
+        local sweep = {}
         local mgr_for_seed = shop_manager()
         if mgr_for_seed ~= nil then
             for _, slot in ipairs(trade.slots) do
                 if slot.reward_id ~= nil then
-                    local value
-                    pcall(function()
-                        value = mgr_for_seed:call("getRewardProgress", slot.reward_id)
-                    end)
-                    trade.progress[slot.reward_id] = math.floor(tonumber(value) or 0)
+                    local value = read_progress(mgr_for_seed, slot.reward_id)
+                    if value ~= nil then
+                        trade.progress[slot.reward_id] = value
+                    end
+                    sweep[#sweep + 1] = string.format("%d=%s", slot.reward_id, tostring(value))
                 end
             end
         end
@@ -292,9 +344,10 @@ return function(ctx)
         return bound == trade.slot_count,
             string.format(
                 "bound %d/%d check slot(s) at reward ids 0-%d and %d gem slot(s), "
-                    .. "each confirmed against the live tab",
+                    .. "each confirmed against the live tab; progress by slot: %s",
                 bound, trade.slot_count, math.max(0, trade.slot_count - 1),
-                #trade.gem_reward_ids)
+                #trade.gem_reward_ids,
+                #sweep > 0 and table.concat(sweep, " ") or "none")
     end
 
     -- ------------------------------------------------------------- rotation
@@ -310,9 +363,17 @@ return function(ctx)
     -- of its own tier - putting a 6-spinel check on a 1-spinel slot would sell
     -- it for one spinel.
     local function check_is_checked(check)
+        local key = "trade:" .. tostring(check.identity)
         local acknowledged = bridge and bridge.acknowledged_guid_keys
-        if type(acknowledged) == "table"
-            and acknowledged["trade:" .. tostring(check.identity)] then
+        if type(acknowledged) == "table" and acknowledged[key] then
+            return true
+        end
+        -- Queued but not yet acknowledged counts too. A reconfigure (room
+        -- file re-read on reconnect) resets every `claimed` flag, and a claim
+        -- still waiting for the server would otherwise be re-shown - and
+        -- re-buyable - until the ack landed.
+        local pending = bridge and bridge.pending_check_keys
+        if type(pending) == "table" and pending[key] then
             return true
         end
         return false
@@ -372,12 +433,14 @@ return function(ctx)
     local function assign_slots()
         local mgr = shop_manager()
         local by_tier = {}
+        local eligible = {}
         for _, check in ipairs(trade.checks) do
             -- Per-check, against the game's own waypoint. Before any waypoint
             -- has fired nothing releases, which is right: showing a chapter-15
             -- check in chapter 1 would let a player buy past the cadence.
             local released = chapter_is_open(mgr, check.chapter)
             if released and not check_is_checked(check) and not check.claimed then
+                eligible[check.identity] = true
                 local bucket = by_tier[check.tier]
                 if bucket == nil then
                     bucket = {}
@@ -387,18 +450,45 @@ return function(ctx)
             end
         end
 
+        -- STABLE: a slot keeps the check it is already showing while that
+        -- check is still eligible. Until 2026-09-02 every reconcile re-dealt
+        -- the buckets oldest-first, so buying tile 1 shifted every later tile
+        -- of that tier left by one and closed the LAST tile - when the tile
+        -- the player expects to grey out is the one they just bought. Keeping
+        -- assignments put also stops the text and icon dressing from churning
+        -- on tiles whose check did not change.
         local assignment = {}
-        local taken = {}
+        local held = {}
         local shown = 0
         for _, slot in ipairs(trade.slots) do
             if slot.reward_id ~= nil then
-                local bucket = by_tier[slot.tier]
-                local next_index = (taken[slot.tier] or 0) + 1
-                local check = bucket and bucket[next_index] or nil
-                if check ~= nil then
-                    taken[slot.tier] = next_index
-                    assignment[slot.reward_id] = check
+                local showing = trade.checks_by_reward_id[slot.reward_id]
+                if showing ~= nil and eligible[showing.identity]
+                    and showing.tier == slot.tier and not held[showing.identity] then
+                    assignment[slot.reward_id] = showing
+                    held[showing.identity] = true
                     shown = shown + 1
+                end
+            end
+        end
+        -- Then the empty slots take the oldest released checks of their tier
+        -- that nobody is showing.
+        local cursor = {}
+        for _, slot in ipairs(trade.slots) do
+            if slot.reward_id ~= nil and assignment[slot.reward_id] == nil then
+                local bucket = by_tier[slot.tier]
+                if bucket ~= nil then
+                    local index = (cursor[slot.tier] or 0) + 1
+                    while bucket[index] ~= nil and held[bucket[index].identity] do
+                        index = index + 1
+                    end
+                    local check = bucket[index]
+                    if check ~= nil then
+                        assignment[slot.reward_id] = check
+                        held[check.identity] = true
+                        shown = shown + 1
+                    end
+                    cursor[slot.tier] = index
                 end
             end
         end
@@ -416,7 +506,14 @@ return function(ctx)
 
     -- Re-derive the shelf. Cheap and idempotent, so it is safe to call on
     -- connect, on chapter change, and after every claim.
+    --
+    -- Forward declarations: the dressing, the state enforcement and the
+    -- window report are defined below. Without these the calls would compile
+    -- as global lookups and silently do nothing - the same trap merchant.lua
+    -- notes.
     local dress_assigned_slots
+    local enforce_slot_states
+    local report_window
 
     local function reconcile_slots()
         if trade.slot_count == 0 then
@@ -426,28 +523,30 @@ return function(ctx)
         if type(dress_assigned_slots) == "function" then
             dress_assigned_slots()
         end
+        if type(enforce_slot_states) == "function" then
+            enforce_slot_states()
+        end
+        if type(report_window) == "function" then
+            report_window()
+        end
+        -- Parity with the shelf (2026-09-02): the fork now gives trade
+        -- stand-ins a shop model entry, so a remote or empty tile shows the
+        -- Archipelago logo model and a local tile its real item. The merchant
+        -- module owns the placement numbers and the swap hook; it just needs
+        -- asking again whenever the window changes. Idempotent per item id.
+        local place_models = ctx.merchant_place_ap_models
+        if type(place_models) == "function" then
+            enqueue("place AP models", function()
+                place_models()
+            end)
+        end
     end
-
-    -- Forward declarations: the claim poll rotates a slot, but the writes are
-    -- defined below it. Without these the calls would compile as global
-    -- lookups and silently do nothing - the same trap merchant.lua notes.
-    local rotate_slot
 
     -- --------------------------------------------------------- claim polling
-    -- getRewardProgress(id) reads 1 on a claimed slot and 0 on an unclaimed
-    -- one (measured live). A slot going 0 -> non-zero IS the claim; there is no
-    -- event to hook. Reads only - the reset that rotates a slot is a separate,
-    -- deliberate write.
-    local function read_progress(mgr, reward_id)
-        local value
-        local ok = pcall(function()
-            value = mgr:call("getRewardProgress", reward_id)
-        end)
-        if not ok then
-            return nil
-        end
-        return math.floor(tonumber(value) or 0)
-    end
+    -- getRewardProgress(id) reads Recieved (1) on a claimed slot and None (0)
+    -- on an open one (measured live). A slot WE left at 0 reading 1 IS the
+    -- claim; there is no event to hook. See read_progress for why Invalid is
+    -- a third state and never a number here.
 
     local function queue_check(check)
         if type(bridge.pending_checks) ~= "table" then
@@ -472,8 +571,102 @@ return function(ctx)
         return true
     end
 
-    -- One poll pass. Safe to call often: it only ever reads, and a slot with no
-    -- check on it is skipped rather than guessed at.
+    -- ------------------------------------------------------ progress writes
+    -- setRewardProgress(id, value) is the ONLY write this module makes to the
+    -- reward table. 0 (None) OPENS a slot - proven live, MERCHANT_TRADE_DESIGN
+    -- 4.6.5 round 4: claim -> reset -> the slot un-claims in the open tab ->
+    -- re-claim works. 1 (Recieved) CLOSES it: the game's own "already
+    -- received" state for a one-shot row, greyed and unbuyable.
+    --
+    -- The baseline is updated INSIDE the write, on the same game-thread tick
+    -- as the engine call, so the claim poll can never mistake our own write
+    -- for a purchase: a claim is only ever a slot WE left at 0 reading 1.
+    -- Runs through the pump, never inline from a poll or a draw.
+    local pending_writes = {}
+
+    local function write_progress(reward_id, desired, why)
+        if pending_writes[reward_id] ~= nil then
+            return false
+        end
+        pending_writes[reward_id] = desired
+        enqueue(string.format("set progress %d=%d (%s)", reward_id, desired, why), function()
+            pending_writes[reward_id] = nil
+            local mgr = shop_manager()
+            if mgr == nil then
+                return
+            end
+            mgr:call("setRewardProgress", reward_id, desired)
+            trade.progress[reward_id] = desired
+        end)
+        return true
+    end
+
+    -- THE EMPTY-SLOT FIX (2026-09-02, Cam: "Option A").
+    --
+    -- The pak bakes all seven slots open and priced, because at patch time
+    -- nothing knows which slots will hold a check on a given day. So a slot
+    -- with nothing assigned used to sit in the tab buyable: spinel spent,
+    -- nothing sent, "advanced 0 -> 1 with no check bound" in the log - and
+    -- five of the seven tiles at chapter 1 were exactly that.
+    --
+    -- Every slot is now driven to a DESIRED state from the current window: a
+    -- slot showing a check is open (None), a slot showing nothing is closed
+    -- (Recieved). Enforced from the baselines, not from fresh reads, so it
+    -- cannot race the claim poll; and re-run on every pass, so a reload or a
+    -- rewound save that disagrees is corrected within a tick. A claimed slot
+    -- is already Recieved, so "rotate" is just this: assign the next check,
+    -- and the slot is reopened because it now has one.
+    function enforce_slot_states()
+        local opened, parked = 0, 0
+        for _, slot in ipairs(trade.slots) do
+            local reward_id = slot.reward_id
+            if reward_id ~= nil then
+                local check = trade.checks_by_reward_id[reward_id]
+                local desired = (check ~= nil) and 0 or 1
+                local baseline = trade.progress[reward_id]
+                if baseline ~= nil and baseline ~= desired then
+                    if desired == 0 then
+                        if write_progress(reward_id, 0, "open for " .. tostring(check.identity)) then
+                            opened = opened + 1
+                        end
+                    elseif write_progress(reward_id, 1, "park, nothing of tier " .. tostring(slot.tier)) then
+                        parked = parked + 1
+                    end
+                end
+            end
+        end
+        if opened > 0 or parked > 0 then
+            info(string.format("slot states: %d opened, %d parked", opened, parked))
+        end
+    end
+
+    -- One line per CHANGE of the window, never per poll: which check each
+    -- slot is showing, or "parked". This is the diagnostic that answers "what
+    -- should this tab be showing, and why" from the log alone.
+    local last_window_report = nil
+
+    function report_window()
+        local parts = {}
+        for _, slot in ipairs(trade.slots) do
+            if slot.reward_id ~= nil then
+                local check = trade.checks_by_reward_id[slot.reward_id]
+                parts[#parts + 1] = string.format("%d:%s/%d=%s",
+                    slot.reward_id, tostring(slot.tier), slot.price_spinel,
+                    check and check.identity or "parked")
+            end
+        end
+        local line = string.format("window: %s | backlog %d",
+            #parts > 0 and table.concat(parts, " ") or "nothing bound", trade.backlog)
+        if line ~= last_window_report then
+            last_window_report = line
+            info(line)
+        end
+    end
+
+    -- One poll pass. Reads every bound slot, reports claims, then enforces
+    -- the desired states. Safe to call often.
+    local invalid_reported = {}
+
     local function poll_claims()
         if trade.slot_count == 0 then
             return
@@ -483,21 +676,35 @@ return function(ctx)
             return
         end
 
+        local claimed_any = false
         for _, slot in ipairs(trade.slots) do
             local reward_id = slot.reward_id
             if reward_id ~= nil then
                 local current = read_progress(mgr, reward_id)
-                if current ~= nil then
+                if current == nil then
+                    -- Invalid or unreadable: the table is down or rebuilding
+                    -- (title screen, a load in progress). A third state, so
+                    -- nothing moves - the baseline stays whatever it was and
+                    -- a later 0 can never look like a claim.
+                    if not invalid_reported[reward_id] then
+                        invalid_reported[reward_id] = true
+                        info(string.format(
+                            "reward id %d answered Invalid; leaving its baseline alone", reward_id))
+                    end
+                else
+                    if invalid_reported[reward_id] then
+                        invalid_reported[reward_id] = nil
+                        info(string.format(
+                            "reward id %d is readable again (%d)", reward_id, current))
+                    end
                     local previous = trade.progress[reward_id]
-                    -- Fallback seeding only. bind_reward_ids seeds every
-                    -- bound slot on connect, so reaching this branch means a
-                    -- slot was bound late; seeding rather than reporting is
-                    -- still the safe read, because a save loaded mid-run
-                    -- legitimately starts with claimed slots and treating those
-                    -- as fresh would re-send checks the server already has.
                     if previous == nil then
+                        -- Fallback seeding only: bind seeds every bound slot,
+                        -- so this is a slot bound late. Seeding rather than
+                        -- reporting is still the safe read - a save loaded
+                        -- mid-run legitimately starts with closed slots.
                         trade.progress[reward_id] = current
-                    elseif current > previous then
+                    elseif current == 1 and previous == 0 then
                         trade.progress[reward_id] = current
                         local check = trade.checks_by_reward_id[reward_id]
                         if check ~= nil and not check.claimed then
@@ -509,16 +716,16 @@ return function(ctx)
                                 check.identity, check.display_name,
                                 check.player_name, check.tier, check.price_spinel,
                                 queued and "" or " [already queued]"))
-                            -- The slot still reads CLAIMED and is showing a
-                            -- check the server now has. Un-claim it so the
-                            -- next check of its tier rotates on, then
-                            -- re-derive the window.
-                            rotate_slot(reward_id)
-                            reconcile_slots()
+                            claimed_any = true
                         else
+                            -- The defect itself, if it ever fires again: a
+                            -- purchase on a slot with nothing assigned. Parking
+                            -- should make it impossible; if it happens, say
+                            -- so loudly and leave the slot closed.
                             info(string.format(
-                                "reward id %d advanced %s -> %s with no check bound",
-                                reward_id, tostring(previous), tostring(current)))
+                                "reward id %d advanced 0 -> 1 with no check bound "
+                                    .. "(spinel spent on an empty slot - report this)",
+                                reward_id))
                         end
                     else
                         trade.progress[reward_id] = current
@@ -526,34 +733,14 @@ return function(ctx)
                 end
             end
         end
-    end
-
-    -- ------------------------------------------------------ rotation writes
-    -- setRewardProgress(id, 0) un-claims a slot. Proven live on a real slot
-    -- (MERCHANT_TRADE_DESIGN.md 4.6.5 round 4): claim -> reset -> the slot
-    -- un-claims in the open tab -> re-claim works. This is the ONLY write this
-    -- module makes to the reward table, and it is what turns a fixed window of
-    -- slots into a rotating one.
-    --
-    -- It runs on the game thread through the pump, never from a poll or a draw.
-    local function reset_progress(reward_id, why)
-        enqueue(string.format("reset progress %d (%s)", reward_id, why), function()
-            local mgr = shop_manager()
-            if mgr == nil then
-                return
-            end
-            mgr:call("setRewardProgress", reward_id, 0)
-            -- Keep the poll's baseline honest: without this the next poll sees
-            -- 1 -> 0, which is not a claim, but leaving a stale 1 there would
-            -- make the FOLLOWING claim look like no change at all.
-            trade.progress[reward_id] = 0
-        end)
-    end
-
-    -- After a claim the slot still reads CLAIMED, so it shows a check the
-    -- server already has. Resetting frees it for the next check of its tier.
-    function rotate_slot(reward_id)
-        reset_progress(reward_id, "rotate")
+        if claimed_any then
+            -- The claimed slot reads Recieved and shows a check the server
+            -- now has. Re-derive the window: if its tier has another check
+            -- waiting, the slot is reopened with it; if not, it stays closed.
+            reconcile_slots()
+        else
+            enforce_slot_states()
+        end
     end
 
     -- ------------------------------------------------------- gem restocking
@@ -571,7 +758,7 @@ return function(ctx)
             return
         end
         for _, reward_id in ipairs(trade.gem_reward_ids) do
-            reset_progress(reward_id, "gem restock ch" .. tostring(chapter))
+            write_progress(reward_id, 0, "gem restock ch" .. tostring(chapter))
         end
         info(string.format("gem slots restocked for chapter %s", tostring(chapter)))
     end
@@ -651,46 +838,121 @@ return function(ctx)
 
     -- --------------------------------------------------------- slot dressing
     -- A slot shows a stand-in item, so without this it reads as the fork's
-    -- baked fallback ("[AP] Archipelago Check") no matter which check is on it.
-    -- The fork baked every check's real text at the launcher's GUIDs; this
-    -- points the slot's item id at that text, exactly the way the buy tab
-    -- dresses a row.
+    -- baked text no matter which check is on it. The fork baked every check's
+    -- real text at the launcher's GUIDs, plus ONE empty-slot text; this points
+    -- the slot's item id at the right one, exactly the way the buy tab dresses
+    -- a row.
     --
-    -- Only re-registered when the check a slot shows actually CHANGES: the
+    -- THE OBJECT MATTERS. registerItemMessageOverwriteSetting lives on
+    -- chainsaw.ItemMessageManager, reached through ItemManager - which is what
+    -- merchant.lua has always asked. The first version of this module asked
+    -- chainsaw.MessageManager, which has no such method (il2cpp dump, read
+    -- 2026-09-02), so nothing ever landed and every tile kept the pak's
+    -- baseline text: the "all seven read [AP] Archipelago Check" in Cam's
+    -- screenshot. The method is now verified on the type before it is called,
+    -- and every outcome is logged once per change.
+    --
+    -- Only re-registered when what a slot shows actually CHANGES: the
     -- overwrite is keyed by item id and is global, so re-registering every poll
     -- would be pure churn.
-    local dressed = {}
+    local dressed = {}          -- item id -> identity, or "empty"
+    local dress_reported = {}   -- item id -> last logged outcome
+
+    local OVERWRITE_METHOD = "registerItemMessageOverwriteSetting"
+
+    local function item_message_manager()
+        local item_manager = sdk.get_managed_singleton("chainsaw.ItemManager")
+        if item_manager == nil then
+            return nil, "ItemManager unavailable"
+        end
+        local manager = nil
+        pcall(function() manager = item_manager:call("get_ItemMessageManager") end)
+        if manager == nil then
+            return nil, "ItemMessageManager unavailable"
+        end
+        -- Prove the method rather than assume it: a call on a missing method
+        -- does not raise in Lua, it just does nothing, which is exactly how
+        -- the wrong-object bug stayed invisible.
+        local has_method = false
+        pcall(function()
+            local type_def = manager:get_type_definition()
+            has_method = type_def ~= nil and type_def:get_method(OVERWRITE_METHOD) ~= nil
+        end)
+        if not has_method then
+            return nil, OVERWRITE_METHOD .. " missing on the item message manager"
+        end
+        return manager, nil
+    end
 
     local function dress_slot(slot, check)
-        if check == nil or check.name_msg_guid == nil then
+        local target, name_guid, caption_guid
+        if check ~= nil then
+            target = check.identity
+            name_guid, caption_guid = check.name_msg_guid, check.caption_msg_guid
+        else
+            target = "empty"
+            name_guid, caption_guid = trade.empty_name_msg_guid, trade.empty_caption_msg_guid
+        end
+        if name_guid == nil then
+            -- Nothing baked for this state (a room file that predates the
+            -- empty-slot text): leave the slot as it is.
             return
         end
-        if dressed[slot.item_id] == check.identity then
+        if dressed[slot.item_id] == target then
             return
         end
-        enqueue("dress slot " .. tostring(slot.item_id), function()
-            local message_manager = sdk.get_managed_singleton("chainsaw.MessageManager")
-            if message_manager == nil then
-                return
+        enqueue("dress slot " .. tostring(slot.item_id) .. " -> " .. target, function()
+            local outcome
+            local manager, why = item_message_manager()
+            if manager == nil then
+                outcome = why
+            else
+                local box = ctx.box_system_guid or _G.box_system_guid
+                if type(box) ~= "function" then
+                    outcome = "no GUID boxer"
+                else
+                    local name_id = box(name_guid)
+                    local caption_id = caption_guid and box(caption_guid) or nil
+                    -- A LOCAL check keeps its real item's caption, as the buy
+                    -- tab does: the identity stays native while the name
+                    -- carries the [AP] promise.
+                    if check ~= nil and not check.remote and check.item_id_real > 0 then
+                        local native = nil
+                        pcall(function()
+                            native = manager:call("getItemCaptionMsgId", check.item_id_real)
+                        end)
+                        if native ~= nil then
+                            caption_id = native
+                        end
+                    end
+                    if name_id == nil then
+                        outcome = "name GUID would not parse"
+                    else
+                        local ok, err = pcall(function()
+                            local setting = sdk.create_instance(
+                                "chainsaw.ItemMessageIdOverwriteSettingUserdata.Setting")
+                            setting._ItemId = slot.item_id
+                            setting._NameMsgId = name_id
+                            if caption_id ~= nil then
+                                setting._CaptionMsgId = caption_id
+                            end
+                            manager:call(OVERWRITE_METHOD, setting)
+                        end)
+                        if ok then
+                            dressed[slot.item_id] = target
+                            outcome = "ok"
+                        else
+                            outcome = tostring(err)
+                        end
+                    end
+                end
             end
-            local box = ctx.box_system_guid or _G.box_system_guid
-            if type(box) ~= "function" then
-                return
+            local line = string.format("dress slot %s (item %d) -> %s: %s",
+                tostring(slot.reward_id), slot.item_id, target, tostring(outcome))
+            if dress_reported[slot.item_id] ~= line then
+                dress_reported[slot.item_id] = line
+                info(line)
             end
-            local name_id = box(check.name_msg_guid)
-            local caption_id = check.caption_msg_guid and box(check.caption_msg_guid) or nil
-            if name_id == nil then
-                return
-            end
-            local setting = sdk.create_instance(
-                "chainsaw.ItemMessageIdOverwriteSettingUserdata.Setting")
-            setting._ItemId = slot.item_id
-            setting._NameMsgId = name_id
-            if caption_id ~= nil then
-                setting._CaptionMsgId = caption_id
-            end
-            message_manager:call("registerItemMessageOverwriteSetting", setting)
-            dressed[slot.item_id] = check.identity
         end)
     end
 
@@ -772,15 +1034,16 @@ return function(ctx)
         return 120486400
     end
 
-    -- item id -> the check that slot is showing. Derived on demand so a
-    -- rotation is reflected the moment it happens.
+    -- item id -> the check that slot is showing, plus whether the id is one
+    -- of our bound slots at all. Derived on demand so a rotation is reflected
+    -- the moment it happens.
     local function check_showing_on(item_id)
         for _, slot in ipairs(trade.slots) do
             if slot.item_id == item_id and slot.reward_id ~= nil then
-                return trade.checks_by_reward_id[slot.reward_id]
+                return trade.checks_by_reward_id[slot.reward_id], true
             end
         end
-        return nil
+        return nil, false
     end
 
     -- Which check a DRAWN slot is showing.
@@ -801,8 +1064,7 @@ return function(ctx)
     -- 11.7 MB. ListIndex is not an index into this list, or not only that.
     --
     -- So every list read is bounds-checked now, and the pairing is positional
-    -- with ListIndex as a cross-check rather than an authority. `survey_grid`
-    -- below reports both so the next log settles which is right.
+    -- (ListIndex is not an index into this list; measured 2026-09-01).
     local function row_at(reward_items, index, row_count)
         if reward_items == nil or index == nil then
             return nil
@@ -832,6 +1094,21 @@ return function(ctx)
         return math.floor(reward_id)
     end
 
+    -- The data row's own item id (RewardItem.get_ItemId). Read only for rows
+    -- we do not own, to tell an exchange gem from Velvet Blue or the token.
+    local function item_id_of(row)
+        if row == nil then
+            return nil
+        end
+        local item_id = nil
+        pcall(function() item_id = row:call("get_ItemId") end)
+        item_id = tonumber(item_id)
+        if item_id == nil or item_id <= 0 then
+            return nil
+        end
+        return math.floor(item_id)
+    end
+
     local function check_for_widget(entry, reward_items, position, row_count)
         -- Positional: widget N shows data row N. The natural pairing for a
         -- grid that is not scrolled, and the one that cannot go out of range.
@@ -841,9 +1118,14 @@ return function(ctx)
             if check ~= nil then
                 return check, "row"
             end
+            -- One of ours with nothing on it: a parked slot.
+            if trade.slot_by_reward_id[reward_id] ~= nil then
+                return nil, "empty"
+            end
             -- A real reward id we do not own: a gem, Velvet Blue, the Gold
-            -- Token. Definitively not ours, so stop rather than guessing.
-            return nil, "row"
+            -- Token. Not ours to re-label, but the row's own item id is
+            -- handed back so the gem-icon pass below can act on it.
+            return nil, "exchange", item_id_of(row_at(reward_items, position, row_count))
         end
 
         -- Fallback: the buy tab's route, for any path that does set ItemId.
@@ -853,11 +1135,17 @@ return function(ctx)
         if entry_item_id == nil then
             return nil, "none"
         end
-        return check_showing_on(math.floor(entry_item_id)), "itemid"
+        local check, ours = check_showing_on(math.floor(entry_item_id))
+        if check ~= nil then
+            return check, "itemid"
+        end
+        return nil, ours and "empty" or "none"
     end
 
     -- Dress ONE drawn slot. This is the whole operation; the grid walk below
     -- is just a convenience for driving it in bulk.
+    local gem_icon_reported = {}
+
     local function dress_select_item(entry, reward_items, position, row_count)
         if entry == nil or trade.slot_count == 0 then
             return false
@@ -866,16 +1154,61 @@ return function(ctx)
         if setter == nil then
             return false
         end
-        local check = check_for_widget(entry, reward_items, position, row_count)
-        if check == nil then
+        local check, kind, exchange_item_id = check_for_widget(entry, reward_items, position, row_count)
+
+        -- THE EMERALD DIAGNOSTIC (2026-09-02). Red Beryl and Yellow Diamond
+        -- draw their icons on this tab; the Emerald, same recipe and the same
+        -- id the apworld mints (120832000), draws blank. The game draws the
+        -- exchange rows itself, so this hands a gem row's own item id to the
+        -- same setter the check tiles use, once per row, and logs it: if the
+        -- Emerald appears, the game's own draw was the problem; if it stays
+        -- blank with an "ok" here, the icon resource for that id is missing
+        -- from the main-campaign table and the fork has to copy it.
+        if check == nil and kind == "exchange" then
+            local tex = nil
+            pcall(function() tex = entry:get_field("_ItemIconTex") end)
+            if exchange_item_id == nil or not (trade.gem_item_set or {})[exchange_item_id] then
+                -- Velvet Blue, the Gold Token: not ours to draw. But the
+                -- grid recycles its widgets, so if this one wore the logo a
+                -- moment ago, give it back to the game (-70 left Velvet Blue
+                -- squished exactly this way).
+                local release = ctx.merchant_icon_release or _G.merchant_icon_release
+                if type(release) == "function" then
+                    pcall(release, entry, tex, exchange_item_id)
+                end
+                return false
+            end
+            if tex == nil then
+                return false
+            end
+            local ok = pcall(function() setter:call(nil, tex, exchange_item_id) end)
+            -- Gems are treasures: square art in a square cell, never drawn
+            -- in the shop's wide box by vanilla (Cam, 2026-09-02: they read
+            -- stretched at 226x150 next to the round logo). Square box, like
+            -- the logo.
+            local stamp = ctx.merchant_icon_stamp or _G.merchant_icon_stamp
+            if type(stamp) == "function" then
+                pcall(stamp, entry, tex, true)
+            end
+            if not gem_icon_reported[exchange_item_id] then
+                gem_icon_reported[exchange_item_id] = true
+                info(string.format("gem icon: item %d handed to %s: %s",
+                    exchange_item_id, setter:get_name(), ok and "ok" or "threw"))
+            end
+            return ok
+        end
+        if check == nil and kind ~= "empty" then
             return false
         end
 
         -- A LOCAL check wears its real item. A REMOTE one has no RE4R item to
         -- borrow, so it takes the AP placeholder, which already carries the
-        -- Archipelago logo art - an Archipelago item rather than a hole.
+        -- Archipelago logo art - an Archipelago item rather than a hole. A
+        -- PARKED slot wears the placeholder too: it is still an Archipelago
+        -- tile, just one with nothing in it yet, and the stand-in's own icon
+        -- (blank, or a First Aid Spray) read as an item.
         local icon_item_id
-        if not check.remote and check.item_id_real > 0 then
+        if check ~= nil and not check.remote and check.item_id_real > 0 then
             icon_item_id = check.item_id_real
         else
             icon_item_id = ap_placeholder_item_id()
@@ -890,6 +1223,22 @@ return function(ctx)
             return false
         end
         local ok = pcall(function() setter:call(nil, tex, icon_item_id) end)
+        -- The logo is painted round in a cell the shop draws 1.5x wide; the
+        -- merchant module squares the box for it and puts it back when the
+        -- widget shows anything else (see icon_stamp / icon_release there).
+        local stamp = ctx.merchant_icon_stamp or _G.merchant_icon_stamp
+        if type(stamp) == "function" then
+            -- Square for the logo and for treasure art (a local check
+            -- holding a gem), wide for everything else - the merchant
+            -- module owns the rule.
+            local square = icon_item_id == ap_placeholder_item_id()
+            local rule = ctx.merchant_wears_square_art or _G.merchant_wears_square_art
+            if not square and type(rule) == "function" then
+                local ok_rule, verdict = pcall(rule, icon_item_id)
+                square = ok_rule and verdict == true
+            end
+            pcall(stamp, entry, tex, square)
+        end
         return ok
     end
 
@@ -926,75 +1275,6 @@ return function(ctx)
         return 0, "empty"
     end
 
-    -- Diagnostic.
-    --
-    -- The -64 survey burned all three of its samples inside one millisecond,
-    -- because three cold events fired together while the widgets did not exist
-    -- yet, so it never saw the state that mattered. It samples over TIME now,
-    -- and keeps going until it has actually seen widgets.
-    --
-    -- It reports BOTH candidate pairings per widget - positional and by
-    -- ListIndex - because the last run proved ListIndex is not a plain index
-    -- into the data list and only a side-by-side reading will say what is.
-    local icon_surveys_left = 6
-    local icon_survey_seen_widgets = false
-    local icon_survey_cooldown = 0
-
-    local function survey_grid(grid, entries, entry_count, source, reward_items, row_count)
-        if icon_survey_seen_widgets or icon_surveys_left <= 0 then
-            return
-        end
-        if icon_survey_cooldown > 0 then
-            icon_survey_cooldown = icon_survey_cooldown - 1
-            return
-        end
-        icon_survey_cooldown = 90
-        icon_surveys_left = icon_surveys_left - 1
-        if entry_count > 0 then
-            icon_survey_seen_widgets = true
-        end
-
-        local top, scroll, selected = nil, nil, nil
-        pcall(function() top = grid:call("get_CurrTop") end)
-        pcall(function() scroll = grid:call("get_CurrScrollRow") end)
-        pcall(function() selected = grid:call("get_CurrSelectedIndex") end)
-        info(string.format(
-            "slot icons: survey - %d widget(s) via %s, %d row(s), "
-            .. "top=%s scroll=%s sel=%s setter=%s",
-            entry_count, source, row_count, tostring(tonumber(top)),
-            tostring(tonumber(scroll)), tostring(tonumber(selected)),
-            tostring(resolve_set_item_icon() ~= nil)))
-
-        -- The data rows in order: this is the ground truth the pairing has to
-        -- land on.
-        local ids = {}
-        for index = 0, math.min(row_count, 16) - 1 do
-            ids[#ids + 1] = tostring(reward_id_of(row_at(reward_items, index, row_count)))
-        end
-        info("slot icons: rows by position = " .. table.concat(ids, " "))
-
-        for index = 0, math.min(entry_count, 16) - 1 do
-            pcall(function()
-                local entry = entries:call("get_Item", index)
-                if entry == nil then
-                    info(string.format("slot icons: widget %d is nil", index))
-                    return
-                end
-                local list_index, has_tex = nil, false
-                pcall(function() list_index = entry:call("get_ListIndex") end)
-                pcall(function() has_tex = entry:get_field("_ItemIconTex") ~= nil end)
-                list_index = tonumber(list_index)
-                local by_position = reward_id_of(row_at(reward_items, index, row_count))
-                local by_list = reward_id_of(row_at(reward_items, list_index, row_count))
-                info(string.format(
-                    "slot icons: widget %d listIndex=%s rewardByPos=%s "
-                    .. "rewardByList=%s tex=%s",
-                    index, tostring(list_index), tostring(by_position),
-                    tostring(by_list), tostring(has_tex)))
-            end)
-        end
-    end
-
     local function dress_slot_icons(grid)
         if grid == nil or trade.slot_count == 0 then
             return
@@ -1013,7 +1293,6 @@ return function(ctx)
             row_count = tonumber(n) or 0
         end
         local count, source = widget_count(grid, entries)
-        survey_grid(grid, entries, count, source, reward_items, row_count)
         -- No early return on row_count == 0: the ItemId fallback is the
         -- only route left if the data list ever goes unreadable, and
         -- row_at refuses safely at zero anyway.
@@ -1178,5 +1457,9 @@ return function(ctx)
     ctx.trade_dress_slot_icons = dress_slot_icons
     ctx.trade_bind_reward_ids = bind_reward_ids
     ctx.trade_enqueue = enqueue
+    -- For merchant.lua's model swap hook and AP model placement: which check
+    -- a trade stand-in is showing, and whether the id is ours at all.
+    ctx.trade_check_showing_on = check_showing_on
+    _G.trade_check_showing_on = check_showing_on
     _G.trade_configure = trade_configure
 end

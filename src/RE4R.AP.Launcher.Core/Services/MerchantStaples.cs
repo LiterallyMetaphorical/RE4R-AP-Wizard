@@ -57,7 +57,12 @@ public static class MerchantStaples
         // move it onto Resources.
         new MerchantStaple(117606400, "Resources (Small)", 6, 800),
         new MerchantStaple(117601600, "Resource (Large)", 4, 1_600),
-        new MerchantStaple(117600000, "Gunpowder", 24, 700),
+        // 70 a grain, not 700 (Cam, 2026-09-02). The shop sells gunpowder one
+        // grain per unit with a quantity selector - measured: one purchase,
+        // one grain, 700 charged - so the old number was ten times what a
+        // ten-pack should cost. The "x10" badge the row wears is the game's
+        // stack-size marker, not a pack; the mod hides it.
+        new MerchantStaple(117600000, "Gunpowder", 24, 70),
 
         // Combat consumables, priced high on purpose: a convenience, not a
         // supply line.

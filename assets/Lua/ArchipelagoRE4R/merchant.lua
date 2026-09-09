@@ -49,6 +49,9 @@ return function(ctx)
         -- row item id -> the identity it was last re-labelled for, so a row is
         -- only re-registered when the check it shows actually changes
         dressed = {},
+        -- row item id -> "native:<item id>" or "pak": which caption the shop
+        -- manager's own caption table holds for the row (see dress_row).
+        shop_caption = {},
         -- released checks with no free row of their tier, surfaced on the HUD
         backlog = 0,
         slot_count = 0,
@@ -887,6 +890,49 @@ return function(ctx)
         if not ok then
             return false, tostring(err)
         end
+
+        -- [Buy tab caption parity, Cam 2026-09-02] The buy panel's description
+        -- does NOT read the item-message overwrite above (the fork's own note
+        -- on the row caption says as much, and a local row read the pak's
+        -- "Not from this village" line in Cam's game). It asks the shop
+        -- manager - getPurchaseCaptionMsgId, backed by _CaptionSettingTable -
+        -- which has its own register lever. So a LOCAL check registers its
+        -- item's own caption on the row, and a row going back to a REMOTE
+        -- check unregisters so the pak's line returns. The trade tab already
+        -- reads the overwrite, so this is what brings the two tabs level.
+        --
+        -- UNPROVEN until live; the before/after read is the diagnostic.
+        pcall(function()
+            local manager = shop_manager()
+            if manager == nil then
+                return
+            end
+            local wants_native = check.item_id_real > 0 and not check.remote and caption_id ~= nil
+            local key = wants_native and ("native:" .. tostring(check.item_id_real)) or "pak"
+            local had = merchant.shop_caption[row_item_id]
+            if had == key then
+                return
+            end
+            if not wants_native and had == nil then
+                -- Nothing of ours to take back yet.
+                merchant.shop_caption[row_item_id] = "pak"
+                return
+            end
+            local before = nil
+            pcall(function() before = manager:call("getPurchaseCaptionMsgId", row_item_id) end)
+            if wants_native then
+                local setting = sdk.create_instance("chainsaw.InGameShopItemCaptionSetting")
+                setting._CaptionMsgId = caption_id
+                manager:call("registerCaptionSetting", row_item_id, setting)
+            else
+                manager:call("unregisterCaptionSetting", row_item_id)
+            end
+            local after = nil
+            pcall(function() after = manager:call("getPurchaseCaptionMsgId", row_item_id) end)
+            merchant.shop_caption[row_item_id] = key
+            info(string.format("shop caption: row %d -> %s (%s -> %s)",
+                row_item_id, key, tostring(before), tostring(after)))
+        end)
         return true, nil
     end
 
@@ -961,6 +1007,207 @@ return function(ctx)
         return 120486400
     end
 
+    -- LEARNED ON -70 (Cam, 2026-09-02), two ways:
+    --
+    --   1. The control is CENTRE-anchored. The shelf's sat at x 130 and the
+    --      tile's at 0 before the -70 shift of +38 - and every logo moved
+    --      right by exactly that. A narrower box stays centred on its own;
+    --      no position is touched any more.
+    --   2. The widgets are POOLED. The lists recycle them as they scroll, the
+    --      game re-stamps the icon pattern on a rebound widget but not its
+    --      box, so a box squared for the logo stayed square when the widget
+    --      was rebound to a First Aid Spray, a herb, a gunpowder pack or
+    --      Velvet Blue - every "squished" icon in Cam's list. And it most
+    --      likely does not re-select the atlas either, which is why herb rows
+    --      wore another cell entirely.
+    --
+    -- So the rule is: leave no residue. A widget is squared only while it
+    -- wears the logo; the moment we see it wearing anything else, its box is
+    -- put back and the game's OWN icon setup is run for the item it now
+    -- shows (PurchaseSelectItem.setIconTex), atlas and all.
+    local VANILLA_ICON_BOX = { w = 226, h = 150 }   -- measured on -69, both tabs, every control
+    local GUNPOWDER_ITEM_ID = 117600000
+    local gunpowder_badge_reported = false
+    local stamped = {}          -- widget address -> { w, h } the box had before we touched it
+    local box_reported = {}
+    local restore_count = 0
+
+    local function read_size(size)
+        if size == nil then
+            return nil, nil
+        end
+        local w, h = nil, nil
+        pcall(function() w = size.w; h = size.h end)
+        if w == nil or h == nil then
+            pcall(function() w = size:get_field("w"); h = size:get_field("h") end)
+        end
+        return tonumber(w), tonumber(h)
+    end
+
+    local function write_size(tex, size, w, h)
+        local ok = pcall(function()
+            size:set_field("w", w)
+            size:set_field("h", h)
+        end)
+        if not ok then
+            size.w = w
+            size.h = h
+        end
+        tex:call("set_Size", size)
+    end
+
+    local function widget_key(widget)
+        local key = nil
+        pcall(function() key = widget:get_address() end)
+        return key or tostring(widget)
+    end
+
+    -- Which icons get the square box: the Archipelago logo, and any TREASURE
+    -- (gems, trinkets). Capcom's shop art is pre-squeezed for the wide box,
+    -- but treasure art is square because vanilla never shows a treasure in
+    -- it - Cam, 2026-09-02: the gems read stretched beside the round logo.
+    -- The kind comes from the injection module's item table.
+    local function wears_square_art(icon_item_id)
+        if icon_item_id == ap_placeholder_item_id() then
+            return true
+        end
+        local kind_of = ctx.inject_item_kind or _G.inject_item_kind
+        if type(kind_of) ~= "function" then
+            return false
+        end
+        local ok, kind = pcall(kind_of, icon_item_id)
+        return ok and kind == "treasure"
+    end
+
+    -- After OUR icon is set on a widget: square the box for square art, or
+    -- make sure a pre-squeezed item's box is the vanilla one (the widget may
+    -- have worn the logo a moment ago). Records the box we found so it can
+    -- be given back.
+    local function icon_stamp(widget, tex, wears_logo)
+        if widget == nil or tex == nil then
+            return
+        end
+        pcall(function()
+            local size = tex:call("get_Size")
+            local w, h = read_size(size)
+            if w == nil or h == nil or h <= 0 then
+                return
+            end
+            local key = widget_key(widget)
+            local rec = stamped[key]
+            if rec == nil then
+                -- First touch. A square box here means a record was lost (a
+                -- script reset); the vanilla box is what it started as.
+                local square = math.abs(w - h) < 0.5
+                rec = square and { w = VANILLA_ICON_BOX.w, h = VANILLA_ICON_BOX.h } or { w = w, h = h }
+                stamped[key] = rec
+            end
+            local want_w = wears_logo and rec.h or rec.w
+            if math.abs(w - want_w) > 0.5 or math.abs(h - rec.h) > 0.5 then
+                write_size(tex, size, want_w, rec.h)
+                local tag = wears_logo and "logo" or "item"
+                if not box_reported[tag] then
+                    box_reported[tag] = true
+                    info(string.format("icon box (%s): %.0fx%.0f -> %.0fx%.0f, position untouched",
+                        tag, w, h, want_w, rec.h))
+                end
+            end
+        end)
+    end
+
+    -- A widget we touched now shows something that is not ours: give its
+    -- box back and let the game redo its icon for the item it shows now.
+    local function icon_release(widget, tex, item_id)
+        if widget == nil then
+            return
+        end
+        local key = widget_key(widget)
+        local rec = stamped[key]
+        local square = false
+        if tex ~= nil then
+            pcall(function()
+                local w, h = read_size(tex:call("get_Size"))
+                square = w ~= nil and h ~= nil and math.abs(w - h) < 0.5
+            end)
+        end
+        if rec == nil and not square then
+            return
+        end
+        stamped[key] = nil
+        pcall(function()
+            if tex ~= nil then
+                local size = tex:call("get_Size")
+                write_size(tex, size, (rec and rec.w) or VANILLA_ICON_BOX.w, (rec and rec.h) or VANILLA_ICON_BOX.h)
+            end
+            if item_id ~= nil and item_id > 0 then
+                widget:call("setIconTex", item_id, 0)
+            end
+        end)
+        restore_count = restore_count + 1
+        if restore_count <= 5 or restore_count % 50 == 0 then
+            info(string.format("icon box: widget recycled to item %s, box and icon handed back (%d so far)",
+                tostring(item_id), restore_count))
+        end
+    end
+
+    -- [Gunpowder badge, Cam 2026-09-02] The staple row wears the game's "x10"
+    -- stack marker while a purchase hands over ONE grain (measured: x1, 70
+    -- charged). The badge is the widget's ItemInfoGui._BoxNumText (the dump:
+    -- ItemInfoGui = { _BoxNumText, _CaseNumText, _RootPanel }). Build -73
+    -- called setHasCount(0, 1) from the PRE-hook and the game's own update
+    -- put the x10 straight back, so this blanks the text itself and runs
+    -- from the POST-hook too, after the game has had its say.
+    local gunpowder_badge_seen = nil
+
+    local function silence_stack_badge(row, row_item_id)
+        if row_item_id ~= GUNPOWDER_ITEM_ID then
+            return
+        end
+        pcall(function()
+            local info_gui = row:get_field("_ItemInfoGui")
+            if info_gui == nil then
+                return
+            end
+            local box_text = info_gui:get_field("_BoxNumText")
+            if box_text == nil then
+                return
+            end
+            local current = nil
+            pcall(function() current = box_text:call("get_Message") end)
+            current = current ~= nil and tostring(current) or ""
+            if current ~= "" then
+                box_text:call("set_Message", "")
+                if gunpowder_badge_seen ~= current then
+                    gunpowder_badge_seen = current
+                    info(string.format("gunpowder badge: box text read '%s', blanked", current))
+                end
+            end
+        end)
+    end
+
+    -- Rows the post-hook re-checks after the game's update: the badge is
+    -- re-stamped by the widget each frame, so the pre-hook alone loses.
+    local last_list_gui = nil
+
+    local function silence_stack_badges_after_update(list_gui)
+        local rows = nil
+        pcall(function() rows = list_gui:get_field("_AppSelectItems") end)
+        if rows == nil then
+            return
+        end
+        local count = nil
+        pcall(function() count = rows:call("get_Count") end)
+        for i = 0, (tonumber(count) or 0) - 1 do
+            pcall(function()
+                local row = rows:call("get_Item", i)
+                local row_item_id = row and row:call("get_ItemId")
+                if row_item_id ~= nil then
+                    silence_stack_badge(row, math.floor(row_item_id))
+                end
+            end)
+        end
+    end
+
     local function dress_row_icons(list_gui)
         if merchant.slot_count == 0 then
             return
@@ -991,7 +1238,13 @@ return function(ctx)
                 end
                 local check = merchant.slots_by_item[math.floor(row_item_id)]
                 if check == nil then
-                    -- Not one of our rows: leave it exactly as it is.
+                    -- Not one of our rows. If this widget wore our icon a
+                    -- moment ago (the list recycles them), give it back to
+                    -- the game; otherwise leave it exactly as it is.
+                    local vanilla_tex = nil
+                    pcall(function() vanilla_tex = row:get_field("_ItemIconTex") end)
+                    icon_release(row, vanilla_tex, math.floor(row_item_id))
+                    silence_stack_badge(row, math.floor(row_item_id))
                     return
                 end
 
@@ -1019,6 +1272,7 @@ return function(ctx)
                 -- Re-applied every frame on purpose: the GUI stamps its own
                 -- icon back whenever it redraws or the list scrolls.
                 setter:call(nil, tex, icon_item_id)
+                icon_stamp(row, tex, wears_square_art(icon_item_id))
             end)
         end
     end
@@ -1095,6 +1349,18 @@ return function(ctx)
                     return
                 end
                 local check = merchant.slots_by_item[math.floor(row_item_id)]
+                if check == nil then
+                    -- [Parity, 2026-09-02] Trade stand-ins come through the
+                    -- same instantiate call now that the fork gives them a
+                    -- model entry; ask the trade module what the tile shows.
+                    local trade_lookup = ctx.trade_check_showing_on or _G.trade_check_showing_on
+                    if type(trade_lookup) == "function" then
+                        local ok_lookup, showing = pcall(trade_lookup, math.floor(row_item_id))
+                        if ok_lookup then
+                            check = showing
+                        end
+                    end
+                end
                 if check == nil or check.remote or check.item_id_real <= 0 then
                     return
                 end
@@ -1151,7 +1417,28 @@ return function(ctx)
     -- Registrations live in the manager and survive a script reload, so this
     -- only needs to run once per row per session.
     local function place_ap_models()
-        if merchant.slot_count == 0 then
+        -- Shelf rows, plus (parity, 2026-09-02) the trade window's stand-ins:
+        -- the fork gives those a model entry pointing at the same AP prefab,
+        -- so a remote or empty trade tile needs the same repositioning.
+        local targets = {}
+        for _, row in ipairs(merchant.rows) do
+            targets[#targets + 1] = { item_id = row.item_id, check = merchant.slots_by_item[row.item_id] }
+        end
+        local trade_state = ctx.trade
+        local trade_lookup = ctx.trade_check_showing_on or _G.trade_check_showing_on
+        if type(trade_state) == "table" and type(trade_state.slots) == "table" then
+            for _, slot in ipairs(trade_state.slots) do
+                local showing = nil
+                if type(trade_lookup) == "function" then
+                    local ok_lookup, result = pcall(trade_lookup, slot.item_id)
+                    if ok_lookup then
+                        showing = result
+                    end
+                end
+                targets[#targets + 1] = { item_id = slot.item_id, check = showing }
+            end
+        end
+        if #targets == 0 then
             return
         end
         local manager = shop_manager()
@@ -1182,19 +1469,20 @@ return function(ctx)
 
         merchant.models_placed = merchant.models_placed or {}
         local placed = 0
-        for _, row in ipairs(merchant.rows) do
-            local check = merchant.slots_by_item[row.item_id]
+        for _, target in ipairs(targets) do
+            local row_item_id = target.item_id
+            local check = target.check
             -- A LOCAL check shows its real item's model, which brings its own
             -- framing; only the AP placeholder needs repositioning.
             local wears_ap_model = (check == nil) or check.remote or (check.item_id_real <= 0)
-            if wears_ap_model and not merchant.models_placed[row.item_id] then
+            if wears_ap_model and not merchant.models_placed[row_item_id] then
                 -- Edit the live entry where the game has one; only mint when
                 -- it does not, because minting is what overrides the prefab.
                 local data = nil
                 if model_table ~= nil then
                     pcall(function()
-                        if model_table:call("ContainsKey", row.item_id) == true then
-                            data = model_table:call("get_Item", row.item_id)
+                        if model_table:call("ContainsKey", row_item_id) == true then
+                            data = model_table:call("get_Item", row_item_id)
                         end
                     end)
                 end
@@ -1206,16 +1494,16 @@ return function(ctx)
                 end
                 if data ~= nil then
                     local ok = pcall(function()
-                        data:call("set_ItemID", row.item_id)
+                        data:call("set_ItemID", row_item_id)
                         data:call("set_OffsetPosition", offset)
                         data:call("set_Scale", scale)
                         if rotation ~= nil then
                             data:call("set_Rotation", rotation)
                         end
-                        manager:call("registerItemModelParam", row.item_id, data)
+                        manager:call("registerItemModelParam", row_item_id, data)
                     end)
                     if ok then
-                        merchant.models_placed[row.item_id] = true
+                        merchant.models_placed[row_item_id] = true
                         placed = placed + 1
                     end
                 end
@@ -1249,9 +1537,17 @@ return function(ctx)
                 return sdk.to_managed_object(args[2])
             end)
             if ok and list_gui ~= nil then
+                last_list_gui = list_gui
                 pcall(dress_row_icons, list_gui)
             end
-        end, nil)
+        end, function(retval)
+            -- After the game's own late update: the stack badge it just
+            -- re-stamped gets blanked again, so what renders is ours.
+            if last_list_gui ~= nil then
+                pcall(silence_stack_badges_after_update, last_list_gui)
+            end
+            return retval
+        end)
         info("row icons: local check rows will wear their real item's icon")
     end
 
@@ -1465,7 +1761,28 @@ return function(ctx)
                 -- parameter, matching the notifySellItems hook next door.
                 local ok, e = pcall(function()
                     local item_id = sdk.to_int64(args[4]) & 0xFFFFFFFF
-                    on_purchase(math.floor(tonumber(item_id) or 0))
+                    item_id = math.floor(tonumber(item_id) or 0)
+                    -- [Purchase ledger, Cam 2026-09-02] The shop draws an
+                    -- "x10" badge on the Gunpowder row (its stack size is 10)
+                    -- and it was unclear whether a purchase hands over one
+                    -- grain or a stack of ten, and for how much. The
+                    -- notification carries both answers, so every purchase
+                    -- is logged: item, count delivered, pesetas charged, and
+                    -- the row's stock as the manager sees it at that moment.
+                    local count, ptas = nil, nil
+                    pcall(function() count = sdk.to_int64(args[5]) & 0xFFFFFFFF end)
+                    pcall(function() ptas = sdk.to_int64(args[6]) & 0xFFFFFFFF end)
+                    local stock = nil
+                    pcall(function()
+                        local manager = shop_manager()
+                        if manager ~= nil then
+                            stock = manager:call("getCurrStock", item_id)
+                        end
+                    end)
+                    info(string.format("purchase: item %d x%s for %s ptas (stock now %s)",
+                        item_id, tostring(tonumber(count)), tostring(tonumber(ptas)),
+                        tostring(tonumber(stock))))
+                    on_purchase(item_id)
                 end)
                 if not ok then
                     info("purchase hook error: " .. tostring(e))
@@ -1556,378 +1873,6 @@ return function(ctx)
         merchant.state_hooks_installed = true
     end
 
-    -- ------------------------------------------------- [Trade, Phase 0 probe]
-    -- The Trade tab design (MERCHANT_TRADE_DESIGN.md) blocks on one question:
-    -- does a reward claim have a hookable event? The il2cpp dump answers
-    -- notifyRecieveItem, third sibling of the two hooks this file already
-    -- rides in production (notifyPurchaseItem, notifySellItems; Capcom spells
-    -- the reward system "Recieve" throughout). This hook only LOGS: fire
-    -- timing, argument types and values, and the spinel count at the moment
-    -- of the claim, which is everything Phase 0 needs. Ask the live object;
-    -- the dump has lied before.
-    local function install_trade_claim_probe()
-        if merchant.trade_probe_installed then
-            return
-        end
-        local td = sdk.find_type_definition("chainsaw.InGameShopManager")
-        if td == nil then
-            info("trade probe: InGameShopManager type not found")
-            return
-        end
-        local method = td:get_method("notifyRecieveItem")
-        if method == nil then
-            info("trade probe: notifyRecieveItem not found - Phase 0 needs a new candidate")
-            return
-        end
-        merchant.trade_probe_installed = true
-        sdk.hook(method, function(args)
-            pcall(function()
-                local pieces = {}
-                for index = 3, 6 do
-                    local arg = args[index]
-                    if arg ~= nil then
-                        local described = nil
-                        pcall(function()
-                            local managed = sdk.to_managed_object(arg)
-                            if managed ~= nil then
-                                described = managed:get_type_definition():get_full_name()
-                                    .. "=" .. tostring(managed)
-                            end
-                        end)
-                        if described == nil then
-                            pcall(function()
-                                described = "int=" .. tostring(sdk.to_int64(arg))
-                            end)
-                        end
-                        pieces[#pieces + 1] = string.format(
-                            "arg%d %s", index, tostring(described))
-                    end
-                end
-                local spinel = nil
-                pcall(function()
-                    local mgr = shop_manager()
-                    if mgr ~= nil then
-                        spinel = mgr:call("get_CurrSpinelCount")
-                    end
-                end)
-                info(string.format(
-                    "[trade-probe] notifyRecieveItem fired (spinel=%s): %s",
-                    tostring(spinel), table.concat(pieces, "; ")))
-            end)
-            return sdk.PreHookResult.CALL_ORIGINAL
-        end, function(retval)
-            return retval
-        end)
-        info("trade probe: notifyRecieveItem hook installed (log-only, Phase 0)")
-    end
-
-    -- ---------------------------------------------- [Trade, rotation probe]
-    -- Experiment 2 for the Trade takeover (MERCHANT_TRADE_DESIGN.md 4.5):
-    -- can a reward row be re-registered at runtime, the way buy rows
-    -- re-label? Decides whether the 30-row cap bounds DISPLAY or CONTENT.
-    -- Dev-only buttons; the engine writes are per-save shop state, so run
-    -- them on a throwaway save. Discovery is the point: the register
-    -- call's true signature is unknown, so the buttons log every attempt
-    -- and outcome rather than assuming.
-    -- Engine calls NEVER run on the imgui draw thread: the first probe round
-    -- crashed the game granting spinel from a button press (2026-08-28,
-    -- live). Buttons enqueue; a re.on_frame pump runs one action per frame
-    -- on the game thread and logs every outcome.
-    local trade_probe_actions = {}
-    local trade_probe_last = "no probe action run yet"
-
-    local function trade_probe_enqueue(label, fn)
-        trade_probe_actions[#trade_probe_actions + 1] = { label = label, fn = fn }
-        trade_probe_last = label .. ": queued"
-    end
-
-    re.on_frame(function()
-        if #trade_probe_actions == 0 then
-            return
-        end
-        local action = table.remove(trade_probe_actions, 1)
-        local ok, err = pcall(action.fn)
-        if not ok then
-            trade_probe_last = string.format("%s ERRORED: %s", action.label, tostring(err))
-            info("trade probe: " .. trade_probe_last)
-        end
-    end)
-
-    local function trade_probe_log_tables()
-        local mgr = shop_manager()
-        if mgr == nil then
-            trade_probe_last = "shop manager unavailable"
-            info("trade probe: " .. trade_probe_last)
-            return
-        end
-        local pieces = {}
-        pcall(function()
-            local saves = mgr:get_field("InGameShopRewardSaveDatas")
-            if saves ~= nil then
-                pieces[#pieces + 1] = string.format("rewardSaveDatas=%s", tostring(saves:call("get_Count")))
-            end
-        end)
-        pcall(function()
-            local table_field = mgr:get_field("_RewardSettingTable")
-            if table_field ~= nil then
-                pieces[#pieces + 1] = string.format("rewardSettingTable=%s", tostring(table_field:call("get_Count")))
-            end
-        end)
-        trade_probe_last = "tables: " .. table.concat(pieces, "  ")
-        info("trade probe: " .. trade_probe_last)
-
-        -- The measurement that replaces every id guess: progress per slot id.
-        -- Non-existent ids answer too (whatever they answer IS the finding).
-        local sweep = {}
-        for id = 0, 50 do
-            local progress = nil
-            pcall(function() progress = mgr:call("getRewardProgress", id) end)
-            if progress ~= nil and tonumber(progress) ~= nil and tonumber(progress) ~= 0 then
-                sweep[#sweep + 1] = string.format("%d=%s", id, tostring(progress))
-            end
-        end
-        info(string.format(
-            "trade probe: progress sweep (ids 0-50, nonzero only): %s",
-            #sweep > 0 and table.concat(sweep, " ") or "ALL ZERO/NIL"))
-
-        -- Name what the manager actually holds, so pak-vs-manager drops and
-        -- duplicate-id suspicions become facts. Field names tried in the
-        -- house defensive style; a miss logs and moves on.
-        pcall(function()
-            local table_field = mgr:get_field("_RewardSettingTable")
-            if table_field == nil then return end
-            local count = tonumber(table_field:call("get_Count")) or 0
-            local entries = {}
-            for index = 0, math.min(count, 60) - 1 do
-                local entry = nil
-                pcall(function() entry = table_field:call("get_Item", index) end)
-                if entry == nil then
-                    pcall(function() entry = table_field:call("getItem", index) end)
-                end
-                if entry ~= nil then
-                    local rid, item_id, spinel = nil, nil, nil
-                    pcall(function() rid = entry:get_field("_RewardId") end)
-                    pcall(function() item_id = entry:get_field("_RewardItemId") end)
-                    pcall(function() spinel = entry:get_field("_SpinelCount") end)
-                    entries[#entries + 1] = string.format(
-                        "[%s]item=%s@%s", tostring(rid), tostring(item_id), tostring(spinel))
-                end
-            end
-            if #entries > 0 then
-                info("trade probe: setting entries: " .. table.concat(entries, " "))
-            else
-                info("trade probe: setting table not enumerable via get_Item/getItem")
-            end
-        end)
-    end
-
-    -- Round-2 persistence rig: the rotation register CREATES the high-id
-    -- slot, so no fork spike is needed. Claim both in the tab, save,
-    -- reload, sweep - progress(20) vs progress(40) after the reload is the
-    -- boundary measurement, independent of whether the runtime slots
-    -- themselves survive the reload (the save keys progress by id).
-    local function trade_probe_register_test_slots()
-        local mgr = shop_manager()
-        if mgr == nil then
-            trade_probe_last = "shop manager unavailable"
-            info("trade probe: " .. trade_probe_last)
-            return
-        end
-        local outcomes = {}
-        -- Round 4, the exact edge: the sweep put persisted claims at ids 30
-        -- and 31, the camera casualty at (by sequence) 32, and register
-        -- itself THREW at id 40 - everything says a 32-entry structure,
-        -- ids 0-31. So: 29 (fresh, in-bound) should register and its claim
-        -- should persist (it is the tab's only 2-spinel slot, no guessing);
-        -- 32 should throw or fail to persist (3 spinel if it shows at all).
-        -- Ids 30/31 are avoided: they hold Cam's real persisted claims.
-        for _, spec in ipairs({
-            { id = 29, item = 120833600, spinel = 2 },  -- Sapphire @ 2: THE claimable
-            { id = 32, item = 120830400, spinel = 3 },  -- Ruby @ 3: the edge case
-        }) do
-            local setting = sdk.create_instance("chainsaw.InGameShopRewardSingleSetting")
-            if setting == nil then
-                setting = sdk.create_instance("chainsaw.InGameShopRewardSingleSetting", true)
-            end
-            if setting ~= nil then
-                setting:set_field("_RewardId", spec.id)
-                setting:set_field("_Enable", true)
-                setting:set_field("_SpinelCount", spec.spinel)
-                setting:set_field("_RewardItemId", spec.item)
-                setting:set_field("_ItemCount", 1)
-                setting:set_field("_RecieveType", 0)
-                pcall(function()
-                    local display = sdk.create_instance("chainsaw.InGameShopRewardDisplaySetting", true)
-                    if display ~= nil then
-                        display:set_field("_Mode", 0)
-                        setting:set_field("_DisplaySetting", display)
-                    end
-                end)
-                local ok, err = pcall(function()
-                    mgr:call("registerRewardSetting", setting)
-                end)
-                outcomes[#outcomes + 1] = string.format(
-                    "id%d ok=%s%s", spec.id, tostring(ok), ok and "" or (" err=" .. tostring(err)))
-            else
-                outcomes[#outcomes + 1] = string.format("id%d create failed", spec.id)
-            end
-        end
-        trade_probe_last = "test slots: " .. table.concat(outcomes, "  ")
-        info("trade probe: " .. trade_probe_last)
-    end
-
-    -- The un-claim dark horse, pointed at EXISTING state: id 30 is one of
-    -- Cam's persisted treasure claims (Alexandrite or Yellow Diamond). If
-    -- resetting its progress un-claims the slot in the live tab, this one
-    -- call is the gem restock AND the rotation reset.
-    local function trade_probe_reset_progress_30()
-        local mgr = shop_manager()
-        if mgr == nil then
-            trade_probe_last = "shop manager unavailable"
-            info("trade probe: " .. trade_probe_last)
-            return
-        end
-        local before, after = nil, nil
-        pcall(function() before = mgr:call("getRewardProgress", 30) end)
-        local ok, err = pcall(function() mgr:call("setRewardProgress", 30, 0) end)
-        pcall(function() after = mgr:call("getRewardProgress", 30) end)
-        trade_probe_last = string.format(
-            "reset(30): ok=%s err=%s progress %s -> %s",
-            tostring(ok), tostring(err), tostring(before), tostring(after))
-        info("trade probe: " .. trade_probe_last)
-    end
-
-    local function trade_probe_build_setting(reward_id)
-        local setting = sdk.create_instance("chainsaw.InGameShopRewardSingleSetting")
-        if setting == nil then
-            setting = sdk.create_instance("chainsaw.InGameShopRewardSingleSetting", true)
-        end
-        if setting == nil then
-            return nil, "create_instance returned nil"
-        end
-        setting:set_field("_RewardId", reward_id)
-        setting:set_field("_Enable", true)
-        setting:set_field("_SpinelCount", 7)
-        setting:set_field("_RewardItemId", 120867200) -- Exclusive Upgrade Ticket: unmistakable
-        setting:set_field("_ItemCount", 1)
-        setting:set_field("_RecieveType", 0)
-        pcall(function()
-            local display = sdk.create_instance("chainsaw.InGameShopRewardDisplaySetting", true)
-            if display ~= nil then
-                display:set_field("_Mode", 0)
-                setting:set_field("_DisplaySetting", display)
-            end
-        end)
-        return setting, nil
-    end
-
-    local function draw_trade_probe_content()
-        imgui.text("Trade rotation probe (experiment 2) - throwaway saves only")
-        imgui.text("last: " .. tostring(trade_probe_last))
-        if imgui.button("Log reward tables") then
-            trade_probe_enqueue("log tables", trade_probe_log_tables)
-        end
-        if imgui.button("Register edge slots: Sapphire @ 2 spinel (id 29), Ruby @ 3 (id 32)") then
-            trade_probe_enqueue("register edge slots", trade_probe_register_test_slots)
-        end
-        if imgui.button("Un-claim probe: reset progress on id 30 (a CLAIMED treasure)") then
-            trade_probe_enqueue("reset progress 30", trade_probe_reset_progress_30)
-        end
-        if imgui.button("Grant 30 spinel (fresh saves have none to claim with)") then
-            trade_probe_enqueue("grant spinel", function()
-                local mgr = shop_manager()
-                if mgr == nil then
-                    trade_probe_last = "shop manager unavailable"
-                    info("trade probe: " .. trade_probe_last)
-                    return
-                end
-                local before, after = nil, nil
-                pcall(function() before = mgr:call("get_CurrSpinelCount") end)
-                local ok_add, err_add = pcall(function() mgr:call("addSpinelCount", 30) end)
-                if not ok_add then
-                    -- Fallback lever from the same census: the setter.
-                    pcall(function()
-                        mgr:call("set_CurrSpinelCount", (tonumber(before) or 0) + 30)
-                    end)
-                end
-                pcall(function() after = mgr:call("get_CurrSpinelCount") end)
-                trade_probe_last = string.format(
-                    "grant: addSpinelCount ok=%s err=%s spinel %s -> %s",
-                    tostring(ok_add), tostring(err_add), tostring(before), tostring(after))
-                info("trade probe: " .. trade_probe_last)
-            end)
-        end
-        if imgui.button("Re-register reward row 0 as Ticket @ 7 spinel") then
-            trade_probe_enqueue("re-register row 0", function()
-                local mgr = shop_manager()
-                if mgr == nil then
-                    trade_probe_last = "shop manager unavailable"
-                    info("trade probe: " .. trade_probe_last)
-                    return
-                end
-                local setting, build_err = trade_probe_build_setting(0)
-                if setting == nil then
-                    trade_probe_last = "setting build failed: " .. tostring(build_err)
-                    info("trade probe: " .. trade_probe_last)
-                    return
-                end
-                local ok, err = pcall(function()
-                    mgr:call("registerRewardSetting", setting)
-                end)
-                trade_probe_last = string.format(
-                    "registerRewardSetting(single) ok=%s err=%s", tostring(ok), tostring(err))
-                info("trade probe: " .. trade_probe_last)
-                trade_probe_log_tables()
-            end)
-        end
-        if imgui.button("Unregister reward row 0") then
-            trade_probe_enqueue("unregister row 0", function()
-                local mgr = shop_manager()
-                if mgr == nil then
-                    trade_probe_last = "shop manager unavailable"
-                    info("trade probe: " .. trade_probe_last)
-                    return
-                end
-                local ok_id, err_id = pcall(function()
-                    mgr:call("unregisterRewardSetting", 0)
-                end)
-                if ok_id then
-                    trade_probe_last = "unregisterRewardSetting(id) ok"
-                else
-                    local setting = trade_probe_build_setting(0)
-                    local ok_setting, err_setting = false, "setting build failed"
-                    if setting ~= nil then
-                        ok_setting, err_setting = pcall(function()
-                            mgr:call("unregisterRewardSetting", setting)
-                        end)
-                    end
-                    trade_probe_last = string.format(
-                        "unregister: id err=%s; setting ok=%s err=%s",
-                        tostring(err_id), tostring(ok_setting), tostring(err_setting))
-                end
-                info("trade probe: " .. trade_probe_last)
-                trade_probe_log_tables()
-            end)
-        end
-        if imgui.button("Read + bump RewardProgress(0)") then
-            trade_probe_enqueue("reward progress", function()
-                local mgr = shop_manager()
-                if mgr == nil then
-                    trade_probe_last = "shop manager unavailable"
-                    info("trade probe: " .. trade_probe_last)
-                    return
-                end
-                local before, after = nil, nil
-                pcall(function() before = mgr:call("getRewardProgress", 0) end)
-                pcall(function() mgr:call("setRewardProgress", 0, 1) end)
-                pcall(function() after = mgr:call("getRewardProgress", 0) end)
-                trade_probe_last = string.format(
-                    "RewardProgress(0) %s -> %s", tostring(before), tostring(after))
-                info("trade probe: " .. trade_probe_last)
-            end)
-        end
-    end
-
     -- ---------------------------------------------------------------- public
     -- apclient calls these: load_slots when the room file is read, and
     -- on_connected once the per-seed ack set is in memory.
@@ -1938,7 +1883,6 @@ return function(ctx)
         pcall(install_shop_state_hooks)
         -- [Trade, Phase 0] Log-only claim probe, also unconditional: the
         -- trade tab exists with or without merchant checks.
-        pcall(install_trade_claim_probe)
         if merchant.slot_count > 0 then
             install_hooks()
         end
@@ -1946,8 +1890,12 @@ return function(ctx)
         -- it hooks separately from the purchase hooks above.
         if merchant.slot_count > 0 then
             pcall(install_row_icon_hook)
-            pcall(install_row_model_hook)
         end
+        -- The model swap serves BOTH tabs (parity, 2026-09-02) and returns
+        -- early for any id neither tab owns, so it installs whether or not
+        -- the buy tab has checks - the trade window configures after this
+        -- runs and cannot be asked yet.
+        pcall(install_row_model_hook)
     end
 
     local function merchant_on_connected()
@@ -1982,13 +1930,21 @@ return function(ctx)
     ctx.merchant_on_connected = merchant_on_connected
     ctx.merchant_reconcile_sold_out = reconcile_sold_out
     ctx.merchant_probe_shelf = probe_shelf
+    -- The trade window asks for this after every reconcile so its remote and
+    -- empty tiles get the AP model's framing too (parity, 2026-09-02).
+    ctx.merchant_place_ap_models = place_ap_models
+    -- And for the same no-residue icon box handling on its tiles.
+    ctx.merchant_icon_stamp = icon_stamp
+    ctx.merchant_icon_release = icon_release
+    ctx.merchant_wears_square_art = wears_square_art
+    _G.merchant_icon_stamp = icon_stamp
+    _G.merchant_icon_release = icon_release
+    _G.merchant_wears_square_art = wears_square_art
     -- The operations the hooks trigger, exposed by name: the hooks are only
     -- the triggers, so a purchase can also be driven from Developer Tools or
     -- an offline harness without faking a transaction.
     ctx.merchant_apply_purchase = on_purchase
     ctx.merchant_commit_save = request_game_save
-    ctx.draw_trade_probe_content = draw_trade_probe_content
     _G.merchant_configure = merchant_configure
     _G.merchant_on_connected = merchant_on_connected
-    _G.draw_trade_probe_content = draw_trade_probe_content
 end

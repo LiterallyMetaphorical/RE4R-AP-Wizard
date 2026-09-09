@@ -3083,6 +3083,18 @@ local function install(ctx)
     export("inject_status_succeeded", inject_status_succeeded)
     export("build_filtered_injectable_view", build_filtered_injectable_view)
     export("inject_command_succeeded", inject_command_succeeded)
+    -- [Icon box, 2026-09-02] item id -> kind ("treasure", "weapon", ...),
+    -- for the merchant modules: the shop draws every icon in a 226x150 box
+    -- and Capcom's shop art is painted pre-squeezed for it, but treasure art
+    -- is square (vanilla never shows treasures in that box), so those get a
+    -- square box like the Archipelago logo. Indexed lazily from the loaded
+    -- injectable list; rebuilt if that list is ever reloaded.
+    local function inject_item_kind(item_id)
+        item_id = math.floor(tonumber(item_id) or 0)
+        return injectable_item_kind_by_id[item_id]
+    end
+    export("inject_item_kind", inject_item_kind)
+
     export("inject_item_to_inventory", inject_item_to_inventory)
     export("inject_resolve_case_inventory", inject_resolve_case_inventory)
     export("inject_debug_walk_case_items", inject_debug_walk_case_items)
