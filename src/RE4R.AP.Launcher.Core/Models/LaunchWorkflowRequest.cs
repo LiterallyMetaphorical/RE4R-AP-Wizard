@@ -49,6 +49,13 @@ public sealed class LaunchWorkflowRequest
     public Func<IReadOnlyList<string>, Task<bool>>? ConfirmForeignPatchPaksAsync { get; set; }
 
     /// <summary>
+    /// Asked after the scout, for campaign rooms only: the two DLC warnings
+    /// that used to sit before the workflow. A Mercenaries-only room needs
+    /// neither DLC, so it never asks.
+    /// </summary>
+    public Func<Task<bool>>? ConfirmCampaignSafetyAsync { get; set; }
+
+    /// <summary>
     /// Invoked when a workflow stage begins, so the UI can render a live
     /// phase checklist instead of a raw log (field note: patch progress).
     /// Exceptions are swallowed; the callback must marshal its own threading.

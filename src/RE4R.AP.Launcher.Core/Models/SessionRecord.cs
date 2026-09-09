@@ -35,6 +35,13 @@ public sealed class SessionRecord
     [JsonPropertyName("seed_name")]
     public string SeedName { get; set; } = string.Empty;
 
+    /// <summary>
+    /// The room's mode at patch time ("campaign", "campaign_and_mercenaries",
+    /// "mercenaries_only"). Older records read as campaign.
+    /// </summary>
+    [JsonPropertyName("game_mode")]
+    public string GameMode { get; set; } = "campaign";
+
     // One of: "patch_in_progress" (breadcrumb written before game files are
     // touched; survives a crash mid-patch), "active", "superseded", "finished".
     [JsonPropertyName("status")]

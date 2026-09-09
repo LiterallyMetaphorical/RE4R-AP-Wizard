@@ -3202,6 +3202,17 @@ local function install(ctx)
         if now - key_mirror_last_clock < 2.0 then
             return
         end
+        -- [Mercenaries] No campaign inventories to mirror while the mode runs.
+        do
+            local get_domain = ctx.get_runtime_domain or _G.get_runtime_domain
+            if type(get_domain) == "function" then
+                local ok_domain, domain = pcall(get_domain)
+                if ok_domain and domain == "MERCENARIES" then
+                    key_mirror_last_clock = now
+                    return
+                end
+            end
+        end
         key_mirror_last_clock = now
 
         -- Gate on the same playability compound the injection path uses. The

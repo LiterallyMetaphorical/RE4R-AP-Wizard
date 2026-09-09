@@ -1,866 +1,1116 @@
 {
   "version": 1,
-  "item_count": 172,
+  "item_count": 185,
   "items": {
     "20665965": {
       "name": "Red9 Stock x1",
       "re4r_item_id": 116001600,
-      "count": 1
+      "count": 1,
+      "kind": "attachment"
     },
     "24553929": {
       "name": "Recipe: Flash Grenade x1",
       "re4r_item_id": 124337600,
-      "count": 1
+      "count": 1,
+      "kind": "recipe"
     },
     "42736575": {
       "name": "Insignia Key x1",
       "re4r_item_id": 119204800,
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "52754570": {
       "name": "Blue Dial x1",
       "re4r_item_id": 119284800,
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "104347270": {
       "name": "CQBR Assault Rifle x20",
       "re4r_item_id": 275478656,
-      "count": 20
+      "count": 20,
+      "kind": "weapon"
     },
     "141231755": {
       "name": "Attachable Mines x4",
       "re4r_item_id": 117603200,
-      "count": 4
+      "count": 4,
+      "kind": "ammo"
     },
     "146128197": {
       "name": "Scratched Emerald x1",
       "re4r_item_id": 120865600,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "214868457": {
       "name": "Bolts x2",
       "re4r_item_id": 112808000,
-      "count": 2
+      "count": 2,
+      "kind": "ammo"
     },
     "231408568": {
       "name": "Attaché Case: Gold x1",
       "re4r_item_id": 124192000,
-      "count": 1
+      "count": 1,
+      "kind": "case-perk"
     },
     "258681200": {
       "name": "Bolts x4",
       "re4r_item_id": 112808000,
-      "count": 4
+      "count": 4,
+      "kind": "ammo"
     },
     "352639030": {
       "name": "Antique Pipe x1",
       "re4r_item_id": 120814400,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "359093623": {
       "name": "Golden Hourglass x1",
       "re4r_item_id": 120824000,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "368103480": {
       "name": "Alexandrite x1",
       "re4r_item_id": 120838400,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "396050682": {
       "name": "Silver Token x1",
       "re4r_item_id": 119286400,
-      "count": 1
+      "count": 1,
+      "kind": "token"
     },
     "399783606": {
       "name": "Skull Shaker x1",
       "re4r_item_id": 278037056,
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "457754278": {
       "name": "Lithographic Stone D x1",
       "re4r_item_id": 119270400,
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "459975048": {
       "name": "Handgun Ammo x20",
       "re4r_item_id": 112800000,
-      "count": 20
+      "count": 20,
+      "kind": "ammo"
     },
     "494594691": {
       "name": "Gold Ingot x1",
       "re4r_item_id": 120843200,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "511930758": {
       "name": "Resource (Large) x1",
       "re4r_item_id": 117601600,
-      "count": 1
+      "count": 1,
+      "kind": "resource"
     },
     "551833093": {
       "name": "Hexagon Piece C x1",
       "re4r_item_id": 119251200,
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "569408376": {
       "name": "Biosensor Scope x1",
       "re4r_item_id": 116004800,
-      "count": 1
+      "count": 1,
+      "kind": "attachment"
     },
     "612460856": {
       "name": "Extravagant Clock x1",
       "re4r_item_id": 122408000,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "617211728": {
       "name": "Elegant Chessboard x1",
       "re4r_item_id": 120827200,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "626635549": {
       "name": "High-power Scope x1",
       "re4r_item_id": 116003200,
-      "count": 1
+      "count": 1,
+      "kind": "attachment"
     },
     "652308034": {
       "name": "Submachine Gun Ammo x50",
       "re4r_item_id": 112806400,
-      "count": 50
+      "count": 50,
+      "kind": "ammo"
     },
     "654617985": {
       "name": "Emerald x1",
       "re4r_item_id": 120832000,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "656977786": {
       "name": "Handgun Ammo x8",
       "re4r_item_id": 112800000,
-      "count": 8
+      "count": 8,
+      "kind": "ammo"
     },
     "659501534": {
       "name": "Rifle Ammo x3",
       "re4r_item_id": 112804800,
-      "count": 3
+      "count": 3,
+      "kind": "ammo"
     },
     "671991005": {
       "name": "Handgun Ammo x12",
       "re4r_item_id": 112800000,
-      "count": 12
+      "count": 12,
+      "kind": "ammo"
     },
     "673697542": {
       "name": "Gunpowder x2",
       "re4r_item_id": 117600000,
-      "count": 2
+      "count": 2,
+      "kind": "gunpowder"
     },
     "686624439": {
       "name": "TMP Stock x1",
       "re4r_item_id": 116006400,
-      "count": 1
+      "count": 1,
+      "kind": "attachment"
     },
     "750570238": {
       "name": "XM96E1 x1",
       "re4r_item_id": 278515456,
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "754561484": {
       "name": "Scope x1",
       "re4r_item_id": 116000000,
-      "count": 1
+      "count": 1,
+      "kind": "attachment"
     },
     "771039498": {
       "name": "SR M1903 x1",
       "re4r_item_id": 275475456,
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "872710715": {
       "name": "Recipe: Attachable Mines x1",
       "re4r_item_id": 124334400,
-      "count": 1
+      "count": 1,
+      "kind": "recipe"
     },
     "882777558": {
       "name": "Fighting Knife x1",
       "re4r_item_id": 276437056,
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "885416727": {
       "name": "Brown Chicken Egg x1",
       "re4r_item_id": 277081856,
-      "count": 1
+      "count": 1,
+      "kind": "egg"
     },
     "888826940": {
       "name": "Recipe: Bolts x1",
       "re4r_item_id": 124329600,
-      "count": 1
+      "count": 1,
+      "kind": "recipe"
     },
     "915040027": {
       "name": "Resources (Small) x1",
       "re4r_item_id": 117606400,
-      "count": 1
+      "count": 1,
+      "kind": "resource"
     },
     "921567379": {
       "name": "Bunch of Keys x1",
       "re4r_item_id": 119275200,
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "940874684": {
       "name": "Flamethrower x1",
       "re4r_item_id": 275957056,
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "972234972": {
       "name": "Golden Lynx x1",
       "re4r_item_id": 122406400,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "981884737": {
       "name": "Riot Gun x1",
       "re4r_item_id": 274997056,
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "1037821037": {
       "name": "Blacktail x1",
       "re4r_item_id": 274840256,
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "1070734931": {
       "name": "Elegant Bangle x1",
       "re4r_item_id": 122416000,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "1078968599": {
       "name": "Iluminados Pendant x1",
       "re4r_item_id": 120820800,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "1128726829": {
       "name": "Rifle Ammo x8",
       "re4r_item_id": 112804800,
-      "count": 8
+      "count": 8,
+      "kind": "ammo"
     },
     "1168238438": {
       "name": "Shotgun Shells x3",
       "re4r_item_id": 112803200,
-      "count": 3
+      "count": 3,
+      "kind": "ammo"
     },
     "1172678581": {
       "name": "Lip Rouge x1",
       "re4r_item_id": 120856000,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "1175538565": {
       "name": "Wooden Planks x1",
       "re4r_item_id": 119289600,
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "1209299439": {
       "name": "Hexagonal Emblem x1",
       "re4r_item_id": 119203200,
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "1210331884": {
       "name": "Handgun Ammo x5",
       "re4r_item_id": 112800000,
-      "count": 5
+      "count": 5,
+      "kind": "ammo"
     },
     "1229012439": {
       "name": "Dungeon Key x1",
       "re4r_item_id": 119254400,
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "1347656822": {
       "name": "Depraved Idol x1",
       "re4r_item_id": 120844800,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "1372324022": {
       "name": "Hexagon Piece B x1",
       "re4r_item_id": 119249600,
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "1385661921": {
       "name": "Boot Knife x1",
       "re4r_item_id": 276440256,
-      "count": 1
+      "count": 1,
+      "kind": "knife"
     },
     "1446550920": {
       "name": "Elegant Mask x1",
       "re4r_item_id": 122400000,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "1466847945": {
       "name": "Primal Knife x1",
       "re4r_item_id": 276445056,
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "1487112975": {
       "name": "Mirror with Pearls & Rubies x1",
       "re4r_item_id": 120822400,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "1491486916": {
       "name": "Handgun Ammo x30",
       "re4r_item_id": 112800000,
-      "count": 30
+      "count": 30,
+      "kind": "ammo"
     },
     "1514729802": {
       "name": "Handgun Ammo x7",
       "re4r_item_id": 112800000,
-      "count": 7
+      "count": 7,
+      "kind": "ammo"
     },
     "1544487469": {
       "name": "Apostate's Head x1",
       "re4r_item_id": 119232000,
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "1581525943": {
       "name": "Lion Head x1",
       "re4r_item_id": 119222400,
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "1651349733": {
       "name": "Crystal Marble x1",
       "re4r_item_id": 119217600,
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "1669567494": {
       "name": "Bolts x5",
       "re4r_item_id": 112808000,
-      "count": 5
+      "count": 5,
+      "kind": "ammo"
     },
     "1671399243": {
       "name": "Boat Fuel x1",
       "re4r_item_id": 119273600,
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "1718910190": {
       "name": "Blasphemer's Head x1",
       "re4r_item_id": 119230400,
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "1766814127": {
       "name": "Splendid Bangle x1",
       "re4r_item_id": 122409600,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "1791443381": {
       "name": "Level 1 Keycard x1",
       "re4r_item_id": 119211200,
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "1798334688": {
       "name": "Lithographic Stone C x1",
       "re4r_item_id": 119268800,
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "1834220951": {
       "name": "Yellow Diamond x1",
       "re4r_item_id": 120835200,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "1855505831": {
       "name": "SW - Blast Crossbow x1",
       "re4r_item_id": 278198656,
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "1862471185": {
       "name": "Ruby x1",
       "re4r_item_id": 120830400,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "1895554320": {
       "name": "SW - Sawed-off W-870 x1",
       "re4r_item_id": 278195456,
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "1906327026": {
       "name": "Hexagon Piece A x1",
       "re4r_item_id": 119248000,
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "1965776713": {
       "name": "Dynamite x1",
       "re4r_item_id": 119236800,
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "2010127242": {
       "name": "Justitia Statue x1",
       "re4r_item_id": 120848000,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "2013551872": {
       "name": "Rifle Ammo x10",
       "re4r_item_id": 112804800,
-      "count": 10
+      "count": 10,
+      "kind": "ammo"
     },
     "2015447627": {
       "name": "Serpent Head x1",
       "re4r_item_id": 119225600,
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "2061407981": {
       "name": "Recipe: Magnum Ammo x1",
       "re4r_item_id": 124328000,
-      "count": 1
+      "count": 1,
+      "kind": "recipe"
     },
     "2134491726": {
       "name": "Black Bass x1",
       "re4r_item_id": 114417600,
-      "count": 1
+      "count": 1,
+      "kind": "fish"
     },
     "2164502607": {
       "name": "Handgun Ammo x4",
       "re4r_item_id": 112800000,
-      "count": 4
+      "count": 4,
+      "kind": "ammo"
     },
     "2204308324": {
       "name": "Gunpowder x4",
       "re4r_item_id": 117600000,
-      "count": 4
+      "count": 4,
+      "kind": "gunpowder"
     },
     "2206838959": {
       "name": "Pearl Bangle x1",
       "re4r_item_id": 120816000,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "2208221446": {
       "name": "Exclusive Upgrade Ticket x1",
       "re4r_item_id": 120867200,
-      "count": 1
+      "count": 1,
+      "kind": "special"
     },
     "2217291210": {
       "name": "Velvet Blue x1",
       "re4r_item_id": 120864000,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "2310309362": {
       "name": "Méndez's False Eye x1",
       "re4r_item_id": 120852800,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "2317863931": {
       "name": "Crystal Ore x1",
       "re4r_item_id": 120849600,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "2324378637": {
       "name": "Small Key x1",
       "re4r_item_id": 119244800,
-      "count": 1
+      "count": 1,
+      "kind": "small-key"
     },
     "2328994552": {
       "name": "Red Herb x1",
       "re4r_item_id": 114401600,
-      "count": 1
+      "count": 1,
+      "kind": "health"
     },
     "2342841231": {
       "name": "Chicago Sweeper x1",
       "re4r_item_id": 275157056,
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "2351475899": {
       "name": "Sapphire x1",
       "re4r_item_id": 120833600,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "2402639670": {
       "name": "Matilda x1",
       "re4r_item_id": 274841856,
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "2442382199": {
       "name": "Yellow Herb x1",
       "re4r_item_id": 114403200,
-      "count": 1
+      "count": 1,
+      "kind": "health"
     },
     "2475531310": {
       "name": "Butterfly Lamp x1",
       "re4r_item_id": 122403200,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "2498409783": {
       "name": "Gold Token x1",
       "re4r_item_id": 119288000,
-      "count": 1
+      "count": 1,
+      "kind": "token"
     },
     "2543323800": {
       "name": "Flash Grenade x1",
       "re4r_item_id": 277078656,
-      "count": 1
+      "count": 1,
+      "kind": "grenade"
     },
     "2557426438": {
       "name": "Stingray x1",
       "re4r_item_id": 275477056,
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "2582217593": {
       "name": "Gunpowder x10",
       "re4r_item_id": 117600000,
-      "count": 10
+      "count": 10,
+      "kind": "gunpowder"
     },
     "2582766715": {
       "name": "Brass Pocket Watch x1",
       "re4r_item_id": 120809600,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "2601834280": {
       "name": "Rhinoceros Beetle x1",
       "re4r_item_id": 114424000,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "2613939803": {
       "name": "Gold Bangle x1",
       "re4r_item_id": 120819200,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "2709354575": {
       "name": "Bolt Thrower x1",
       "re4r_item_id": 275795456,
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "2763550898": {
       "name": "Red9 x1",
       "re4r_item_id": 274838656,
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "2768851234": {
       "name": "Attachable Mines x5",
       "re4r_item_id": 117603200,
-      "count": 5
+      "count": 5,
+      "kind": "ammo"
     },
     "2774100122": {
       "name": "Handgun Ammo x10",
       "re4r_item_id": 112800000,
-      "count": 10
+      "count": 10,
+      "kind": "ammo"
     },
     "2806905227": {
       "name": "Rifle Ammo x4",
       "re4r_item_id": 112804800,
-      "count": 4
+      "count": 4,
+      "kind": "ammo"
     },
     "2820328595": {
       "name": "Handgun Ammo x15",
       "re4r_item_id": 112800000,
-      "count": 15
+      "count": 15,
+      "kind": "ammo"
     },
     "2828451666": {
       "name": "Case: 8x13 x1",
       "re4r_item_id": 124164800,
-      "count": 1
+      "count": 1,
+      "kind": "case-size"
     },
     "2834473979": {
       "name": "Recipe: Heavy Grenade x1",
       "re4r_item_id": 124336000,
-      "count": 1
+      "count": 1,
+      "kind": "recipe"
     },
     "2859524944": {
       "name": "Case: 8x12 x1",
       "re4r_item_id": 124163200,
-      "count": 1
+      "count": 1,
+      "kind": "case-size"
     },
     "2888050195": {
       "name": "Level 3 Keycard x1",
       "re4r_item_id": 119214400,
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "2892172865": {
       "name": "Spinel x1",
       "re4r_item_id": 120800000,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "2937574877": {
       "name": "Vintage Compass x1",
       "re4r_item_id": 120846400,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "2979536989": {
       "name": "Shotgun Shells x5",
       "re4r_item_id": 112803200,
-      "count": 5
+      "count": 5,
+      "kind": "ammo"
     },
     "2996421434": {
       "name": "Red Gemstone Ring x1",
       "re4r_item_id": 120817600,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "3009070136": {
       "name": "Rocket Launcher x1",
       "re4r_item_id": 276275456,
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "3023476029": {
       "name": "Case: 7x12 x1",
       "re4r_item_id": 124161600,
-      "count": 1
+      "count": 1,
+      "kind": "case-size"
     },
     "3043978533": {
       "name": "Heavy Grenade x1",
       "re4r_item_id": 277077056,
-      "count": 1
+      "count": 1,
+      "kind": "grenade"
     },
     "3062218041": {
       "name": "Gold Bar (L) x1",
       "re4r_item_id": 120841600,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "3064599675": {
       "name": "Antique Camera x1",
       "re4r_item_id": 120860800,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "3076045768": {
       "name": "Staff of Royalty x1",
       "re4r_item_id": 120828800,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "3078996540": {
       "name": "Elegant Crown x1",
       "re4r_item_id": 122404800,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "3091930671": {
       "name": "Handgun Ammo x16",
       "re4r_item_id": 112800000,
-      "count": 16
+      "count": 16,
+      "kind": "ammo"
     },
     "3099953136": {
       "name": "Halo Wheel x1",
       "re4r_item_id": 119206400,
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "3109021309": {
       "name": "Spinel x3",
       "re4r_item_id": 120800000,
-      "count": 3
+      "count": 3,
+      "kind": "treasure"
     },
     "3152993356": {
       "name": "Gold Bar x1",
       "re4r_item_id": 120840000,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "3259886427": {
       "name": "Punisher x1",
       "re4r_item_id": 274837056,
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "3263967379": {
       "name": "Lithographic Stone B x1",
       "re4r_item_id": 119267200,
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "3264850340": {
       "name": "Kitchen Knife x1",
       "re4r_item_id": 276438656,
-      "count": 1
+      "count": 1,
+      "kind": "knife"
     },
     "3311002821": {
       "name": "Gunpowder x3",
       "re4r_item_id": 117600000,
-      "count": 3
+      "count": 3,
+      "kind": "gunpowder"
     },
     "3315045920": {
       "name": "Green Herb x1",
       "re4r_item_id": 114400000,
-      "count": 1
+      "count": 1,
+      "kind": "health"
     },
     "3322005405": {
       "name": "Chalice of Atonement x1",
       "re4r_item_id": 122411200,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "3340862733": {
       "name": "Ornate Beetle x1",
       "re4r_item_id": 120851200,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "3342204226": {
       "name": "Charm: Iluminados Emblem x1",
       "re4r_item_id": 127243200,
-      "count": 1
+      "count": 1,
+      "kind": "charm"
     },
     "3421455092": {
       "name": "Elegant Perfume Bottle x1",
       "re4r_item_id": 120825600,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "3457959937": {
       "name": "Cubic Device x1",
       "re4r_item_id": 119276800,
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "3515208522": {
       "name": "LE 5 x60",
       "re4r_item_id": 275158656,
-      "count": 60
+      "count": 60,
+      "kind": "weapon"
     },
     "3526330697": {
       "name": "Spinel x2",
       "re4r_item_id": 120800000,
-      "count": 2
+      "count": 2,
+      "kind": "treasure"
     },
     "3534671013": {
       "name": "Matilda Stock x1",
       "re4r_item_id": 116009600,
-      "count": 1
+      "count": 1,
+      "kind": "attachment"
     },
     "3567440286": {
       "name": "Striker x1",
       "re4r_item_id": 274998656,
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "3580942952": {
       "name": "Rifle Ammo x2",
       "re4r_item_id": 112804800,
-      "count": 2
+      "count": 2,
+      "kind": "ammo"
     },
     "3584757178": {
       "name": "Chicken Egg x1",
       "re4r_item_id": 277080256,
-      "count": 1
+      "count": 1,
+      "kind": "egg"
     },
     "3630250794": {
       "name": "Red Beryl x1",
       "re4r_item_id": 120857600,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "3680769264": {
       "name": "Old Wayshrine Key x1",
       "re4r_item_id": 119256000,
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "3688870194": {
       "name": "Gold Chicken Egg x1",
       "re4r_item_id": 277083456,
-      "count": 1
+      "count": 1,
+      "kind": "egg"
     },
     "3733278404": {
       "name": "Handgun Ammo x9",
       "re4r_item_id": 112800000,
-      "count": 9
+      "count": 9,
+      "kind": "ammo"
     },
     "3824283124": {
       "name": "Ornate Necklace x1",
       "re4r_item_id": 122412800,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "3838225701": {
       "name": "Salazar Family Insignia x1",
       "re4r_item_id": 119220800,
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "3862385800": {
       "name": "Flagon x1",
       "re4r_item_id": 122401600,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "3899322968": {
       "name": "Sentinel Nine x1",
       "re4r_item_id": 278035456,
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "3910021636": {
       "name": "Bloodied Sword x1",
       "re4r_item_id": 119278400,
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "3953430960": {
       "name": "Submachine Gun Ammo x30",
       "re4r_item_id": 112806400,
-      "count": 30
+      "count": 30,
+      "kind": "ammo"
     },
     "3958133696": {
       "name": "W-870 x5",
       "re4r_item_id": 274995456,
-      "count": 5
+      "count": 5,
+      "kind": "weapon"
     },
     "3974588439": {
       "name": "Hand Grenade x1",
       "re4r_item_id": 277075456,
-      "count": 1
+      "count": 1,
+      "kind": "grenade"
     },
     "3982676783": {
       "name": "Rifle Ammo x5",
       "re4r_item_id": 112804800,
-      "count": 5
+      "count": 5,
+      "kind": "ammo"
     },
     "4000844222": {
       "name": "Broken Butterfly x1",
       "re4r_item_id": 275635456,
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "4063988846": {
       "name": "First Aid Spray x1",
       "re4r_item_id": 114416000,
-      "count": 1
+      "count": 1,
+      "kind": "health"
     },
     "4068051991": {
       "name": "Attaché Case: Leather x1",
       "re4r_item_id": 124179200,
-      "count": 1
+      "count": 1,
+      "kind": "case-perk"
     },
     "4073624936": {
       "name": "Killer7 x1",
       "re4r_item_id": 275637056,
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "4117592696": {
       "name": "Pesetas x5000",
       "re4r_item_id": 124000000,
-      "count": 5000
+      "count": 5000,
+      "kind": "money"
     },
     "4126917699": {
       "name": "Case: 9x13 x1",
       "re4r_item_id": 124166400,
-      "count": 1
+      "count": 1,
+      "kind": "case-size"
     },
     "4131203438": {
       "name": "Goat Head x1",
       "re4r_item_id": 119224000,
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "4160710145": {
       "name": "Level 2 Keycard x1",
       "re4r_item_id": 119212800,
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "4171742266": {
       "name": "Gunpowder x5",
       "re4r_item_id": 117600000,
-      "count": 5
+      "count": 5,
+      "kind": "gunpowder"
     },
     "4175876706": {
       "name": "Handcannon x1",
       "re4r_item_id": 275638656,
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "4204340803": {
       "name": "Spinel x5",
       "re4r_item_id": 120800000,
-      "count": 5
+      "count": 5,
+      "kind": "treasure"
     },
     "4228309747": {
       "name": "Laser Sight x1",
       "re4r_item_id": 116008000,
-      "count": 1
+      "count": 1,
+      "kind": "attachment"
     },
     "4249727162": {
       "name": "Elegant Headdress x1",
       "re4r_item_id": 120812800,
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "4251553254": {
       "name": "Charm: Ada Wong x1",
       "re4r_item_id": 127236800,
-      "count": 1
+      "count": 1,
+      "kind": "charm"
     },
     "4262302934": {
       "name": "Handgun Ammo x25",
       "re4r_item_id": 112800000,
-      "count": 25
+      "count": 25,
+      "kind": "ammo"
     },
     "4288743819": {
       "name": "TMP x1",
       "re4r_item_id": 275155456,
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
+    },
+    "440000001": {
+      "name": "Mercenaries Character: Leon",
+      "re4r_item_id": -1,
+      "count": 1,
+      "kind": "merc_character"
+    },
+    "440000002": {
+      "name": "Mercenaries Character: Leon (Pinstripe)",
+      "re4r_item_id": -1,
+      "count": 1,
+      "kind": "merc_character"
+    },
+    "440000003": {
+      "name": "Mercenaries Character: Luis",
+      "re4r_item_id": -1,
+      "count": 1,
+      "kind": "merc_character"
+    },
+    "440000004": {
+      "name": "Mercenaries Character: Krauser",
+      "re4r_item_id": -1,
+      "count": 1,
+      "kind": "merc_character"
+    },
+    "440000005": {
+      "name": "Mercenaries Character: HUNK",
+      "re4r_item_id": -1,
+      "count": 1,
+      "kind": "merc_character"
+    },
+    "440000006": {
+      "name": "Mercenaries Character: Ada",
+      "re4r_item_id": -1,
+      "count": 1,
+      "kind": "merc_character"
+    },
+    "440000007": {
+      "name": "Mercenaries Character: Ada (Dress)",
+      "re4r_item_id": -1,
+      "count": 1,
+      "kind": "merc_character"
+    },
+    "440000008": {
+      "name": "Mercenaries Character: Wesker",
+      "re4r_item_id": -1,
+      "count": 1,
+      "kind": "merc_character"
+    },
+    "440000021": {
+      "name": "Mercenaries Stage: Village",
+      "re4r_item_id": -1,
+      "count": 1,
+      "kind": "merc_stage"
+    },
+    "440000022": {
+      "name": "Mercenaries Stage: Castle",
+      "re4r_item_id": -1,
+      "count": 1,
+      "kind": "merc_stage"
+    },
+    "440000023": {
+      "name": "Mercenaries Stage: Island",
+      "re4r_item_id": -1,
+      "count": 1,
+      "kind": "merc_stage"
+    },
+    "440000024": {
+      "name": "Mercenaries Stage: Docks",
+      "re4r_item_id": -1,
+      "count": 1,
+      "kind": "merc_stage"
+    },
+    "440000099": {
+      "name": "Mercenaries Filler: Nothing",
+      "re4r_item_id": -1,
+      "count": 1,
+      "kind": "merc_filler"
     }
   }
 }

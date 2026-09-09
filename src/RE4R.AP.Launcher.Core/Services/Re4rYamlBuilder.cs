@@ -36,6 +36,10 @@ public sealed class Re4rYamlBuilder
 
         var gameOptions = new YamlMappingNode
         {
+            // Included Content (apworld 0.7.2): what the slot plays. Always
+            // emitted, so the file says it plainly.
+            { "included_content", new YamlSequenceNode(IncludedContentNames(request).Select(SingleQuotedScalar)) },
+            { "mercenaries_score_checks", NormalizeMercenariesScoreChecks(request.MercenariesScoreChecks) },
             { "difficulty", request.Difficulty.Trim().ToLowerInvariant() },
             { "progression_balancing", progressionBalancing.ToString(System.Globalization.CultureInfo.InvariantCulture) },
             { "check_guidance", checkGuidance },
@@ -104,6 +108,34 @@ public sealed class Re4rYamlBuilder
     {
         var normalized = (value ?? string.Empty).Trim().ToLowerInvariant();
         return normalized is "off" or "markers" or "markers_rarity" ? normalized : "markers";
+    }
+
+    private static IEnumerable<string> IncludedContentNames(Re4rYamlRequest request)
+    {
+        // Never empty: the apworld refuses an empty list and the screen refuses
+        // to continue without one of the two, so this guards a hand-built
+        // request only.
+        var names = new List<string>();
+        if (request.IncludeMainCampaign || !request.IncludeMercenaries)
+        {
+            names.Add("Main Campaign");
+        }
+        if (request.IncludeMercenaries)
+        {
+            names.Add("Mercenaries");
+        }
+        return names;
+    }
+
+    private static string NormalizeMercenariesScoreChecks(string? value)
+    {
+        var normalized = (value ?? string.Empty).Trim().ToLowerInvariant().Replace(' ', '_');
+        return normalized switch
+        {
+            "a_only" or "aonly" or "a" => "a_only",
+            "full" or "all" or "all_ranks" => "full",
+            _ => "standard",
+        };
     }
 
     private static string NormalizeMerchantChecks(string? value)

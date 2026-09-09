@@ -112,6 +112,20 @@ public sealed class PendingSessionDraft
     [JsonPropertyName("trade_checks_per_chapter")]
     public int? TradeChecksPerChapter { get; set; }
 
+    [JsonPropertyName("include_main_campaign")]
+    public bool IncludeMainCampaign { get; set; } = true;
+
+    [JsonPropertyName("include_mercenaries")]
+    public bool IncludeMercenaries { get; set; }
+
+    [JsonPropertyName("mercenaries_score_checks")]
+    public string MercenariesScoreChecks { get; set; } = "standard";
+
+    // A draft saved by the Mercenaries branch build carried the mode as one
+    // string; read once so that draft still lands on the right checkboxes.
+    [JsonPropertyName("game_mode")]
+    public string? LegacyGameMode { get; set; }
+
     [JsonPropertyName("unlocked_typewriter_stage_ids")]
     public List<string> UnlockedTypewriterStageIds { get; set; } = new();
 

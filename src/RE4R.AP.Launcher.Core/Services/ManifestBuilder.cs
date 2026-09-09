@@ -71,7 +71,20 @@ public sealed class ManifestBuilder
                 $"The room carries {scoutedTradeCheckCount} trade check location(s) but its slot data describes {declaredTradeCheckCount}. The room's trade data does not match its location list.");
         }
 
-        var scoutedCount = scoutSession.Locations.Count - scoutedShopSlotCount - scoutedTradeCheckCount;
+        // Mercenaries rank checks (apworld 0.7.2): no world spot either; the
+        // slot's own map says how many the room carries.
+        var scoutedMercenariesCount = scoutSession.Locations.Count(
+            location => staticData.Mercenaries.ContainsKey(location.LocationId));
+        var declaredMercenariesCount = scoutSession.Mercenaries.Enabled
+            ? scoutSession.Mercenaries.LocationIds.Count
+            : 0;
+        if (scoutedMercenariesCount != declaredMercenariesCount)
+        {
+            throw new ManifestBuildException(
+                $"The room carries {scoutedMercenariesCount} Mercenaries rank check(s) but its slot data describes {declaredMercenariesCount}. The room's Mercenaries data does not match its location list; regenerate the room.");
+        }
+
+        var scoutedCount = scoutSession.Locations.Count - scoutedShopSlotCount - scoutedTradeCheckCount - scoutedMercenariesCount;
 
         // [Hard-difficulty allowance] Hardcore and Professional slots never
         // create the spots the game draws but refuses to hand over, so those
@@ -88,9 +101,11 @@ public sealed class ManifestBuilder
         var scoutedLocationIds = scoutSession.Locations
             .Select(location => location.LocationId)
             .ToHashSet();
-        var missingDeclaredIds = staticData.LocationCodes
-            .Where(code => !scoutedLocationIds.Contains(code))
-            .ToList();
+        // A room without the campaign declares no world spot at all, so
+        // nothing is "missing" from it.
+        var missingDeclaredIds = scoutSession.CampaignIncluded
+            ? staticData.LocationCodes.Where(code => !scoutedLocationIds.Contains(code)).ToList()
+            : new List<long>();
         var inertIds = staticData.DifficultyInertLocations
             .Select(entry => entry.Code)
             .ToHashSet();
@@ -107,17 +122,24 @@ public sealed class ManifestBuilder
             Log($"Room is missing {difficultyAllowance} hard-difficulty spot(s), which is expected on Hardcore and Professional: {string.Join("; ", names)}");
         }
 
-        var expectedCount = staticData.Counts.LocationsTotal - removedByEvents - difficultyAllowance;
-        var expectedAlways = staticData.Counts.AlwaysLocations - removedByEvents - difficultyAllowance;
+        var expectedCount = scoutSession.CampaignIncluded
+            ? staticData.Counts.LocationsTotal - removedByEvents - difficultyAllowance
+            : 0;
+        var expectedAlways = scoutSession.CampaignIncluded
+            ? staticData.Counts.AlwaysLocations - removedByEvents - difficultyAllowance
+            : 0;
         if (scoutedCount == expectedCount
             || (staticData.Counts.AlwaysLocations > 0 && scoutedCount == expectedAlways))
         {
             var shopSuffix = scoutedShopSlotCount > 0
                 ? $" Plus {scoutedShopSlotCount} merchant shop check(s)."
                 : string.Empty;
+            var mercenariesSuffix = scoutedMercenariesCount > 0
+                ? $" Plus {scoutedMercenariesCount} Mercenaries rank check(s)."
+                : string.Empty;
             Log((removedByEvents == 0
                 ? $"Room has {scoutedCount} RE4R locations."
-                : $"Room has {scoutedCount} RE4R locations ({removedByEvents} removed by the Random Events roll).") + shopSuffix);
+                : $"Room has {scoutedCount} RE4R locations ({removedByEvents} removed by the Random Events roll).") + shopSuffix + mercenariesSuffix);
         }
         else
         {
@@ -138,6 +160,7 @@ public sealed class ManifestBuilder
         var skippedNoGuidCount = 0;
         var shopSlotSkippedCount = 0;
         var tradeCheckSkippedCount = 0;
+        var mercenariesSkippedCount = 0;
 
         foreach (var scoutedLocation in scoutSession.Locations.OrderBy(location => location.LocationId))
         {
@@ -159,6 +182,14 @@ public sealed class ManifestBuilder
             if (staticData.TradeChecks.ContainsKey(scoutedLocation.LocationId))
             {
                 tradeCheckSkippedCount++;
+                continue;
+            }
+
+            // Mercenaries rank checks: no world spot; the mod sends them from
+            // the result screen.
+            if (staticData.Mercenaries.ContainsKey(scoutedLocation.LocationId))
+            {
+                mercenariesSkippedCount++;
                 continue;
             }
 
@@ -196,7 +227,7 @@ public sealed class ManifestBuilder
         // placement, an explicitly counted no-GUID skip, or a shop slot the
         // shop plan owns; a shortfall means scouted data silently failed to
         // map.
-        if (placements.Count + skippedNoGuidCount + shopSlotSkippedCount + tradeCheckSkippedCount
+        if (placements.Count + skippedNoGuidCount + shopSlotSkippedCount + tradeCheckSkippedCount + mercenariesSkippedCount
             != scoutSession.Locations.Count)
         {
             throw new ManifestBuildException(
@@ -266,6 +297,15 @@ public sealed class ManifestBuilder
 
         if (staticItem.BioRandItemId <= 0)
         {
+            // A Mercenaries unlock has no engine item: in a campaign spot it
+            // shows the Archipelago logo, and picking that up sends the check
+            // while the unlock itself arrives through the received-item path.
+            if ((staticItem.Kind ?? string.Empty).StartsWith("merc_", StringComparison.Ordinal)
+                || staticItem.Name.StartsWith("Mercenaries ", StringComparison.Ordinal))
+            {
+                return new ManifestPlacement(staticData.PlaceholderItemId, 1);
+            }
+
             throw new ManifestBuildException(
                 $"AP item {scoutedLocation.ItemId} ({staticItem.Name}) did not have a valid BioRand item id in the bundled world data.");
         }

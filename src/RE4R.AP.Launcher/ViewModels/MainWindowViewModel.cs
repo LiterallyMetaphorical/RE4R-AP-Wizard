@@ -1320,6 +1320,42 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             return null;
         }
 
+        await PersistSettingsAsync(trimmedServerAddress, trimmedSlotName);
+
+        // Patching precedes a game relaunch, which truncates the framework log.
+        // Preserve the last session's log now so a crash before this patch stays
+        // recoverable for a bug report (best-effort; no-ops if unchanged).
+        _bugReportService.RotateFrameworkLog(Setup.InstallPath.Trim());
+
+        return new LaunchWorkflowRequest
+        {
+            Re4rInstallPath = Setup.InstallPath.Trim(),
+            ServerAddress = trimmedServerAddress,
+            RoomUrl = Session.RoomUrl.Trim(),
+            SlotName = trimmedSlotName,
+            Password = password,
+            GameVersion = Setup.SelectedGameVersion,
+            CurrentGameFingerprint = GameFingerprint.Sanitize(_inspection.Fingerprint),
+            BioRandOptions = BioRandOptions.Build(),
+            OverrideRecordedOptions = BioRandOptions.IsUnlockedForChange,
+            IsHostedSession = isHostedSession,
+            NotifyAsync = message => _dialogService.ShowNotificationAsync("RE4R AP Launcher", message),
+            ConfirmOverwriteDifferentSeedAsync = prompt => _dialogService.ConfirmOverwriteDifferentSeedAsync(prompt),
+            ChooseResumeActionAsync = prompt => _dialogService.ChooseResumeActionAsync(prompt),
+            ConfirmForeignPatchPaksAsync = ConfirmForeignPatchPaksAsync,
+            ConfirmCampaignSafetyAsync = ConfirmCampaignSafetyAsync,
+            ConfirmPatchInstallAsync = confirmation => _dialogService.ConfirmInstallAsync(confirmation),
+            ConfirmLuaInstallAsync = confirmation => _dialogService.ConfirmInstallAsync(confirmation),
+            OnStepStarting = step => _ = DispatchToUiAsync(() => PatchLaunch.MarkStepStarting(step)),
+        };
+    }
+
+    /// <summary>
+    /// The two DLC warnings, asked by the workflow once the scout says the
+    /// room plays the campaign. A Mercenaries-only room never asks.
+    /// </summary>
+    private async Task<bool> ConfirmCampaignSafetyAsync()
+    {
         if (!_inspection.SeparateWaysDetected)
         {
             var proceedWithoutDlc = await _dialogService.ConfirmProceedWithWarningAsync(
@@ -1334,8 +1370,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             if (!proceedWithoutDlc)
             {
                 Action.AppendLog("Workflow stopped because Separate Ways DLC was not confirmed.");
-                Action.StatusText = "Waiting for DLC confirmation.";
-                return null;
+                return false;
             }
         }
 
@@ -1360,38 +1395,11 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             if (!proceedWithoutTreasureMap)
             {
                 Action.AppendLog("Workflow stopped because the Treasure Map expansion was not confirmed.");
-                Action.StatusText = "Waiting for DLC confirmation.";
-                return null;
+                return false;
             }
         }
 
-        await PersistSettingsAsync(trimmedServerAddress, trimmedSlotName);
-
-        // Patching precedes a game relaunch, which truncates the framework log.
-        // Preserve the last session's log now so a crash before this patch stays
-        // recoverable for a bug report (best-effort; no-ops if unchanged).
-        _bugReportService.RotateFrameworkLog(Setup.InstallPath.Trim());
-
-        return new LaunchWorkflowRequest
-        {
-            Re4rInstallPath = Setup.InstallPath.Trim(),
-            ServerAddress = trimmedServerAddress,
-            RoomUrl = Session.RoomUrl.Trim(),
-            SlotName = trimmedSlotName,
-            Password = password,
-            GameVersion = Setup.SelectedGameVersion,
-            CurrentGameFingerprint = GameFingerprint.Sanitize(_inspection.Fingerprint),
-            BioRandOptions = BioRandOptions.Build(),
-            OverrideRecordedOptions = BioRandOptions.IsUnlockedForChange,
-            IsHostedSession = isHostedSession,
-            NotifyAsync = message => _dialogService.ShowNotificationAsync("RE4R AP Launcher", message),
-            ConfirmOverwriteDifferentSeedAsync = prompt => _dialogService.ConfirmOverwriteDifferentSeedAsync(prompt),
-            ChooseResumeActionAsync = prompt => _dialogService.ChooseResumeActionAsync(prompt),
-            ConfirmForeignPatchPaksAsync = ConfirmForeignPatchPaksAsync,
-            ConfirmPatchInstallAsync = confirmation => _dialogService.ConfirmInstallAsync(confirmation),
-            ConfirmLuaInstallAsync = confirmation => _dialogService.ConfirmInstallAsync(confirmation),
-            OnStepStarting = step => _ = DispatchToUiAsync(() => PatchLaunch.MarkStepStarting(step)),
-        };
+        return true;
     }
 
     private async Task ExecutePatchLaunchAsync(LaunchWorkflowRequest request)
@@ -1981,7 +1989,8 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             warnings.Add("Your last patch didn't finish. Run the patch again to fix it - that's safe: it rebuilds the same world, with the same items in the same places.");
         }
 
-        if (!string.IsNullOrWhiteSpace(_inspection.Fingerprint.FingerprintHash)
+        if (!string.Equals(currentRecord.GameMode, "mercenaries_only", StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(_inspection.Fingerprint.FingerprintHash)
             && !string.IsNullOrWhiteSpace(currentRecord.GameFingerprintAtPatch.FingerprintHash)
             && !string.Equals(
                 _inspection.Fingerprint.FingerprintHash,

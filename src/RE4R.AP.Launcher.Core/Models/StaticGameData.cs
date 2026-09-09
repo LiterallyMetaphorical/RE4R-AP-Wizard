@@ -49,6 +49,14 @@ public sealed class StaticGameData
     [JsonPropertyName("trade_checks")]
     public Dictionary<long, StaticTradeCheck> TradeChecks { get; set; } = new();
 
+    /// <summary>
+    /// Mercenaries rank checks (apworld 0.7.2): no world spot and no BioRand
+    /// placement; the mod sends them from the mode's result screen. The scout
+    /// must know the ids or a Mercenaries room trips the unknown-id refusal.
+    /// </summary>
+    [JsonPropertyName("mercenaries")]
+    public Dictionary<long, StaticMercenariesCheck> Mercenaries { get; set; } = new();
+
     [JsonPropertyName("items")]
     public Dictionary<long, StaticGameItem> Items { get; set; } = new();
 

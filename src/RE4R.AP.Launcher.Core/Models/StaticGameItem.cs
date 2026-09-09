@@ -20,4 +20,12 @@ public sealed class StaticGameItem
 
     [JsonPropertyName("classification")]
     public string Classification { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Item kind, when the export names one. Mercenaries unlocks carry
+    /// "merc_character", "merc_stage" or "merc_filler" and have no engine
+    /// item: found in a campaign spot they show the Archipelago logo.
+    /// </summary>
+    [JsonPropertyName("kind")]
+    public string? Kind { get; set; }
 }

@@ -104,11 +104,78 @@ local function install(ctx)
         end
     end
 
+    local function draw_mercenaries_rows(merc_data)
+        if merc_data == nil or not merc_data.enabled then return end
+
+        imgui.text(string.format("Mercenaries checks found: %d / %d", merc_data.found, merc_data.total))
+        imgui.text("Stages and Characters:")
+        imgui.text("")
+
+        for _, stage in ipairs(merc_data.stages) do
+            local stage_lock = stage.unlocked and "" or " [LOCKED]"
+            local label = string.format(
+                "Mercenaries: %s - %d / %d%s##ap_merc_st_%d",
+                stage.stage_name,
+                stage.found,
+                stage.total,
+                stage_lock,
+                stage.stage_idx
+            )
+
+            local opened = imgui.tree_node(label)
+            if opened then
+                for _, char in ipairs(stage.characters) do
+                    local char_lock = char.unlocked and "" or " (Locked)"
+                    local rank_parts = {}
+                    for _, r in ipairs(char.ranks) do
+                        if r.checked then
+                            table.insert(rank_parts, "[" .. r.name .. ": OK]")
+                        else
+                            table.insert(rank_parts, "[" .. r.name .. "]")
+                        end
+                    end
+                    local ranks_str = table.concat(rank_parts, " ")
+                    imgui.text(string.format(
+                        "    %-16s %d/%d%s  %s",
+                        char.char_name,
+                        char.found,
+                        char.total,
+                        char_lock,
+                        ranks_str
+                    ))
+                end
+                imgui.tree_pop()
+            end
+        end
+    end
+
     local function draw_checks_content()
-        -- No welcome card (that is the tutorial window's job) and no status
-        -- strip: chapter, area and connection are already on the HUD header,
-        -- and this tab is for the list.
+        local merc_fn = ctx.get_mercenaries_checklist or _G.get_mercenaries_checklist
+        local merc_data = (type(merc_fn) == "function") and merc_fn() or nil
+        local is_merc_only = (merc_data ~= nil and merc_data.enabled and merc_data.mode == "mercenaries_only")
+
+        if is_merc_only then
+            draw_mercenaries_rows(merc_data)
+            imgui.text("")
+            imgui.text("Goal: Achieve Rank A on all 32 Character + Stage combinations.")
+            imgui.text("A check not sending, or finished the run? See the")
+            imgui.text("Something's Wrong tab.")
+            return
+        end
+
         draw_typewriter_rows()
+
+        if merc_data ~= nil and merc_data.enabled then
+            imgui.text("")
+            if type(imgui.separator) == "function" then
+                pcall(function() imgui.separator() end)
+            else
+                imgui.text("----------------------------------------")
+            end
+            imgui.text("")
+            draw_mercenaries_rows(merc_data)
+        end
+
         imgui.text("")
         imgui.text("Last warp: " .. tostring(bridge.last_warp_status or "(idle)"))
         imgui.text("A check not sending, or finished the run? See the")
@@ -119,3 +186,4 @@ local function install(ctx)
 end
 
 return install
+

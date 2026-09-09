@@ -88,7 +88,7 @@ public sealed class PatchLaunchViewModel : ObservableObject
         Stages = new ObservableCollection<WorkflowStageItem>
         {
             new(WorkflowStep.ValidateSettings, "Checking prerequisites"),
-            new(WorkflowStep.CheckSetup, "BioRand setup (first time or after updates: about a minute)"),
+            new(WorkflowStep.CheckSetup, "BioRand setup (campaign rooms; first time or after updates: about a minute)"),
             new(WorkflowStep.ScoutApServer, "Contacting your room and reading item placements"),
             new(WorkflowStep.CheckExistingSession, "Checking saved sessions"),
             new(WorkflowStep.BuildManifest, "Building the AP manifest"),

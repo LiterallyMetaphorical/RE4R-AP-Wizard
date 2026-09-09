@@ -96,6 +96,8 @@ public sealed class StaticGameDataProvider
         staticData.Locations ??= new Dictionary<long, StaticGameLocation>();
         staticData.Items ??= new Dictionary<long, StaticGameItem>();
         staticData.ShopSlots ??= new Dictionary<long, StaticShopSlot>();
+        staticData.TradeChecks ??= new Dictionary<long, StaticTradeCheck>();
+        staticData.Mercenaries ??= new Dictionary<long, StaticMercenariesCheck>();
 
         var actualGuidCount = staticData.Locations.Values.Count(
             entry => !string.IsNullOrWhiteSpace(entry.Guid));
@@ -135,6 +137,12 @@ public sealed class StaticGameDataProvider
         {
             throw new StaticGameDataException(
                 $"The bundled RE4R AP world data shop slot count {staticData.ShopSlots.Count} does not match its declared count {staticData.Counts.ShopSlots}.");
+        }
+
+        if (staticData.Mercenaries.Count != staticData.Counts.Mercenaries)
+        {
+            throw new StaticGameDataException(
+                $"The bundled RE4R AP world data Mercenaries check count {staticData.Mercenaries.Count} does not match its declared count {staticData.Counts.Mercenaries}.");
         }
 
         // A shop slot code that is also a world location code would make the
@@ -186,6 +194,8 @@ public sealed class StaticGameDataProvider
             staticData.Locations ??= new Dictionary<long, StaticGameLocation>();
             staticData.Items ??= new Dictionary<long, StaticGameItem>();
             staticData.ShopSlots ??= new Dictionary<long, StaticShopSlot>();
+            staticData.TradeChecks ??= new Dictionary<long, StaticTradeCheck>();
+            staticData.Mercenaries ??= new Dictionary<long, StaticMercenariesCheck>();
             return staticData;
         }
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)

@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-09-03T07:46:13Z",
+  "generated_at_utc": "2026-09-03T12:49:29Z",
   "game": "Resident Evil 4 Remake",
-  "world_version": "0.7.1",
+  "world_version": "0.7.2",
   "placeholder_item_id": 120486400,
   "item_groups": {
     "Biosensor Scope": [
@@ -261,6 +261,22 @@
       "TMP x1",
       "W-870 x5",
       "XM96E1 x1"
+    ],
+    "Mercenaries Characters": [
+      "Mercenaries Character: Ada",
+      "Mercenaries Character: Ada (Dress)",
+      "Mercenaries Character: HUNK",
+      "Mercenaries Character: Krauser",
+      "Mercenaries Character: Leon",
+      "Mercenaries Character: Leon (Pinstripe)",
+      "Mercenaries Character: Luis",
+      "Mercenaries Character: Wesker"
+    ],
+    "Mercenaries Stages": [
+      "Mercenaries Stage: Castle",
+      "Mercenaries Stage: Docks",
+      "Mercenaries Stage: Island",
+      "Mercenaries Stage: Village"
     ]
   },
   "location_groups": {
@@ -837,6 +853,136 @@
       "Chapter 6 - Slaughterhouse - Kitchen Knife x1 [927f37d5]",
       "Chapter 6 - Slaughterhouse - Méndez's False Eye x1 (boss drop) [02676d58]",
       "Chapter 6 - Slaughterhouse - Red Herb x1 [f0ad8ef6]"
+    ],
+    "Mercenaries": [
+      "Mercenaries - Ada (Dress) - Castle - Rank A",
+      "Mercenaries - Ada (Dress) - Castle - Rank S",
+      "Mercenaries - Ada (Dress) - Castle - Rank S+",
+      "Mercenaries - Ada (Dress) - Castle - Rank S++",
+      "Mercenaries - Ada (Dress) - Docks - Rank A",
+      "Mercenaries - Ada (Dress) - Docks - Rank S",
+      "Mercenaries - Ada (Dress) - Docks - Rank S+",
+      "Mercenaries - Ada (Dress) - Docks - Rank S++",
+      "Mercenaries - Ada (Dress) - Island - Rank A",
+      "Mercenaries - Ada (Dress) - Island - Rank S",
+      "Mercenaries - Ada (Dress) - Island - Rank S+",
+      "Mercenaries - Ada (Dress) - Island - Rank S++",
+      "Mercenaries - Ada (Dress) - Village - Rank A",
+      "Mercenaries - Ada (Dress) - Village - Rank S",
+      "Mercenaries - Ada (Dress) - Village - Rank S+",
+      "Mercenaries - Ada (Dress) - Village - Rank S++",
+      "Mercenaries - Ada - Castle - Rank A",
+      "Mercenaries - Ada - Castle - Rank S",
+      "Mercenaries - Ada - Castle - Rank S+",
+      "Mercenaries - Ada - Castle - Rank S++",
+      "Mercenaries - Ada - Docks - Rank A",
+      "Mercenaries - Ada - Docks - Rank S",
+      "Mercenaries - Ada - Docks - Rank S+",
+      "Mercenaries - Ada - Docks - Rank S++",
+      "Mercenaries - Ada - Island - Rank A",
+      "Mercenaries - Ada - Island - Rank S",
+      "Mercenaries - Ada - Island - Rank S+",
+      "Mercenaries - Ada - Island - Rank S++",
+      "Mercenaries - Ada - Village - Rank A",
+      "Mercenaries - Ada - Village - Rank S",
+      "Mercenaries - Ada - Village - Rank S+",
+      "Mercenaries - Ada - Village - Rank S++",
+      "Mercenaries - HUNK - Castle - Rank A",
+      "Mercenaries - HUNK - Castle - Rank S",
+      "Mercenaries - HUNK - Castle - Rank S+",
+      "Mercenaries - HUNK - Castle - Rank S++",
+      "Mercenaries - HUNK - Docks - Rank A",
+      "Mercenaries - HUNK - Docks - Rank S",
+      "Mercenaries - HUNK - Docks - Rank S+",
+      "Mercenaries - HUNK - Docks - Rank S++",
+      "Mercenaries - HUNK - Island - Rank A",
+      "Mercenaries - HUNK - Island - Rank S",
+      "Mercenaries - HUNK - Island - Rank S+",
+      "Mercenaries - HUNK - Island - Rank S++",
+      "Mercenaries - HUNK - Village - Rank A",
+      "Mercenaries - HUNK - Village - Rank S",
+      "Mercenaries - HUNK - Village - Rank S+",
+      "Mercenaries - HUNK - Village - Rank S++",
+      "Mercenaries - Krauser - Castle - Rank A",
+      "Mercenaries - Krauser - Castle - Rank S",
+      "Mercenaries - Krauser - Castle - Rank S+",
+      "Mercenaries - Krauser - Castle - Rank S++",
+      "Mercenaries - Krauser - Docks - Rank A",
+      "Mercenaries - Krauser - Docks - Rank S",
+      "Mercenaries - Krauser - Docks - Rank S+",
+      "Mercenaries - Krauser - Docks - Rank S++",
+      "Mercenaries - Krauser - Island - Rank A",
+      "Mercenaries - Krauser - Island - Rank S",
+      "Mercenaries - Krauser - Island - Rank S+",
+      "Mercenaries - Krauser - Island - Rank S++",
+      "Mercenaries - Krauser - Village - Rank A",
+      "Mercenaries - Krauser - Village - Rank S",
+      "Mercenaries - Krauser - Village - Rank S+",
+      "Mercenaries - Krauser - Village - Rank S++",
+      "Mercenaries - Leon (Pinstripe) - Castle - Rank A",
+      "Mercenaries - Leon (Pinstripe) - Castle - Rank S",
+      "Mercenaries - Leon (Pinstripe) - Castle - Rank S+",
+      "Mercenaries - Leon (Pinstripe) - Castle - Rank S++",
+      "Mercenaries - Leon (Pinstripe) - Docks - Rank A",
+      "Mercenaries - Leon (Pinstripe) - Docks - Rank S",
+      "Mercenaries - Leon (Pinstripe) - Docks - Rank S+",
+      "Mercenaries - Leon (Pinstripe) - Docks - Rank S++",
+      "Mercenaries - Leon (Pinstripe) - Island - Rank A",
+      "Mercenaries - Leon (Pinstripe) - Island - Rank S",
+      "Mercenaries - Leon (Pinstripe) - Island - Rank S+",
+      "Mercenaries - Leon (Pinstripe) - Island - Rank S++",
+      "Mercenaries - Leon (Pinstripe) - Village - Rank A",
+      "Mercenaries - Leon (Pinstripe) - Village - Rank S",
+      "Mercenaries - Leon (Pinstripe) - Village - Rank S+",
+      "Mercenaries - Leon (Pinstripe) - Village - Rank S++",
+      "Mercenaries - Leon - Castle - Rank A",
+      "Mercenaries - Leon - Castle - Rank S",
+      "Mercenaries - Leon - Castle - Rank S+",
+      "Mercenaries - Leon - Castle - Rank S++",
+      "Mercenaries - Leon - Docks - Rank A",
+      "Mercenaries - Leon - Docks - Rank S",
+      "Mercenaries - Leon - Docks - Rank S+",
+      "Mercenaries - Leon - Docks - Rank S++",
+      "Mercenaries - Leon - Island - Rank A",
+      "Mercenaries - Leon - Island - Rank S",
+      "Mercenaries - Leon - Island - Rank S+",
+      "Mercenaries - Leon - Island - Rank S++",
+      "Mercenaries - Leon - Village - Rank A",
+      "Mercenaries - Leon - Village - Rank S",
+      "Mercenaries - Leon - Village - Rank S+",
+      "Mercenaries - Leon - Village - Rank S++",
+      "Mercenaries - Luis - Castle - Rank A",
+      "Mercenaries - Luis - Castle - Rank S",
+      "Mercenaries - Luis - Castle - Rank S+",
+      "Mercenaries - Luis - Castle - Rank S++",
+      "Mercenaries - Luis - Docks - Rank A",
+      "Mercenaries - Luis - Docks - Rank S",
+      "Mercenaries - Luis - Docks - Rank S+",
+      "Mercenaries - Luis - Docks - Rank S++",
+      "Mercenaries - Luis - Island - Rank A",
+      "Mercenaries - Luis - Island - Rank S",
+      "Mercenaries - Luis - Island - Rank S+",
+      "Mercenaries - Luis - Island - Rank S++",
+      "Mercenaries - Luis - Village - Rank A",
+      "Mercenaries - Luis - Village - Rank S",
+      "Mercenaries - Luis - Village - Rank S+",
+      "Mercenaries - Luis - Village - Rank S++",
+      "Mercenaries - Wesker - Castle - Rank A",
+      "Mercenaries - Wesker - Castle - Rank S",
+      "Mercenaries - Wesker - Castle - Rank S+",
+      "Mercenaries - Wesker - Castle - Rank S++",
+      "Mercenaries - Wesker - Docks - Rank A",
+      "Mercenaries - Wesker - Docks - Rank S",
+      "Mercenaries - Wesker - Docks - Rank S+",
+      "Mercenaries - Wesker - Docks - Rank S++",
+      "Mercenaries - Wesker - Island - Rank A",
+      "Mercenaries - Wesker - Island - Rank S",
+      "Mercenaries - Wesker - Island - Rank S+",
+      "Mercenaries - Wesker - Island - Rank S++",
+      "Mercenaries - Wesker - Village - Rank A",
+      "Mercenaries - Wesker - Village - Rank S",
+      "Mercenaries - Wesker - Village - Rank S+",
+      "Mercenaries - Wesker - Village - Rank S++"
     ]
   },
   "counts": {
@@ -847,7 +993,8 @@
     "always_locations": 456,
     "optional_key_locations": 0,
     "shop_slots": 120,
-    "trade_checks": 45
+    "trade_checks": 45,
+    "mercenaries": 128
   },
   "difficulty_inert_locations": [
     {
@@ -9652,6 +9799,904 @@
       "price_spinel": 3
     }
   },
+  "mercenaries": {
+    "440001000": {
+      "name": "Mercenaries - Leon - Village - Rank A",
+      "character": "Leon",
+      "stage": "Village",
+      "rank": "A",
+      "identity": "merc:0:0:0"
+    },
+    "440001001": {
+      "name": "Mercenaries - Leon - Village - Rank S",
+      "character": "Leon",
+      "stage": "Village",
+      "rank": "S",
+      "identity": "merc:0:0:1"
+    },
+    "440001002": {
+      "name": "Mercenaries - Leon - Village - Rank S+",
+      "character": "Leon",
+      "stage": "Village",
+      "rank": "S+",
+      "identity": "merc:0:0:2"
+    },
+    "440001003": {
+      "name": "Mercenaries - Leon - Village - Rank S++",
+      "character": "Leon",
+      "stage": "Village",
+      "rank": "S++",
+      "identity": "merc:0:0:3"
+    },
+    "440001004": {
+      "name": "Mercenaries - Leon - Castle - Rank A",
+      "character": "Leon",
+      "stage": "Castle",
+      "rank": "A",
+      "identity": "merc:0:1:0"
+    },
+    "440001005": {
+      "name": "Mercenaries - Leon - Castle - Rank S",
+      "character": "Leon",
+      "stage": "Castle",
+      "rank": "S",
+      "identity": "merc:0:1:1"
+    },
+    "440001006": {
+      "name": "Mercenaries - Leon - Castle - Rank S+",
+      "character": "Leon",
+      "stage": "Castle",
+      "rank": "S+",
+      "identity": "merc:0:1:2"
+    },
+    "440001007": {
+      "name": "Mercenaries - Leon - Castle - Rank S++",
+      "character": "Leon",
+      "stage": "Castle",
+      "rank": "S++",
+      "identity": "merc:0:1:3"
+    },
+    "440001008": {
+      "name": "Mercenaries - Leon - Island - Rank A",
+      "character": "Leon",
+      "stage": "Island",
+      "rank": "A",
+      "identity": "merc:0:2:0"
+    },
+    "440001009": {
+      "name": "Mercenaries - Leon - Island - Rank S",
+      "character": "Leon",
+      "stage": "Island",
+      "rank": "S",
+      "identity": "merc:0:2:1"
+    },
+    "440001010": {
+      "name": "Mercenaries - Leon - Island - Rank S+",
+      "character": "Leon",
+      "stage": "Island",
+      "rank": "S+",
+      "identity": "merc:0:2:2"
+    },
+    "440001011": {
+      "name": "Mercenaries - Leon - Island - Rank S++",
+      "character": "Leon",
+      "stage": "Island",
+      "rank": "S++",
+      "identity": "merc:0:2:3"
+    },
+    "440001012": {
+      "name": "Mercenaries - Leon - Docks - Rank A",
+      "character": "Leon",
+      "stage": "Docks",
+      "rank": "A",
+      "identity": "merc:0:3:0"
+    },
+    "440001013": {
+      "name": "Mercenaries - Leon - Docks - Rank S",
+      "character": "Leon",
+      "stage": "Docks",
+      "rank": "S",
+      "identity": "merc:0:3:1"
+    },
+    "440001014": {
+      "name": "Mercenaries - Leon - Docks - Rank S+",
+      "character": "Leon",
+      "stage": "Docks",
+      "rank": "S+",
+      "identity": "merc:0:3:2"
+    },
+    "440001015": {
+      "name": "Mercenaries - Leon - Docks - Rank S++",
+      "character": "Leon",
+      "stage": "Docks",
+      "rank": "S++",
+      "identity": "merc:0:3:3"
+    },
+    "440001016": {
+      "name": "Mercenaries - Leon (Pinstripe) - Village - Rank A",
+      "character": "Leon (Pinstripe)",
+      "stage": "Village",
+      "rank": "A",
+      "identity": "merc:1:0:0"
+    },
+    "440001017": {
+      "name": "Mercenaries - Leon (Pinstripe) - Village - Rank S",
+      "character": "Leon (Pinstripe)",
+      "stage": "Village",
+      "rank": "S",
+      "identity": "merc:1:0:1"
+    },
+    "440001018": {
+      "name": "Mercenaries - Leon (Pinstripe) - Village - Rank S+",
+      "character": "Leon (Pinstripe)",
+      "stage": "Village",
+      "rank": "S+",
+      "identity": "merc:1:0:2"
+    },
+    "440001019": {
+      "name": "Mercenaries - Leon (Pinstripe) - Village - Rank S++",
+      "character": "Leon (Pinstripe)",
+      "stage": "Village",
+      "rank": "S++",
+      "identity": "merc:1:0:3"
+    },
+    "440001020": {
+      "name": "Mercenaries - Leon (Pinstripe) - Castle - Rank A",
+      "character": "Leon (Pinstripe)",
+      "stage": "Castle",
+      "rank": "A",
+      "identity": "merc:1:1:0"
+    },
+    "440001021": {
+      "name": "Mercenaries - Leon (Pinstripe) - Castle - Rank S",
+      "character": "Leon (Pinstripe)",
+      "stage": "Castle",
+      "rank": "S",
+      "identity": "merc:1:1:1"
+    },
+    "440001022": {
+      "name": "Mercenaries - Leon (Pinstripe) - Castle - Rank S+",
+      "character": "Leon (Pinstripe)",
+      "stage": "Castle",
+      "rank": "S+",
+      "identity": "merc:1:1:2"
+    },
+    "440001023": {
+      "name": "Mercenaries - Leon (Pinstripe) - Castle - Rank S++",
+      "character": "Leon (Pinstripe)",
+      "stage": "Castle",
+      "rank": "S++",
+      "identity": "merc:1:1:3"
+    },
+    "440001024": {
+      "name": "Mercenaries - Leon (Pinstripe) - Island - Rank A",
+      "character": "Leon (Pinstripe)",
+      "stage": "Island",
+      "rank": "A",
+      "identity": "merc:1:2:0"
+    },
+    "440001025": {
+      "name": "Mercenaries - Leon (Pinstripe) - Island - Rank S",
+      "character": "Leon (Pinstripe)",
+      "stage": "Island",
+      "rank": "S",
+      "identity": "merc:1:2:1"
+    },
+    "440001026": {
+      "name": "Mercenaries - Leon (Pinstripe) - Island - Rank S+",
+      "character": "Leon (Pinstripe)",
+      "stage": "Island",
+      "rank": "S+",
+      "identity": "merc:1:2:2"
+    },
+    "440001027": {
+      "name": "Mercenaries - Leon (Pinstripe) - Island - Rank S++",
+      "character": "Leon (Pinstripe)",
+      "stage": "Island",
+      "rank": "S++",
+      "identity": "merc:1:2:3"
+    },
+    "440001028": {
+      "name": "Mercenaries - Leon (Pinstripe) - Docks - Rank A",
+      "character": "Leon (Pinstripe)",
+      "stage": "Docks",
+      "rank": "A",
+      "identity": "merc:1:3:0"
+    },
+    "440001029": {
+      "name": "Mercenaries - Leon (Pinstripe) - Docks - Rank S",
+      "character": "Leon (Pinstripe)",
+      "stage": "Docks",
+      "rank": "S",
+      "identity": "merc:1:3:1"
+    },
+    "440001030": {
+      "name": "Mercenaries - Leon (Pinstripe) - Docks - Rank S+",
+      "character": "Leon (Pinstripe)",
+      "stage": "Docks",
+      "rank": "S+",
+      "identity": "merc:1:3:2"
+    },
+    "440001031": {
+      "name": "Mercenaries - Leon (Pinstripe) - Docks - Rank S++",
+      "character": "Leon (Pinstripe)",
+      "stage": "Docks",
+      "rank": "S++",
+      "identity": "merc:1:3:3"
+    },
+    "440001032": {
+      "name": "Mercenaries - Luis - Village - Rank A",
+      "character": "Luis",
+      "stage": "Village",
+      "rank": "A",
+      "identity": "merc:2:0:0"
+    },
+    "440001033": {
+      "name": "Mercenaries - Luis - Village - Rank S",
+      "character": "Luis",
+      "stage": "Village",
+      "rank": "S",
+      "identity": "merc:2:0:1"
+    },
+    "440001034": {
+      "name": "Mercenaries - Luis - Village - Rank S+",
+      "character": "Luis",
+      "stage": "Village",
+      "rank": "S+",
+      "identity": "merc:2:0:2"
+    },
+    "440001035": {
+      "name": "Mercenaries - Luis - Village - Rank S++",
+      "character": "Luis",
+      "stage": "Village",
+      "rank": "S++",
+      "identity": "merc:2:0:3"
+    },
+    "440001036": {
+      "name": "Mercenaries - Luis - Castle - Rank A",
+      "character": "Luis",
+      "stage": "Castle",
+      "rank": "A",
+      "identity": "merc:2:1:0"
+    },
+    "440001037": {
+      "name": "Mercenaries - Luis - Castle - Rank S",
+      "character": "Luis",
+      "stage": "Castle",
+      "rank": "S",
+      "identity": "merc:2:1:1"
+    },
+    "440001038": {
+      "name": "Mercenaries - Luis - Castle - Rank S+",
+      "character": "Luis",
+      "stage": "Castle",
+      "rank": "S+",
+      "identity": "merc:2:1:2"
+    },
+    "440001039": {
+      "name": "Mercenaries - Luis - Castle - Rank S++",
+      "character": "Luis",
+      "stage": "Castle",
+      "rank": "S++",
+      "identity": "merc:2:1:3"
+    },
+    "440001040": {
+      "name": "Mercenaries - Luis - Island - Rank A",
+      "character": "Luis",
+      "stage": "Island",
+      "rank": "A",
+      "identity": "merc:2:2:0"
+    },
+    "440001041": {
+      "name": "Mercenaries - Luis - Island - Rank S",
+      "character": "Luis",
+      "stage": "Island",
+      "rank": "S",
+      "identity": "merc:2:2:1"
+    },
+    "440001042": {
+      "name": "Mercenaries - Luis - Island - Rank S+",
+      "character": "Luis",
+      "stage": "Island",
+      "rank": "S+",
+      "identity": "merc:2:2:2"
+    },
+    "440001043": {
+      "name": "Mercenaries - Luis - Island - Rank S++",
+      "character": "Luis",
+      "stage": "Island",
+      "rank": "S++",
+      "identity": "merc:2:2:3"
+    },
+    "440001044": {
+      "name": "Mercenaries - Luis - Docks - Rank A",
+      "character": "Luis",
+      "stage": "Docks",
+      "rank": "A",
+      "identity": "merc:2:3:0"
+    },
+    "440001045": {
+      "name": "Mercenaries - Luis - Docks - Rank S",
+      "character": "Luis",
+      "stage": "Docks",
+      "rank": "S",
+      "identity": "merc:2:3:1"
+    },
+    "440001046": {
+      "name": "Mercenaries - Luis - Docks - Rank S+",
+      "character": "Luis",
+      "stage": "Docks",
+      "rank": "S+",
+      "identity": "merc:2:3:2"
+    },
+    "440001047": {
+      "name": "Mercenaries - Luis - Docks - Rank S++",
+      "character": "Luis",
+      "stage": "Docks",
+      "rank": "S++",
+      "identity": "merc:2:3:3"
+    },
+    "440001048": {
+      "name": "Mercenaries - Krauser - Village - Rank A",
+      "character": "Krauser",
+      "stage": "Village",
+      "rank": "A",
+      "identity": "merc:3:0:0"
+    },
+    "440001049": {
+      "name": "Mercenaries - Krauser - Village - Rank S",
+      "character": "Krauser",
+      "stage": "Village",
+      "rank": "S",
+      "identity": "merc:3:0:1"
+    },
+    "440001050": {
+      "name": "Mercenaries - Krauser - Village - Rank S+",
+      "character": "Krauser",
+      "stage": "Village",
+      "rank": "S+",
+      "identity": "merc:3:0:2"
+    },
+    "440001051": {
+      "name": "Mercenaries - Krauser - Village - Rank S++",
+      "character": "Krauser",
+      "stage": "Village",
+      "rank": "S++",
+      "identity": "merc:3:0:3"
+    },
+    "440001052": {
+      "name": "Mercenaries - Krauser - Castle - Rank A",
+      "character": "Krauser",
+      "stage": "Castle",
+      "rank": "A",
+      "identity": "merc:3:1:0"
+    },
+    "440001053": {
+      "name": "Mercenaries - Krauser - Castle - Rank S",
+      "character": "Krauser",
+      "stage": "Castle",
+      "rank": "S",
+      "identity": "merc:3:1:1"
+    },
+    "440001054": {
+      "name": "Mercenaries - Krauser - Castle - Rank S+",
+      "character": "Krauser",
+      "stage": "Castle",
+      "rank": "S+",
+      "identity": "merc:3:1:2"
+    },
+    "440001055": {
+      "name": "Mercenaries - Krauser - Castle - Rank S++",
+      "character": "Krauser",
+      "stage": "Castle",
+      "rank": "S++",
+      "identity": "merc:3:1:3"
+    },
+    "440001056": {
+      "name": "Mercenaries - Krauser - Island - Rank A",
+      "character": "Krauser",
+      "stage": "Island",
+      "rank": "A",
+      "identity": "merc:3:2:0"
+    },
+    "440001057": {
+      "name": "Mercenaries - Krauser - Island - Rank S",
+      "character": "Krauser",
+      "stage": "Island",
+      "rank": "S",
+      "identity": "merc:3:2:1"
+    },
+    "440001058": {
+      "name": "Mercenaries - Krauser - Island - Rank S+",
+      "character": "Krauser",
+      "stage": "Island",
+      "rank": "S+",
+      "identity": "merc:3:2:2"
+    },
+    "440001059": {
+      "name": "Mercenaries - Krauser - Island - Rank S++",
+      "character": "Krauser",
+      "stage": "Island",
+      "rank": "S++",
+      "identity": "merc:3:2:3"
+    },
+    "440001060": {
+      "name": "Mercenaries - Krauser - Docks - Rank A",
+      "character": "Krauser",
+      "stage": "Docks",
+      "rank": "A",
+      "identity": "merc:3:3:0"
+    },
+    "440001061": {
+      "name": "Mercenaries - Krauser - Docks - Rank S",
+      "character": "Krauser",
+      "stage": "Docks",
+      "rank": "S",
+      "identity": "merc:3:3:1"
+    },
+    "440001062": {
+      "name": "Mercenaries - Krauser - Docks - Rank S+",
+      "character": "Krauser",
+      "stage": "Docks",
+      "rank": "S+",
+      "identity": "merc:3:3:2"
+    },
+    "440001063": {
+      "name": "Mercenaries - Krauser - Docks - Rank S++",
+      "character": "Krauser",
+      "stage": "Docks",
+      "rank": "S++",
+      "identity": "merc:3:3:3"
+    },
+    "440001064": {
+      "name": "Mercenaries - HUNK - Village - Rank A",
+      "character": "HUNK",
+      "stage": "Village",
+      "rank": "A",
+      "identity": "merc:4:0:0"
+    },
+    "440001065": {
+      "name": "Mercenaries - HUNK - Village - Rank S",
+      "character": "HUNK",
+      "stage": "Village",
+      "rank": "S",
+      "identity": "merc:4:0:1"
+    },
+    "440001066": {
+      "name": "Mercenaries - HUNK - Village - Rank S+",
+      "character": "HUNK",
+      "stage": "Village",
+      "rank": "S+",
+      "identity": "merc:4:0:2"
+    },
+    "440001067": {
+      "name": "Mercenaries - HUNK - Village - Rank S++",
+      "character": "HUNK",
+      "stage": "Village",
+      "rank": "S++",
+      "identity": "merc:4:0:3"
+    },
+    "440001068": {
+      "name": "Mercenaries - HUNK - Castle - Rank A",
+      "character": "HUNK",
+      "stage": "Castle",
+      "rank": "A",
+      "identity": "merc:4:1:0"
+    },
+    "440001069": {
+      "name": "Mercenaries - HUNK - Castle - Rank S",
+      "character": "HUNK",
+      "stage": "Castle",
+      "rank": "S",
+      "identity": "merc:4:1:1"
+    },
+    "440001070": {
+      "name": "Mercenaries - HUNK - Castle - Rank S+",
+      "character": "HUNK",
+      "stage": "Castle",
+      "rank": "S+",
+      "identity": "merc:4:1:2"
+    },
+    "440001071": {
+      "name": "Mercenaries - HUNK - Castle - Rank S++",
+      "character": "HUNK",
+      "stage": "Castle",
+      "rank": "S++",
+      "identity": "merc:4:1:3"
+    },
+    "440001072": {
+      "name": "Mercenaries - HUNK - Island - Rank A",
+      "character": "HUNK",
+      "stage": "Island",
+      "rank": "A",
+      "identity": "merc:4:2:0"
+    },
+    "440001073": {
+      "name": "Mercenaries - HUNK - Island - Rank S",
+      "character": "HUNK",
+      "stage": "Island",
+      "rank": "S",
+      "identity": "merc:4:2:1"
+    },
+    "440001074": {
+      "name": "Mercenaries - HUNK - Island - Rank S+",
+      "character": "HUNK",
+      "stage": "Island",
+      "rank": "S+",
+      "identity": "merc:4:2:2"
+    },
+    "440001075": {
+      "name": "Mercenaries - HUNK - Island - Rank S++",
+      "character": "HUNK",
+      "stage": "Island",
+      "rank": "S++",
+      "identity": "merc:4:2:3"
+    },
+    "440001076": {
+      "name": "Mercenaries - HUNK - Docks - Rank A",
+      "character": "HUNK",
+      "stage": "Docks",
+      "rank": "A",
+      "identity": "merc:4:3:0"
+    },
+    "440001077": {
+      "name": "Mercenaries - HUNK - Docks - Rank S",
+      "character": "HUNK",
+      "stage": "Docks",
+      "rank": "S",
+      "identity": "merc:4:3:1"
+    },
+    "440001078": {
+      "name": "Mercenaries - HUNK - Docks - Rank S+",
+      "character": "HUNK",
+      "stage": "Docks",
+      "rank": "S+",
+      "identity": "merc:4:3:2"
+    },
+    "440001079": {
+      "name": "Mercenaries - HUNK - Docks - Rank S++",
+      "character": "HUNK",
+      "stage": "Docks",
+      "rank": "S++",
+      "identity": "merc:4:3:3"
+    },
+    "440001080": {
+      "name": "Mercenaries - Ada - Village - Rank A",
+      "character": "Ada",
+      "stage": "Village",
+      "rank": "A",
+      "identity": "merc:5:0:0"
+    },
+    "440001081": {
+      "name": "Mercenaries - Ada - Village - Rank S",
+      "character": "Ada",
+      "stage": "Village",
+      "rank": "S",
+      "identity": "merc:5:0:1"
+    },
+    "440001082": {
+      "name": "Mercenaries - Ada - Village - Rank S+",
+      "character": "Ada",
+      "stage": "Village",
+      "rank": "S+",
+      "identity": "merc:5:0:2"
+    },
+    "440001083": {
+      "name": "Mercenaries - Ada - Village - Rank S++",
+      "character": "Ada",
+      "stage": "Village",
+      "rank": "S++",
+      "identity": "merc:5:0:3"
+    },
+    "440001084": {
+      "name": "Mercenaries - Ada - Castle - Rank A",
+      "character": "Ada",
+      "stage": "Castle",
+      "rank": "A",
+      "identity": "merc:5:1:0"
+    },
+    "440001085": {
+      "name": "Mercenaries - Ada - Castle - Rank S",
+      "character": "Ada",
+      "stage": "Castle",
+      "rank": "S",
+      "identity": "merc:5:1:1"
+    },
+    "440001086": {
+      "name": "Mercenaries - Ada - Castle - Rank S+",
+      "character": "Ada",
+      "stage": "Castle",
+      "rank": "S+",
+      "identity": "merc:5:1:2"
+    },
+    "440001087": {
+      "name": "Mercenaries - Ada - Castle - Rank S++",
+      "character": "Ada",
+      "stage": "Castle",
+      "rank": "S++",
+      "identity": "merc:5:1:3"
+    },
+    "440001088": {
+      "name": "Mercenaries - Ada - Island - Rank A",
+      "character": "Ada",
+      "stage": "Island",
+      "rank": "A",
+      "identity": "merc:5:2:0"
+    },
+    "440001089": {
+      "name": "Mercenaries - Ada - Island - Rank S",
+      "character": "Ada",
+      "stage": "Island",
+      "rank": "S",
+      "identity": "merc:5:2:1"
+    },
+    "440001090": {
+      "name": "Mercenaries - Ada - Island - Rank S+",
+      "character": "Ada",
+      "stage": "Island",
+      "rank": "S+",
+      "identity": "merc:5:2:2"
+    },
+    "440001091": {
+      "name": "Mercenaries - Ada - Island - Rank S++",
+      "character": "Ada",
+      "stage": "Island",
+      "rank": "S++",
+      "identity": "merc:5:2:3"
+    },
+    "440001092": {
+      "name": "Mercenaries - Ada - Docks - Rank A",
+      "character": "Ada",
+      "stage": "Docks",
+      "rank": "A",
+      "identity": "merc:5:3:0"
+    },
+    "440001093": {
+      "name": "Mercenaries - Ada - Docks - Rank S",
+      "character": "Ada",
+      "stage": "Docks",
+      "rank": "S",
+      "identity": "merc:5:3:1"
+    },
+    "440001094": {
+      "name": "Mercenaries - Ada - Docks - Rank S+",
+      "character": "Ada",
+      "stage": "Docks",
+      "rank": "S+",
+      "identity": "merc:5:3:2"
+    },
+    "440001095": {
+      "name": "Mercenaries - Ada - Docks - Rank S++",
+      "character": "Ada",
+      "stage": "Docks",
+      "rank": "S++",
+      "identity": "merc:5:3:3"
+    },
+    "440001096": {
+      "name": "Mercenaries - Ada (Dress) - Village - Rank A",
+      "character": "Ada (Dress)",
+      "stage": "Village",
+      "rank": "A",
+      "identity": "merc:6:0:0"
+    },
+    "440001097": {
+      "name": "Mercenaries - Ada (Dress) - Village - Rank S",
+      "character": "Ada (Dress)",
+      "stage": "Village",
+      "rank": "S",
+      "identity": "merc:6:0:1"
+    },
+    "440001098": {
+      "name": "Mercenaries - Ada (Dress) - Village - Rank S+",
+      "character": "Ada (Dress)",
+      "stage": "Village",
+      "rank": "S+",
+      "identity": "merc:6:0:2"
+    },
+    "440001099": {
+      "name": "Mercenaries - Ada (Dress) - Village - Rank S++",
+      "character": "Ada (Dress)",
+      "stage": "Village",
+      "rank": "S++",
+      "identity": "merc:6:0:3"
+    },
+    "440001100": {
+      "name": "Mercenaries - Ada (Dress) - Castle - Rank A",
+      "character": "Ada (Dress)",
+      "stage": "Castle",
+      "rank": "A",
+      "identity": "merc:6:1:0"
+    },
+    "440001101": {
+      "name": "Mercenaries - Ada (Dress) - Castle - Rank S",
+      "character": "Ada (Dress)",
+      "stage": "Castle",
+      "rank": "S",
+      "identity": "merc:6:1:1"
+    },
+    "440001102": {
+      "name": "Mercenaries - Ada (Dress) - Castle - Rank S+",
+      "character": "Ada (Dress)",
+      "stage": "Castle",
+      "rank": "S+",
+      "identity": "merc:6:1:2"
+    },
+    "440001103": {
+      "name": "Mercenaries - Ada (Dress) - Castle - Rank S++",
+      "character": "Ada (Dress)",
+      "stage": "Castle",
+      "rank": "S++",
+      "identity": "merc:6:1:3"
+    },
+    "440001104": {
+      "name": "Mercenaries - Ada (Dress) - Island - Rank A",
+      "character": "Ada (Dress)",
+      "stage": "Island",
+      "rank": "A",
+      "identity": "merc:6:2:0"
+    },
+    "440001105": {
+      "name": "Mercenaries - Ada (Dress) - Island - Rank S",
+      "character": "Ada (Dress)",
+      "stage": "Island",
+      "rank": "S",
+      "identity": "merc:6:2:1"
+    },
+    "440001106": {
+      "name": "Mercenaries - Ada (Dress) - Island - Rank S+",
+      "character": "Ada (Dress)",
+      "stage": "Island",
+      "rank": "S+",
+      "identity": "merc:6:2:2"
+    },
+    "440001107": {
+      "name": "Mercenaries - Ada (Dress) - Island - Rank S++",
+      "character": "Ada (Dress)",
+      "stage": "Island",
+      "rank": "S++",
+      "identity": "merc:6:2:3"
+    },
+    "440001108": {
+      "name": "Mercenaries - Ada (Dress) - Docks - Rank A",
+      "character": "Ada (Dress)",
+      "stage": "Docks",
+      "rank": "A",
+      "identity": "merc:6:3:0"
+    },
+    "440001109": {
+      "name": "Mercenaries - Ada (Dress) - Docks - Rank S",
+      "character": "Ada (Dress)",
+      "stage": "Docks",
+      "rank": "S",
+      "identity": "merc:6:3:1"
+    },
+    "440001110": {
+      "name": "Mercenaries - Ada (Dress) - Docks - Rank S+",
+      "character": "Ada (Dress)",
+      "stage": "Docks",
+      "rank": "S+",
+      "identity": "merc:6:3:2"
+    },
+    "440001111": {
+      "name": "Mercenaries - Ada (Dress) - Docks - Rank S++",
+      "character": "Ada (Dress)",
+      "stage": "Docks",
+      "rank": "S++",
+      "identity": "merc:6:3:3"
+    },
+    "440001112": {
+      "name": "Mercenaries - Wesker - Village - Rank A",
+      "character": "Wesker",
+      "stage": "Village",
+      "rank": "A",
+      "identity": "merc:7:0:0"
+    },
+    "440001113": {
+      "name": "Mercenaries - Wesker - Village - Rank S",
+      "character": "Wesker",
+      "stage": "Village",
+      "rank": "S",
+      "identity": "merc:7:0:1"
+    },
+    "440001114": {
+      "name": "Mercenaries - Wesker - Village - Rank S+",
+      "character": "Wesker",
+      "stage": "Village",
+      "rank": "S+",
+      "identity": "merc:7:0:2"
+    },
+    "440001115": {
+      "name": "Mercenaries - Wesker - Village - Rank S++",
+      "character": "Wesker",
+      "stage": "Village",
+      "rank": "S++",
+      "identity": "merc:7:0:3"
+    },
+    "440001116": {
+      "name": "Mercenaries - Wesker - Castle - Rank A",
+      "character": "Wesker",
+      "stage": "Castle",
+      "rank": "A",
+      "identity": "merc:7:1:0"
+    },
+    "440001117": {
+      "name": "Mercenaries - Wesker - Castle - Rank S",
+      "character": "Wesker",
+      "stage": "Castle",
+      "rank": "S",
+      "identity": "merc:7:1:1"
+    },
+    "440001118": {
+      "name": "Mercenaries - Wesker - Castle - Rank S+",
+      "character": "Wesker",
+      "stage": "Castle",
+      "rank": "S+",
+      "identity": "merc:7:1:2"
+    },
+    "440001119": {
+      "name": "Mercenaries - Wesker - Castle - Rank S++",
+      "character": "Wesker",
+      "stage": "Castle",
+      "rank": "S++",
+      "identity": "merc:7:1:3"
+    },
+    "440001120": {
+      "name": "Mercenaries - Wesker - Island - Rank A",
+      "character": "Wesker",
+      "stage": "Island",
+      "rank": "A",
+      "identity": "merc:7:2:0"
+    },
+    "440001121": {
+      "name": "Mercenaries - Wesker - Island - Rank S",
+      "character": "Wesker",
+      "stage": "Island",
+      "rank": "S",
+      "identity": "merc:7:2:1"
+    },
+    "440001122": {
+      "name": "Mercenaries - Wesker - Island - Rank S+",
+      "character": "Wesker",
+      "stage": "Island",
+      "rank": "S+",
+      "identity": "merc:7:2:2"
+    },
+    "440001123": {
+      "name": "Mercenaries - Wesker - Island - Rank S++",
+      "character": "Wesker",
+      "stage": "Island",
+      "rank": "S++",
+      "identity": "merc:7:2:3"
+    },
+    "440001124": {
+      "name": "Mercenaries - Wesker - Docks - Rank A",
+      "character": "Wesker",
+      "stage": "Docks",
+      "rank": "A",
+      "identity": "merc:7:3:0"
+    },
+    "440001125": {
+      "name": "Mercenaries - Wesker - Docks - Rank S",
+      "character": "Wesker",
+      "stage": "Docks",
+      "rank": "S",
+      "identity": "merc:7:3:1"
+    },
+    "440001126": {
+      "name": "Mercenaries - Wesker - Docks - Rank S+",
+      "character": "Wesker",
+      "stage": "Docks",
+      "rank": "S+",
+      "identity": "merc:7:3:2"
+    },
+    "440001127": {
+      "name": "Mercenaries - Wesker - Docks - Rank S++",
+      "character": "Wesker",
+      "stage": "Docks",
+      "rank": "S++",
+      "identity": "merc:7:3:3"
+    }
+  },
   "items": {
     "20665965": {
       "name": "Red9 Stock x1",
@@ -10856,6 +11901,110 @@
       "biorand_name": "TMP",
       "classification": "USEFUL",
       "count": 1
+    },
+    "440000001": {
+      "name": "Mercenaries Character: Leon",
+      "biorand_item_id": -1,
+      "biorand_name": "Mercenaries Character: Leon",
+      "classification": "PROGRESSION",
+      "count": 1,
+      "kind": "merc_character"
+    },
+    "440000002": {
+      "name": "Mercenaries Character: Leon (Pinstripe)",
+      "biorand_item_id": -1,
+      "biorand_name": "Mercenaries Character: Leon (Pinstripe)",
+      "classification": "PROGRESSION",
+      "count": 1,
+      "kind": "merc_character"
+    },
+    "440000003": {
+      "name": "Mercenaries Character: Luis",
+      "biorand_item_id": -1,
+      "biorand_name": "Mercenaries Character: Luis",
+      "classification": "PROGRESSION",
+      "count": 1,
+      "kind": "merc_character"
+    },
+    "440000004": {
+      "name": "Mercenaries Character: Krauser",
+      "biorand_item_id": -1,
+      "biorand_name": "Mercenaries Character: Krauser",
+      "classification": "PROGRESSION",
+      "count": 1,
+      "kind": "merc_character"
+    },
+    "440000005": {
+      "name": "Mercenaries Character: HUNK",
+      "biorand_item_id": -1,
+      "biorand_name": "Mercenaries Character: HUNK",
+      "classification": "PROGRESSION",
+      "count": 1,
+      "kind": "merc_character"
+    },
+    "440000006": {
+      "name": "Mercenaries Character: Ada",
+      "biorand_item_id": -1,
+      "biorand_name": "Mercenaries Character: Ada",
+      "classification": "PROGRESSION",
+      "count": 1,
+      "kind": "merc_character"
+    },
+    "440000007": {
+      "name": "Mercenaries Character: Ada (Dress)",
+      "biorand_item_id": -1,
+      "biorand_name": "Mercenaries Character: Ada (Dress)",
+      "classification": "PROGRESSION",
+      "count": 1,
+      "kind": "merc_character"
+    },
+    "440000008": {
+      "name": "Mercenaries Character: Wesker",
+      "biorand_item_id": -1,
+      "biorand_name": "Mercenaries Character: Wesker",
+      "classification": "PROGRESSION",
+      "count": 1,
+      "kind": "merc_character"
+    },
+    "440000021": {
+      "name": "Mercenaries Stage: Village",
+      "biorand_item_id": -1,
+      "biorand_name": "Mercenaries Stage: Village",
+      "classification": "PROGRESSION",
+      "count": 1,
+      "kind": "merc_stage"
+    },
+    "440000022": {
+      "name": "Mercenaries Stage: Castle",
+      "biorand_item_id": -1,
+      "biorand_name": "Mercenaries Stage: Castle",
+      "classification": "PROGRESSION",
+      "count": 1,
+      "kind": "merc_stage"
+    },
+    "440000023": {
+      "name": "Mercenaries Stage: Island",
+      "biorand_item_id": -1,
+      "biorand_name": "Mercenaries Stage: Island",
+      "classification": "PROGRESSION",
+      "count": 1,
+      "kind": "merc_stage"
+    },
+    "440000024": {
+      "name": "Mercenaries Stage: Docks",
+      "biorand_item_id": -1,
+      "biorand_name": "Mercenaries Stage: Docks",
+      "classification": "PROGRESSION",
+      "count": 1,
+      "kind": "merc_stage"
+    },
+    "440000099": {
+      "name": "Mercenaries Filler: Nothing",
+      "biorand_item_id": -1,
+      "biorand_name": "Mercenaries Filler: Nothing",
+      "classification": "FILLER",
+      "count": 1,
+      "kind": "merc_filler"
     }
   }
 }

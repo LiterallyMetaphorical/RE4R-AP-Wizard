@@ -32,4 +32,7 @@ public sealed class StaticGameDataCounts
     // Trade check superset size (Phase 2). 0 on a pre-trade bundle.
     [JsonPropertyName("trade_checks")]
     public int TradeChecks { get; set; }
+
+    [JsonPropertyName("mercenaries")]
+    public int Mercenaries { get; set; }
 }

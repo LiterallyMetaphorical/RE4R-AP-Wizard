@@ -56,6 +56,7 @@ dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_main_window.lua")(ctx)
 -- full ctx (injection/runtime/session) in later phases. Phase 2a: log-only,
 -- behaviour identical to the former standalone reframework/autorun/
 -- ArchipelagoRE4R_apclient.lua, which this replaces.
+dofile("reframework\\autorun\\ArchipelagoRE4R\\mercenaries.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\apclient.lua")(ctx)
 
 -- Build identification for support triage: one boot line pairing the Lua
@@ -542,7 +543,21 @@ re.on_pre_application_entry("UpdateBehavior", function()
         local now_clock = os.clock()
         local runtime_state = nil
 
-        if now_clock - bridge.last_scan_clock >= SCAN_INTERVAL_SECONDS then
+        -- [Mercenaries] The mode watcher runs on the scan clock; the campaign
+        -- pickup scan pauses while The Mercenaries is active (nothing to
+        -- detect there).
+        local in_mercenaries = false
+        do
+            local get_domain = ctx.get_runtime_domain or _G.get_runtime_domain
+            if type(get_domain) == "function" then
+                local ok_domain, domain = pcall(get_domain)
+                in_mercenaries = ok_domain and domain == "MERCENARIES"
+            end
+            if type(ctx.update_mercenaries_state) == "function" then
+                pcall(ctx.update_mercenaries_state)
+            end
+        end
+        if not in_mercenaries and now_clock - bridge.last_scan_clock >= SCAN_INTERVAL_SECONDS then
             local scan_delta = now_clock - bridge.last_scan_clock
             bridge.last_scan_clock = now_clock
             runtime_state = get_runtime_state()

@@ -167,8 +167,8 @@ Previous:       05f581e (2026-08-06: FORCED EVENTS - BioRand takes its event
                 DLC entitlement needed). Includes b27f7ac (drop-catalog fix)
                 and 90140f0 (purity gates).)
 Publish:        -c Release -r win-x64 --self-contained -p:PublishSingleFile=true (net10.0)
-biorand-re4r.exe SHA-256: 8fbfdc566e5fe5d960efe23b5a9180a348543e6281240532bf475af9b14aa2e3
-ProductVersion: 1.0.0+54d1853dcacd403b6c94f1aa55d681fafe870bdc (the launcher
+biorand-re4r.exe SHA-256: d9f2a365b5122f3c00972f0a01a88cfcf6516c5b50e30d108541b12d40a7f835
+ProductVersion: 1.0.0+1f865190a98d166d22cab3fb91a63f0b48f75ac7 (the launcher
                 writes this into version_stamp.json, and a change here is what
                 triggers the one-time setup cache re-harvest)
 Built with:     .NET SDK 10.0.301
@@ -192,6 +192,14 @@ REBUILD 2026-09-03 (84d18ed)
     the logo; staged and hash-verified by tools/stage_payload.py.
     exe SHA-256: 95c7e3231ec9d8d6f6597b2bef3e75df92ed071e8cf18594e151f0a9a530e4c6
     Prior exe SHA-256: 69d32c51882879cf8695c9a1dc1da2898092490703370b874b9c0f6938878b8d
+    Rebuilt the same day after the history rewrite (source 1f86519, same code):
+    exe SHA-256: d9f2a365b5122f3c00972f0a01a88cfcf6516c5b50e30d108541b12d40a7f835
+
+PAYLOAD 2026-09-03 second (exe unchanged, d9f2a365...)
+    Apworld eb609fa (world_version 0.7.2) and mod 2026.09.03-78 bring The
+    Mercenaries as multiworld content. The fork is untouched: rank checks
+    never enter the manifest, and a Mercenaries-only room installs no pak.
+    Staged with --skip-exe, hash-verified by tools/stage_payload.py.
 
 REBUILD 2026-09-02 third (bc6a2a1)
     One shop prefab per stand-in.

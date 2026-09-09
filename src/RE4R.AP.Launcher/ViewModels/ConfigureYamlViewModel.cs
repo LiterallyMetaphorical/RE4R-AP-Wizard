@@ -64,6 +64,9 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     private int _tradeChecksPerChapter = 3;
     private bool _tradeChecksEnabled = true;
     private bool _merchantChecksEnabled = true;
+    private bool _includeMainCampaign = true;
+    private bool _includeMercenaries;
+    private string _selectedMercenariesScoreChecks = "A and S";
     private string _yamlPreview = "Enter your slot name to generate the YAML preview.";
     private string _statusText = "Choose your RE4R settings - they save automatically as you edit.";
     private ICommand? _backToLandingCommand;
@@ -615,6 +618,75 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         }
     }
 
+    // [Included Content] What the slot plays. Main Campaign, Mercenaries or
+    // both; Separate Ways is on the card greyed out until it exists. At least
+    // one of the two must be on, and the footer's Continue waits for that.
+    public bool IncludeMainCampaign
+    {
+        get => _includeMainCampaign;
+        set
+        {
+            if (SetProperty(ref _includeMainCampaign, value))
+            {
+                OnPropertyChanged(nameof(HasIncludedContentError));
+                OnPropertyChanged(nameof(CanContinue));
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
+
+    public bool IncludeMercenaries
+    {
+        get => _includeMercenaries;
+        set
+        {
+            if (SetProperty(ref _includeMercenaries, value))
+            {
+                OnPropertyChanged(nameof(HasIncludedContentError));
+                OnPropertyChanged(nameof(CanContinue));
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
+
+    public bool HasIncludedContentError => !_includeMainCampaign && !_includeMercenaries;
+
+    public string IncludedContentError => "Include Main Campaign or Mercenaries (or both).";
+
+    public IReadOnlyList<string> MercenariesScoreChecksOptions { get; } = ["A only", "A and S", "All ranks"];
+
+    /// <summary>Which ranks count as checks: 32, 64 or 128 per slot.</summary>
+    public string SelectedMercenariesScoreChecks
+    {
+        get => _selectedMercenariesScoreChecks;
+        set
+        {
+            if (SetProperty(ref _selectedMercenariesScoreChecks, value))
+            {
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
+
+    /// <summary>The YAML value behind the picker label.</summary>
+    public string MercenariesScoreChecksValue => _selectedMercenariesScoreChecks switch
+    {
+        "A only" => "a_only",
+        "All ranks" => "full",
+        _ => "standard",
+    };
+
+    private static string MercenariesScoreChecksLabelFor(string? value) =>
+        (value ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "a_only" or "a only" => "A only",
+            "full" or "all ranks" => "All ranks",
+            _ => "A and S",
+        };
+
     /// <summary>
     /// The apworld's cap. Three per chapter is also the whole superset, so
     /// unlike the shop's six this default sits AT the ceiling.
@@ -783,7 +855,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     /// Continuing needs a usable slot name - it is the player's identity in
     /// the room, and the join step cannot be completed without it.
     /// </summary>
-    public bool CanContinue => CanUseYaml();
+    public bool CanContinue => CanUseYaml() && !HasIncludedContentError;
 
     // Archipelago silently truncates slot names to 16 characters at
     // generation time and refuses the reserved name - authoring an invalid
@@ -975,6 +1047,17 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         var draftTradeRate = draft.TradeChecksPerChapter;
         TradeChecksEnabled = draftTradeRate is not 0;
         TradeChecksPerChapter = draftTradeRate is > 0 ? draftTradeRate.Value : 3;
+        IncludeMainCampaign = draft.IncludeMainCampaign;
+        IncludeMercenaries = draft.IncludeMercenaries;
+        // A draft saved by the Mercenaries branch build carried the mode as
+        // one string; land it on the checkboxes once.
+        if (!string.IsNullOrWhiteSpace(draft.LegacyGameMode))
+        {
+            var legacy = draft.LegacyGameMode.Trim().ToLowerInvariant().Replace(' ', '_');
+            IncludeMercenaries = legacy.Contains("mercenaries", StringComparison.Ordinal);
+            IncludeMainCampaign = !legacy.StartsWith("mercenaries_only", StringComparison.Ordinal);
+        }
+        SelectedMercenariesScoreChecks = MercenariesScoreChecksLabelFor(draft.MercenariesScoreChecks);
         var selected = new HashSet<string>(draft.UnlockedTypewriterStageIds, StringComparer.Ordinal);
         foreach (var option in TypewriterOptions)
         {
@@ -1031,6 +1114,10 @@ public sealed class ConfigureYamlViewModel : ObservableObject
                 draft.RandomEvents = RandomEvents;
                 draft.MerchantChecksPerChapter = MerchantChecksEnabled ? MerchantChecksPerChapter : 0;
                 draft.TradeChecksPerChapter = TradeChecksPerChapterEffective;
+                draft.IncludeMainCampaign = IncludeMainCampaign;
+                draft.IncludeMercenaries = IncludeMercenaries;
+                draft.MercenariesScoreChecks = MercenariesScoreChecksValue;
+                draft.LegacyGameMode = null;
                 draft.UnlockedTypewriterStageIds = TypewriterOptions
                     .Where(option => option.IsSelected)
                     .Select(option => option.StageId)
@@ -1075,6 +1162,9 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             MerchantChecksPerChapter = MerchantChecksEnabled ? MerchantChecksPerChapter : 0,
             TradeChecksPerChapter = TradeChecksPerChapterEffective,
             MerchantChecks = SelectedMerchantChecks.Value,
+            IncludeMainCampaign = IncludeMainCampaign,
+            IncludeMercenaries = IncludeMercenaries,
+            MercenariesScoreChecks = MercenariesScoreChecksValue,
             UnlockedTypewriterStageIds = TypewriterOptions
                 .Where(option => option.IsSelected)
                 .Select(option => option.StageId)

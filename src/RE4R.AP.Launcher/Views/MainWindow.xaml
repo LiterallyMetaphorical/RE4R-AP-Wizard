@@ -761,6 +761,42 @@
                     <WrapPanel MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}, Converter={StaticResource ColumnSnapConverter}, ConverterParameter=550}">
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Included Content" />
+                            <CheckBox Margin="0,4,0,0"
+                                      IsChecked="{Binding IncludeMainCampaign}"
+                                      Content="Main Campaign" />
+                            <CheckBox Margin="0,4,0,0"
+                                      IsChecked="{Binding IncludeMercenaries}"
+                                      Content="Mercenaries" />
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <CheckBox IsEnabled="False"
+                                          IsChecked="False"
+                                          Content="Separate Ways" />
+                                <TextBlock Margin="8,0,0,0"
+                                           VerticalAlignment="Center"
+                                           Opacity="0.6"
+                                           Text="[Coming Soon]" />
+                            </StackPanel>
+                            <TextBlock Margin="0,4,0,0"
+                                       Foreground="{DynamicResource DangerTextBrush}"
+                                       TextWrapping="Wrap"
+                                       Visibility="{Binding HasIncludedContentError, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                       Text="{Binding IncludedContentError}" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="What this slot plays. Main Campaign is Leon's story with BioRand. Mercenaries turns the mode's ranks into checks and its characters and stages into items, on its own or alongside the campaign. A Mercenaries-only slot needs no campaign patch." />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource OptionCardStyle}"
+                                    Visibility="{Binding IncludeMercenaries, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Mercenaries Score Checks" />
+                            <ListBox ItemsSource="{Binding MercenariesScoreChecksOptions}"
+                                     SelectedItem="{Binding SelectedMercenariesScoreChecks, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource SegmentedPickerStyle}" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Which ranks count, for every character and stage: A only is 32 checks, A and S is 64, all ranks is 128. Only Rank A can hold progression, so no seed depends on a top score." />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="Slot Name" />
                             <TextBox Text="{Binding SlotName, UpdateSourceTrigger=PropertyChanged}"
                                      MaxLength="32" />

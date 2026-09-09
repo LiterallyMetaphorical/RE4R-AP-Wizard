@@ -27,6 +27,12 @@ public sealed class ArchipelagoScoutRequest
     /// </summary>
     public IReadOnlyCollection<long> TradeCheckLocationIds { get; set; } = Array.Empty<long>();
 
+    /// <summary>
+    /// Mercenaries rank-check ids from the bundled static data: recognised
+    /// when the room declares them, never requested by the fallback.
+    /// </summary>
+    public IReadOnlyCollection<long> MercenariesLocationIds { get; set; } = Array.Empty<long>();
+
     public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds(10);
 
     public TimeSpan ReceiveTimeout { get; set; } = TimeSpan.FromSeconds(10);

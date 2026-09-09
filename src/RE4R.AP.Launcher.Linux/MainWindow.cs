@@ -305,6 +305,20 @@ internal sealed class MainWindow : Window
         slotError.Bind(IsVisibleProperty, Binding("HasSlotNameError"));
         body.Children.Add(slotError);
 
+        body.Children.Add(Label("Included content"));
+        body.Children.Add(Check("Main Campaign", "IncludeMainCampaign"));
+        body.Children.Add(Check("Mercenaries", "IncludeMercenaries"));
+        body.Children.Add(new TextBlock { Text = "Separate Ways [Coming Soon]", Opacity = 0.6 });
+        var includedContentError = Text("IncludedContentError", true);
+        includedContentError.Bind(IsVisibleProperty, Binding("HasIncludedContentError"));
+        body.Children.Add(includedContentError);
+        var mercChecksLabel = Label("Mercenaries score checks");
+        mercChecksLabel.Bind(IsVisibleProperty, Binding("IncludeMercenaries"));
+        body.Children.Add(mercChecksLabel);
+        var mercChecksCombo = Combo("MercenariesScoreChecksOptions", "SelectedMercenariesScoreChecks");
+        mercChecksCombo.Bind(IsVisibleProperty, Binding("IncludeMercenaries"));
+        body.Children.Add(mercChecksCombo);
+
         body.Children.Add(Label("Difficulty"));
         body.Children.Add(Combo("DifficultyOptions", "SelectedDifficulty"));
         body.Children.Add(new TextBlock

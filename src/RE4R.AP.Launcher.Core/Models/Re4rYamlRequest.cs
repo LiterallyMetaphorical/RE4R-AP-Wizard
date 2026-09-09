@@ -47,6 +47,15 @@ public sealed class Re4rYamlRequest
     // filler-only side excursions (apworld 0.6.0).
     public bool MinimizeBacktracking { get; set; }
 
+    // Included Content (apworld 0.7.2): what the slot plays. At least one of
+    // the two must be on; the screen refuses to continue otherwise.
+    public bool IncludeMainCampaign { get; set; } = true;
+
+    public bool IncludeMercenaries { get; set; }
+
+    // Mercenaries rank checks: a_only, standard, full.
+    public string MercenariesScoreChecks { get; set; } = "standard";
+
     // EXPERIMENTAL: the multiworld authors BioRand's Random Events at
     // generation time and the logic reacts to them (apworld 0.7.0). Off by
     // default; the launcher pins the rolled set into BioRand at patch time.

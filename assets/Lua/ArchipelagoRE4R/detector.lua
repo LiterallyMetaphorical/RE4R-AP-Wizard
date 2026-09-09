@@ -1064,6 +1064,11 @@ local function install(ctx)
         sdk.hook(
             accept_method,
             function(args)
+                local get_domain = ctx.get_runtime_domain or _G.get_runtime_domain
+                if type(get_domain) == "function" and get_domain() == "MERCENARIES" then
+                    return sdk.PreHookResult.CALL_ORIGINAL
+                end
+
                 local runtime_state = get_runtime_state()
                 local stage = get_active_runtime_stage(runtime_state)
                 if not runtime_state.is_playable or type(stage) ~= "number" then
@@ -1084,6 +1089,7 @@ local function install(ctx)
                         tostring(stage)))
                     return sdk.PreHookResult.CALL_ORIGINAL
                 end
+
 
                 local context_arg = args[3]
                 local context_key = get_context_id_key(context_arg)
@@ -1276,9 +1282,15 @@ local function install(ctx)
         sdk.hook(
             pickup_method,
             function(args)
+                local get_domain = ctx.get_runtime_domain or _G.get_runtime_domain
+                if type(get_domain) == "function" and get_domain() == "MERCENARIES" then
+                    return sdk.PreHookResult.CALL_ORIGINAL
+                end
+
                 local runtime_state = get_runtime_state()
                 local stage = get_active_runtime_stage(runtime_state)
                 if not runtime_state.is_playable or type(stage) ~= "number" then
+
                     -- LOUD skip: this used to return silently, which made a
                     -- commit that fired mid-transition (stage nil / not
                     -- playable) indistinguishable from one that never fired -
@@ -1460,6 +1472,11 @@ local function install(ctx)
         sdk.hook(
             hit_method,
             function(args)
+                local get_domain = ctx.get_runtime_domain or _G.get_runtime_domain
+                if type(get_domain) == "function" and get_domain() == "MERCENARIES" then
+                    return sdk.PreHookResult.CALL_ORIGINAL
+                end
+
                 local runtime_state = get_runtime_state()
                 if not runtime_state.is_playable or type(runtime_state.current_stage) ~= "number" then
                     return sdk.PreHookResult.CALL_ORIGINAL
@@ -1494,7 +1511,13 @@ local function install(ctx)
     end
 
     local function scan_stage_pickups(runtime_state)
+        local get_domain = ctx.get_runtime_domain or _G.get_runtime_domain
+        if type(get_domain) == "function" and get_domain() == "MERCENARIES" then
+            return
+        end
+
         if not runtime_state.is_playable or type(runtime_state.current_stage) ~= "number" then
+
             bridge.tracked_stage_id = nil
             bridge.tracked_visible_guids = {}
             bridge.tracked_guid_snapshots = {}

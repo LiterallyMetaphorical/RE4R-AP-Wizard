@@ -212,6 +212,14 @@ public sealed class ArchipelagoScoutClient
                 bonusWeaponsConsented = bonusElement.ValueKind == JsonValueKind.True;
             }
 
+            // [Mercenaries] What the slot plays, and the rank checks it carries.
+            var gameMode = ParseGameModeSlotData(connectedPacket);
+            var mercenaries = ParseMercenariesSlotData(connectedPacket);
+            if (mercenaries.Enabled)
+            {
+                Log($"This room plays {DescribeGameMode(gameMode)}: {mercenaries.LocationIds.Count} Mercenaries rank check(s), {mercenaries.ScoreChecks}.");
+            }
+
             var merchantShop = ParseMerchantShopSlotData(connectedPacket);
             if (merchantShop.Enabled)
             {
@@ -236,13 +244,16 @@ public sealed class ArchipelagoScoutClient
             // bundled list - the server rejects unknown location ids.
             var extraKnownIds = new HashSet<long>(request.ShopSlotLocationIds);
             extraKnownIds.UnionWith(request.TradeCheckLocationIds);
+            extraKnownIds.UnionWith(request.MercenariesLocationIds);
             var roomLocationIds = GetRoomLocationIds(
                 connectedPacket, requestedLocationIds, extraKnownIds);
             var knownShopSlotIds = new HashSet<long>(request.ShopSlotLocationIds);
             var knownTradeCheckIds = new HashSet<long>(request.TradeCheckLocationIds);
             var roomShopSlotCount = roomLocationIds.Count(knownShopSlotIds.Contains);
             var roomTradeCheckCount = roomLocationIds.Count(knownTradeCheckIds.Contains);
-            var roomWorldCount = roomLocationIds.Length - roomShopSlotCount - roomTradeCheckCount;
+            var knownMercenariesIds = new HashSet<long>(request.MercenariesLocationIds);
+            var roomMercenariesCount = roomLocationIds.Count(knownMercenariesIds.Contains);
+            var roomWorldCount = roomLocationIds.Length - roomShopSlotCount - roomTradeCheckCount - roomMercenariesCount;
             var scoutingMessage = roomWorldCount == requestedLocationIds.Length
                 ? $"Scouting {roomWorldCount} locations"
                 : $"Scouting {roomWorldCount} of {requestedLocationIds.Length} bundled locations (the rest are vanilla/preserved spots that are not part of this multiworld).";
@@ -253,6 +264,10 @@ public sealed class ArchipelagoScoutClient
             if (roomTradeCheckCount > 0)
             {
                 scoutingMessage += $" Plus {roomTradeCheckCount} trade check(s).";
+            }
+            if (roomMercenariesCount > 0)
+            {
+                scoutingMessage += $" Plus {roomMercenariesCount} Mercenaries rank check(s).";
             }
 
             Log(scoutingMessage);
@@ -295,6 +310,8 @@ public sealed class ArchipelagoScoutClient
                 RandomWeaponStats = randomWeaponStats,
                 RandomWeaponUpgrades = randomWeaponUpgrades,
                 BonusWeaponsConsented = bonusWeaponsConsented,
+                GameMode = gameMode,
+                Mercenaries = mercenaries,
             };
         }
         catch (ArchipelagoScoutException)
@@ -1023,6 +1040,95 @@ public sealed class ArchipelagoScoutClient
                 && spinelTotalElement.TryGetInt32(out var spinelTotal)
                     ? spinelTotal
                     : 0,
+        };
+    }
+
+    /// <summary>
+    /// slot_data.game_mode: "campaign" (also when absent),
+    /// "campaign_and_mercenaries" or "mercenaries_only".
+    /// </summary>
+    private static string ParseGameModeSlotData(JsonElement connectedPacket)
+    {
+        if (TryGetProperty(connectedPacket, "slot_data", out var slotData)
+            && slotData.ValueKind == JsonValueKind.Object
+            && slotData.TryGetProperty("game_mode", out var modeElement)
+            && modeElement.ValueKind == JsonValueKind.String)
+        {
+            var mode = (modeElement.GetString() ?? string.Empty).Trim().ToLowerInvariant();
+            if (mode is "campaign" or "campaign_and_mercenaries" or "mercenaries_only")
+            {
+                return mode;
+            }
+        }
+
+        return "campaign";
+    }
+
+    private static string DescribeGameMode(string gameMode) => gameMode switch
+    {
+        "mercenaries_only" => "The Mercenaries only",
+        "campaign_and_mercenaries" => "the campaign and The Mercenaries",
+        _ => "the campaign",
+    };
+
+    /// <summary>
+    /// slot_data.mercenaries -> model. Absent, disabled or malformed reads as
+    /// Disabled; the ids come from the character -> stage -> rank map.
+    /// </summary>
+    private static MercenariesSlotData ParseMercenariesSlotData(JsonElement connectedPacket)
+    {
+        if (!TryGetProperty(connectedPacket, "slot_data", out var slotData)
+            || slotData.ValueKind != JsonValueKind.Object
+            || !slotData.TryGetProperty("mercenaries", out var block)
+            || block.ValueKind != JsonValueKind.Object
+            || !block.TryGetProperty("enabled", out var enabledElement)
+            || enabledElement.ValueKind != JsonValueKind.True)
+        {
+            return MercenariesSlotData.Disabled;
+        }
+
+        var ids = new List<long>();
+        if (block.TryGetProperty("locations", out var byCharacter) && byCharacter.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var character in byCharacter.EnumerateObject())
+            {
+                if (character.Value.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+
+                foreach (var stage in character.Value.EnumerateObject())
+                {
+                    if (stage.Value.ValueKind != JsonValueKind.Object)
+                    {
+                        continue;
+                    }
+
+                    foreach (var rank in stage.Value.EnumerateObject())
+                    {
+                        if (rank.Value.ValueKind == JsonValueKind.Number
+                            && rank.Value.TryGetInt64(out var id)
+                            && id > 0)
+                        {
+                            ids.Add(id);
+                        }
+                    }
+                }
+            }
+        }
+
+        static string ReadString(JsonElement element, string name) =>
+            element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
+                ? value.GetString() ?? string.Empty
+                : string.Empty;
+
+        return new MercenariesSlotData
+        {
+            Enabled = true,
+            ScoreChecks = ReadString(block, "score_checks"),
+            StartingCharacter = ReadString(block, "starting_character"),
+            StartingStage = ReadString(block, "starting_stage"),
+            LocationIds = ids.Distinct().OrderBy(id => id).ToArray(),
         };
     }
 

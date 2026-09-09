@@ -1,3 +1,4 @@
+using System;
 namespace RE4R.AP.Launcher.Core.Models;
 
 public sealed class ArchipelagoScoutSessionResult
@@ -72,4 +73,19 @@ public sealed class ArchipelagoScoutSessionResult
     /// non-consenting slots.
     /// </summary>
     public bool BonusWeaponsConsented { get; init; }
+
+    /// <summary>
+    /// What the slot plays: "campaign", "campaign_and_mercenaries" or
+    /// "mercenaries_only" (apworld 0.7.2 included_content). Absent in older
+    /// rooms, which are campaign rooms.
+    /// </summary>
+    public string GameMode { get; init; } = "campaign";
+
+    public bool MercenariesOnly =>
+        string.Equals(GameMode, "mercenaries_only", StringComparison.OrdinalIgnoreCase);
+
+    public bool CampaignIncluded => !MercenariesOnly;
+
+    /// <summary>slot_data.mercenaries: the rank checks this slot carries.</summary>
+    public MercenariesSlotData Mercenaries { get; init; } = MercenariesSlotData.Disabled;
 }

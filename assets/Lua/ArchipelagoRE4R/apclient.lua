@@ -182,6 +182,11 @@ return function(ctx)
     -- and LocationChecks send is filtered to this set; nil = unavailable ->
     -- fall back to the permissive pre-0.4.0 behavior.
     local room_location_ids = nil
+    -- [Mercenaries] This slot's Mercenaries rank-check ids, read from
+    -- slot_data.mercenaries.locations (character -> stage -> rank -> id).
+    -- nil = no Mercenaries content in this room.
+    local merc_location_ids = nil
+    local merc_session_enabled = false
     -- [GatedKeys] lids we already explained in the log (once per session).
     local skipped_non_room_lids = {}
 
@@ -262,6 +267,69 @@ return function(ctx)
 
     -- Load the AP-id -> engine-id + count map (emitted by data_parser.py). Keyed
     -- by AP id string on disk; we number-key it for lookup against item.item.
+    -- [Mercenaries] Helpers. The kinds come from ap_item_map.json (the
+    -- generator stamps merc_character / merc_stage / merc_filler); those
+    -- items are ownership grants, never inventory injections.
+    local function is_merc_item(mapping)
+        if type(mapping) ~= "table" then return false end
+        local kind = mapping.kind
+        return kind == "merc_character" or kind == "merc_stage" or kind == "merc_filler"
+    end
+
+    local function is_merc_location(location_id)
+        local lid = tonumber(location_id)
+        return lid ~= nil and merc_location_ids ~= nil and merc_location_ids[math.floor(lid)] == true
+    end
+
+    local function mercenaries_enabled(slot_data)
+        if type(slot_data) ~= "table" then return false end
+        local mode = slot_data.game_mode
+        if mode == "mercenaries_only" or mode == "campaign_and_mercenaries" then return true end
+        local merc_data = slot_data.mercenaries
+        return type(merc_data) == "table" and merc_data.enabled == true
+    end
+
+    -- character -> stage -> rank -> id, flattened to a set. Returns nil and a
+    -- reason when the mapping is absent or malformed.
+    local function build_merc_location_ids(slot_data)
+        local merc_data = type(slot_data) == "table" and slot_data.mercenaries or nil
+        local locations = type(merc_data) == "table" and merc_data.locations or nil
+        if type(locations) ~= "table" then
+            return nil, "slot_data.mercenaries.locations missing"
+        end
+        local result, count = {}, 0
+        for character_name, by_stage in pairs(locations) do
+            if type(by_stage) ~= "table" then
+                return nil, "bad character mapping " .. tostring(character_name)
+            end
+            for stage_name, by_rank in pairs(by_stage) do
+                if type(by_rank) ~= "table" then
+                    return nil, "bad stage mapping " .. tostring(stage_name)
+                end
+                for rank_name, raw_id in pairs(by_rank) do
+                    local lid = tonumber(raw_id)
+                    if lid == nil or lid <= 0 or lid ~= math.floor(lid) then
+                        return nil, string.format("bad id at %s/%s/%s",
+                            tostring(character_name), tostring(stage_name), tostring(rank_name))
+                    end
+                    if not result[lid] then
+                        result[lid] = true
+                        count = count + 1
+                    end
+                end
+            end
+        end
+        if count == 0 then return nil, "mapping is empty" end
+        return result, count
+    end
+
+    local function merc_domain_active()
+        local get_domain = ctx.get_runtime_domain or _G.get_runtime_domain
+        if type(get_domain) ~= "function" then return false end
+        local ok, domain = pcall(get_domain)
+        return ok and domain == "MERCENARIES"
+    end
+
     local function load_ap_item_map()
         ap_item_map = {}
         st.item_map_loaded = false
@@ -284,6 +352,7 @@ return function(ctx)
                     re4r_item_id = engine_id,
                     count = math.max(1, count),
                     name = (type(value.name) == "string" and value.name ~= "") and value.name or nil,
+                    kind = (type(value.kind) == "string" and value.kind ~= "") and value.kind or nil,
                 }
                 n = n + 1
             end
@@ -807,6 +876,58 @@ return function(ctx)
             return
         end
 
+        -- [Mercenaries] Ownership grants never touch an inventory, so they
+        -- deliver from anywhere - the title screen, the Mercenaries menus,
+        -- mid-run - ahead of the inventory gates below, still in strict
+        -- index order.
+        do
+            table.sort(pending, function(a, b) return a.index < b.index end)
+            local handle_merc = ctx.handle_merc_item_received or _G.handle_merc_item_received
+            while #pending > 0 do
+                local entry = pending[1]
+                local idx = entry.index
+                if type(idx) ~= "number" or idx ~= bridge.last_received_index + 1 then
+                    break
+                end
+                local mapping = ap_item_map[entry.item]
+                if not is_merc_item(mapping) or type(handle_merc) ~= "function" then
+                    break
+                end
+                pcall(handle_merc, mapping.name)
+                bridge.last_received_index = idx
+                bridge.injected_ap_item_indexes[idx] = true
+                bridge.state_dirty = true
+                table.remove(pending, 1)
+                pending_by_index[idx] = nil
+                info(string.format("Mercenaries unlock received idx=%d ap=%s [%s]",
+                    idx, tostring(entry.item), tostring(mapping.name)))
+                if mapping.kind ~= "merc_filler" then
+                    local from = (entry.player ~= st.numeric_slot) and ap_player_name(entry.player) or nil
+                    local title = (from ~= nil and (from .. " sent you " .. tostring(mapping.name)))
+                        or ("Received " .. tostring(mapping.name))
+                    if st.in_sync_burst then
+                        bump_sync_summary(1, false)
+                    else
+                        enqueue_toast(title, "unlocked for The Mercenaries", classify_flags(entry.flags), "received")
+                    end
+                end
+                if not persist() then break end
+            end
+        end
+        -- [Mercenaries] Campaign items wait while the mode runs: there is no
+        -- campaign inventory on screen to put them in. Lossless, like the
+        -- character gate below.
+        if merc_domain_active() then
+            if not st.merc_hold_logged then
+                st.merc_hold_logged = true
+                info("The Mercenaries is active - campaign items wait until the campaign is back")
+            end
+            return
+        elseif st.merc_hold_logged then
+            st.merc_hold_logged = false
+            info("campaign is back - resuming received-item delivery")
+        end
+
         local get_runtime_state = ctx.get_runtime_state
         local inject_item_to_inventory = ctx.inject_item_to_inventory
         local inject_command_succeeded = ctx.inject_command_succeeded
@@ -964,7 +1085,9 @@ return function(ctx)
                 -- trinket, so the real item still owes delivery (live
                 -- 2026-08-17: a bought Insignia Key was skipped here and never
                 -- reached the player).
-                and not is_merchant_shop_location(entry.location) then
+                and not is_merchant_shop_location(entry.location)
+                -- ...nor a Mercenaries rank: nothing physical was picked up.
+                and not is_merc_location(entry.location) then
                 -- own-world physical pickup: BioRand already granted it in-game.
                 info(string.format("own-find skip idx=%d ap=%s location=%d",
                     idx, tostring(entry.item), entry.location))
@@ -1330,7 +1453,12 @@ return function(ctx)
                 -- later resend never dupes.
                 local marked = false
                 for _, k in ipairs(keys) do
-                    if type(k) == "string" and not bridge.acknowledged_guid_keys[k] then
+                    if type(k) == "string" and string.sub(k, 1, 5) == "merc:" then
+                        -- [Mercenaries] Rank checks are remembered in
+                        -- mercenaries_completed_locations when they queue.
+                        bridge.checks_sent_session = (bridge.checks_sent_session or 0) + 1
+                        marked = true
+                    elseif type(k) == "string" and not bridge.acknowledged_guid_keys[k] then
                         bridge.acknowledged_guid_keys[k] = true
                         marked = true
                         -- [Phase 5 Group 3] session Checks-Sent counter for the status window
@@ -1406,6 +1534,19 @@ return function(ctx)
             end
         end
 
+        -- [Mercenaries] Rank checks persist as ids, not stage|guid keys.
+        for raw_id in pairs(bridge.mercenaries_completed_locations or {}) do
+            local lid = tonumber(raw_id)
+            if lid ~= nil then
+                lid = math.floor(lid)
+                if (room_location_ids == nil or room_location_ids[lid]) and not sent_location_checks[lid] then
+                    ids = ids or {}
+                    ids[#ids + 1] = lid
+                    sent_location_checks[lid] = true
+                end
+            end
+        end
+
         if ids ~= nil then
             local ok_send, e = pcall(function() ap:LocationChecks(ids) end)
             if ok_send then
@@ -1424,6 +1565,37 @@ return function(ctx)
     local function maybe_send_victory()
         local bridge = ctx.bridge
         if ap == nil or bridge == nil then return end
+        -- [Mercenaries only] The goal is Rank A on every character and stage
+        -- pair; there is no Saddler to reach. Read from the slot's own
+        -- location map and the rank checks acknowledged so far.
+        local slot_data = ctx.slot_data or bridge.slot_data
+        local merc_only = type(slot_data) == "table" and slot_data.game_mode == "mercenaries_only"
+        if merc_only and bridge.victory_sent ~= true and bridge.victory_pending ~= true then
+            local merc_data = type(slot_data.mercenaries) == "table" and slot_data.mercenaries or nil
+            local locations = merc_data and merc_data.locations
+            local done, wanted = 0, 0
+            if type(locations) == "table" then
+                for _, by_stage in pairs(locations) do
+                    if type(by_stage) == "table" then
+                        for _, by_rank in pairs(by_stage) do
+                            local lid = type(by_rank) == "table" and tonumber(by_rank.A) or nil
+                            if lid ~= nil then
+                                wanted = wanted + 1
+                                lid = math.floor(lid)
+                                if (bridge.mercenaries_completed_locations or {})[lid] == true
+                                    or (bridge.checked_locations or {})[lid] == true then
+                                    done = done + 1
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            if wanted > 0 and done >= wanted then
+                bridge.victory_pending = true
+                info(string.format("Mercenaries goal reached: Rank A on all %d loadouts", wanted))
+            end
+        end
         if bridge.victory_pending ~= true or bridge.victory_sent == true then return end
         -- Fully connected only; otherwise leave the latch to re-fire on reconnect.
         local ok_state, state = pcall(function() return ap:get_state() end)
@@ -1448,13 +1620,15 @@ return function(ctx)
         -- risk of ever becoming noise. The toast stays as well: it's what the Message Log
         -- captures from, so the goal is still recoverable after the banner fades.
         local trigger_celebration = ctx.trigger_celebration or _G.trigger_celebration
+        local banner = merc_only and "MERCENARIES COMPLETE" or "GOAL COMPLETE"
+        local line = merc_only and "Rank A on every loadout." or "Saddler's dead. Ashley's safe."
         if type(trigger_celebration) == "function" then
-            trigger_celebration("GOAL COMPLETE", {
-                "Saddler's dead. Ashley's safe.",
+            trigger_celebration(banner, {
+                line,
                 "Reported to Archipelago.",
             })
         end
-        enqueue_toast("Goal Complete!", "Saddler's dead. Ashley's safe.", "PROGRESSION", "goal")
+        enqueue_toast("Goal Complete!", line, "PROGRESSION", "goal")
     end
 
     -- [Phase 4] Scout every location once on connect so the progression-warning UI gets
@@ -1560,6 +1734,29 @@ return function(ctx)
         st.slot_connected = true
         st.port_recovery_dismissed_kind = nil
         close_port_recovery()
+        -- [Mercenaries] Slot data first: the ownership gate and the location
+        -- set read it, and the overlay and checklist reach it through ctx.
+        ctx.slot_data = slot_data
+        if ctx.bridge then ctx.bridge.slot_data = slot_data end
+        merc_session_enabled = mercenaries_enabled(slot_data)
+        do
+            local ids, detail = build_merc_location_ids(slot_data)
+            merc_location_ids = ids
+            if merc_session_enabled then
+                if ids ~= nil then
+                    info(string.format("Mercenaries: %s, %d rank check(s) in this slot",
+                        tostring(slot_data.game_mode), detail))
+                else
+                    warn("Mercenaries: enabled but the location map is unusable: " .. tostring(detail))
+                end
+            end
+        end
+        do
+            local init_merc = ctx.init_merc_ownership or _G.init_merc_ownership
+            if type(init_merc) == "function" then pcall(init_merc, slot_data) end
+            local install_hooks = ctx.install_merc_virtual_gating_hooks or _G.install_merc_virtual_gating_hooks
+            if type(install_hooks) == "function" then pcall(install_hooks) end
+        end
         -- [DeathLink] Read the slot's death_link setting (added to fill_slot_data in the
         -- apworld). Accept boolean true or numeric/string 1. Reset the per-connection
         -- death state so a reconnect can't strand a queued death or a stale edge.
@@ -1835,12 +2032,43 @@ return function(ctx)
                     end
                 end
             end
+            -- [Mercenaries] Rank checks are in the room whether or not the
+            -- launcher's file listed them; the slot's own map is the source.
+            if merc_location_ids ~= nil then
+                for lid in pairs(merc_location_ids) do
+                    if not set[lid] then
+                        set[lid] = true
+                        total = total + 1
+                    end
+                end
+            end
             if total > 0 then
                 room_location_ids = set
                 info(string.format("room location set: %d location(s) via %s", total, source))
             else
                 warn("room location set unavailable (no launcher file, AP getters empty) -- location scouting is skipped this session")
             end
+        end
+        if ctx.bridge then ctx.bridge.room_location_ids = room_location_ids end
+        -- [Mercenaries] The server's checked list, mirrored for the rank
+        -- checklist and the mercenaries-only goal.
+        if ctx.bridge then
+            local checked = {}
+            local ok_checked, result = pcall(function() return ap:get_checked_locations() end)
+            if ok_checked and type(result) == "table" then
+                for _, lid in ipairs(result) do
+                    local n = tonumber(lid)
+                    if n ~= nil then
+                        n = math.floor(n)
+                        checked[n] = true
+                        if is_merc_location(n) then
+                            ctx.bridge.mercenaries_completed_locations = ctx.bridge.mercenaries_completed_locations or {}
+                            ctx.bridge.mercenaries_completed_locations[n] = true
+                        end
+                    end
+                end
+            end
+            ctx.bridge.checked_locations = checked
         end
         local set_ap_session_identity = ctx.set_ap_session_identity
         if type(set_ap_session_identity) == "function" then
@@ -1915,6 +2143,18 @@ return function(ctx)
         local bridge = ctx.bridge
         local watermark = (bridge and tonumber(bridge.last_received_index)) or -1
         local queued, lo, hi = 0, nil, nil
+        -- [Mercenaries] Ownership is rebuilt from every packet, watermark or
+        -- not: a replayed old grant still says which characters and stages
+        -- are yours after a relaunch.
+        local handle_merc = ctx.handle_merc_item_received or _G.handle_merc_item_received
+        if type(handle_merc) == "function" then
+            for _, item in ipairs(items) do
+                local mapping = type(item) == "table" and ap_item_map[item.item] or nil
+                if is_merc_item(mapping) and mapping.kind ~= "merc_filler" then
+                    pcall(handle_merc, mapping.name)
+                end
+            end
+        end
         for _, item in ipairs(items) do
             local idx = item.index
             if type(idx) == "number" then
@@ -1986,6 +2226,39 @@ return function(ctx)
     local function on_location_checked(locations)
         local n = (type(locations) == "table") and #locations or 0
         info("server-confirmed checked locations: " .. n)
+        local bridge = ctx.bridge
+        if bridge == nil or type(locations) ~= "table" then return end
+        bridge.checked_locations = bridge.checked_locations or {}
+        local changed = false
+        for _, raw in ipairs(locations) do
+            local lid = tonumber(raw)
+            if lid ~= nil then
+                lid = math.floor(lid)
+                bridge.checked_locations[lid] = true
+                -- [Mercenaries] A confirmed rank check leaves the pending
+                -- queue for good; its completion is remembered per seed.
+                if is_merc_location(lid) then
+                    bridge.mercenaries_completed_locations = bridge.mercenaries_completed_locations or {}
+                    bridge.mercenaries_completed_locations[lid] = true
+                    if type(bridge.pending_checks) == "table" then
+                        for index = #bridge.pending_checks, 1, -1 do
+                            local entry = bridge.pending_checks[index]
+                            if type(entry) == "table" and tonumber(entry.location_id) == lid then
+                                if type(entry.key) == "string" and bridge.pending_check_keys then
+                                    bridge.pending_check_keys[entry.key] = nil
+                                end
+                                table.remove(bridge.pending_checks, index)
+                            end
+                        end
+                    end
+                    changed = true
+                end
+            end
+        end
+        if changed then
+            bridge.state_dirty = true
+            if type(ctx.save_session_state) == "function" then ctx.save_session_state() end
+        end
     end
 
     -- [DeathLink] Inbound deaths arrive as a Bounce tagged "DeathLink" with
