@@ -252,4 +252,90 @@ public sealed class Re4rYamlBuilderTests
 
         Assert.Throws<ArgumentException>(() => Builder.Build(Request(r => r.SlotName = "   ")));
     }
+
+    [Fact]
+    public void ASeparateWaysSlotAsksForNoneOfLeonsFeatures()
+    {
+        // Ada has none of his merchant, trade tab, gear scatter, arsenal draw,
+        // event roll, keycards, backtracking model or typewriters yet, and the
+        // world refuses a slot that asks for them. Four of these default to on,
+        // so leaving them out would still be asking (verified against the
+        // Separate Ways branch, 2026-09-06).
+        var yaml = Builder.Build(Request(request =>
+        {
+            request.IncludeMainCampaign = false;
+            request.IncludeSeparateWays = true;
+            request.ShuffleMerchantGear = true;
+            request.MerchantChecksPerChapter = 3;
+            request.TradeChecksPerChapter = 3;
+            request.StartingArsenal = 2;
+            request.StartingArsenalTypes = ["handgun"];
+            request.MinimizeBacktracking = true;
+            request.ShuffleKeycards = true;
+            request.RandomEvents = true;
+            request.UnlockedTypewriterStageIds = ["40530"];
+        }));
+
+        var options = GameOptions(yaml);
+        Assert.Equal(["Separate Ways"], Sequence(options, "included_content"));
+        Assert.Equal("0", Scalar(options, "merchant_checks_per_chapter"));
+        Assert.Equal("0", Scalar(options, "trade_checks_per_chapter"));
+        Assert.Equal("false", Scalar(options, "shuffle_merchant_gear"));
+        Assert.Equal("0", Scalar(options, "starting_arsenal"));
+        Assert.Equal("false", Scalar(options, "random_events"));
+        Assert.Equal("false", Scalar(options, "shuffle_keycards"));
+        Assert.Equal("false", Scalar(options, "minimize_backtracking"));
+        Assert.Empty(Sequence(options, "unlocked_typewriters"));
+        Assert.Null(Scalar(options, "starting_arsenal_types"));
+    }
+
+    [Fact]
+    public void SeparateWaysReplacesLeonRatherThanJoiningHim()
+    {
+        // A room patches one campaign. Both ticked is not a thing the screen
+        // allows, so this guards a hand-built request.
+        var yaml = Builder.Build(Request(request =>
+        {
+            request.IncludeMainCampaign = true;
+            request.IncludeSeparateWays = true;
+            request.IncludeMercenaries = true;
+        }));
+
+        Assert.Equal(["Separate Ways", "Mercenaries"], Sequence(GameOptions(yaml), "included_content"));
+    }
+
+    [Fact]
+    public void ASeparateWaysSlotIsNotAMercenariesOnlySlot()
+    {
+        // mercenaries_progression is forced true only for a slot with no
+        // campaign at all, because there its ranks carry the only progression.
+        // Ada's campaign carries her own, so the switch stays the player's.
+        var yaml = Builder.Build(Request(request =>
+        {
+            request.IncludeMainCampaign = false;
+            request.IncludeSeparateWays = true;
+            request.IncludeMercenaries = true;
+            request.MercenariesProgression = false;
+        }));
+
+        Assert.Equal("false", Scalar(GameOptions(yaml), "mercenaries_progression"));
+    }
+
+    [Fact]
+    public void ACampaignSlotIsUntouchedByAnyOfThis()
+    {
+        // The whole point: nothing about an ordinary room moves.
+        var yaml = Builder.Build(Request(request =>
+        {
+            request.ShuffleMerchantGear = true;
+            request.MerchantChecksPerChapter = 3;
+            request.StartingArsenal = 2;
+        }));
+
+        var options = GameOptions(yaml);
+        Assert.Equal(["Main Campaign"], Sequence(options, "included_content"));
+        Assert.Equal("3", Scalar(options, "merchant_checks_per_chapter"));
+        Assert.Equal("true", Scalar(options, "shuffle_merchant_gear"));
+        Assert.Equal("2", Scalar(options, "starting_arsenal"));
+    }
 }

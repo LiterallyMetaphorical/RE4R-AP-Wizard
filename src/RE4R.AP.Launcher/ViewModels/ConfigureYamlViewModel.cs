@@ -67,6 +67,8 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     private bool _merchantChecksEnabled = true;
     private bool _includeMainCampaign = true;
     private bool _includeMercenaries;
+    private bool _includeSeparateWays;
+    private bool _separateWaysUnlocked;
     // 0.7.6: Ranks as Checks is a range over the ladder below, held as indexes
     // so the two slider markers can bind straight to them.
     private int _mercenariesRankFloorIndex;
@@ -640,6 +642,14 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         {
             if (SetProperty(ref _includeMainCampaign, value))
             {
+                // A room patches one campaign, so the two are exclusive. The
+                // proper three-way picker is still to come; until then, ticking
+                // one unticks the other rather than raising an error about a
+                // combination nobody can use.
+                if (value && _includeSeparateWays)
+                {
+                    IncludeSeparateWays = false;
+                }
                 OnPropertyChanged(nameof(HasIncludedContentError));
                 OnPropertyChanged(nameof(CanContinue));
                 RebuildYamlPreview();
@@ -647,6 +657,52 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             }
         }
     }
+
+    /// <summary>
+    /// Unfinished, and only offered when settings.json says
+    /// unlock_separate_ways. A room made from it generates, and then the
+    /// launcher refuses to patch it, because the patcher has no Ada support
+    /// yet. It is here to test the settings file, not to play.
+    /// </summary>
+    public bool IncludeSeparateWays
+    {
+        get => _includeSeparateWays;
+        set
+        {
+            if (SetProperty(ref _includeSeparateWays, value))
+            {
+                if (value && _includeMainCampaign)
+                {
+                    IncludeMainCampaign = false;
+                }
+                OnPropertyChanged(nameof(HasIncludedContentError));
+                OnPropertyChanged(nameof(CanContinue));
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
+
+    /// <summary>Whether the screen offers Separate Ways at all.</summary>
+    public bool SeparateWaysUnlocked
+    {
+        get => _separateWaysUnlocked;
+        set
+        {
+            if (SetProperty(ref _separateWaysUnlocked, value))
+            {
+                OnPropertyChanged(nameof(SeparateWaysNote));
+                if (!value && _includeSeparateWays)
+                {
+                    IncludeSeparateWays = false;
+                }
+            }
+        }
+    }
+
+    public string SeparateWaysNote => _separateWaysUnlocked
+        ? "Unlocked for testing. A room generates, but no build can patch it yet."
+        : "[Coming Soon]";
 
     public bool IncludeMercenaries
     {
@@ -663,9 +719,12 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         }
     }
 
-    public bool HasIncludedContentError => !_includeMainCampaign && !_includeMercenaries;
+    public bool HasIncludedContentError =>
+        !_includeMainCampaign && !_includeMercenaries && !_includeSeparateWays;
 
-    public string IncludedContentError => "Include Main Campaign or Mercenaries (or both).";
+    public string IncludedContentError => _separateWaysUnlocked
+        ? "Include a campaign or Mercenaries (or both)."
+        : "Include Main Campaign or Mercenaries (or both).";
 
     /// <summary>The rank ladder, lowest first. The apworld keys are the same order.</summary>
     public static readonly IReadOnlyList<string> MercenariesRankLadder = ["C", "B", "A", "S", "S+", "S++"];
@@ -1119,7 +1178,8 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         var draftTradeRate = draft.TradeChecksPerChapter;
         TradeChecksEnabled = draftTradeRate is not 0;
         TradeChecksPerChapter = draftTradeRate is > 0 ? draftTradeRate.Value : 3;
-        IncludeMainCampaign = draft.IncludeMainCampaign;
+        IncludeSeparateWays = draft.IncludeSeparateWays && _separateWaysUnlocked;
+        IncludeMainCampaign = draft.IncludeMainCampaign && !IncludeSeparateWays;
         IncludeMercenaries = draft.IncludeMercenaries;
         // A draft saved by the Mercenaries branch build carried the mode as
         // one string; land it on the checkboxes once.
@@ -1190,6 +1250,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
                 draft.TradeChecksPerChapter = TradeChecksPerChapterEffective;
                 draft.IncludeMainCampaign = IncludeMainCampaign;
                 draft.IncludeMercenaries = IncludeMercenaries;
+                draft.IncludeSeparateWays = IncludeSeparateWays;
                 draft.MercenariesRankFloor = MercenariesRankFloorValue;
                 draft.MercenariesRankCeiling = MercenariesRankCeilingValue;
                 draft.MercenariesProgression = MercenariesProgression;
@@ -1240,6 +1301,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             MerchantChecks = SelectedMerchantChecks.Value,
             IncludeMainCampaign = IncludeMainCampaign,
             IncludeMercenaries = IncludeMercenaries,
+            IncludeSeparateWays = IncludeSeparateWays,
             MercenariesRankFloor = MercenariesRankFloorValue,
             MercenariesRankCeiling = MercenariesRankCeilingValue,
             MercenariesProgression = MercenariesProgression,

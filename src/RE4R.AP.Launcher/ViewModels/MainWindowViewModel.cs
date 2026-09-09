@@ -2153,6 +2153,19 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     private void ApplySettings(LauncherSettings settings)
     {
         settings = LauncherSettings.Sanitize(settings);
+        // Logged, not silent. A room generated with Separate Ways unlocked has
+        // to be identifiable from a bug report, or it reads as an ordinary
+        // fault (Cam, 2026-09-06).
+        ConfigureYaml.SeparateWaysUnlocked = settings.UnlockSeparateWays;
+        if (settings.UnlockSeparateWays)
+        {
+            LauncherFileLog.Append(
+                "[settings] unlock_separate_ways is on: the settings screen offers Separate Ways, "
+                + "which generates a room no build can patch yet.");
+            Action.AppendLog(
+                "Separate Ways is unlocked in your settings file. It writes a settings file and "
+                + "generates a room; no build can patch one yet.");
+        }
         Setup.InstallPath = settings.Re4rInstallPath;
         Session.ServerAddress = settings.LastServerAddress;
         Session.SlotName = settings.LastSlotName;

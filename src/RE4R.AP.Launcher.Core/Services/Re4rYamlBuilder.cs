@@ -86,10 +86,18 @@ public sealed class Re4rYamlBuilder
         // Starting Arsenal types: only when the player trimmed the set. The
         // full set is the apworld default, and emitting it anyway would churn
         // every existing YAML for nothing.
-        if (request.StartingArsenalTypes.Count > 0)
+        if (request.StartingArsenalTypes.Count > 0 && !request.IncludeSeparateWays)
         {
             gameOptions.Add("starting_arsenal_types", new YamlSequenceNode(
                 request.StartingArsenalTypes.Select(SingleQuotedScalar)));
+        }
+
+        // Last, so it overwrites whatever the screen put in those rows. Each
+        // key keeps the position it already had, so the file's shape does not
+        // move about between a campaign slot and an Ada one.
+        if (request.IncludeSeparateWays)
+        {
+            WriteOffTheOptionsSeparateWaysLacks(gameOptions);
         }
 
         // Archipelago's per-game item/location lists. Emitted ONLY when a
@@ -121,7 +129,14 @@ public sealed class Re4rYamlBuilder
         // to continue without one of the two, so this guards a hand-built
         // request only.
         var names = new List<string>();
-        if (request.IncludeMainCampaign || !request.IncludeMercenaries)
+        if (request.IncludeSeparateWays)
+        {
+            // A room patches one campaign, so Separate Ways wins outright
+            // rather than being listed alongside Leon. The screen keeps the
+            // pair exclusive; this guards a hand-built request.
+            names.Add("Separate Ways");
+        }
+        else if (request.IncludeMainCampaign || !request.IncludeMercenaries)
         {
             names.Add("Main Campaign");
         }
@@ -133,7 +148,34 @@ public sealed class Re4rYamlBuilder
     }
 
     private static bool IsMercenariesOnly(Re4rYamlRequest request) =>
-        request.IncludeMercenaries && !request.IncludeMainCampaign;
+        request.IncludeMercenaries && !request.IncludeMainCampaign && !request.IncludeSeparateWays;
+
+    /// <summary>
+    /// The Leon-campaign options a Separate Ways slot has no surface for.
+    /// Ada has none of his merchant, trade tab, gear scatter, arsenal draw,
+    /// event roll, keycards, backtracking model or typewriters yet.
+    ///
+    /// These are WRITTEN OFF rather than left out. Four of them default to on
+    /// (the gear shuffle, both check counts and the starting arsenal), so a
+    /// file that simply omitted them would still ask for all four, and the
+    /// world refuses a Separate Ways slot that does. Writing them off stays
+    /// correct either way: it asks for nothing whether the world refuses the
+    /// request or comes to ignore it.
+    /// </summary>
+    private static void WriteOffTheOptionsSeparateWaysLacks(YamlMappingNode gameOptions)
+    {
+        void Off(string key, YamlNode value) =>
+            gameOptions.Children[new YamlScalarNode(key)] = value;
+
+        Off("merchant_checks_per_chapter", new YamlScalarNode("0"));
+        Off("trade_checks_per_chapter", new YamlScalarNode("0"));
+        Off("shuffle_merchant_gear", new YamlScalarNode("false"));
+        Off("starting_arsenal", new YamlScalarNode("0"));
+        Off("random_events", new YamlScalarNode("false"));
+        Off("shuffle_keycards", new YamlScalarNode("false"));
+        Off("minimize_backtracking", new YamlScalarNode("false"));
+        Off("unlocked_typewriters", new YamlSequenceNode());
+    }
 
     // The rank ladder, lowest first. Both the display names ("S+") and the
     // apworld's keys ("s_plus") land here.

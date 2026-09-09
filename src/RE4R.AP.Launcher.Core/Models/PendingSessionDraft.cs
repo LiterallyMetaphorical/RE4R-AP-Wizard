@@ -119,6 +119,10 @@ public sealed class PendingSessionDraft
     [JsonPropertyName("include_mercenaries")]
     public bool IncludeMercenaries { get; set; }
 
+    // Absent in older drafts, which read as false: the campaign they recorded.
+    [JsonPropertyName("include_separate_ways")]
+    public bool IncludeSeparateWays { get; set; }
+
     // 0.7.6: the rank range that counts. Absent in older drafts, which read as
     // the default C through A.
     [JsonPropertyName("mercenaries_rank_floor")]

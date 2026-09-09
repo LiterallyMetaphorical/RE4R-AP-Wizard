@@ -786,13 +786,18 @@
                                       IsChecked="{Binding IncludeMercenaries}"
                                       Content="Mercenaries" />
                             <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                <CheckBox IsEnabled="False"
-                                          IsChecked="False"
+                                <!-- Live only when settings.json sets
+                                     unlock_separate_ways. The note beside it
+                                     says what an unlocked room cannot do, so
+                                     nobody reads the tick as "it works". -->
+                                <CheckBox IsEnabled="{Binding SeparateWaysUnlocked}"
+                                          IsChecked="{Binding IncludeSeparateWays}"
                                           Content="Separate Ways" />
                                 <TextBlock Margin="8,0,0,0"
                                            VerticalAlignment="Center"
                                            Opacity="0.6"
-                                           Text="[Coming Soon]" />
+                                           TextWrapping="Wrap"
+                                           Text="{Binding SeparateWaysNote}" />
                             </StackPanel>
                             <TextBlock Margin="0,4,0,0"
                                        Foreground="{DynamicResource DangerTextBrush}"

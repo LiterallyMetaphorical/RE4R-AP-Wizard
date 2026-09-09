@@ -53,6 +53,11 @@ public sealed class Re4rYamlRequest
 
     public bool IncludeMercenaries { get; set; }
 
+    // A room patches ONE campaign, so this and IncludeMainCampaign are
+    // mutually exclusive. Unfinished: the settings screen only offers it when
+    // the unlock flag is set, and a room made from it cannot be patched yet.
+    public bool IncludeSeparateWays { get; set; }
+
     // 0.7.6: Ranks as Checks is a range over the C, B, A, S, S+, S++ ladder.
     // Every rank from the floor to the ceiling counts, 32 checks a rank.
     public string MercenariesRankFloor { get; set; } = "c";

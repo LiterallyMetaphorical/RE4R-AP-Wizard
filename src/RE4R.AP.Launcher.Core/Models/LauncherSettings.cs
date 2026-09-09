@@ -46,6 +46,20 @@ public sealed class LauncherSettings
     [JsonPropertyName("dismissed_launcher_update")]
     public string DismissedLauncherUpdate { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Lets the settings screen offer Separate Ways while it is unfinished.
+    /// Off unless someone has hand-edited this file, which is the point: it is
+    /// for testing the settings file a Separate Ways slot needs, and a room
+    /// made from one cannot be patched or played yet.
+    ///
+    /// A flag rather than a hidden key sequence, so that it shows up in this
+    /// file and in the launcher log. A room built with it on has to be
+    /// identifiable from a bug report, or it looks like an ordinary fault
+    /// (Cam, 2026-09-06).
+    /// </summary>
+    [JsonPropertyName("unlock_separate_ways")]
+    public bool UnlockSeparateWays { get; set; }
+
     public static LauncherSettings CreateDefault()
     {
         return new LauncherSettings();
