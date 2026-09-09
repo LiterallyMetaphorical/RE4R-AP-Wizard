@@ -38,6 +38,9 @@ public static class BioRandOptionCatalog
     /// - random-events: the multiworld authors the event set at generation time (the YAML option);
     ///   the roll arrives via slot_data and is pinned in as ap-forced-events. A local toggle here
     ///   would let a patch fire events the room's logic never modeled.
+    /// - username: the connected slot name; identity comes from the room, never from a preset.
+    /// - allow-bonus-items: the Extra Content weapons are multiworld pool items in every AP room
+    ///   (since 2026-09-05, no consent option); BioRand placing its own copies would double them.
     /// </summary>
     public static readonly string[] ApLockedKeys =
     [
@@ -48,11 +51,40 @@ public static class BioRandOptionCatalog
         "ap-mode",
         "ap-placements",
         "random-events",
+        "username",
+        "allow-bonus-items",
     ];
 
     public const string RandomItemsKey = "random-items";
     public const string RandomEnemiesKey = "random-enemies";
     public const string RandomEventsKey = "random-events";
+    public const string RandomMerchantKey = "random-merchant";
+    public const string RandomMerchantPricesKey = "random-merchant-prices";
+    public const string RandomWeaponStatsKey = "random-weapon-stats";
+    // BioRand refuses the combination outright: WeaponModifier throws
+    // "'Random Weapon Upgrades' requires 'Random Upgraded Weapon Stats' to be
+    // enabled". Upgrades defaults ON, stats defaults OFF, so pinning stats from
+    // the YAML without pinning this too killed EVERY default seed at patch time
+    // (Arkad, 2026-08-21).
+    public const string RandomWeaponUpgradesKey = "random-weapon-upgrades";
+    // The per-chapter restock schedule (~60 scale options). Its consumer is
+    // the same modifier random-merchant gates, so it is inert while the
+    // Archipelago merchant owns the shop.
+    public const string MerchantStockKeyPrefix = "merchant-stock-";
+    // The two starting-weapon class pickers. They choose the class of the
+    // primary and secondary BioRand rolls into the opening case, and those
+    // rolls do not happen at all once the settings file asks for a starting
+    // arsenal - the arsenal count IS the weapon count then. Inert controls,
+    // so they grey out.
+    public const string StartingWeaponPrimaryKeyPrefix = "inventory-weapon-primary-";
+    // The 38 per-boss HP dials and the switch that decides whether anything
+    // reads them. EnemyModifier keeps the whole boss branch inside
+    // "if (boss-random-health)", so with the switch off every one of those
+    // dials is inert - which cost a live test on a Del Lago set to 1 HP that
+    // never took damage differently (Cam, 2026-08-21).
+    public const string BossRandomHealthKey = "boss-random-health";
+    public const string BossHealthKeyPrefix = "boss-health-";
+    public const string StartingWeaponSecondaryKeyPrefix = "inventory-weapon-secondary-";
 
     private const string CatalogFileName = "biorand_options.json";
 

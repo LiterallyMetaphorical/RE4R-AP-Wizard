@@ -7,6 +7,14 @@ public sealed class BioRandSetupRequest
     public GameFingerprint GameFingerprint { get; set; } = GameFingerprint.CreateDefault();
 
     /// <summary>
+    /// The BioRand game version ("31 Mar 2026") the workflow detected, used to
+    /// pick the clean-game cache manifest the fresh harvest is verified
+    /// against. Null or unknown versions skip manifest verification and fall
+    /// back to the sentinel checks.
+    /// </summary>
+    public string? DetectedGameVersion { get; set; }
+
+    /// <summary>
     /// File names (not paths) of patch paks the launcher itself has installed
     /// into the game folder - collected from session records. Setup moves them
     /// aside for the duration of the harvest: the cache must snapshot the

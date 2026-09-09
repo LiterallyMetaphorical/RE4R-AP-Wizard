@@ -20,6 +20,7 @@ public sealed class BioRandProcessRunner
     private readonly SettingsStore _settingsStore;
     private readonly ProcessExecutor _processExecutor;
     private readonly Func<DateTimeOffset> _utcNow;
+    private readonly BioRandCacheManifestProvider _cacheManifestProvider;
 
     public BioRandProcessRunner(
         SettingsStore? settingsStore = null,
@@ -28,11 +29,14 @@ public sealed class BioRandProcessRunner
         string? assetsBioRandDirectoryPath = null,
         ProcessExecutor? processExecutor = null,
         Func<DateTimeOffset>? utcNow = null,
-        string? localAppDataRootPath = null)
+        string? localAppDataRootPath = null,
+        BioRandCacheManifestProvider? cacheManifestProvider = null)
     {
         _settingsStore = settingsStore ?? new SettingsStore(appDataRootPath);
         _processExecutor = processExecutor ?? RunProcessAsync;
         _utcNow = utcNow ?? (() => DateTimeOffset.UtcNow);
+        _cacheManifestProvider = cacheManifestProvider ?? new BioRandCacheManifestProvider();
+        _cacheManifestProvider.LogMessage += Log;
 
         AppDataRootPath = appDataRootPath
             ?? _settingsStore.AppDataRootPath;
@@ -153,7 +157,7 @@ public sealed class BioRandProcessRunner
             }
             catch (Exception ex) when (ex is not BioRandProcessException)
             {
-                throw new BioRandProcessException("BioRand setup could not start or complete. Check that the bundled BioRand files are present and try again.", ex);
+                throw new BioRandProcessException($"BioRand setup could not start or complete: {ex.Message} Check that the bundled BioRand files are present and try again.", ex);
             }
         }
         finally
@@ -177,7 +181,36 @@ public sealed class BioRandProcessRunner
             };
         }
 
-        var harvestPoisonedMessage = VerifyHarvestIsVanilla(request.Re4rInstallPath);
+        // Full integrity pass over the fresh harvest. With a bundled manifest
+        // this covers everything at once: missing files (Blue 08-26, OHMACS
+        // 08-28: the harvest printed "X <path>" per unreadable file, exited 0,
+        // and every generation then died on the first gap) and non-vanilla
+        // content (the 08-02 leftover-pak class). Without a manifest for this
+        // game version, the four-scene sentinel check remains the guard.
+        var manifest = _cacheManifestProvider.TryLoadForGameVersion(request.DetectedGameVersion);
+        string? harvestPoisonedMessage;
+        if (manifest is not null)
+        {
+            Log($"Verifying the fresh cache against the clean-game manifest for {manifest.GameVersion} ({manifest.Entries.Count} files).");
+            var verifyReport = await manifest.VerifyFullAsync(BioRandCacheDirectoryPath, cancellationToken);
+            if (verifyReport.IsClean)
+            {
+                harvestPoisonedMessage = null;
+                Log($"Cache verified clean: all {verifyReport.CheckedFileCount} manifest files match"
+                    + (verifyReport.ExtraFileCount > 0
+                        ? $" ({verifyReport.ExtraFileCount} extra file(s) not in the manifest, harmless)."
+                        : "."));
+            }
+            else
+            {
+                harvestPoisonedMessage = BuildCacheVerdictMessage(verifyReport, request.Re4rInstallPath);
+            }
+        }
+        else
+        {
+            harvestPoisonedMessage = VerifyHarvestIsVanilla(request.Re4rInstallPath);
+        }
+
         if (harvestPoisonedMessage is not null)
         {
             Log(harvestPoisonedMessage);
@@ -485,9 +518,7 @@ public sealed class BioRandProcessRunner
             return null;
         }
 
-        var patchPaks = Directory.EnumerateFiles(installPath, "re_chunk_000.pak.patch_*.pak", SearchOption.TopDirectoryOnly)
-            .Select(Path.GetFileName)
-            .ToList();
+        var patchPaks = ListPatchPakNames(installPath);
         var pakListSuffix = patchPaks.Count > 0
             ? $" Patch paks currently in the game folder: {string.Join(", ", patchPaks)}."
             : string.Empty;
@@ -499,6 +530,85 @@ public sealed class BioRandProcessRunner
             + " Vanilla ends at patch_006, so anything above that is a mod, even one you have already uninstalled:"
             + " Steam's Verify Integrity does not delete files it did not install."
             + " Delete the extra paks, then clear the BioRand cache in Setup Status and run setup again.";
+    }
+
+    /// <summary>
+    /// The bundled manifest for the given game version, quick-verified
+    /// (existence and size) against the current cache. Null when no manifest
+    /// ships for that version; callers then fall back to
+    /// <see cref="VerifyHarvestIsVanilla"/>. Cheap enough to run before every
+    /// patch, which is what finally catches a cache that went bad AFTER its
+    /// setup was recorded as current: the fingerprint trap, where Steam's
+    /// verify heals the game files but nothing ever re-examines the cache
+    /// (Blue and OHMACS both re-patched into the same broken cache for an
+    /// hour, 2026-08-26/28).
+    /// </summary>
+    public CacheVerifyReport? TryQuickVerifyCache(string? gameVersion)
+    {
+        var manifest = _cacheManifestProvider.TryLoadForGameVersion(gameVersion);
+        return manifest?.VerifyQuick(BioRandCacheDirectoryPath);
+    }
+
+    /// <summary>
+    /// Composes the player-facing verdict for a failed cache verification,
+    /// area-labeled the way <see cref="BioRandFailureClassifier"/> labels
+    /// generation failures. Missing files mean the INSTALL could not provide
+    /// them, so the repair is Steam's verify; modified files mean non-vanilla
+    /// content was harvested, so leftover paks go first. Neither asks the
+    /// player to clear the cache: the per-patch quick check rebuilds it
+    /// automatically once the game files are healthy.
+    /// </summary>
+    public string BuildCacheVerdictMessage(CacheVerifyReport report, string installPath)
+    {
+        var missing = report.MissingFiles;
+        var modified = report.ModifiedFiles;
+        var sb = new System.Text.StringBuilder();
+
+        if (modified.Count == 0 && missing.Count > 0)
+        {
+            sb.Append(BioRandFailureClassifier.AreaCacheIncomplete).Append(": ");
+            sb.Append($"{missing.Count} of the {report.CheckedFileCount} files BioRand needs could not be read from your RE4R install (first: '{missing[0]}'). ");
+            sb.AppendLine("The game data on disk is missing or damaged there. Your seed and settings are fine.");
+            sb.AppendLine("1. Verify your game files in Steam: right click Resident Evil 4, Properties, Installed Files, Verify integrity of game files. Let it download repairs.");
+            sb.AppendLine("2. Patch again. The launcher rebuilds its cache automatically; there is nothing to clear by hand.");
+            sb.Append("3. If this comes back after a clean verify, send a bug report zip (the Generate Bug Report button, bottom right of the launcher).");
+            return sb.ToString();
+        }
+
+        var firstModified = modified.Count > 0 ? modified[0] : missing[0];
+        var patchPaks = ListPatchPakNames(installPath);
+        sb.Append(BioRandFailureClassifier.AreaCachePoisoned).Append(": ");
+        sb.Append($"{modified.Count} file(s) in the fresh cache do not match a clean RE4R install");
+        if (missing.Count > 0)
+        {
+            sb.Append($" and {missing.Count} could not be read at all");
+        }
+
+        sb.AppendLine($" (first: '{firstModified}'). Something other than the clean game was harvested, usually leftover mod paks. Even a mod uninstalled long ago leaves its paks behind: Steam's Verify Integrity does not delete files it did not install.");
+        if (patchPaks.Count > 0)
+        {
+            sb.AppendLine($"Patch paks currently in the game folder: {string.Join(", ", patchPaks)}.");
+        }
+
+        sb.AppendLine("1. In your RE4R folder, delete every re_chunk_000.pak.patch_007.pak and higher that the launcher did not install. Leave re_chunk_000.pak and patch_001 through patch_006 alone.");
+        sb.AppendLine("2. Verify your game files in Steam.");
+        sb.Append("3. Patch again. The launcher rebuilds its cache automatically. If this comes back, send a bug report zip (the Generate Bug Report button, bottom right of the launcher).");
+        return sb.ToString();
+    }
+
+    private static List<string> ListPatchPakNames(string installPath)
+    {
+        try
+        {
+            return Directory.EnumerateFiles(installPath, "re_chunk_000.pak.patch_*.pak", SearchOption.TopDirectoryOnly)
+                .Select(path => Path.GetFileName(path)!)
+                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+        catch
+        {
+            return new List<string>();
+        }
     }
 
     private static string FormatList(IReadOnlyList<string> items)
@@ -724,7 +834,7 @@ public sealed class BioRandProcessRunner
         }
         catch (Exception ex) when (ex is not BioRandProcessException)
         {
-            throw new BioRandProcessException("BioRand generation could not start or complete. Check the bundled BioRand files and the [BioRand] log lines, then try again.", ex);
+            throw new BioRandProcessException($"BioRand generation could not start or complete: {ex.Message} Check the bundled BioRand files and the [BioRand] log lines, then try again.", ex);
         }
 
         if (exitCode != 0)
@@ -749,6 +859,18 @@ public sealed class BioRandProcessRunner
         Log($"BioRand generation complete. {stagedFiles.Count} files were staged in {stagingDirectoryPath} ({FormatSize(stagedBytes)} total).");
         LogStagedFileSummary(stagedFiles);
 
+        // The generator's spawn-gate echo (ap-enemy-gates in the config ->
+        // ap_enemy_gates.json beside the logs). Absent whenever gates were not
+        // requested or the build predates them; the room file then carries no
+        // enemy_gates section and the mod gates nothing.
+        var enemyGatesJson = string.Empty;
+        var enemyGatesPath = Path.Combine(stagingDirectoryPath, "ap_enemy_gates.json");
+        if (File.Exists(enemyGatesPath))
+        {
+            enemyGatesJson = await File.ReadAllTextAsync(enemyGatesPath, cancellationToken);
+            Log("BioRand emitted the enemy spawn-gate manifest (ap_enemy_gates.json).");
+        }
+
         return new BioRandGenerationResult
         {
             Success = true,
@@ -759,6 +881,7 @@ public sealed class BioRandProcessRunner
             StagedFiles = stagedFiles,
             StandardOutputLines = stdoutLines,
             StandardErrorLines = stderrLines,
+            EnemyGatesJson = enemyGatesJson,
         };
     }
 
@@ -1094,67 +1217,19 @@ public sealed class BioRandProcessRunner
     }
 
     /// <summary>
-    /// Turns BioRand's exit code and captured output into something a player can
-    /// act on. Input evidence is checked FIRST: the fork's CLI runs with
-    /// PropagateExceptions and no top-level catch, so even a friendly
-    /// RandomizerUserException ("The cache is incomplete...") prints as
-    /// "Unhandled exception. ...Exception: ..." - generic exception text must
-    /// not outrank the specific input markers inside it, or exactly the
-    /// failures the repair steps were written for get told "internal error"
-    /// instead. A NEGATIVE exit code is a Windows crash status; every crash of
-    /// that class this project has diagnosed (access violations, the live
-    /// 2026-08-02 stack overflow) came from parsing damaged or leftover-pak
-    /// game/cache input, and a hard crash prints no evidence at all - so it is
-    /// classified as input on the exit code alone.
+    /// Delegates to <see cref="BioRandFailureClassifier"/>, which names the
+    /// failure area, quotes the exact line BioRand printed, and carries its own
+    /// numbered repair steps. Replaced the coarse four-bucket description on
+    /// 2026-08-29 after three testers in one week were shown the generic CLR
+    /// exit code while the actual cause sat one line above it in this very
+    /// output.
     /// </summary>
     private static string DescribeGenerationFailure(
         int exitCode,
         IReadOnlyList<string> stdoutLines,
         IReadOnlyList<string> stderrLines)
     {
-        var outputLines = stdoutLines.Concat(stderrLines);
-
-        if (ContainsRecognizedInputEvidence(outputLines))
-        {
-            return $"BioRand found recognized damaged or mismatched game/cache input (exit code {exitCode}). The captured [BioRand] output is available in the launcher log; please provide that log if repair steps do not resolve this failure.";
-        }
-
-        if (exitCode < 0 && !ContainsInternalExceptionEvidence(outputLines))
-        {
-            return $"BioRand crashed (exit code {exitCode}), which in this project has always meant damaged or mismatched game/cache input rather than anything set wrong. The captured [BioRand] output is available in the launcher log; please provide that log if repair steps do not resolve this failure.";
-        }
-
-        if (ContainsInternalExceptionEvidence(outputLines))
-        {
-            return $"BioRand failed internally (exit code {exitCode}). The captured [BioRand] output is available in the launcher log; please provide that log when reporting this failure.";
-        }
-
-        return $"BioRand failed with exit code {exitCode}. No recognized game/cache input problem was identified. The captured [BioRand] output is available in the launcher log; please provide that log when reporting this failure.";
-    }
-
-    private static bool ContainsInternalExceptionEvidence(IEnumerable<string> outputLines)
-    {
-        return outputLines.Any(line =>
-            line.Contains("Unhandled exception", StringComparison.OrdinalIgnoreCase)
-            || Regex.IsMatch(line, @"\b(?:System\.)?[A-Za-z_][\w.]*Exception\b", RegexOptions.IgnoreCase));
-    }
-
-    private static bool ContainsRecognizedInputEvidence(IEnumerable<string> outputLines)
-    {
-        var markers = new[]
-        {
-            "Unable to find lights scene",
-            "Unable to find door to replace",
-            "cache is incomplete",
-            "cache was built from a MODIFIED game",
-            "does not match the real game",
-            "checksum mismatch",
-            "corrupt game file",
-            "corrupted game file",
-        };
-
-        return outputLines.Any(line => markers.Any(marker =>
-            line.Contains(marker, StringComparison.OrdinalIgnoreCase)));
+        return BioRandFailureClassifier.Classify(exitCode, stdoutLines, stderrLines).Message;
     }
 
     private static string FormatCommandLine(ProcessStartInfo startInfo)

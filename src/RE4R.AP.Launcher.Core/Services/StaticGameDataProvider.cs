@@ -55,7 +55,7 @@ public sealed class StaticGameDataProvider
             Log(
                 $"Loaded static RE4R AP data from {StaticDataFilePath} " +
                 $"({staticData.Counts.LocationsTotal} locations, {staticData.Counts.GuidLocations} GUID-backed, " +
-                $"{staticData.Counts.NoGuidLocations} no-GUID).");
+                $"{staticData.Counts.NoGuidLocations} no-GUID, {staticData.ShopSlots.Count} merchant shop slots).");
 
             return staticData;
         }
@@ -95,6 +95,9 @@ public sealed class StaticGameDataProvider
         staticData.LocationCodes ??= new List<long>();
         staticData.Locations ??= new Dictionary<long, StaticGameLocation>();
         staticData.Items ??= new Dictionary<long, StaticGameItem>();
+        staticData.ShopSlots ??= new Dictionary<long, StaticShopSlot>();
+        staticData.TradeChecks ??= new Dictionary<long, StaticTradeCheck>();
+        staticData.Mercenaries ??= new Dictionary<long, StaticMercenariesCheck>();
 
         var actualGuidCount = staticData.Locations.Values.Count(
             entry => !string.IsNullOrWhiteSpace(entry.Guid));
@@ -128,6 +131,77 @@ public sealed class StaticGameDataProvider
         {
             throw new StaticGameDataException(
                 $"The bundled RE4R AP world data items count {staticData.Items.Count} does not match its declared count {staticData.Counts.ItemsTotal}.");
+        }
+
+        if (staticData.ShopSlots.Count != staticData.Counts.ShopSlots)
+        {
+            throw new StaticGameDataException(
+                $"The bundled RE4R AP world data shop slot count {staticData.ShopSlots.Count} does not match its declared count {staticData.Counts.ShopSlots}.");
+        }
+
+        if (staticData.Mercenaries.Count != staticData.Counts.Mercenaries)
+        {
+            throw new StaticGameDataException(
+                $"The bundled RE4R AP world data Mercenaries check count {staticData.Mercenaries.Count} does not match its declared count {staticData.Counts.Mercenaries}.");
+        }
+
+        // A shop slot code that is also a world location code would make the
+        // scout and manifest classify the same id two ways; the apworld seeds
+        // its code derivation against the location table, so overlap here
+        // means the two halves of the bundle came from different builds.
+        var collidingShopSlotIds = staticData.ShopSlots.Keys
+            .Where(staticData.Locations.ContainsKey)
+            .ToList();
+        if (collidingShopSlotIds.Count > 0)
+        {
+            throw new StaticGameDataException(
+                $"The bundled RE4R AP world data has {collidingShopSlotIds.Count} shop slot code(s) colliding with world location codes (first: {collidingShopSlotIds[0]}). Rebuild the launcher bundle from one apworld build.");
+        }
+    }
+
+    /// <summary>
+    /// Best-effort synchronous load for UI that can do without it.
+    /// </summary>
+    /// <remarks>
+    /// The YAML editor's item and location pickers need the bundled group and
+    /// name lists, but they are a convenience: a missing, old or malformed
+    /// bundle should leave the player with an editor that still writes a valid
+    /// YAML, not a launcher that will not open the screen. Every failure
+    /// returns null and the pickers render empty.
+    ///
+    /// Synchronous on purpose. This is a local file read on a user-initiated
+    /// screen, and threading it through async construction would buy nothing
+    /// but a race between the view appearing and its lists filling in.
+    /// </remarks>
+    public StaticGameData? TryLoad()
+    {
+        try
+        {
+            if (!File.Exists(StaticDataFilePath))
+            {
+                return null;
+            }
+
+            using var stream = File.OpenRead(StaticDataFilePath);
+            var staticData = JsonSerializer.Deserialize<StaticGameData>(stream, SerializerOptions);
+            if (staticData is null)
+            {
+                return null;
+            }
+
+            staticData.ItemGroups ??= new Dictionary<string, List<string>>();
+            staticData.LocationGroups ??= new Dictionary<string, List<string>>();
+            staticData.Locations ??= new Dictionary<long, StaticGameLocation>();
+            staticData.Items ??= new Dictionary<long, StaticGameItem>();
+            staticData.ShopSlots ??= new Dictionary<long, StaticShopSlot>();
+            staticData.TradeChecks ??= new Dictionary<long, StaticTradeCheck>();
+            staticData.Mercenaries ??= new Dictionary<long, StaticMercenariesCheck>();
+            return staticData;
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
+        {
+            Log($"Could not read {StaticDataFilePath} for the YAML pickers: {ex.Message}");
+            return null;
         }
     }
 

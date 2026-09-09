@@ -490,6 +490,61 @@ local function install(ctx)
         return CHECK_OVERLAY_HEADER_HEIGHT + ((line_count - 1) * CHECK_OVERLAY_HEADER_MAIN_Y_OFFSET)
     end
 
+    -- Mercenary identity can disappear briefly while its runtime domain remains
+    -- active. Keep that state honest: show its aggregate progress, never a pair
+    -- inferred from an old controller result. This is shared by header, menu AP,
+    -- and toast placement so all three agree about occupied screen space.
+    local function get_active_merc_header()
+        -- Cheapest question first: outside the mode there is no header, and
+        -- the pair lookup behind it is a scene search (2026-09-05 review).
+        local get_domain_first = ctx.get_runtime_domain or _G.get_runtime_domain
+        if type(get_domain_first) == "function" then
+            local ok_first, domain_first = pcall(get_domain_first)
+            if ok_first and domain_first ~= "MERCENARIES" then
+                return nil
+            end
+        end
+        local get_merc_info = ctx.get_current_merc_play_info or _G.get_current_merc_play_info
+        local ok_info, merc_info = false, nil
+        if type(get_merc_info) == "function" then
+            ok_info, merc_info = pcall(get_merc_info)
+        end
+        local stage_idx = type(merc_info) == "table" and tonumber(merc_info.stage_idx) or nil
+        local char_idx = type(merc_info) == "table" and tonumber(merc_info.char_idx) or nil
+        if stage_idx ~= nil and stage_idx >= 0 and char_idx ~= nil and char_idx >= 0
+            and trim_string(merc_info.stage_name) ~= "" and trim_string(merc_info.char_name) ~= "" then
+            return {
+                kind = "pair",
+                info = merc_info,
+                display_height = CHECK_OVERLAY_HEADER_HEIGHT + (2 * CHECK_OVERLAY_HEADER_MAIN_Y_OFFSET),
+            }
+        end
+
+        local get_domain = ctx.get_runtime_domain or _G.get_runtime_domain
+        local ok_domain, runtime_domain = false, nil
+        if type(get_domain) == "function" then
+            ok_domain, runtime_domain = pcall(get_domain)
+        end
+        if runtime_domain ~= "MERCENARIES" then
+            return nil
+        end
+
+        local get_checklist = ctx.get_mercenaries_checklist or _G.get_mercenaries_checklist
+        local ok_checklist, checklist = false, nil
+        if type(get_checklist) == "function" then
+            ok_checklist, checklist = pcall(get_checklist)
+        end
+        if type(checklist) == "table" and checklist.enabled == true then
+            return {
+                kind = "global",
+                checklist = checklist,
+                display_height = CHECK_OVERLAY_HEADER_HEIGHT + CHECK_OVERLAY_HEADER_MAIN_Y_OFFSET,
+            }
+        end
+
+        return nil
+    end
+
     -- Player-position -> section resolution is throttled: native transform reads
     -- and the label scan run at most every 0.25s, not per frame.
     local current_section_cache = {
@@ -507,6 +562,26 @@ local function install(ctx)
         current_section_cache.checked_at = now
         current_section_cache.stage = stage
         current_section_cache.section = nil
+
+        -- [Separate Ways] Her sections are authored per stage, because the
+        -- pause-map polygons below have no coverage for her campaign at all.
+        -- Reading her position against Leon's polygons put her in his Hunter's
+        -- Lodge while she stood at the Castle Gate (Cam, live 2026-09-07).
+        -- Leon's campaign keeps the polygons, which are finer than a stage.
+        do
+            local who = ctx.inject_current_character or _G.inject_current_character
+            local authored = ctx.get_authored_section or _G.get_authored_section
+            if type(who) == "function" and type(authored) == "function" then
+                local ok_character, character = pcall(who)
+                if ok_character and type(character) == "table" and character.campaign ~= "leon" then
+                    local ok_section, section = pcall(authored, stage, character.campaign)
+                    if ok_section and type(section) == "string" and section ~= "" then
+                        current_section_cache.section = section
+                        return section
+                    end
+                end
+            end
+        end
 
         local chapter_number = resolve_chapter_for_ui(stage)
         local position_getter = ctx.get_player_position or _G.get_player_position
@@ -531,6 +606,89 @@ local function install(ctx)
     end
 
     local function draw_check_progress_overlay()
+        local merc_header = get_active_merc_header()
+        if merc_header ~= nil then
+            local header_text
+            local ranks_text = nil
+            if merc_header.kind == "pair" then
+                local merc_info = merc_header.info
+                header_text = string.format(
+                    "The Mercenaries | %s - %s | %d/%d Checked",
+                    merc_info.stage_name,
+                    merc_info.char_name,
+                    merc_info.done,
+                    merc_info.total
+                )
+                ranks_text = merc_info.ranks_str or ""
+            else
+                header_text = string.format(
+                    "The Mercenaries | %d/%d Checked",
+                    tonumber(merc_header.checklist.found) or 0,
+                    tonumber(merc_header.checklist.total) or 0
+                )
+            end
+            local ap_client_text, ap_client_color = build_ap_client_overlay_text()
+
+            local header_window_width = math.max(
+                CHECK_OVERLAY_HEADER_MIN_WIDTH,
+                get_imgui_text_width(header_text) + (CHECK_OVERLAY_HEADER_PADDING_X * 2),
+                (ranks_text ~= nil and ranks_text ~= "") and (get_imgui_text_width(ranks_text) + (CHECK_OVERLAY_HEADER_PADDING_X * 2)) or 0,
+                ap_client_text ~= nil and (get_imgui_text_width(ap_client_text) + (CHECK_OVERLAY_HEADER_PADDING_X * 2)) or 0
+            )
+
+            imgui.set_next_window_pos(
+                Vector2f.new(get_overlay_anchor_x(header_window_width), CHECK_OVERLAY_MARGIN_Y),
+                1
+            )
+            imgui.set_next_window_size(
+                Vector2f.new(header_window_width, merc_header.display_height),
+                1
+            )
+            set_next_overlay_window_bg_alpha(0.0)
+            local overlay_style_count = push_overlay_window_transparent_style()
+            imgui.begin_window("##re4r_check_progress_overlay", true, CHECK_OVERLAY_WINDOW_FLAGS)
+
+            draw_centered_overlay_segments(
+                {
+                    { text = header_text, color = CHECK_OVERLAY_TEXT_COLOR_FILLER },
+                },
+                header_window_width
+            )
+
+            if ranks_text ~= nil then
+                -- One segment per rank: "[x] A" green once its check went,
+                -- "[ ] S" dimmed until then (Cam, 2026-09-06). ranks_str is
+                -- the same words in one string, kept for the width above.
+                local rank_segments = {}
+                local ranks = merc_header.kind == "pair" and merc_header.info.ranks or nil
+                if type(ranks) == "table" and #ranks > 0 then
+                    for _, rank in ipairs(ranks) do
+                        rank_segments[#rank_segments + 1] = {
+                            text = (rank.checked and "[x] " or "[ ] ") .. tostring(rank.name),
+                            color = rank.checked and CHECK_OVERLAY_TEXT_COLOR_CONNECTED
+                                or CHECK_OVERLAY_TEXT_COLOR_PROBE_DETAIL,
+                        }
+                    end
+                else
+                    rank_segments[1] = { text = ranks_text, color = CHECK_OVERLAY_TEXT_COLOR_PROGRESS }
+                end
+                draw_centered_overlay_segments(rank_segments, header_window_width)
+            end
+
+            if ap_client_text ~= nil then
+                draw_centered_overlay_segments(
+                    {
+                        { text = ap_client_text, color = ap_client_color },
+                    },
+                    header_window_width
+                )
+            end
+
+            imgui.end_window()
+            pop_overlay_window_transparent_style(overlay_style_count)
+            return
+        end
+
         local state = bridge.last_state or {}
         if not state.is_playable or type(state.current_stage) ~= "number" then
             return
@@ -538,11 +696,35 @@ local function install(ctx)
 
         local chapter_display = tostring(bridge.ui_current_chapter_display or "(unknown)")
 
-        -- Header: Chapter | <pause-map area name> | <section-scoped checks>.
-        -- Stages are internal streaming units and never player-facing (see
-        -- PLAYER_GUIDANCE_DESIGN.md); the section is the same place name the
-        -- player reads on the in-game map, and the count always describes
+
+        -- Header: <character> | Chapter | <pause-map area name> | <section
+        -- checks>. Stages are internal streaming units and never player-facing
+        -- (see PLAYER_GUIDANCE_DESIGN.md); the section is the same place name
+        -- the player reads on the in-game map, and the count always describes
         -- exactly the place printed next to it.
+        --
+        -- The character comes first because it changes what the rest of the
+        -- line means: Ada walks much of Leon's map with his stage ids, so
+        -- "Chapter 2 | Castle Gate" reads identically in either campaign
+        -- (Cam, 2026-09-06). Omitted rather than guessed when the inventory
+        -- table cannot be read, which is how an ordinary run behaves today.
+        local character_name = nil
+        do
+            local who = ctx.inject_current_character or _G.inject_current_character
+            if type(who) == "function" then
+                local ok_character, character = pcall(who)
+                if ok_character and type(character) == "table" then
+                    character_name = character.name
+                end
+            end
+        end
+        local function with_character(text)
+            if character_name == nil or character_name == "" then
+                return text
+            end
+            return character_name .. " | " .. text
+        end
+
         local section_name = get_current_section(state.current_stage)
         local header_text
         if section_name ~= nil and section_name ~= "" then
@@ -555,12 +737,12 @@ local function install(ctx)
             else
                 progress_text = "No Checks Here"
             end
-            header_text = string.format(
+            header_text = with_character(string.format(
                 "Chapter %s | %s | %s",
                 chapter_display,
                 section_name,
                 progress_text
-            )
+            ))
         else
             -- No section resolved (no labels loaded / unknown scene): stage-scoped
             -- counts with honest "nearby" wording, stage id kept out of the UI.
@@ -569,11 +751,11 @@ local function install(ctx)
             if total_count > 0 and checked_count >= total_count then
                 progress_text = string.format("All %d Nearby Checked", total_count)
             end
-            header_text = string.format(
+            header_text = with_character(string.format(
                 "Chapter %s | %s",
                 chapter_display,
                 progress_text
-            )
+            ))
         end
         local ap_client_text, ap_client_color = build_ap_client_overlay_text()
         local progression_text = nil
@@ -653,6 +835,93 @@ local function install(ctx)
         pop_overlay_window_transparent_style(overlay_style_count)
     end
 
+    -- [Multiworld hints] Hints you bought for YOUR items that live in someone
+    -- else's world. A marker cannot help - there is nowhere in RE4R to point -
+    -- so they get a pinned panel instead, one bullet each:
+    -- "<Item> lives in <Player>'s World - <Location>".
+    --
+    -- Pinned to the LEFT edge, about two thirds up the screen (Cam's pick):
+    -- clear of the header and toasts on the right, and clear of the health
+    -- and ammo readouts along the bottom. Left-aligned text, because a
+    -- bullet list hugging the left edge reads wrong centred.
+    --
+    -- The panel exists only while there is something in it: the first such
+    -- hint spawns it, later ones extend the list, and it disappears once the
+    -- last one is found. Deliberately NOT gated on check_guidance - the
+    -- player paid points for this and it is theirs regardless of the world's
+    -- marker permissions (Cam, 2026-08-13).
+    local function draw_multiworld_hints_overlay()
+        -- Player toggle (Script Generated UI + Guidance tab, mirrored). nil
+        -- counts as on: the panel predates the toggle and defaults visible.
+        if bridge.multiworld_hints_overlay == false then
+            return
+        end
+        local state = bridge.last_state or {}
+        if not state.is_playable or type(state.current_stage) ~= "number" then
+            return
+        end
+        local hints = bridge.multiworld_hints
+        if type(hints) ~= "table" or #hints == 0 then
+            return
+        end
+
+        local title = "Multiworld Hints"
+        local lines = {}
+        for _, hint in ipairs(hints) do
+            local where = hint.location_name
+            local text
+            if where ~= nil and where ~= "" then
+                text = string.format("%s lives in %s's World - %s",
+                    tostring(hint.item_name), tostring(hint.finding_player_name), tostring(where))
+            else
+                -- No datapackage entry for that game's location: still name the
+                -- world, which is the part the player can act on.
+                text = string.format("%s lives in %s's World",
+                    tostring(hint.item_name), tostring(hint.finding_player_name))
+            end
+            lines[#lines + 1] = "- " .. text
+        end
+
+        local window_width = math.max(
+            CHECK_OVERLAY_HEADER_MIN_WIDTH,
+            get_imgui_text_width(title) + (CHECK_OVERLAY_HEADER_PADDING_X * 2))
+        for _, line in ipairs(lines) do
+            window_width = math.max(
+                window_width,
+                get_imgui_text_width(line) + (CHECK_OVERLAY_HEADER_PADDING_X * 2))
+        end
+        local window_height = CHECK_OVERLAY_HEADER_MAIN_Y_OFFSET
+            + ((#lines + 1) * CHECK_OVERLAY_HEADER_MAIN_Y_OFFSET)
+
+        -- Left edge; vertically at MULTIWORLD_HINTS_ANCHOR_Y (fraction of the
+        -- screen measured from the TOP, so 0.34 sits roughly two thirds up).
+        -- Clamped so a long list can never run off the bottom.
+        local top = CHECK_OVERLAY_MARGIN_Y
+        local ok_display, display_size = pcall(function() return imgui.get_display_size() end)
+        if ok_display and display_size ~= nil then
+            local screen_height = tonumber(display_size.y or 0) or 0
+            if screen_height > 0 then
+                top = math.floor(screen_height * MULTIWORLD_HINTS_ANCHOR_Y)
+                local lowest = screen_height - window_height - CHECK_OVERLAY_MARGIN_Y
+                if top > lowest then top = math.max(CHECK_OVERLAY_MARGIN_Y, lowest) end
+            end
+        end
+        imgui.set_next_window_pos(
+            Vector2f.new(CHECK_OVERLAY_MARGIN_X, top), 1)
+        imgui.set_next_window_size(Vector2f.new(window_width, window_height), 1)
+        set_next_overlay_window_bg_alpha(0.0)
+        local overlay_style_count = push_overlay_window_transparent_style()
+        imgui.begin_window("##re4r_multiworld_hints_overlay", true, CHECK_OVERLAY_WINDOW_FLAGS)
+
+        draw_overlay_text(title, CHECK_OVERLAY_TEXT_COLOR_PROGRESS)
+        for _, line in ipairs(lines) do
+            draw_overlay_text(line, CHECK_OVERLAY_TEXT_COLOR_DETAIL)
+        end
+
+        imgui.end_window()
+        pop_overlay_window_transparent_style(overlay_style_count)
+    end
+
     -- [Menu status] The full header needs a loaded stage (chapter, area, check
     -- counts), so outside gameplay it draws nothing - which left the menus with
     -- no sign of whether Archipelago was even connected. This is the same
@@ -661,6 +930,10 @@ local function install(ctx)
     -- port recovery dialog - a player staring at a menu is precisely who needs
     -- to know the server is unreachable).
     local function draw_ap_status_menu_overlay()
+        if get_active_merc_header() ~= nil then
+            return -- Merc header already carries this line
+        end
+
         local state = bridge.last_state or {}
         if state.is_playable and type(state.current_stage) == "number" then
             return -- the in-game header already carries this line
@@ -691,7 +964,13 @@ local function install(ctx)
 
     local function draw_check_notification_overlays_polished()
         local state = bridge.last_state or {}
-        if not state.is_playable or type(state.current_stage) ~= "number" then
+        local get_domain = ctx.get_runtime_domain or _G.get_runtime_domain
+        local ok_domain, runtime_domain = false, nil
+        if type(get_domain) == "function" then
+            ok_domain, runtime_domain = pcall(get_domain)
+        end
+        local is_merc_runtime = ok_domain and runtime_domain == "MERCENARIES"
+        if not is_merc_runtime and (not state.is_playable or type(state.current_stage) ~= "number") then
             return
         end
 
@@ -710,7 +989,11 @@ local function install(ctx)
         local FADE_OUT_MS = 650
         local life_ms = tonumber(CHECK_NOTIFICATION_DURATION_MS) or 4500
 
-        local base_y = CHECK_OVERLAY_MARGIN_Y + get_check_overlay_header_display_height(state.current_stage) + CHECK_OVERLAY_GAP_Y
+        local merc_header = is_merc_runtime and get_active_merc_header() or nil
+        local header_display_height = is_merc_runtime
+            and (merc_header ~= nil and merc_header.display_height or 0)
+            or get_check_overlay_header_display_height(state.current_stage)
+        local base_y = CHECK_OVERLAY_MARGIN_Y + header_display_height + CHECK_OVERLAY_GAP_Y
 
         for index, notification in ipairs(notifications) do
             local toast_alpha = 1.0
@@ -925,7 +1208,9 @@ local function install(ctx)
     export("build_pickup_probe_detail_text", build_pickup_probe_detail_text)
     export("get_active_check_notifications", get_active_check_notifications)
     export("get_check_overlay_header_display_height", get_check_overlay_header_display_height)
+    export("get_active_merc_header", get_active_merc_header)
     export("draw_check_progress_overlay", draw_check_progress_overlay)
+    export("draw_multiworld_hints_overlay", draw_multiworld_hints_overlay)
     export("draw_ap_status_menu_overlay", draw_ap_status_menu_overlay)
     export("draw_check_notification_overlays_polished", draw_check_notification_overlays_polished)
     export("trigger_celebration", trigger_celebration)

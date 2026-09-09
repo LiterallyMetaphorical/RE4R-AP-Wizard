@@ -3,7 +3,7 @@ local function install(ctx)
         -- Logged at boot next to the launcher's install stamp so a player's
         -- re2_framework_log.txt identifies the exact deployed build. Bump on
         -- every Lua change that ships (date.rev).
-        MOD_VERSION = "2026.08.06-3",
+        MOD_VERSION = "2026.09.08-134",
         DATA_DIR = "ArchipelagoRE4R",
         WRITE_INTERVAL_SECONDS = 0.25,
         SCAN_INTERVAL_SECONDS = 1 / 30,
@@ -75,6 +75,12 @@ local function install(ctx)
         -- line instead ("Collected X from Y in Z"), which also names the vanilla
         -- item and the area. Only AP-tracked own pickups are touched; foreign
         -- placements never reached the organic toast anyway (intercepted).
+        -- [Buy tab icons] Whether the merchant's rows wear our art at all
+        -- (a local check showing its real item, the AP logo elsewhere). The
+        -- Debug tab flips it live; turning it off hands every widget back and
+        -- lets the game draw the tab itself, which is how a wrong icon on a
+        -- staple row gets pinned on us or ruled out (Cam, 2026-09-06).
+        MERCHANT_ROW_ICON_DRESSING = true,
         SUPPRESS_ORGANIC_AP_ITEM_TOAST = true,
         -- How long an armed suppression stays valid. Armed at the ACCEPT hook,
         -- which fires before the item lands, so this only spans accept -> the
@@ -132,8 +138,8 @@ local function install(ctx)
         -- actual AP item and recipient -- a spoiler gated behind Developer
         -- Tools), or "developer" (+ the [guid8] location code that matches the
         -- spoiler log line -- same Developer Tools gate).
-        -- The Status-window picker overrides at runtime, capped by the YAML host
-        -- ceiling (marker_detail_ceiling). Guidance default says WHERE, not WHAT.
+        -- Only used before the first connect: slot_data.marker_detail sets the
+        -- starting tier, and the Guidance picker moves it freely from there.
         WORLD_MARKER_DETAIL = "basic",
         -- Developer pickup-probe telemetry (GUID / stage / ctx / "Not in dataset" /
         -- "No accept hook") in the header overlay. OFF for players; flip to true to
@@ -167,6 +173,11 @@ local function install(ctx)
         CHECK_OVERLAY_TOAST_HEIGHT = 58,
         CHECK_OVERLAY_HEADER_MAIN_Y_OFFSET = 18,
         CHECK_OVERLAY_HEADER_MIN_WIDTH = 320,
+        -- [Multiworld hints] Where the pinned hint panel sits, as a fraction of
+        -- screen height measured from the TOP. 0.34 puts it roughly two thirds
+        -- up the LEFT edge (Cam's pick): away from the header and toasts on the
+        -- right, and above the health/ammo readouts at the bottom.
+        MULTIWORLD_HINTS_ANCHOR_Y = 0.34,
         CHECK_OVERLAY_HEADER_PADDING_X = 20,
         CHECK_OVERLAY_TOAST_MIN_WIDTH = 260,
         CHECK_OVERLAY_TOAST_PADDING_X = 18,
@@ -178,6 +189,13 @@ local function install(ctx)
         -- so the ITEM and the WHO read as distinct entities at a glance. The item keeps
         -- its classification colour; connective words stay white.
         CHECK_OVERLAY_TEXT_COLOR_PLAYER = { 0.45, 0.78, 0.96, 1.0 },
+        -- Areas in own-pickup titles ("You found your <item> in <area>"), the
+        -- local line's answer to the player colour above. Without it a filler
+        -- pickup rendered entirely white - item, connectives and place all the
+        -- same - while every multiworld line had the blue player name to break
+        -- it up (Cam 2026-08-21). Seafoam: clear of the golds, the blues and
+        -- the CONNECTED green.
+        CHECK_OVERLAY_TEXT_COLOR_AREA = { 0.55, 0.82, 0.70, 1.0 },
         CHECK_OVERLAY_TEXT_COLOR_CONNECTED = { 0.45, 0.85, 0.45, 1.0 },
         CHECK_OVERLAY_TEXT_COLOR_ERROR = { 0.92, 0.42, 0.42, 1.0 },
         CHECK_OVERLAY_TEXT_COLOR_DETAIL = { 1.0, 1.0, 1.0, 1.0 },

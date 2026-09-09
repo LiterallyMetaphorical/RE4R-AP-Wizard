@@ -14,6 +14,8 @@ local function install(ctx)
     end
 
     local function draw_guidance_content()
+        local theme = ctx.theme
+        theme.heading("World markers")
         imgui.text("Unchecked spots show a floating [AP] marker with the distance.")
         imgui.text("Markers only ever say WHERE - what to look for, and how much")
         imgui.text("detail, is up to you below.")
@@ -39,43 +41,48 @@ local function install(ctx)
                 bridge.world_markers_max_distance = distance_value
             end
 
-            -- Detail ladder, capped by the host's YAML ceiling; identify and
-            -- developer tiers are spoilers, so they also need Developer Tools.
-            local detail_tier_index = { basic = 1, locate = 2, identify = 3, developer = 4 }
-            local detail_names = { "basic", "locate", "identify", "developer" }
+            -- [2026-08-17] No ceiling any more. The settings file picks where
+            -- you START and this picker goes anywhere from there, including
+            -- the two spoiler tiers: you are choosing them for your own game,
+            -- deliberately, so Developer Tools has no business gating them.
+            local detail_tier_index = { minimal = 1, basic = 2, locate = 3, identify = 4, developer = 5 }
+            local detail_names = { "minimal", "basic", "locate", "identify", "developer" }
             local detail_labels = {
-                "Basic - distance, height, area",
-                "Locate - + what the item looked like in vanilla",
+                "Minimal - distance and height only",
+                "Basic - + the chapter and area",
+                "Locate - + the vanilla item, its container, and how to reach it",
                 "Identify - + the real item and who it belongs to (spoiler)",
                 "Developer - + the location code from the spoiler log",
             }
-            local ceiling_tier = detail_tier_index[bridge.marker_detail_ceiling or "developer"] or 4
-            local max_tier = math.min(ceiling_tier, bridge.developer_tools_enabled and 4 or 2)
-            local detail_options = {}
-            for i = 1, max_tier do detail_options[i] = detail_labels[i] end
             local cur_name = bridge.world_markers_detail
             if type(cur_name) ~= "string" then
                 cur_name = (type(WORLD_MARKER_DETAIL) == "string" and WORLD_MARKER_DETAIL) or "basic"
             end
-            local cur_tier = math.min(detail_tier_index[cur_name] or 1, max_tier)
-            local changed_detail, new_tier = imgui.combo("How much a marker says", cur_tier, detail_options)
+            local cur_tier = detail_tier_index[cur_name] or 1
+            local changed_detail, new_tier = imgui.combo("How much a marker says", cur_tier, detail_labels)
             if changed_detail then
                 bridge.world_markers_detail = detail_names[new_tier]
-            elseif detail_names[cur_tier] ~= cur_name then
-                bridge.world_markers_detail = detail_names[cur_tier]
+                -- Remembered per seed from here on, and no longer overwritten
+                -- by the settings file on a later connect.
+                bridge.world_markers_detail_chosen = true
+                bridge.state_dirty = true
             end
-            if ceiling_tier >= 3 and not bridge.developer_tools_enabled then
-                imgui.text("    Identify reveals real placements, so it needs Developer Tools.")
+            if cur_tier >= 4 then
+                theme.note("    This tier spoils what the multiworld placed.")
             end
+
+            theme.note("    A [RE-GRAB] marker means you died before saving and one")
+            theme.note("    of your own items is lying back in the world. The check already")
+            theme.note("    sent; this is just your item waiting to be picked up again.")
 
             local changed_hide_oc, hide_oc_value =
                 imgui.checkbox("Hide markers from other chapters", bridge.world_markers_hide_offchapter == true)
             if changed_hide_oc then
                 bridge.world_markers_hide_offchapter = hide_oc_value
             end
-            imgui.text("    Some areas are reused between chapters. Markers for a")
-            imgui.text("    different chapter are dimmed and tagged [Ch N]; this hides")
-            imgui.text("    them completely.")
+            theme.note("    Some areas are reused between chapters. Markers for a")
+            theme.note("    different chapter are dimmed and tagged [Ch N]; this hides")
+            theme.note("    them completely.")
 
             if bridge.check_guidance_ceiling == "markers_rarity" then
                 local changed_colors, colors_value = imgui.checkbox(
@@ -83,27 +90,40 @@ local function install(ctx)
                 if changed_colors then
                     bridge.world_markers_importance_colors = colors_value
                 end
-                imgui.text("    Reveals whether each check holds something important.")
+                theme.note("    Reveals whether each check holds something important.")
             end
         end
 
         imgui.text("")
+        theme.heading("Hint markers")
         local changed_hint_markers, hint_markers_value =
             imgui.checkbox("Show [HINT] markers", bridge.world_markers_show_hints)
         if changed_hint_markers then
             bridge.world_markers_show_hints = hint_markers_value
         end
-        imgui.text("    Locations you bought a hint for, visible anywhere in the area.")
+        theme.note("    Locations you bought a hint for, visible anywhere in the area.")
+        theme.note("    A hint for one of your items in ANOTHER player's world has no spot")
+        theme.note("    here to mark, so it is pinned to the screen's left edge instead,")
+        theme.note("    as \"Multiworld Hints\". That panel has its own switch:")
+
+        local changed_hints_panel, hints_panel_value =
+            imgui.checkbox("Show Multiworld Hints panel", bridge.multiworld_hints_overlay ~= false)
+        if changed_hints_panel then
+            bridge.multiworld_hints_overlay = hints_panel_value
+            bridge.multiworld_hints_overlay_chosen = true
+        end
+        theme.note("    Your pick is remembered for this seed. The same switch sits in")
+        theme.note("    the REFramework script menu, next to the window toggle.")
 
         imgui.text("")
-        if imgui.button("Show the getting-started guide again") then
+        theme.heading("Getting started")
+        imgui.text("The welcome note on the desk where you started covers everything.")
+        imgui.text("This opens the same note as a window, any time:")
+        if imgui.button("Show the Welcome Note") then
             local replay = ctx.replay_tutorial or _G.replay_tutorial
             if type(replay) == "function" then
                 replay()
             end
-        end
-        if bridge.tutorial_enabled == false then
-            imgui.text("    The host's settings turn the first-run guide off for new seeds.")
         end
     end
 

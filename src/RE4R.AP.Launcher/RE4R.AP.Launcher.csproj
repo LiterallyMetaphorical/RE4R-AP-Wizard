@@ -1,5 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- The AP Wizard artwork (design by @alrightness), shown on the landing
+       screen. A Resource rather than Content: it is part of the UI, so it
+       belongs inside the exe and does not need to survive as a loose file the
+       way the payload in assets\ does. -->
+  <ItemGroup>
+    <Resource Include="Assets\wizard.png" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\RE4R.AP.Launcher.Core\RE4R.AP.Launcher.Core.csproj" />
   </ItemGroup>
@@ -24,6 +32,26 @@
          Re4rRandomizerConfigurationDefinition, so keys/labels/types/defaults match BioRand
          exactly. BioRandOptionCatalog loads this; re-dump it when BioRand's options change. -->
     <Content Include="..\..\assets\Data\biorand_options.json" Link="assets\Data\biorand_options.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </Content>
+    <!-- Clean-game cache manifests: path, size and SHA-256 of every file a
+         correct harvest of a clean install produces, one per supported game
+         version. BioRandCacheManifestProvider verifies the cache against
+         these after every setup and (quick pass) before every patch, so
+         missing or modded game data is named at patch time instead of dying
+         later as a bare BioRand exit code. Regenerate with
+         tools/cache_manifest_tool whenever the bundled BioRand's pak list
+         changes or a game title update lands. -->
+    <Content Include="..\..\assets\Data\biorand-cache-manifest-*.txt.gz">
+      <Link>assets\Data\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </Content>
+    <!-- Enemy preset curves (Crowd x Roster axes, class multipliers, HP positions,
+         possession gates). EnemyConfigurationPresets loads this; retunes are a data
+         edit + restage, no rebuild. Design doc: ENEMY_CLASS_DESIGN.md (untracked). -->
+    <Content Include="..\..\assets\Data\enemy_presets.json" Link="assets\Data\enemy_presets.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </Content>
@@ -57,6 +85,13 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </Content>
+    <!-- What this payload was built from, written by tools/stage_payload.py.
+         Ships with the build so a copy of the launcher can say which commits
+         it came from; the Linux project globs assets\**\* and already had it. -->
+    <Content Include="..\..\assets\PAYLOAD_STAMP.json" Link="assets\PAYLOAD_STAMP.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </Content>
     <!-- Same gap for the apworld's provenance record, which sits in Data. -->
     <Content Include="..\..\assets\Data\*.txt">
       <Link>assets\Data\%(Filename)%(Extension)</Link>
@@ -75,7 +110,7 @@
          taskbar unless a Window sets its own Icon. -->
     <ApplicationIcon>app.ico</ApplicationIcon>
     <!-- Release identity; shown in the version stamp the patcher writes. -->
-    <Version>0.4.0-alpha</Version>
+    <Version>0.6.0-beta</Version>
   </PropertyGroup>
 
   <!-- Publish as a single self-contained exe so the distributable folder is just

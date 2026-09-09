@@ -54,9 +54,8 @@ local function install(ctx)
         loaded_session_state_path = nil,
         victory_sent = false,
         victory_pending = false,
-        -- [Tutorial] tutorial_enabled comes from slot_data (YAML, default on);
-        -- tutorial_shown is per-seed and persists in the session file.
-        tutorial_enabled = true,
+        -- [Tutorial] The welcome note is always placed and the guide window
+        -- opens from Guidance; tutorial_shown is per-seed, persisted.
         tutorial_shown = false,
         tutorial_dialog_open = false,
         tutorial_page = 1,
@@ -67,6 +66,8 @@ local function install(ctx)
         non_lead_checked_locations = {},
         pending_checks = {},
         pending_check_keys = {},
+        checked_locations = {},
+        mercenaries_completed_locations = {},
         next_pending_check_id = 1,
         pending_pickup_accepts = {},
         next_pending_pickup_accept_id = 1,
@@ -110,16 +111,42 @@ local function install(ctx)
         visible_guid_sample = {},
         warp_window_enabled = false,
         warp_editor_window_enabled = false,
+        -- [Marker position editor] Developer tool: nudge a marker onto the real
+        -- item and log a _POSITION_OVERRIDES line. Gated by developer_tools too.
+        marker_editor_window_enabled = false,
+        -- [D9 spike] Developer tool: probe GmBoat / PierDataSet / ReturnPortInfo
+        -- at the lake so the boat-follows-the-player design can be settled.
+        -- Temporary; goes away with ui_boat_spike.lua when D9 is built.
+        boat_spike_window_enabled = false,
+        model_tuner_window_enabled = false,
         -- [World markers] floating "[AP]" tags over unchecked locations in the
         -- current stage (ui_world_markers.lua). Importance colours reveal scouted
         -- classification, so they are opt-in (guidance says where, never what).
         world_markers_enabled = true,
-        world_markers_max_distance = 40.0,
+        -- 15m, down from 40m (Cam, 2026-08-13): a shorter leash trades a
+        -- screenful of distant tags for markers you meet by exploring, and it
+        -- pays for the richer text the tiers now carry. The Guidance slider
+        -- still spans 10-100m for anyone who wants the old reach back.
+        world_markers_max_distance = 15.0,
         world_markers_show_distance = true,
         world_markers_importance_colors = false,
-        -- Marker detail tier the player picks (basic | locate | identify); capped
-        -- by the YAML host ceiling and, for identify, by Developer Tools.
+        -- [D5] True when the launcher's room file says this world was patched
+        -- with allow-bonus-items.
+        allow_bonus_items = false,
+        -- [Bonus Weapons] True when the room holds the Extra Content trio as
+        -- pool items, which since 2026-09-08 is every room with a campaign.
+        -- Either flag marks the three as multiworld items, which is what the
+        -- Storage and deleter guards report. The force-unlock these two once
+        -- armed was retired on 2026-09-05; nothing writes to the profile.
+        bonus_weapons_unlock = false,
+        -- Marker detail tier (minimal | basic | locate | identify |
+        -- developer). Set from slot_data.marker_detail on connect, which is
+        -- where the player already chose it, and freely changed in Guidance
+        -- with no cap. This literal only matters before the first connect.
         world_markers_detail = "basic",
+        -- True once the player picks a tier in Guidance. From then on their
+        -- choice persists per seed and the settings file stops overriding it.
+        world_markers_detail_chosen = false,
         -- Markers whose chapter differs from the current one are muted + tagged;
         -- this toggle hides those off-chapter markers outright instead.
         world_markers_hide_offchapter = false,
@@ -177,6 +204,10 @@ local function install(ctx)
         chapter_switch_pending_special_jump_sequence = nil,
         chapter_switch_status = "(idle)",
         chapter_switch_last_armed_label = nil,
+        -- [Shop open state] merchant.lua sets this from the shop's own
+        -- enter/close states. Read ONLY by apclient's safe_to_inject, to
+        -- keep a DeathLink kill and item delivery out of an open shop.
+        shop_gui_open = false,
     }
 
     bridge.progression_warning_final_stage_by_chapter = {
@@ -204,6 +235,8 @@ local function install(ctx)
         bridge.state_dirty = false
         bridge.pending_checks = {}
         bridge.pending_check_keys = {}
+        bridge.checked_locations = {}
+        bridge.mercenaries_completed_locations = {}
         bridge.pending_pickup_accepts = {}
         bridge.next_pending_pickup_accept_id = 1
         bridge.pickup_probe = nil

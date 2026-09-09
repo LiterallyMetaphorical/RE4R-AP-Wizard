@@ -9,7 +9,23 @@ namespace RE4R.AP.Launcher.Services;
 
 public sealed class ReFrameworkInstallationService
 {
-    private const string LatestReleaseApiUrl = "https://api.github.com/repos/praydog/REFramework/releases/latest";
+    // A PINNED nightly, deliberately on both counts. Nightly because the
+    // stable repo's releases/latest is v1.5.9, whose head commit dates to
+    // March 2025 - Amondo's freeze class (device-reset rehook wedges,
+    // diagnosed 2026-08-28 from his crash zip) sits squarely in the
+    // eighteen months of fixes that only ever land in
+    // praydog/REFramework-nightly. Pinned because nightlies are per-commit
+    // CI builds with no QA gate: players must get the build WE smoke-tested,
+    // not whatever merged this morning (Cam, 2026-08-28), and two testers
+    // installing a day apart must get the same bytes. Nightlies ship one
+    // universal REFramework.zip (dinput8.dll + revision stamp) instead of
+    // per-game assets.
+    //
+    // BUMP PROCEDURE: pick the new nightly tag, run one live smoke pass of
+    // the full Lua surface against it, then update this constant.
+    private const string PinnedNightlyTag = "nightly-01397-684ca77369ec1050e844e8651a9b1d5b7c5aa370";
+    private const string LatestReleaseApiUrl =
+        "https://api.github.com/repos/praydog/REFramework-nightly/releases/tags/" + PinnedNightlyTag;
     private static readonly HttpClient HttpClient = CreateHttpClient();
 
     public event Action<string>? LogMessage;
@@ -35,7 +51,7 @@ public sealed class ReFrameworkInstallationService
         var asset = SelectRe4Asset(root);
         if (asset is null)
         {
-            throw new InvalidOperationException("The latest REFramework release did not contain a Resident Evil 4 asset. Check the upstream release page and try again later.");
+            throw new InvalidOperationException("The latest REFramework release did not contain a usable asset (REFramework.zip or a Resident Evil 4 build). Check the upstream release page and try again later.");
         }
 
         Log($"Selected REFramework release {releaseTag}, asset {asset.Value.Name} ({FormatSize(asset.Value.SizeBytes)}).");
@@ -128,6 +144,9 @@ public sealed class ReFrameworkInstallationService
     private static bool ShouldExtractEntry(string normalizedEntryPath)
     {
         return string.Equals(normalizedEntryPath, "dinput8.dll", StringComparison.OrdinalIgnoreCase)
+            // The nightly zip's 40-byte commit stamp: kept beside the dll so
+            // a bug report can name the exact REFramework build installed.
+            || string.Equals(normalizedEntryPath, "reframework_revision.txt", StringComparison.OrdinalIgnoreCase)
             || normalizedEntryPath.StartsWith("reframework/", StringComparison.OrdinalIgnoreCase);
     }
 
@@ -183,6 +202,11 @@ public sealed class ReFrameworkInstallationService
 
         string[] preferredNames =
         {
+            // The nightly repo's universal asset: one dinput8.dll for every
+            // RE Engine game. The per-game names below it are the stable
+            // repo's convention, kept as fallbacks in case the URL is ever
+            // pointed back there.
+            "REFramework.zip",
             "RE4R.zip",
             "RE4.zip",
         };

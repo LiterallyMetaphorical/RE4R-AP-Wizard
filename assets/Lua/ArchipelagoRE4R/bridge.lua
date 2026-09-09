@@ -34,6 +34,26 @@ local function install(ctx)
         return build_session_state_file_path(LEGACY_BRIDGE_DIR)
     end
 
+    -- REFramework's json.load_file logs an error for a file that is not
+    -- there, and on a brand-new seed neither the session file nor its legacy
+    -- twin exists yet, so every first connect read as two errors (live
+    -- 2026-09-05). fs.glob answers "is it there" quietly; its filter is a
+    -- regex over paths relative to the data folder, so the path's own
+    -- metacharacters (the backslashes, the dot) are escaped first. A build
+    -- without fs falls back to the plain load.
+    local function load_json_if_present(path)
+        if type(fs) == "table" and type(fs.glob) == "function" then
+            local pattern = string.gsub(path, "[\\%.%(%)%[%]%+%*%?%^%$%|%{%}]", function(c)
+                return "\\" .. c
+            end)
+            local ok, matches = pcall(fs.glob, pattern)
+            if ok and type(matches) == "table" and #matches == 0 then
+                return nil
+            end
+        end
+        return json.load_file(path)
+    end
+
     local function save_session_state()
         local session_state_path = get_session_state_file_path()
         bridge.loaded_session_state_path = session_state_path
@@ -46,8 +66,24 @@ local function install(ctx)
             tutorial_shown = bridge.tutorial_shown == true,
             -- [Phase 3] durable per-seed checked set ("stage|guid" -> true).
             acknowledged_guid_keys = bridge.acknowledged_guid_keys,
+            mercenaries_completed_locations = bridge.mercenaries_completed_locations or {},
             -- [F8] per-guid, per-save-version received-item watermarks.
             save_reconcile = bridge.save_reconcile_map or {},
+            -- [Purchase settlement] Which shop slots' refund gems are baked
+            -- into each save version. Same shape and the same reasoning as the
+            -- watermarks above: the check is server state and never rolls
+            -- back, the gem is save state and does, so a load has to be able
+            -- to tell whether this version already contains it.
+            settled_gems = bridge.settled_gems_map or {},
+            -- [Markers] The tier the player picked in Guidance, and whether
+            -- they picked it at all. Without this the choice died at every
+            -- boot and the settings file silently won again.
+            world_markers_detail = bridge.world_markers_detail,
+            world_markers_detail_chosen = bridge.world_markers_detail_chosen == true,
+            -- [Hints panel] Same deal as the marker tier: an explicit pick
+            -- survives the boot, a default never overwrites one.
+            multiworld_hints_overlay = bridge.multiworld_hints_overlay ~= false,
+            multiworld_hints_overlay_chosen = bridge.multiworld_hints_overlay_chosen == true,
             -- [Non-lead pickups] Locations collected by a character whose
             -- inventory the game discards; the item still owes delivery to
             -- the lead. Persisted so quitting mid-section cannot lose it.
@@ -67,17 +103,22 @@ local function install(ctx)
         bridge.last_received_index = -1
         bridge.tutorial_shown = false
         bridge.acknowledged_guid_keys = {}
+        bridge.mercenaries_completed_locations = {}
         bridge.save_reconcile_map = {}
+        bridge.settled_gems_map = {}
+        bridge.world_markers_detail_chosen = false
+        bridge.multiworld_hints_overlay = true
+        bridge.multiworld_hints_overlay_chosen = false
         bridge.non_lead_checked_locations = {}
 
-        local payload = json.load_file(session_state_path)
+        local payload = load_json_if_present(session_state_path)
         local migrated_from = nil
         if type(payload) ~= "table" then
             -- One-time forward migration from the legacy drive-root store.
             -- The legacy file is left in place (never deleted): losing the
             -- watermark would re-inject received items as duplicates.
             local legacy_path = get_legacy_session_state_file_path()
-            local legacy_payload = json.load_file(legacy_path)
+            local legacy_payload = load_json_if_present(legacy_path)
             if type(legacy_payload) == "table" then
                 payload = legacy_payload
                 migrated_from = legacy_path
@@ -95,6 +136,14 @@ local function install(ctx)
                     end
                 end
             end
+            if type(payload.mercenaries_completed_locations) == "table" then
+                for location_id, completed in pairs(payload.mercenaries_completed_locations) do
+                    local numeric_id = tonumber(location_id)
+                    if numeric_id ~= nil and completed == true then
+                        bridge.mercenaries_completed_locations[math.floor(numeric_id)] = true
+                    end
+                end
+            end
             -- [F8] per-guid save-version watermarks (received-item reconciliation).
             if type(payload.save_reconcile) == "table" then
                 for guid, rec in pairs(payload.save_reconcile) do
@@ -106,6 +155,38 @@ local function install(ctx)
                             if wmn ~= nil then sw[tostring(count_key)] = math.floor(wmn) end
                         end
                         bridge.save_reconcile_map[guid] = { save_watermarks = sw }
+                    end
+                end
+            end
+            -- [Markers] Only an explicit in-game pick is restored; without the
+            -- flag the settings file gets to set the starting tier again.
+            if payload.world_markers_detail_chosen == true
+                and type(payload.world_markers_detail) == "string" then
+                bridge.world_markers_detail = payload.world_markers_detail
+                bridge.world_markers_detail_chosen = true
+            end
+            -- [Hints panel] Only an explicit pick is restored, same as above.
+            if payload.multiworld_hints_overlay_chosen == true then
+                bridge.multiworld_hints_overlay = payload.multiworld_hints_overlay ~= false
+                bridge.multiworld_hints_overlay_chosen = true
+            end
+            -- [Purchase settlement] guid -> save count -> { slot key -> true }.
+            if type(payload.settled_gems) == "table" then
+                for guid, by_count in pairs(payload.settled_gems) do
+                    if type(guid) == "string" and type(by_count) == "table" then
+                        local counts = {}
+                        for count_key, slot_set in pairs(by_count) do
+                            if type(slot_set) == "table" then
+                                local slots = {}
+                                for slot_key, flag in pairs(slot_set) do
+                                    if type(slot_key) == "string" and flag == true then
+                                        slots[slot_key] = true
+                                    end
+                                end
+                                counts[tostring(count_key)] = slots
+                            end
+                        end
+                        bridge.settled_gems_map[guid] = counts
                     end
                 end
             end
@@ -256,12 +337,67 @@ local function install(ctx)
         return (type(wm) == "number") and wm or nil
     end
 
+    -- [Purchase settlement] Which shop slots' refund gems save version
+    -- <save_count> of <guid> contains. Written from the live set at the moment
+    -- the game finishes writing that version, exactly like the watermark above,
+    -- because that is the only instant we know what the file actually holds.
+    local function record_settled_gems(guid, save_count, slot_keys)
+        if type(guid) ~= "string" or guid == "" then return end
+        local count = tonumber(save_count)
+        if count == nil then return end
+        bridge.settled_gems_map = bridge.settled_gems_map or {}
+        local by_count = bridge.settled_gems_map[guid]
+        if type(by_count) ~= "table" then
+            by_count = {}
+            bridge.settled_gems_map[guid] = by_count
+        end
+        local snapshot = {}
+        if type(slot_keys) == "table" then
+            for slot_key, flag in pairs(slot_keys) do
+                if type(slot_key) == "string" and flag == true then
+                    snapshot[slot_key] = true
+                end
+            end
+        end
+        by_count[tostring(math.floor(count))] = snapshot
+        -- Same bound as the watermarks: a long playthrough must not grow the
+        -- session file without limit.
+        local counts = {}
+        for k in pairs(by_count) do
+            local n = tonumber(k)
+            if n ~= nil then counts[#counts + 1] = n end
+        end
+        if #counts > SAVE_WATERMARK_KEEP then
+            table.sort(counts)
+            for i = 1, #counts - SAVE_WATERMARK_KEEP do
+                by_count[tostring(counts[i])] = nil
+            end
+        end
+    end
+
+    -- nil (not an empty set) when this exact version was never observed being
+    -- written: a pre-fix save. The caller then declines to grant rather than
+    -- guess, so a load can never mint a second gem.
+    local function lookup_settled_gems(guid, save_count)
+        if type(guid) ~= "string" then return nil end
+        local map = bridge.settled_gems_map
+        if type(map) ~= "table" then return nil end
+        local by_count = map[guid]
+        if type(by_count) ~= "table" then return nil end
+        local count = tonumber(save_count)
+        if count == nil then return nil end
+        local snapshot = by_count[tostring(math.floor(count))]
+        return (type(snapshot) == "table") and snapshot or nil
+    end
+
     export("save_session_state", save_session_state)
     export("set_ap_session_identity", set_ap_session_identity)
     export("refresh_launcher_bridge_files", refresh_launcher_bridge_files)
     export("read_campaign_save_ids", read_campaign_save_ids)
     export("record_save_watermark", record_save_watermark)
     export("lookup_save_floor", lookup_save_floor)
+    export("record_settled_gems", record_settled_gems)
+    export("lookup_settled_gems", lookup_settled_gems)
 end
 
 return install

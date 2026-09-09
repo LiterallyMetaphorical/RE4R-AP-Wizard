@@ -1,0 +1,63 @@
+<UserControl x:Class="RE4R.AP.Launcher.Controls.RangeSlider"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             MinHeight="52">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="30" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- One track, two markers. Everything is placed from code in
+             UpdateVisual so the markers, the highlighted span between them
+             and the tick labels all share the same geometry. -->
+        <Canvas x:Name="TrackCanvas"
+                Grid.Row="0"
+                Background="Transparent"
+                ClipToBounds="False"
+                MouseLeftButtonDown="OnTrackClicked">
+            <Border x:Name="TrackRail"
+                    Height="4"
+                    CornerRadius="2"
+                    Background="{DynamicResource SubtleBorderBrush}" />
+            <Border x:Name="TrackFill"
+                    Height="4"
+                    CornerRadius="2"
+                    Background="{DynamicResource AccentBrush}" />
+            <Thumb x:Name="LowerThumb"
+                   Width="16"
+                   Height="16"
+                   DragDelta="OnLowerThumbDragged">
+                <Thumb.Template>
+                    <ControlTemplate TargetType="Thumb">
+                        <Border Background="{DynamicResource AccentBrush}"
+                                BorderBrush="{DynamicResource AccentForegroundBrush}"
+                                BorderThickness="2"
+                                CornerRadius="8" />
+                    </ControlTemplate>
+                </Thumb.Template>
+            </Thumb>
+            <Thumb x:Name="UpperThumb"
+                   Width="16"
+                   Height="16"
+                   DragDelta="OnUpperThumbDragged">
+                <Thumb.Template>
+                    <ControlTemplate TargetType="Thumb">
+                        <Border Background="{DynamicResource AccentBrush}"
+                                BorderBrush="{DynamicResource AccentForegroundBrush}"
+                                BorderThickness="2"
+                                CornerRadius="8" />
+                    </ControlTemplate>
+                </Thumb.Template>
+            </Thumb>
+        </Canvas>
+
+        <Canvas x:Name="LabelCanvas"
+                Grid.Row="1"
+                Height="18"
+                ClipToBounds="False" />
+    </Grid>
+</UserControl>

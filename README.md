@@ -7,7 +7,7 @@
 - IntelOrca and the BioRand project for the Resident Evil randomizer this project's world patcher is built from.
 - black-sliver for the Archipelago client binding (lua-apclientpp).
 - @CriminalENT for the in-game repack and model swap that placed the Archipelago logo in the game.
-- @snowzzrra for the Linux Release
+- @snowzzrra for the Linux Release and for The Mercenaries support
 - chenstack for [Item Adder](https://www.nexusmods.com/residentevil42023/mods/896), the foundation for injecting multiworld items, and [Item indicator](https://www.nexusmods.com/residentevil42023/mods/1063), the foundation for the in-world Markers.
 - JumperDenfer for the [RE4 Warp Mod](https://www.nexusmods.com/residentevil42023/mods/5923), the foundation for the typewriter warp system.
 - Additional Resident Evil 4 mod authors whose work informed these systems; specific techniques are credited in the source where they are used.
@@ -21,7 +21,9 @@
 
 ## What gets randomized
 
-- **467 item locations** across the full Leon campaign, chapters 1 to 16. Includes Key Items with logic to ensure they spawn before you need them.
+- **456 item locations** across the full Leon campaign, chapters 1 to 16. Includes Key Items with logic to ensure they spawn before you need them.
+- **The merchant sells multiworld checks** on both his tabs: the shop for pesetas and the trade tab for spinel, each on by default at 3 a chapter (45 a seed each). See [The merchant](#the-merchant).
+- **The Mercenaries can be part of the room, or the whole room.** Rank checks for every character and stage pair, with the characters and stages as the items. See [The Mercenaries](#the-mercenaries).
 - Other players' items appear as Archipelago-logo pickups. Collecting one sends its check and puts nothing in your inventory. Your own items are collected normally.
 - Locations that cannot be collected in game are excluded from the pool, so nothing gets stranded on them.
 
@@ -41,6 +43,97 @@ would change the set of checks, or create a softlock, are locked out.
 > YAML setting only when you want it: generation picks the event set, models its
 > room changes in logic, and the launcher applies that authoritative roll when
 > patching. It requires item and enemy randomization, so both are forced on.
+
+## The merchant
+
+The merchant is a second source of checks, and by default he is part of the run
+rather than an option you go looking for. Both of his tabs hold checks now: the
+shop, paid in pesetas, and the trade tab, paid in spinel.
+
+**Merchant Shop Checks.** His buy tab holds Archipelago checks. Three a chapter
+by default, forty-five a seed, up to ninety at the cap. His shelf shows thirteen
+at a time and the rest queue behind them, moving up as you buy, so a check is
+never lost. Each row names what it really is and who it belongs to, then reads
+SOLD OUT once bought.
+
+Prices are fixed by tier - 2,500 filler, 7,500 useful, 15,000 progression - and
+buying another player's item refunds spinel at the trade tab's own tiers: 1, 3
+or 6. You need the pesetas up front, and you get trade currency back (about
+half the price in money terms, through the exchange). Your own items are normal
+spending and refund nothing.
+
+You can set who the rows may hold: **Mixed** lets the multiworld decide,
+**Local** keeps your own items on the shelf, and **Remote** turns the shop into
+a trading post where every row belongs to somebody else.
+
+**Merchant Trade Checks.** His trade tab holds checks too, bought with spinel
+instead of pesetas. Three a chapter by default, forty-five a seed. Seven slots
+show at once, and a claimed slot rotates to the next check straight away, so the
+tab keeps offering something as long as checks remain.
+
+Spinel prices are fixed by tier as well - 1 filler, 3 useful, 6 progression -
+and the item pool mints exactly enough spinel to pay for every trade check in
+the seed, so the tab is always affordable. The nineteen Merchant Requests still
+pay their spinel on top of that.
+
+Two things work differently here. Trade checks never refund, and the owners
+setting does not apply to them, so the trade tab is always mixed no matter what
+you chose for the shelf.
+
+The currency exchange is there whatever rate you set, zero included: Velvet Blue
+always available at 2 spinel, and the three gemstones at 3, 4 and 5, restocking
+every chapter. Leftover spinel still turns into money.
+
+One caution before you cash out: the logic that paces trade checks counts
+only the spinel the multiworld minted, and spinel you spend on gemstones or
+Gold Tokens is invisible to it. Keep enough back for the trade checks still
+on the tab, or only the merchant's own request rewards can make it up.
+
+**Merchant Gear.** On by default. Everything the merchant sold as gear leaves
+the buy tab and joins the multiworld: weapons, attachments, case sizes,
+knives, crafting recipes and body armor, the Deluxe and Separate Ways guns
+included. What stays on his shelf is the restocked Staples (healing and
+crafting), tune-ups and selling. Your next gun is a check somewhere out there,
+possibly in another player's world. Expect a different power curve. Gear never
+gates logic, so a seed can always be finished with what the world hands you.
+
+The case sizes and the knives are progressive: each Progressive Attache Case
+you receive is the next size up from the one you carry, and each Progressive
+Knife is the next knife you do not own, the Fighting Knife first and then the
+Primal. Order of arrival
+never matters, and none of them is ever wasted.
+
+Consumable supplies stay: herbs, first aid, resources, gunpowder and grenades
+restock at every chapter. Ammo deliberately does not, because you craft it and
+the multiworld now carries it.
+
+**Starting Arsenal.** Two pool weapons in your case from the campaign's first
+moment, with ammo to match. Each one leaves the pool, so nobody finds a second
+copy. Set it to zero if you would rather start with nothing.
+
+## The Mercenaries
+
+**Included Content**, at the top of your settings, picks what the multiworld
+covers: Main Campaign, The Mercenaries, or both. Separate Ways is listed and
+greyed out as coming soon.
+
+With The Mercenaries included, every character and stage pair has rank checks.
+**Ranks as Checks** is a range with two markers on the C, B, A, S, S+, S++
+ladder: every rank between them counts, for every character and stage, 32
+checks a rank. The default is C through A, which is 96 checks. Rank C is
+finishing a run at all, and the game never shows C or B as letters even
+though every finished run carries one. C, B and A can hold progression; S and
+above never do, so no seed ever depends on a top score.
+
+The characters and stages are the items. One of each starts with you; the rest
+stay locked in the mode's menus until their item arrives, with a toast when it
+does. A campaign item received while a Mercenaries run is in progress waits
+until you are back in the campaign.
+
+A room that includes only The Mercenaries needs no campaign patch: the launcher
+skips BioRand and installs the in-game mod alone, and Rank A on every unlocked
+pair is the goal. The Checklist has a Mercenaries section with the stages side
+by side and each character's rank marks.
 
 ## What You Need
 
@@ -83,14 +176,17 @@ name and patch.
 
 ### Your settings file
 
-- **Difficulty** - the game's own difficulty.
+- **Included Content** - Main Campaign, The Mercenaries, or both. See [The Mercenaries](#the-mercenaries).
+- **Ranks as Checks** - the range of Mercenaries ranks that count, set by its lowest and highest marker (default C through A).
+- **Difficulty** - the difficulty you'll actually play. Hardcore and Professional remove the few spots that can't be collected on those difficulties, so it needs to match your save.
 - **Death Link** - share deaths with the room.
 - **Progression Balancing** - how hard the multiworld works to keep your important items early. 50-70 suits RE4R's gated chapters; lower values mean longer waits on other players.
 - **Check Guidance** - the ceiling for in-game Markers.
 - **Allow Missable Locations** - off by default, keeping progression items off spots you can permanently lose: ones you can walk past for good, and small-key drawers, since a discarded Small Key can seal one. Turn it on for riskier seeds where both can hold progression.
 - **Shuffle Keycards** - off by default; the island keycards stay at their native spots.
-- **Minimize Backtracking + Side Areas** - off by default; when on, keeps important checks on the main path.
-- **Unlocked Typewriters** - save points you can warp to from the start.
+- **Minimize Backtracking + Side Areas** - on by default; keeps important checks on the main path. Off lets side areas hold anything.
+- **Unlocked Typewriters** - save points you can warp to from the start. In a hand-written settings file, name them by their typewriter name ("Farm Typewriter") or by their stage id (43300); either works.
+- **Priority and excluded locations** - the location picker marks spots that must hold an important item, or must not. Marking a whole key-gated region as priority (the Castle, the Island) asks for more than the item pool can deliver, because the items that open that region can never sit inside it: the generator keeps as many of those spots as it can fill and sets the rest back to normal, and its log says how many.
 
 ## How it works
 
@@ -102,28 +198,49 @@ A check is only forgotten locally once the server acknowledges it, so a dropped 
 
 ## Known issues
 
+**Some pickups can grant the item and send nothing.** The main cause found so
+far is fixed in this build (a pickup taken with a full case, or as a weapon or
+key item, now sends), but the report is still worth making because a miss is
+silent. **The tell: if an Archipelago-logo placeholder lands in your inventory,
+that check did not send** - a placeholder is meant to vanish on pickup. Nothing
+is permanently lost. **Force Check** in the Something's Wrong tab sends it, one
+location at a time. If it happens, please send `re2_framework_log.txt` grabbed
+WITHOUT relaunching the game, since it is overwritten every launch.
+
+Smaller things:
+
+- The merchant backlog is only in the log, not on screen.
+- A summoned boat may face an odd direction at its pier.
 - An inbound DeathLink shows the game-over screen with no death animation.
-- Some overlay counters can briefly disagree with the server
-- RE4R AP has recently still struggled with missing item placements if you find one, please send a screenshot of the item (With Developer type Markers enabled, ideally) and describe where you are.
-- If a Marker points at nothing, please also report that in the same way.
+- Some overlay counters can briefly disagree with the server.
+- If a Marker points at nothing, please report it with a screenshot (Developer
+  marker detail enabled, ideally) and where you were standing.
 
 ## In-Game
 
-Press **Insert** to open the Archipelago window while in-game. On your first chapter a short getting-started guide appears by itself; you can reopen it any time from the Guidance tab.
+Press **Insert** to open the Archipelago window while in-game. A welcome note waits for you in the Hunter's Lodge at the start; the Guidance tab can show the same getting-started guide again any time.
 
 ### The Checklist
 
-The home tab, and the answer to "where do I go next". Every typewriter save point is listed with how many checks are found near it, out of how many. Expand one to see the areas it covers with their own counts, and warp straight there. Typewriter warps unlock once you have found that typewriter in game.
+The home tab, and the answer to "where do I go next". It has a section for each kind of content the room includes, each with its own count and progress bar:
+
+- **Main Campaign** lists every typewriter save point with how many checks are found near it, out of how many. Expand one to see the areas it covers with their own counts, and warp straight there. Typewriter warps unlock once you have found that typewriter in game.
+- **Merchant** lists the shop's checks and the trade tab's by chapter, marks the bought ones, and says which chapters have not released yet.
+- **Mercenaries** shows the stages side by side with each character's rank marks.
 
 ### Guidance
 
 Unchecked spots show a floating **[AP]** Marker reading, in order: the tag, the chapter it belongs to, the distance, the height difference, then the area and item detail. This tab turns Markers on and off, sets how far away they appear, and controls how much they say:
 
-- **Basic** - distance, height, area.
+- **Minimal** - distance and height only.
+- **Basic** - adds the chapter and the area.
 - **Locate** - adds what the item looked like in the vanilla game, and whether
   it is in a container or hanging (shoot it down).
-- **Identify** - adds the real item and who it belongs to. Full spoilers, so
-  it requires Developer Tools.
+- **Identify** - adds the real item and who it belongs to. A spoiler, and the
+  level a bought hint always shows.
+
+Your settings file picks the level you start at; this tab can change it any
+time, and the choice sticks for that seed.
 
 Markers from another chapter are dimmed and tagged, because RE4R reuses areas between chapters; there is a toggle to hide them. Locations you have bought a hint for show a magenta **[HINT]** Marker anywhere in the area.
 

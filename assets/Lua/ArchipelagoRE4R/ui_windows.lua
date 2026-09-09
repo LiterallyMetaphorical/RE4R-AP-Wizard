@@ -157,6 +157,19 @@ local function install(ctx)
         if changed then
             bridge.show_debug_probe_overlay = new_value
         end
+
+        -- [Buy tab icons] Off hands every shop widget back to the game, so the
+        -- Buy tab draws its own art. Open the merchant with this off and the
+        -- staple icons either come right (the fault is ours) or do not (it
+        -- never was). Live, no reload.
+        if bridge.merchant_row_icons_enabled == nil then
+            bridge.merchant_row_icons_enabled = (MERCHANT_ROW_ICON_DRESSING ~= false)
+        end
+        local changed_icons, icons_on = imgui.checkbox(
+            "Dress the merchant's row icons", bridge.merchant_row_icons_enabled == true)
+        if changed_icons then
+            bridge.merchant_row_icons_enabled = icons_on
+        end
     end
 
     -- Connection summary (Overview tab).
@@ -175,6 +188,10 @@ local function install(ctx)
             bridge.server_tab_address_input = tostring(details.server or bridge.launcher_server_address or "")
         end
 
+        local theme = ctx.theme
+        local columns = theme.begin_columns("##ap_server_cols", 2)
+        theme.next_column(columns)
+        theme.heading("Connection")
         imgui.text("Status: " .. tostring(bridge.ap_status_label or bridge.ap_connection_status or "Disconnected"))
         imgui.text("Address: " .. format_optional(details.server ~= "" and details.server or nil))
         imgui.text("Slot: " .. format_optional(details.slot ~= "" and details.slot or nil))
@@ -203,8 +220,8 @@ local function install(ctx)
             imgui.text("Room page: " .. room_url)
         end
 
-        imgui.text("")
-        imgui.text("-- Change the address --")
+        theme.next_column(columns)
+        theme.heading("Change the address")
         local changed, value = imgui.input_text("##ap_server_address", bridge.server_tab_address_input or "")
         if changed then
             bridge.server_tab_address_input = value
@@ -237,10 +254,11 @@ local function install(ctx)
         end
 
         imgui.text("")
-        imgui.text("Host and port, for example archipelago.gg:38281. A ws:// or")
-        imgui.text("wss:// prefix is optional. Only this game is updated - the")
-        imgui.text("launcher keeps its own copy and will still show the old")
-        imgui.text("address until you re-patch or use Fix Automatically there.")
+        theme.note("Host and port, for example archipelago.gg:38281. A ws:// or")
+        theme.note("wss:// prefix is optional. Only this game is updated - the")
+        theme.note("launcher keeps its own copy and will still show the old")
+        theme.note("address until you re-patch or use Fix Automatically there.")
+        theme.end_columns(columns)
     end
 
     -- Manual engine-item injection (Debug tab; developer tool).
@@ -666,10 +684,10 @@ local function install(ctx)
                 bridge.actions_say_text = ""
             end
         end
-        imgui.text("Type a message, or any Archipelago command (!hint, !release).")
+        ctx.theme.note("Type a message, or any Archipelago command (!hint, !release).")
         imgui.text("")
 
-        imgui.text(string.format("AP Events this session: %d", count))
+        ctx.theme.heading(string.format("AP events this session: %d", count))
         imgui.same_line()
         if imgui.button("Clear") then
             -- Keep message_log_last_id so cleared entries are not re-captured.

@@ -63,6 +63,36 @@ public sealed class SettingsStore
         }
     }
 
+    /// <summary>
+    /// Synchronous best-effort load, for callers that cannot await.
+    /// </summary>
+    /// <remarks>
+    /// App startup needs the theme BEFORE the first window is built, and there
+    /// is no await point available there. Blocking on <see cref="LoadAsync"/>
+    /// instead is a deadlock, not a shortcut: the dispatcher context is already
+    /// installed by then, so the continuation queues onto the very thread the
+    /// block is holding and the launcher hangs with a live process and no
+    /// window. (Found exactly that way, 2026-08-13.)
+    /// </remarks>
+    public LauncherSettings TryLoad()
+    {
+        try
+        {
+            if (!File.Exists(SettingsFilePath))
+            {
+                return LauncherSettings.CreateDefault();
+            }
+
+            var json = File.ReadAllText(SettingsFilePath);
+            return LauncherSettings.Sanitize(JsonSerializer.Deserialize<LauncherSettings>(json, SerializerOptions));
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
+        {
+            Log($"Launcher settings at {SettingsFilePath} could not be read synchronously: {ex.Message}");
+            return LauncherSettings.CreateDefault();
+        }
+    }
+
     public async Task SaveAsync(LauncherSettings settings, CancellationToken cancellationToken = default)
     {
         Directory.CreateDirectory(AppDataRootPath);

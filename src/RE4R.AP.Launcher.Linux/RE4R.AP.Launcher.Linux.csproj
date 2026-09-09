@@ -17,7 +17,7 @@
          Windows project, the shared view-model started using it, and Linux
          failed to compile with nothing on the Windows side to notice. -->
     <Compile Include="..\RE4R.AP.Launcher\Services\*.cs"
-             Exclude="..\RE4R.AP.Launcher\Services\WpfDialogService.cs"
+             Exclude="..\RE4R.AP.Launcher\Services\WpfDialogService.cs;..\RE4R.AP.Launcher\Services\ThemeService.cs"
              Link="Shared\Services\%(Filename)%(Extension)" />
     <Compile Include="..\RE4R.AP.Launcher\ViewModels\*.cs" Link="Shared\ViewModels\%(Filename)%(Extension)" />
   </ItemGroup>
@@ -50,7 +50,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>re4r-ap-launcher</AssemblyName>
     <!-- Keep in sync with the Windows launcher's release version. -->
-    <Version>0.4.0-alpha</Version>
+    <Version>0.6.0-beta</Version>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">

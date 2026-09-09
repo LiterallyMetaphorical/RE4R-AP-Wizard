@@ -166,6 +166,30 @@ local function install(ctx)
         ["chainsaw.gui.ItemRecieveLogRequest"] = true,
     }
 
+    -- [Stand-in toasts, 2026-08-28] The till hands over the purchased row
+    -- stand-in and the game toasts it like any pickup: the baked "[AP] ..."
+    -- name over a BLANK icon square (cut ids have no usable atlas art).
+    -- Those ids are never a legitimate pickup, so they suppress by ID with
+    -- no timing latch: merchant.lua publishes the room's row ids on
+    -- bridge.suppress_item_toast_ids at load, and on_purchase pushes the
+    -- icon-bearing replacement (real item for a local check, the AP
+    -- placeholder for a foreign one).
+    local ITEM_ID_FIELDS = { "ItemID", "_ItemId", "_ItemID", "ItemId" }
+
+    local function request_item_id(req)
+        for _, name in ipairs(ITEM_ID_FIELDS) do
+            local value = nil
+            local ok = pcall(function() value = req:get_field(name) end)
+            if ok and value ~= nil then
+                local id = tonumber(value)
+                if id ~= nil then
+                    return math.floor(id)
+                end
+            end
+        end
+        return nil
+    end
+
     local function organic_suppression_armed()
         local until_ms = tonumber(bridge.suppress_organic_item_toast_until_ms)
         if until_ms == nil then
@@ -197,7 +221,9 @@ local function install(ctx)
             sdk.hook(method, function(args)
                 local suppressed = false
                 pcall(function()
-                    if not organic_suppression_armed() then
+                    local standin_ids = bridge.suppress_item_toast_ids
+                    local latch_armed = organic_suppression_armed()
+                    if standin_ids == nil and not latch_armed then
                         return
                     end
                     -- args[2] is the manager, args[3] the request (REFramework
@@ -207,7 +233,22 @@ local function install(ctx)
                         return
                     end
                     local type_name = req:get_type_definition():get_full_name()
-                    if ITEM_TOAST_REQUEST_TYPES[type_name] then
+                    if not ITEM_TOAST_REQUEST_TYPES[type_name] then
+                        return
+                    end
+                    -- Stand-in ids drop unconditionally and never consume the
+                    -- latch: this toast is a blank square over a shop trinket.
+                    if type(standin_ids) == "table" then
+                        local item_id = request_item_id(req)
+                        if item_id ~= nil and standin_ids[item_id] then
+                            suppressed = true
+                            log.info(string.format(
+                                "[RE4R AP] suppressed the game's %s for stand-in %d - the purchase toast covers it",
+                                tostring(type_name), item_id))
+                            return
+                        end
+                    end
+                    if latch_armed then
                         bridge.suppress_organic_item_toast_until_ms = nil
                         suppressed = true
                         log.info(string.format(
@@ -673,6 +714,19 @@ local function install(ctx)
             return
         end
         local now = ctx.now_unix_ms and ctx.now_unix_ms() or (os.time() * 1000)
+        -- [The Mercenaries, 2026-09-06] The game's rail belongs to the
+        -- campaign HUD and a run's HUD; the mode's menus and its result
+        -- screen never show it, so every toast pushed there was lost (Cam
+        -- saw none of an S+ run's). mercenaries.lua says where a toast can
+        -- be seen right now: "run" keeps the rail, "menu" leaves the record
+        -- to the imgui overlay, "result" hands the words to the result
+        -- screen's own notice list and only the Message Log keeps the toast.
+        local presentation = nil
+        local presentation_fn = ctx.merc_presentation or _G.merc_presentation
+        if type(presentation_fn) == "function" then
+            local ok_p, p = pcall(presentation_fn)
+            if ok_p then presentation = p end
+        end
         for _, rec in ipairs(bridge.check_notifications) do
             if not rec.native_dispatched then
                 rec.native_dispatched = true
@@ -680,6 +734,21 @@ local function install(ctx)
                 local route = rec.native_route or "text"
                 if age > DISPATCH_MAX_AGE_MS or route == "overlay_only" then
                     -- stale (mode was flipped after it queued) or opted out
+                elseif presentation == "menu" then
+                    -- no rail on screen: the overlay draws it
+                elseif presentation == "result" then
+                    -- One result, not two. mercenaries.lua composes a single
+                    -- line for the screen's own notice list and that line
+                    -- already names everything that arrived, so an imgui toast
+                    -- here is a second, older-looking copy of the same news
+                    -- drawn on top of it (Cam, 2026-09-07).
+                    --
+                    -- Held, not discarded: if the screen never shows the
+                    -- notice, close_result_summary hands these back and the
+                    -- overlay draws them once the screen is gone. Nothing here
+                    -- can tell yet which of those two it will be.
+                    rec.rendered_natively = true
+                    rec.held_by_result_screen = true
                 elseif route == "suppress" then
                     if mode == "native" then
                         if is_ap_connected() then

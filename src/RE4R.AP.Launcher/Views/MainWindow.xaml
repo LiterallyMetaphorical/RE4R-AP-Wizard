@@ -1,19 +1,184 @@
-<Window x:Class="RE4R.AP.Launcher.Views.MainWindow"
+﻿<Window x:Class="RE4R.AP.Launcher.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:viewModels="clr-namespace:RE4R.AP.Launcher.ViewModels"
         xmlns:converters="clr-namespace:RE4R.AP.Launcher.Infrastructure"
+        xmlns:controls="clr-namespace:RE4R.AP.Launcher.Controls"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="RE4R AP Wizard"
-        Width="1360"
-        Height="860"
+        Background="{DynamicResource AppBackgroundBrush}"
+        Width="1500"
+        Height="920"
         MinWidth="1100"
         MinHeight="700">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter" />
+        <!-- View models name a theme resource key; this turns it into that
+             theme's brush. See ThemeBrushConverter. -->
+        <converters:ThemeBrushConverter x:Key="ThemeBrushConverter" />
+        <!-- Snaps a wrap panel to a whole number of 550px card columns. -->
+        <converters:ColumnSnapConverter x:Key="ColumnSnapConverter" />
+        <!-- Option dropdowns render their Label. An explicit ItemTemplate rather
+             than DisplayMemberPath, because DisplayMemberPath fills the list but
+             leaves the CLOSED box without a template, which showed the option
+             record's ToString once the ComboBox was re-templated for theming. -->
+        <DataTemplate x:Key="OptionLabelTemplate">
+            <TextBlock Text="{Binding Label}" />
+        </DataTemplate>
+
+        <!-- Theme switch: a pill track with a sliding knob, and the knob carries
+             the icon for the theme you are CURRENTLY in - sun for light, moon
+             for dark - so it reads as a state rather than a command. Checked
+             means light. Glyphs come from the Windows icon font (Fluent first,
+             MDL2 as the fallback for Windows 10), which keeps them monochrome
+             and crisp instead of the colour emoji a literal sun character
+             would render as. -->
+        <Style x:Key="ThemeSwitchStyle" TargetType="ToggleButton">
+            <Setter Property="Width" Value="52" />
+            <Setter Property="Height" Value="26" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Focusable" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Track"
+                                Background="{DynamicResource SurfaceAltBrush}"
+                                BorderBrush="{DynamicResource SubtleBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="13">
+                            <Border x:Name="Knob"
+                                    Width="20"
+                                    Height="20"
+                                    Margin="2,0,0,0"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Center"
+                                    Background="{DynamicResource AccentBrush}"
+                                    CornerRadius="10">
+                                <TextBlock x:Name="Glyph"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource AccentForegroundBrush}"
+                                           Text="&#xE708;" />
+                            </Border>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Knob" Property="HorizontalAlignment" Value="Right" />
+                                <Setter TargetName="Knob" Property="Margin" Value="0,0,2,0" />
+                                <Setter TargetName="Glyph" Property="Text" Value="&#xE706;" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Short label for a segmented bar. The full Label spells the option
+             out and is far too long to sit in a segment; the card's hint text
+             underneath still explains every choice. -->
+        <DataTemplate x:Key="OptionShortLabelTemplate">
+            <TextBlock Text="{Binding Short}" />
+        </DataTemplate>
+
+        <!-- Segmented picker: one bar, one segment per choice, the current one
+             filled. Replaces a dropdown wherever the list is short enough to
+             show at once, which turns "open it, read it, pick" into a single
+             glance and a single click. A ListBox rather than a row of buttons,
+             so selection and keyboard behaviour come for free. -->
+        <Style x:Key="SegmentedPickerStyle" TargetType="ListBox">
+            <Setter Property="Background" Value="{DynamicResource ControlBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SubtleBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Disabled" />
+            <Setter Property="ItemsPanel">
+                <Setter.Value>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBox">
+                        <!-- 2px of padding so a square segment never has to
+                             paint into the container's rounded corner: WPF does
+                             not clip children to a CornerRadius. -->
+                        <Border Padding="2"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="7"
+                                SnapsToDevicePixels="True">
+                            <ItemsPresenter />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="ItemContainerStyle">
+                <Setter.Value>
+                    <Style TargetType="ListBoxItem">
+                        <Setter Property="Cursor" Value="Hand" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ListBoxItem">
+                                    <Border x:Name="Seg"
+                                            Padding="15,7"
+                                            Background="Transparent"
+                                            CornerRadius="5"
+                                            SnapsToDevicePixels="True"
+                                            TextElement.Foreground="{DynamicResource SubtleTextBrush}">
+                                        <ContentPresenter HorizontalAlignment="Center"
+                                                          VerticalAlignment="Center" />
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Seg" Property="Background" Value="{DynamicResource SurfaceAltBrush}" />
+                                            <Setter TargetName="Seg" Property="TextElement.Foreground" Value="{DynamicResource TextBrush}" />
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="Seg" Property="Background" Value="{DynamicResource AccentBrush}" />
+                                            <Setter TargetName="Seg" Property="TextElement.Foreground" Value="{DynamicResource AccentForegroundBrush}" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Mini header that opens each group of settings. -->
+        <Style x:Key="SettingsSectionHeaderStyle" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource SubtleTextBrush}" />
+        </Style>
+
+        <!-- The header plus a rule across the card width. Without the rule it
+             sat close enough to the first card's own title to read as part of
+             that card rather than as the start of a group. -->
+        <Style x:Key="SettingsSectionRuleStyle" TargetType="Border">
+            <Setter Property="Margin" Value="4,26,14,12" />
+            <Setter Property="Padding" Value="0,0,0,6" />
+            <!-- Stretch, and no MaxWidth: a rule only as wide as its own label
+                 reads as an underline, not as a divider. MaxWidth here would
+                 also centre it, since WPF centres a stretched element that is
+                 capped below the space available. -->
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SubtleBorderBrush}" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+        </Style>
 
         <Style x:Key="StatusChipBorderStyle" TargetType="Border">
             <Setter Property="CornerRadius" Value="12" />
@@ -21,7 +186,7 @@
             <Setter Property="Margin" Value="0,0,8,0" />
         </Style>
 
-        <Style x:Key="LandingButtonStyle" TargetType="Button">
+        <Style x:Key="LandingButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="FontSize" Value="18" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Padding" Value="18,12" />
@@ -36,19 +201,96 @@
             <Setter Property="Margin" Value="0,0,20,18" />
         </Style>
 
-        <Style x:Key="OptionCardTitleStyle" TargetType="TextBlock">
+        <Style x:Key="OptionCardTitleStyle" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Margin" Value="0,0,0,6" />
         </Style>
 
-        <Style x:Key="OptionCardHintStyle" TargetType="TextBlock">
+        <!-- A checkbox that IS the card's title. Cards used to carry a title
+             TextBlock and then a checkbox repeating the same words at a
+             smaller size ("Allow Missable Locations" over "Allow missable
+             locations"), which read as clutter and halved the click target
+             (Cam, 2026-08-21). Mirrors OptionCardTitleStyle's weight and
+             spacing so the cards still line up with the ones that keep a
+             title, which are the cards whose control has no label of its
+             own - pickers and sliders. -->
+        <Style x:Key="OptionCardCheckTitleStyle" TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+
+        <Style x:Key="OptionCardHintStyle" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
             <Setter Property="Margin" Value="0,6,0,0" />
-            <Setter Property="Foreground" Value="DimGray" />
+            <Setter Property="Foreground" Value="{DynamicResource SubtleTextBrush}" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
 
         <!-- The two landing doors: equal size, equal weight, icon + one line. -->
-        <Style x:Key="LandingCardStyle" TargetType="Button">
+        <!-- [Content gate] A content tile: a big pressable card that reads as
+             a choice rather than a form field. Checkboxes in a narrow card
+             wasted most of a wide window and made three top-level decisions
+             look like three minor ones (Cam, 2026-09-07). Selected state is
+             the accent border plus a tint, so the choice is legible at a
+             glance across the row. -->
+        <Style x:Key="ContentTileStyle" TargetType="ToggleButton">
+            <Setter Property="Width" Value="290" />
+            <Setter Property="MinHeight" Value="150" />
+            <Setter Property="Margin" Value="0,0,14,14" />
+            <Setter Property="Padding" Value="18,16" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Shell"
+                                Background="{DynamicResource SurfaceBrush}"
+                                BorderBrush="{DynamicResource SubtleBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="10"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Stretch"
+                                              VerticalAlignment="Stretch" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Shell" Property="BorderBrush"
+                                        Value="{DynamicResource AccentBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Shell" Property="BorderBrush"
+                                        Value="{DynamicResource AccentBrush}" />
+                                <Setter TargetName="Shell" Property="BorderThickness" Value="2" />
+                                <Setter TargetName="Shell" Property="Background"
+                                        Value="{DynamicResource SurfaceAltBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Shell" Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ContentTileTitleStyle" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="FontSize" Value="17" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+
+        <Style x:Key="ContentTileBodyStyle" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="Margin" Value="0,6,0,0" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Foreground" Value="{DynamicResource SubtleTextBrush}" />
+        </Style>
+
+        <Style x:Key="ContentTileCountStyle" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="Margin" Value="0,10,0,0" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+        </Style>
+
+        <Style x:Key="LandingCardStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Padding" Value="18,16" />
             <Setter Property="Margin" Value="0,0,14,0" />
             <Setter Property="Width" Value="320" />
@@ -57,21 +299,21 @@
             <Setter Property="VerticalContentAlignment" Value="Top" />
         </Style>
 
-        <Style x:Key="BannerButtonStyle" TargetType="Button">
+        <Style x:Key="BannerButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Padding" Value="14,6" />
             <Setter Property="Margin" Value="0,0,10,0" />
         </Style>
 
         <Style x:Key="GuidanceCardStyle" TargetType="Border">
-            <Setter Property="Background" Value="White" />
-            <Setter Property="BorderBrush" Value="#FFE0E0E0" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SubtleBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="10" />
             <Setter Property="Padding" Value="14" />
             <Setter Property="Margin" Value="0,0,0,12" />
         </Style>
 
-        <Style x:Key="GuidanceButtonStyle" TargetType="Button">
+        <Style x:Key="GuidanceButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Padding" Value="12,6" />
             <Setter Property="Margin" Value="0,0,10,6" />
         </Style>
@@ -80,12 +322,12 @@
             <Setter Property="Width" Value="28" />
             <Setter Property="Height" Value="28" />
             <Setter Property="CornerRadius" Value="14" />
-            <Setter Property="Background" Value="#FFE7E7E7" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceAltBrush}" />
             <Setter Property="VerticalAlignment" Value="Top" />
             <Setter Property="Margin" Value="0,0,10,0" />
         </Style>
 
-        <Style x:Key="GuidanceStepTitleStyle" TargetType="TextBlock">
+        <Style x:Key="GuidanceStepTitleStyle" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
             <Setter Property="FontSize" Value="17" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="VerticalAlignment" Value="Center" />
@@ -103,7 +345,7 @@
                            FontWeight="SemiBold"
                            Text="Setup Status" />
                 <TextBlock Margin="0,8,0,0"
-                           Foreground="DimGray"
+                           Foreground="{DynamicResource SubtleTextBrush}"
                            TextWrapping="Wrap"
                            Text="Your RE4R install, REFramework (the mod loader that runs the Archipelago scripts), and the Archipelago mod itself are checked here. Everything green means you're ready to patch and play." />
 
@@ -153,7 +395,7 @@
                         <TextBlock FontWeight="SemiBold"
                                    Text="{Binding DetectedGameVersionText}" />
                         <TextBlock Margin="0,4,0,0"
-                                   Foreground="DimGray"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
                                    TextWrapping="Wrap"
                                    Text="{Binding FingerprintSummaryText}" />
                     </StackPanel>
@@ -169,7 +411,7 @@
                                   ItemsSource="{Binding SupportedGameVersions}"
                                   SelectedItem="{Binding SelectedGameVersion, UpdateSourceTrigger=PropertyChanged}" />
                         <TextBlock Margin="0,6,0,0"
-                                   Foreground="DimGray"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
                                    TextWrapping="Wrap"
                                    Text="Which RE4R update the world patch is built for. This is detected for you - only change it if patching fails and you know your game is on a different update." />
                     </StackPanel>
@@ -180,7 +422,7 @@
                     <TextBlock Grid.Row="6"
                                Grid.Column="1"
                                Grid.ColumnSpan="2"
-                               Foreground="DimGray"
+                               Foreground="{DynamicResource SubtleTextBrush}"
                                TextWrapping="Wrap"
                                Text="{Binding SetupStatusText}" />
 
@@ -197,10 +439,10 @@
                         <StackPanel>
                             <Border Padding="8,2"
                                     HorizontalAlignment="Left"
-                                    Background="{Binding ReFrameworkStatusBackground}"
+                                    Background="{Binding ReFrameworkStatusBackground, Converter={StaticResource ThemeBrushConverter}}"
                                     CornerRadius="10">
                                 <TextBlock FontWeight="SemiBold"
-                                           Foreground="{Binding ReFrameworkStatusForeground}"
+                                           Foreground="{Binding ReFrameworkStatusForeground, Converter={StaticResource ThemeBrushConverter}}"
                                            Text="{Binding ReFrameworkStatusLabel}" />
                             </Border>
                             <TextBlock Margin="0,6,0,0"
@@ -228,22 +470,32 @@
                         <StackPanel>
                             <Border Padding="8,2"
                                     HorizontalAlignment="Left"
-                                    Background="{Binding ArchipelagoLuaModStatusBackground}"
+                                    Background="{Binding ArchipelagoLuaModStatusBackground, Converter={StaticResource ThemeBrushConverter}}"
                                     CornerRadius="10">
                                 <TextBlock FontWeight="SemiBold"
-                                           Foreground="{Binding ArchipelagoLuaModStatusForeground}"
+                                           Foreground="{Binding ArchipelagoLuaModStatusForeground, Converter={StaticResource ThemeBrushConverter}}"
                                            Text="{Binding ArchipelagoLuaModStatusLabel}" />
                             </Border>
                             <TextBlock Margin="0,6,0,0"
                                        TextWrapping="Wrap"
                                        Text="{Binding ArchipelagoLuaModStatusText}" />
                         </StackPanel>
-                        <Button Grid.Column="1"
-                                Margin="12,0,0,0"
-                                Padding="16,6"
-                                Command="{Binding InstallArchipelagoLuaModCommand}"
-                                Content="Install Archipelago Lua Mod"
-                                Visibility="{Binding ShowInstallArchipelagoLuaModButton, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                        <StackPanel Grid.Column="1"
+                                    Margin="12,0,0,0"
+                                    VerticalAlignment="Top">
+                            <Button Padding="16,6"
+                                    Command="{Binding InstallArchipelagoLuaModCommand}"
+                                    Content="Install Archipelago Lua Mod"
+                                    Visibility="{Binding ShowInstallArchipelagoLuaModButton, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <!-- The offline half of mod updates: a payload zip
+                                 shared by hand goes through the same validation,
+                                 store and verified install as the one-click
+                                 banner - never hand-copied files. -->
+                            <Button Margin="0,8,0,0"
+                                    Padding="16,6"
+                                    Command="{Binding InstallPayloadFromFileCommand}"
+                                    Content="Install Mod Update From File..." />
+                        </StackPanel>
                     </Grid>
 
                     <TextBlock Grid.Row="12"
@@ -254,17 +506,17 @@
                                 Grid.ColumnSpan="2">
                         <Border Padding="8,2"
                                 HorizontalAlignment="Left"
-                                Background="{Binding SeparateWaysStatusBackground}"
+                                Background="{Binding SeparateWaysStatusBackground, Converter={StaticResource ThemeBrushConverter}}"
                                 CornerRadius="10">
                             <TextBlock FontWeight="SemiBold"
-                                       Foreground="{Binding SeparateWaysStatusForeground}"
+                                       Foreground="{Binding SeparateWaysStatusForeground, Converter={StaticResource ThemeBrushConverter}}"
                                        Text="{Binding SeparateWaysStatusLabel}" />
                         </Border>
                         <TextBlock Margin="0,6,0,0"
                                    TextWrapping="Wrap"
                                    Text="{Binding SeparateWaysStatusText}" />
                         <TextBlock Margin="0,4,0,0"
-                                   Foreground="DimGray"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
                                    TextWrapping="Wrap"
                                    Text="Separate Ways supplies the model other players' items appear as. Treasure Map: Expansion adds treasures that 36 of your checks sit on." />
                     </StackPanel>
@@ -293,7 +545,7 @@
                 </Grid>
 
                 <TextBlock Margin="0,26,0,0"
-                           Foreground="DimGray"
+                           Foreground="{DynamicResource SubtleTextBrush}"
                            TextWrapping="Wrap"
                            Text="You can continue even while a check is failing - building your settings file and organizing a multiworld don't need the game install. Joining a session stays locked until the checks pass. Reopen this screen any time with the Setup Status button on the landing screen." />
             </StackPanel>
@@ -304,8 +556,8 @@
                 <!-- Auto-surfaced session banner: reachable / asleep / unfinished patch -->
                 <Border Padding="16"
                         Margin="0,0,0,18"
-                        Background="{Binding BannerBackground}"
-                        BorderBrush="{Binding BannerBorder}"
+                        Background="{Binding BannerBackground, Converter={StaticResource ThemeBrushConverter}}"
+                        BorderBrush="{Binding BannerBorder, Converter={StaticResource ThemeBrushConverter}}"
                         BorderThickness="1"
                         CornerRadius="10"
                         Visibility="{Binding IsBannerVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -350,8 +602,8 @@
                 <!-- Waiting-for-room-details draft strip -->
                 <Border Padding="14"
                         Margin="0,0,0,18"
-                        Background="#FFEFF6FD"
-                        BorderBrush="#FFB7D4EE"
+                        Background="{DynamicResource InfoBackgroundBrush}"
+                        BorderBrush="{DynamicResource InfoBorderBrush}"
                         BorderThickness="1"
                         CornerRadius="10"
                         Visibility="{Binding IsDraftVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -375,6 +627,22 @@
                      the settings file: it has no prerequisites and every
                      joiner needs one, so asking "do you have an address yet?"
                      was a decision that bought nothing. -->
+                <!-- Two columns: the choice on the left, the AP Wizard on the
+                     right. The right of this screen was dead space, and the
+                     cards do not want to be any wider, so he fills it without
+                     pushing anything around. -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <!-- Cards take exactly what they need; the wizard's
+                             column takes the slack, so he centres in the span
+                             between the right edge of Host a Multiworld and the
+                             right edge of the page. Sizing it the other way
+                             round pinned him to the far edge and left a gap
+                             beside the cards. -->
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
                 <StackPanel>
                     <TextBlock FontSize="30"
                                FontWeight="SemiBold"
@@ -387,7 +655,7 @@
                             <StackPanel>
                                 <TextBlock FontSize="26"
                                            FontFamily="Segoe MDL2 Assets"
-                                           Foreground="#FF2E7D46"
+                                           Foreground="{DynamicResource SuccessTextBrush}"
                                            Text="&#xE704;" />
                                 <TextBlock Margin="0,8,0,0"
                                            FontSize="19"
@@ -395,7 +663,7 @@
                                            Text="Join a Multiworld" />
                                 <TextBlock Margin="0,4,0,0"
                                            FontSize="13"
-                                           Foreground="DimGray"
+                                           Foreground="{DynamicResource SubtleTextBrush}"
                                            TextWrapping="Wrap"
                                            Text="Someone else is hosting. Play your RE4R as part of their multiworld." />
                             </StackPanel>
@@ -405,7 +673,7 @@
                             <StackPanel>
                                 <TextBlock FontSize="26"
                                            FontFamily="Segoe MDL2 Assets"
-                                           Foreground="#FF31506F"
+                                           Foreground="{DynamicResource InfoTextBrush}"
                                            Text="&#xE902;" />
                                 <TextBlock Margin="0,8,0,0"
                                            FontSize="19"
@@ -413,7 +681,7 @@
                                            Text="Host a Multiworld" />
                                 <TextBlock Margin="0,4,0,0"
                                            FontSize="13"
-                                           Foreground="DimGray"
+                                           Foreground="{DynamicResource SubtleTextBrush}"
                                            TextWrapping="Wrap"
                                            Text="Collect everyone's settings, generate the multiworld, and share the room." />
                             </StackPanel>
@@ -421,15 +689,67 @@
                     </StackPanel>
                 </StackPanel>
 
+                    <StackPanel Grid.Column="1"
+                                Margin="20,0,4,0"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center">
+                        <Grid>
+                            <!-- Halo first, portrait over it. See
+                                 PortraitGlowBrush: the artwork is outlined for a
+                                 white page and needs something to sit against
+                                 once the page goes dark. The negative margin
+                                 spreads it past the portrait, and because the
+                                 cell is sized by the image the two scale
+                                 together. -->
+                            <Ellipse Margin="-28"
+                                     Fill="{DynamicResource PortraitGlowBrush}"
+                                     IsHitTestVisible="False" />
+                            <!-- Capped rather than fixed: the column is elastic,
+                                 so at the 1100px minimum window he gives way
+                                 instead of shoving the cards off the page. The
+                                 cap is set by HEIGHT, not taste - the default
+                                 860px window only has so much room between the
+                                 banner and the footer, and going bigger pushed
+                                 the hint and Setup Status off the page and put
+                                 a scrollbar on the landing screen. -->
+                            <Image MaxWidth="400"
+                                   MaxHeight="400"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   RenderOptions.BitmapScalingMode="HighQuality"
+                                   Source="/Assets/wizard.png"
+                                   Stretch="Uniform">
+                                <!-- The artwork is a bust, so its robe ends on a
+                                     flat outlined edge at the bottom of the
+                                     canvas. Left alone that reads as a sticker
+                                     someone sliced off; fading the last sliver
+                                     lets him rise out of the page instead. -->
+                                <Image.OpacityMask>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                        <GradientStop Offset="0.0" Color="#FF000000" />
+                                        <GradientStop Offset="0.86" Color="#FF000000" />
+                                        <GradientStop Offset="1.0" Color="#00000000" />
+                                    </LinearGradientBrush>
+                                </Image.OpacityMask>
+                            </Image>
+                        </Grid>
+                        <TextBlock Margin="0,14,0,0"
+                                   HorizontalAlignment="Center"
+                                   FontSize="13"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
+                                   Text="AP Wizard Design by @alrightness" />
+                    </StackPanel>
+                </Grid>
+
                 <TextBlock Margin="0,20,0,0"
-                           Foreground="DimGray"
+                           Foreground="{DynamicResource SubtleTextBrush}"
                            TextWrapping="Wrap"
                            Text="For a solo randomized run, use BioRand directly instead - this is for multiplayer Archipelago sessions." />
 
                 <Border Margin="0,12,0,0"
                         Padding="12"
-                        Background="#FFF8E7E7"
-                        BorderBrush="#FFD9A8A8"
+                        Background="{DynamicResource DangerBackgroundBrush}"
+                        BorderBrush="{DynamicResource DangerBorderBrush}"
                         BorderThickness="1"
                         CornerRadius="10"
                         Visibility="{Binding HasBlockingIssues, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -471,23 +791,175 @@
 
                 <TextBlock FontSize="34"
                            FontWeight="SemiBold"
+                           Visibility="{Binding IsHostedInGuide, Converter={StaticResource InverseBooleanToVisibilityConverter}}"
                            Text="Configure Archipelago Settings" />
-                <StackPanel Grid.Row="2">
-                    <TextBlock Foreground="DimGray"
+                <StackPanel Grid.Row="2"
+                            Visibility="{Binding IsHostedInGuide, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                    <TextBlock Foreground="{DynamicResource SubtleTextBrush}"
                                TextWrapping="Wrap"
                                Text="{Binding FileExplainer}" />
                     <TextBlock Margin="0,8,0,0"
-                               Foreground="DimGray"
+                               Foreground="{DynamicResource SubtleTextBrush}"
                                TextWrapping="Wrap"
                                Text="{Binding HeaderDescription}" />
                 </StackPanel>
+
+            <!-- [Content gate] Page 1: what are you playing. The settings
+                 page below is shaped by this, so it is asked first rather
+                 than shown as one card among a dozen that do not apply
+                 (Cam, 2026-09-06). A saved draft skips straight past this. -->
+            <Grid Grid.Row="4"
+                  Visibility="{Binding IsOnContentPage, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <StackPanel>
+                    <Border Style="{StaticResource SettingsSectionRuleStyle}">
+                        <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
+                                   Text="WHAT ARE YOU PLAYING" />
+                    </Border>
+                    <WrapPanel MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}, Converter={StaticResource ColumnSnapConverter}, ConverterParameter=550}">
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Slot Name" />
+                            <TextBox Text="{Binding SlotName, UpdateSourceTrigger=PropertyChanged}"
+                                     MaxLength="32" />
+                            <TextBlock Margin="0,4,0,0"
+                                       Foreground="{DynamicResource DangerTextBrush}"
+                                       TextWrapping="Wrap"
+                                       Visibility="{Binding HasSlotNameError, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                       Text="{Binding SlotNameError}" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Your in-game player name (16 characters max). You'll type this exact name when joining - capitalization matters." />
+                        </StackPanel>
+                    </WrapPanel>
+                    <Border Style="{StaticResource SettingsSectionRuleStyle}">
+                        <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
+                                   Text="INCLUDED CONTENT" />
+                    </Border>
+                    <StackPanel>
+                        <TextBlock Margin="0,0,0,12"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
+                                   TextWrapping="Wrap"
+                                   Text="Pick what this slot plays. The next page only shows the settings your choice actually uses." />
+                        <WrapPanel>
+                            <ToggleButton Style="{StaticResource ContentTileStyle}"
+                                          IsChecked="{Binding IncludeMainCampaign}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Right"
+                                                   FontSize="17"
+                                                   FontWeight="Bold"
+                                                   Foreground="{DynamicResource AccentBrush}"
+                                                   Visibility="{Binding IncludeMainCampaign, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                   Text="&#x2714;" />
+                                        <TextBlock Style="{StaticResource ContentTileTitleStyle}"
+                                                   Text="Main Campaign" />
+                                    </DockPanel>
+                                    <TextBlock Grid.Row="1"
+                                               Style="{StaticResource ContentTileBodyStyle}"
+                                               Text="Leon's story, randomized by BioRand. Every pickup, the merchant and the trade tab become multiworld checks." />
+                                    <TextBlock Grid.Row="2"
+                                               Style="{StaticResource ContentTileCountStyle}"
+                                               Text="{Binding MainCampaignCheckCount}" />
+                                </Grid>
+                            </ToggleButton>
+                            <ToggleButton Style="{StaticResource ContentTileStyle}"
+                                          IsChecked="{Binding IncludeMercenaries}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Right"
+                                                   FontSize="17"
+                                                   FontWeight="Bold"
+                                                   Foreground="{DynamicResource AccentBrush}"
+                                                   Visibility="{Binding IncludeMercenaries, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                   Text="&#x2714;" />
+                                        <TextBlock Style="{StaticResource ContentTileTitleStyle}"
+                                                   Text="The Mercenaries" />
+                                    </DockPanel>
+                                    <TextBlock Grid.Row="1"
+                                               Style="{StaticResource ContentTileBodyStyle}"
+                                               Text="The mode's ranks become checks, and its characters and stages become items you have to be sent. Plays alone or alongside a campaign." />
+                                    <TextBlock Grid.Row="2"
+                                               Style="{StaticResource ContentTileCountStyle}"
+                                               Text="{Binding MercenariesCheckCount}" />
+                                </Grid>
+                            </ToggleButton>
+                            <ToggleButton Style="{StaticResource ContentTileStyle}"
+                                          IsChecked="{Binding IncludeSeparateWays}"
+                                      IsEnabled="{Binding SeparateWaysUnlocked}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Right"
+                                                   FontSize="17"
+                                                   FontWeight="Bold"
+                                                   Foreground="{DynamicResource AccentBrush}"
+                                                   Visibility="{Binding IncludeSeparateWays, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                   Text="&#x2714;" />
+                                        <TextBlock Style="{StaticResource ContentTileTitleStyle}"
+                                                   Text="Separate Ways" />
+                                    </DockPanel>
+                                    <TextBlock Grid.Row="1"
+                                               Style="{StaticResource ContentTileBodyStyle}"
+                                               Text="Ada's campaign, seven chapters. Plays instead of Main Campaign, since a room patches one campaign." />
+                                    <TextBlock Grid.Row="2"
+                                               Style="{StaticResource ContentTileCountStyle}"
+                                               Text="{Binding SeparateWaysCheckCount}" />
+                                    <TextBlock Grid.Row="3"
+                                               Margin="0,6,0,0"
+                                               TextWrapping="Wrap"
+                                               Opacity="0.6"
+                                               Text="{Binding SeparateWaysNote}" />
+                                </Grid>
+                            </ToggleButton>
+                        </WrapPanel>
+                        <TextBlock Margin="0,4,0,0"
+                                   FontWeight="SemiBold"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding IncludedContentTotal}" />
+                        <TextBlock Margin="0,6,0,0"
+                                   Foreground="{DynamicResource DangerTextBrush}"
+                                   TextWrapping="Wrap"
+                                   Visibility="{Binding HasIncludedContentError, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                   Text="{Binding IncludedContentError}" />
+                    </StackPanel>
+                    <WrapPanel>
+                        <StackPanel Style="{StaticResource OptionCardStyle}"
+                                    Visibility="{Binding CampaignIncluded, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Difficulty" />
+                            <ListBox ItemsSource="{Binding DifficultyOptions}"
+                                     SelectedItem="{Binding SelectedDifficulty, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource SegmentedPickerStyle}" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="The difficulty you'll actually play. Hardcore and Professional remove the few spots that can't be collected there, so this needs to match your save. Don't change difficulty mid-run either: moving up to Hardcore can strand an item in a spot you're no longer able to pick up." />
+                        </StackPanel>
+                    </WrapPanel>
+                </StackPanel>
+            </Grid>
 
             <!-- Two columns: settings on the left, the file preview and its
                  actions parked on the right. The page was a single narrow
                  list with the preview stacked underneath, which wasted half
                  the window and pushed the buttons off-screen (Cam
                  2026-07-31). -->
-            <Grid Grid.Row="4">
+            <Grid Grid.Row="4"
+                  Visibility="{Binding IsOnSettingsPage, Converter={StaticResource BooleanToVisibilityConverter}}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
@@ -497,33 +969,225 @@
                          options page. Each card owns its label, control and
                          explanation, so the eye reads one setting at a time
                          instead of scanning a tall label column. -->
-                    <WrapPanel MaxWidth="1120">
+                    <Border Style="{StaticResource SettingsSectionRuleStyle}">
+                        <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
+                                   Text="YOUR SLOT" />
+                    </Border>
+                    <WrapPanel MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}, Converter={StaticResource ColumnSnapConverter}, ConverterParameter=550}">
+                        <!-- Slot Name first, then what the slot plays, then the
+                             difficulty (Cam, 2026-09-05). Each included content
+                             gets its own section below, The Merchant style. -->
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="Slot Name" />
                             <TextBox Text="{Binding SlotName, UpdateSourceTrigger=PropertyChanged}"
                                      MaxLength="32" />
                             <TextBlock Margin="0,4,0,0"
-                                       Foreground="#FFB71C1C"
+                                       Foreground="{DynamicResource DangerTextBrush}"
                                        TextWrapping="Wrap"
                                        Visibility="{Binding HasSlotNameError, Converter={StaticResource BooleanToVisibilityConverter}}"
                                        Text="{Binding SlotNameError}" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="Your in-game player name (16 characters max). You'll type this exact name when joining - capitalization matters." />
                         </StackPanel>
-
+<!-- The choice stays visible and changeable, so page 1 traps
+                             nobody: Change goes back to it. -->
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
-                                       Text="Difficulty" />
-                            <ComboBox Width="220"
-                                      HorizontalAlignment="Left"
-                                      ItemsSource="{Binding DifficultyOptions}"
-                                      SelectedItem="{Binding SelectedDifficulty, UpdateSourceTrigger=PropertyChanged}" />
+                                       Text="Included Content" />
+                            <TextBlock Margin="0,4,0,0"
+                                       FontWeight="SemiBold"
+                                       TextWrapping="Wrap"
+                                       Text="{Binding IncludedContentSummary}" />
+                            <Button Margin="0,8,0,0"
+                                    HorizontalAlignment="Left"
+                                    Command="{Binding BackToContentCommand}"
+                                    Content="Change" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="The game's own difficulty setting. It does not change where checks are." />
+                                       Text="What this slot plays. Everything below is shaped by it: a slot with no campaign is not shown the merchant, guidance, typewriters or the rest of Leon's settings, because they would do nothing." />
                         </StackPanel>
-
+                        <StackPanel Style="{StaticResource OptionCardStyle}"
+                                    Visibility="{Binding CampaignIncluded, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Difficulty" />
+                            <ListBox ItemsSource="{Binding DifficultyOptions}"
+                                     SelectedItem="{Binding SelectedDifficulty, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource SegmentedPickerStyle}" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="The difficulty you'll actually play. Hardcore and Professional remove the few spots that can't be collected there, so this needs to match your save. Don't change difficulty mid-run either: moving up to Hardcore can strand an item in a spot you're no longer able to pick up." />
+                        </StackPanel>
+                    </WrapPanel>
+                    <Border Style="{StaticResource SettingsSectionRuleStyle}"
+                            Visibility="{Binding IncludeMercenaries, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
+                                   Text="THE MERCENARIES" />
+                    </Border>
+                    <WrapPanel MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}, Converter={StaticResource ColumnSnapConverter}, ConverterParameter=550}"
+                               Visibility="{Binding IncludeMercenaries, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Ranks as Checks" />
+                            <TextBlock Margin="0,0,0,6"
+                                       FontWeight="SemiBold"
+                                       Text="{Binding MercenariesRanksSummary}" />
+                            <controls:RangeSlider Margin="0,2,0,0"
+                                                  Minimum="0"
+                                                  Maximum="5"
+                                                  StepLabels="{Binding MercenariesRankNames}"
+                                                  LowerValue="{Binding MercenariesRankFloorIndex, Mode=TwoWay}"
+                                                  UpperValue="{Binding MercenariesRankCeilingIndex, Mode=TwoWay}" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Select the Ranks to include AP Checks in for Mercenaries, 32 Checks per Rank. A Rank = 100k • S Rank = 200k • S+ Rank = 500k • S++ Rank = 1M" />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <CheckBox Style="{StaticResource OptionCardCheckTitleStyle}"
+                                      IsChecked="{Binding MercenariesProgression}"
+                                      Content="Ranks May Hold Progression" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="When enabled, allows Progression items to be held in Ranks up to Rank A. When off, every Rank is restricted to Useful &amp; Filler only." />
+                        </StackPanel>
+                    </WrapPanel>
+                    <Border Style="{StaticResource SettingsSectionRuleStyle}"
+                            Visibility="{Binding CampaignIncluded, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
+                                   Text="THE MERCHANT" />
+                    </Border>
+                    <WrapPanel MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}, Converter={StaticResource ColumnSnapConverter}, ConverterParameter=550}"
+                               Visibility="{Binding CampaignIncluded, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Merchant Checks" />
+                            <CheckBox IsChecked="{Binding MerchantChecksEnabled}"
+                                      Content="Let the merchant sell multiworld checks" />
+                            <StackPanel Margin="0,6,0,0"
+                                        Orientation="Horizontal"
+                                        IsEnabled="{Binding MerchantChecksEnabled}">
+                                <Slider Width="220"
+                                        VerticalAlignment="Center"
+                                        IsSnapToTickEnabled="True"
+                                        Maximum="6"
+                                        Minimum="1"
+                                        TickFrequency="1"
+                                        Value="{Binding MerchantChecksPerChapter}" />
+                                <TextBlock Margin="10,0,0,0"
+                                           VerticalAlignment="Center"
+                                           Text="{Binding MerchantChecksLabel}" />
+                            </StackPanel>
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="At 3 a chapter (45 checks a seed). The merchant releases this many Archipelago checks each chapter. His shelf shows thirteen at a time and the rest queue behind them, moving up as you buy - a check is never lost, and the backlog is shown on screen. Each row names what it really is and who it belongs to, then reads SOLD OUT once bought. Prices are fixed by tier - 5,000 filler / 7,000 useful / 9,000 progression - and buying another player's item hands you back a gemstone worth exactly what you paid, so you need the money but never lose it. Your own items are normal spending. Every check also puts an item into the multiworld weighted toward what the merchant used to stock: healing, Resources, gunpowder and ammo." />
+                            <CheckBox Margin="0,16,0,0"
+                                      Content="Let the merchant trade multiworld checks for Spinel"
+                                      IsChecked="{Binding TradeChecksEnabled}"
+                                      IsEnabled="{Binding ShuffleMerchantGear}" />
+                            <StackPanel Margin="0,6,0,0"
+                                        Orientation="Horizontal"
+                                        IsEnabled="{Binding TradeChecksEnabled}">
+                                <Slider Width="220"
+                                        VerticalAlignment="Center"
+                                        IsSnapToTickEnabled="True"
+                                        Maximum="3"
+                                        Minimum="1"
+                                        TickFrequency="1"
+                                        Value="{Binding TradeChecksPerChapter}" />
+                                <TextBlock Margin="10,0,0,0"
+                                           VerticalAlignment="Center"
+                                           Text="{Binding TradeChecksLabel}" />
+                            </StackPanel>
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="His TRADE tab, the one that takes Spinel. At 3 a chapter (45 checks a seed), the same lever shape as the shelf above because they are two halves of one merchant. Prices are in Spinel and fixed by tier - 1 filler / 3 useful / 6 progression - and the seed mints exactly enough Spinel to afford every one of them, so the tab always pays for itself. Trade checks never refund. The tab keeps its exchange either way: an endless Velvet Blue, three gems that restock as the chapters pass, and the game's own Gold Token row untouched. Turning this off leaves that exchange and nothing else, which is a fine way to play - the vanilla trade stock still goes into the multiworld while Merchant Gear is on. Needs Merchant Gear: the takeover is what empties the tab in the first place." />
+                            <TextBlock Margin="0,10,0,0"
+                                       Text="Merchant checks" />
+                            <ListBox ItemsSource="{Binding MerchantChecksOptions}"
+                                     ItemTemplate="{StaticResource OptionShortLabelTemplate}"
+                                     SelectedItem="{Binding SelectedMerchantChecks, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource SegmentedPickerStyle}"
+                                     IsEnabled="{Binding MerchantChecksEnabled}" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Who the check rows may hold. Mixed lets the multiworld decide. Local only keeps your own items on the shelf, so every row is something you will use yourself, but nothing on that shelf refunds and the prices are real spending. Remote only turns the shop into a trading post - every row belongs to another world, and the gem refund keeps you solvent while you stock everyone else. Remote only needs at least one other world in the room." />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <CheckBox Style="{StaticResource OptionCardCheckTitleStyle}"
+                                      IsChecked="{Binding ShuffleMerchantGear}"
+                                      Content="Merchant Gear" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="His weapons, attachments, case sizes and crafting recipes - plus the Deluxe and Separate Ways guns that work in Leon's campaign - leave the buy tab and become multiworld items: your next gun is a check somewhere out there, maybe in another player's world. Consumable supplies, knife replacements, body armor, tune-ups, selling and trades stay. Expect a different power curve; gear never gates logic, so a seed can always be finished. Turning this on also turns shop checks on, so the emptied shelf sells checks instead of nothing - untick it if you really want a bare shop." />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="While either option is on, the multiworld owns the shop: BioRand's own Random Merchant is switched off when you patch, and its row on the BioRand Options screen says so." />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Starting Arsenal" />
+                            <StackPanel
+                                        Orientation="Horizontal"
+                                        IsEnabled="{Binding ShuffleMerchantGear}">
+                                <TextBlock VerticalAlignment="Center"
+                                           Text="Starting arsenal:" />
+                                <ComboBox Margin="8,0,0,0"
+                                          MinWidth="64"
+                                          ItemsSource="{Binding StartingArsenalChoices}"
+                                          SelectedItem="{Binding StartingArsenal, Mode=TwoWay}"
+                                          AutomationProperties.Name="Starting arsenal" />
+                            </StackPanel>
+                            <ItemsControl Margin="0,6,0,0"
+                                          IsEnabled="{Binding ShuffleMerchantGear}"
+                                          ItemsSource="{Binding StartingArsenalTypeOptions}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <CheckBox Margin="0,0,12,4"
+                                                  IsChecked="{Binding IsSelected}"
+                                                  Content="{Binding Label}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Begin the run with this many random pool weapons already in your case, ammo to match, exactly like BioRand's own starting loadout. Each one leaves the pool, so nobody finds a second copy. The type boxes trim what the draw may take - two guns come from two different types when the boxes allow it, and at least one box must stay ticked. Needs the gear shuffle above; without it, BioRand's own starting-inventory options on the options screen still work as always." />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Weapon Randomization" />
+                            <ListBox ItemsSource="{Binding WeaponRandomizationOptions}"
+                                     ItemTemplate="{StaticResource OptionShortLabelTemplate}"
+                                     SelectedItem="{Binding SelectedWeaponRandomization, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource SegmentedPickerStyle}" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="How far BioRand's weapon-upgrade randomization goes, decided here because the multiworld holds the weapons. Off keeps the vanilla upgrade system. Stats Only rerolls every gun's upgrade curve, from forgettable to monstrous, on the vanilla upgrade tree. Full randomizes the upgrade paths too. One control because BioRand only supports these three shapes; both of its own switches grey out and say the settings file decided." />
+                        </StackPanel>
+                    </WrapPanel>
+                    <Border Style="{StaticResource SettingsSectionRuleStyle}">
+                        <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
+                                   Text="WHERE THINGS END UP" />
+                    </Border>
+                    <WrapPanel MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}, Converter={StaticResource ColumnSnapConverter}, ConverterParameter=550}">
+                        <StackPanel Style="{StaticResource OptionCardStyle}"
+                                    Visibility="{Binding CampaignIncluded, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <CheckBox Style="{StaticResource OptionCardCheckTitleStyle}"
+                                      IsChecked="{Binding AllowMissableLocations}"
+                                      Content="Allow Missable Locations" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Off by default, which keeps progression items away from spots you can permanently lose: ones you can walk past for good, and small-key drawers (a discarded Small Key can seal one). On allows them in both - riskier seeds." />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource OptionCardStyle}"
+                                    Visibility="{Binding CampaignIncluded, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <CheckBox Style="{StaticResource OptionCardCheckTitleStyle}"
+                                      IsChecked="{Binding MinimizeBacktracking}"
+                                      Content="Minimize Backtracking" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Keeps the important checks along the main path - all three Hexagon pieces are guaranteed before leaving the Fish Farm so the lake altar solves in one boat pass, and the optional excursions (Forest Altar, the chapter 12 Throne Room revisit, the lake's egg-nest islet) only ever hold plain filler. Off: the softer deadlines apply and side areas can hold anything." />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource OptionCardStyle}"
+                                    Visibility="{Binding CampaignIncluded, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <CheckBox Style="{StaticResource OptionCardCheckTitleStyle}"
+                                      IsChecked="{Binding ShuffleKeycards}"
+                                      Content="Shuffle Keycards" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Off by default: each keycard sits at its native facility spot (still a check), so the island door sequence plays like vanilla. On: the keycards join the shuffle like any other key item - logic guarantees each card is obtainable before the first door that needs it, but it may come from anywhere in the multiworld." />
+                        </StackPanel>
+                        <StackPanel Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=WrapPanel}, Converter={StaticResource ColumnSnapConverter}, ConverterParameter=550}" Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="Progression Balancing" />
                             <Slider Minimum="0"
@@ -537,78 +1201,139 @@
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="How aggressively Archipelago front-loads your own useful and progression items so you spend less time stuck waiting on other worlds. Disabled (0) turns it off, Normal (50) is the Archipelago default, Recommended (70) suits RE4R's long gated chapters, Aggressive (99) pushes the hardest." />
                         </StackPanel>
-
+                        <StackPanel DataContext="{Binding ItemSelection}"
+                                    Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Where your items go" />
+                            <TextBox Style="{StaticResource SearchBoxStyle}"
+                                     Margin="0,0,0,6"
+                                     Tag="{Binding SearchHint}"
+                                     Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
+                            <Border Padding="8"
+                                    BorderBrush="{DynamicResource SubtleBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="8">
+                                <ScrollViewer MaxHeight="220"
+                                              VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding VisibleEntries}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="0,0,0,4">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               Text="{Binding DisplayName}">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsGroup}" Value="True">
+                                                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                    <ComboBox Grid.Column="1"
+                                                              Width="210"
+                                                              SelectedIndex="{Binding Stance}"
+                                                              ItemsSource="{Binding DataContext.StanceOptions, RelativeSource={RelativeSource AncestorType=ItemsControl}}" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Border>
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="{Binding SummaryText}" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="{Binding DataContext.ItemSelectionHint, RelativeSource={RelativeSource AncestorType=Window}}" />
+                        </StackPanel>
+                        <StackPanel DataContext="{Binding LocationSelection}"
+                                    Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="What can appear where" />
+                            <TextBox Style="{StaticResource SearchBoxStyle}"
+                                     Margin="0,0,0,6"
+                                     Tag="{Binding SearchHint}"
+                                     Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
+                            <Border Padding="8"
+                                    BorderBrush="{DynamicResource SubtleBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="8">
+                                <ScrollViewer MaxHeight="220"
+                                              VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding VisibleEntries}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="0,0,0,4">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               Text="{Binding DisplayName}">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsGroup}" Value="True">
+                                                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                    <ComboBox Grid.Column="1"
+                                                              Width="210"
+                                                              SelectedIndex="{Binding Stance}"
+                                                              ItemsSource="{Binding DataContext.StanceOptions, RelativeSource={RelativeSource AncestorType=ItemsControl}}" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Border>
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="{Binding SummaryText}" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="{Binding DataContext.LocationSelectionHint, RelativeSource={RelativeSource AncestorType=Window}}" />
+                        </StackPanel>
+                    </WrapPanel>
+                    <Border Style="{StaticResource SettingsSectionRuleStyle}"
+                            Visibility="{Binding CampaignIncluded, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
+                                   Text="HELP WHILE YOU PLAY" />
+                    </Border>
+                    <WrapPanel MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}, Converter={StaticResource ColumnSnapConverter}, ConverterParameter=550}"
+                               Visibility="{Binding CampaignIncluded, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="Check Guidance" />
-                            <ComboBox Width="260"
-                                      HorizontalAlignment="Left"
-                                      ItemsSource="{Binding CheckGuidanceOptions}"
-                                      DisplayMemberPath="Label"
-                                      SelectedItem="{Binding SelectedCheckGuidance, UpdateSourceTrigger=PropertyChanged}" />
+                            <ListBox ItemsSource="{Binding CheckGuidanceOptions}"
+                                     ItemTemplate="{StaticResource OptionShortLabelTemplate}"
+                                     SelectedItem="{Binding SelectedCheckGuidance, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource SegmentedPickerStyle}" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="Controls the in-game world markers that point to your unchecked locations. Markers shows neutral [AP] markers you can toggle and tune in-game. Markers + rarity colours also unlocks optional colours that reveal each check's item importance (hint-level information). Off disables the markers entirely. The on-screen area header and check counts are always shown." />
                         </StackPanel>
-
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
-                                       Text="Death Link" />
-                            <CheckBox IsChecked="{Binding DeathLink}"
-                                      Content="Enable Death Link" />
+                                       Text="Marker Detail" />
+                            <ListBox ItemsSource="{Binding MarkerDetailOptions}"
+                                     ItemTemplate="{StaticResource OptionShortLabelTemplate}"
+                                     SelectedItem="{Binding SelectedMarkerDetail, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource SegmentedPickerStyle}" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="Dying sends a death to all Death Link players, and theirs kill you." />
+                                       Text="How much a marker says, and what you will actually see: markers read at this level the moment you connect. You can change it any time in the in-game Guidance tab, and once you do, your choice sticks for that seed. Locate is the recommended default - it names the item as it appeared in vanilla, what it is sitting in, and how to reach it, without revealing what the multiworld actually placed. Identify does reveal that, and is what a bought hint always shows. Developer adds the location code and is a debug tool." />
                         </StackPanel>
-
-                        <StackPanel Style="{StaticResource OptionCardStyle}">
-                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
-                                       Text="Allow Missable Locations" />
-                            <CheckBox IsChecked="{Binding AllowMissableLocations}"
-                                      Content="Allow missable locations" />
-                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="Off by default, which keeps progression items away from spots you can permanently lose: ones you can walk past for good, and small-key drawers (a discarded Small Key can seal one). On allows them in both - riskier seeds." />
-                        </StackPanel>
-
-                        <StackPanel Style="{StaticResource OptionCardStyle}">
-                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
-                                       Text="Shuffle Keycards" />
-                            <CheckBox IsChecked="{Binding ShuffleKeycards}"
-                                      Content="Shuffle the Level 1/2/3 Keycards" />
-                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="Off by default: each keycard sits at its native facility spot (still a check), so the island door sequence plays like vanilla. On: the keycards join the shuffle like any other key item - logic guarantees each card is obtainable before the first door that needs it, but it may come from anywhere in the multiworld." />
-                        </StackPanel>
-
-                        <StackPanel Style="{StaticResource OptionCardStyle}">
-                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
-                                       Text="Minimize Backtracking" />
-                            <CheckBox IsChecked="{Binding MinimizeBacktracking}"
-                                      Content="Minimize backtracking + side areas" />
-                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="Off by default. On: keeps the important checks along the main path - all three Hexagon pieces are guaranteed before leaving the Fish Farm so the lake altar solves in one boat pass, and the optional excursions (Forest Altar, the chapter 12 Throne Room revisit, the lake's egg-nest islet) only ever hold plain filler." />
-                        </StackPanel>
-
-                        <StackPanel Style="{StaticResource OptionCardStyle}">
-                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
-                                       Text="Random Events (Experimental)" />
-                            <CheckBox IsChecked="{Binding RandomEvents}"
-                                      Content="Let the multiworld author BioRand's Random Events" />
-                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="Off by default. On: the Village chapters gain scripted set-pieces that the multiworld itself picks when the room generates, so the logic reacts to them - a couple of checks can trade places, and one event can replace the Hexagonal Emblem pickup with a guardian enemy who drops the emblem. Experimental and lightly tested; the launcher's bundled BioRand applies your room's roll automatically at patch time." />
-                        </StackPanel>
-
-                        <StackPanel Style="{StaticResource OptionCardStyle}">
-                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
-                                       Text="In-Game Tutorial" />
-                            <CheckBox IsChecked="{Binding Tutorial}"
-                                      Content="Show the getting-started guide" />
-                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="On by default: a short guide appears in game on your first chapter, explaining checks, markers and how to get unstuck. You can reopen or skip it any time. Turn it off if you already know how this works." />
-                        </StackPanel>
-
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="Unlocked Typewriters" />
                             <Border Padding="8"
-                                    BorderBrush="#FFE0E0E0"
+                                    BorderBrush="{DynamicResource SubtleBorderBrush}"
                                     BorderThickness="1"
                                     CornerRadius="8">
                                 <ScrollViewer MaxHeight="200"
@@ -628,6 +1353,27 @@
                                        Text="Save points you can warp to from the start of the run." />
                         </StackPanel>
                     </WrapPanel>
+                    <Border Style="{StaticResource SettingsSectionRuleStyle}">
+                        <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
+                                   Text="EXTRAS" />
+                    </Border>
+                    <WrapPanel MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}, Converter={StaticResource ColumnSnapConverter}, ConverterParameter=550}">
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <CheckBox Style="{StaticResource OptionCardCheckTitleStyle}"
+                                      IsChecked="{Binding DeathLink}"
+                                      Content="Death Link" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Dying sends a death to all Death Link players, and theirs kill you." />
+                        </StackPanel>
+                        <StackPanel Style="{StaticResource OptionCardStyle}"
+                                    Visibility="{Binding CampaignIncluded, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <CheckBox Style="{StaticResource OptionCardCheckTitleStyle}"
+                                      IsChecked="{Binding RandomEvents}"
+                                      Content="Random Events (Experimental)" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Off by default. On: the Village chapters gain scripted set-pieces that the multiworld itself picks when the room generates, so the logic reacts to them - a couple of checks can trade places, and one event can replace the Hexagonal Emblem pickup with a guardian enemy who drops the emblem. Experimental and lightly tested; the launcher's bundled BioRand applies your room's roll automatically at patch time." />
+                        </StackPanel>
+                    </WrapPanel>
 
                     <StackPanel Margin="0,20,0,0"
                                 MaxWidth="1120"
@@ -635,13 +1381,13 @@
                         <TextBlock FontWeight="SemiBold"
                                    Text="YAML Preview" />
                         <TextBlock Margin="0,4,0,0"
-                                   Foreground="DimGray"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
                                    TextWrapping="Wrap"
-                                   Text="This updates automatically from the settings above. Save or copy it to send the file to your host - your settings are remembered here either way." />
+                                   Text="{Binding YamlPreviewHint}" />
                         <Border Margin="0,8,0,0"
                                 Padding="12"
-                                Background="#FFF8F8F8"
-                                BorderBrush="#FFE0E0E0"
+                                Background="{DynamicResource SurfaceAltBrush}"
+                                BorderBrush="{DynamicResource SubtleBorderBrush}"
                                 BorderThickness="1"
                                 CornerRadius="8">
                             <TextBox Background="Transparent"
@@ -653,7 +1399,7 @@
                                      AcceptsReturn="True" />
                         </Border>
                         <TextBlock Margin="0,10,0,0"
-                                   Foreground="DimGray"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
                                    TextWrapping="Wrap"
                                    Text="{Binding StatusText}" />
 
@@ -665,8 +1411,8 @@
                              organizer is not sending anything to anyone. -->
                         <Border Margin="0,16,0,0"
                                 Padding="12,10"
-                                Background="#FFE3F2FD"
-                                BorderBrush="#FF90CAF9"
+                                Background="{DynamicResource InfoBackgroundBrush}"
+                                BorderBrush="{DynamicResource InfoBorderBrush}"
                                 BorderThickness="1"
                                 CornerRadius="8"
                                 Visibility="{Binding ShowJoinerHandoff, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -708,13 +1454,13 @@
         </DataTemplate>
 
         <DataTemplate DataType="{x:Type viewModels:GenerationGuidanceViewModel}">
-            <StackPanel MaxWidth="1050"
+            <StackPanel MaxWidth="{Binding GuidanceMaxWidth}"
                         HorizontalAlignment="Left">
                 <TextBlock FontSize="34"
                            FontWeight="SemiBold"
                            Text="Host a Multiworld" />
                 <TextBlock Margin="0,8,0,6"
-                           Foreground="DimGray"
+                           Foreground="{DynamicResource SubtleTextBrush}"
                            TextWrapping="Wrap"
                            Text="Generating a multiworld happens on your own Archipelago install - this guide walks you through it one step at a time. Your progress is saved, so you can close this window and come back anytime." />
                 <TextBlock Margin="0,0,0,12"
@@ -736,7 +1482,7 @@
                                        Margin="10,0,0,0"
                                        VerticalAlignment="Center"
                                        FontWeight="SemiBold"
-                                       Foreground="#FF11662D"
+                                       Foreground="{DynamicResource SuccessTextBrush}"
                                        Text="✓ Done"
                                        Visibility="{Binding Step1Done, Converter={StaticResource BooleanToVisibilityConverter}}" />
                             <TextBlock Style="{StaticResource GuidanceStepTitleStyle}">
@@ -744,7 +1490,7 @@
                             </TextBlock>
                         </DockPanel>
                         <TextBlock Margin="38,6,0,0"
-                                   Foreground="DimGray"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
                                    TextWrapping="Wrap">
                             <Run Text="RE4R needs Archipelago " /><Run Text="{Binding ApVersionPin, Mode=OneWay}" /><Run Text=" exactly - newer versions may not work with RE4R. If it's already installed, the launcher finds it below; otherwise install it first (a normal Windows installer), then come back." />
                         </TextBlock>
@@ -767,12 +1513,12 @@
                                    Text="{Binding ApInstallStatusText}" />
                         <Border Margin="38,8,0,0"
                                 Padding="10,6"
-                                Background="#FFFFF8E1"
-                                BorderBrush="#FFFFCC80"
+                                Background="{DynamicResource WarningBackgroundBrush}"
+                                BorderBrush="{DynamicResource WarningBorderBrush}"
                                 BorderThickness="1"
                                 CornerRadius="8"
                                 Visibility="{Binding HasApVersionNote, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <TextBlock Foreground="#FF8D6E00"
+                            <TextBlock Foreground="{DynamicResource WarningTextBrush}"
                                        TextWrapping="Wrap"
                                        Text="{Binding ApVersionNoteText}" />
                         </Border>
@@ -800,14 +1546,14 @@
                                        Margin="10,0,0,0"
                                        VerticalAlignment="Center"
                                        FontWeight="SemiBold"
-                                       Foreground="#FF11662D"
+                                       Foreground="{DynamicResource SuccessTextBrush}"
                                        Text="✓ Done"
                                        Visibility="{Binding Step2Done, Converter={StaticResource BooleanToVisibilityConverter}}" />
                             <TextBlock Style="{StaticResource GuidanceStepTitleStyle}"
                                        Text="Add the RE4R world to Archipelago" />
                         </DockPanel>
                         <TextBlock Margin="38,6,0,0"
-                                   Foreground="DimGray"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
                                    TextWrapping="Wrap">
                             <Run Text="Archipelago doesn't know Resident Evil 4 Remake out of the box - an apworld is the file that teaches it a game. " /><Run Text="{Binding ApworldVersionText, Mode=OneWay}" />
                         </TextBlock>
@@ -842,25 +1588,19 @@
                                        Margin="10,0,0,0"
                                        VerticalAlignment="Center"
                                        FontWeight="SemiBold"
-                                       Foreground="#FF11662D"
+                                       Foreground="{DynamicResource SuccessTextBrush}"
                                        Text="✓ Done"
                                        Visibility="{Binding OwnYamlReady, Converter={StaticResource BooleanToVisibilityConverter}}" />
                             <TextBlock Style="{StaticResource GuidanceStepTitleStyle}"
-                                       Text="Set up your own settings file" />
+                                       Text="Configure Your YAML" />
                         </DockPanel>
-                        <TextBlock Margin="38,6,0,0"
-                                   Foreground="DimGray"
-                                   TextWrapping="Wrap"
-                                   Text="You play too - these settings decide how YOUR RE4R plays and which slot name is yours. Your file joins everyone else's in the next step." />
-                        <StackPanel Margin="38,10,0,0"
-                                    Orientation="Horizontal">
-                            <Button Style="{StaticResource GuidanceButtonStyle}"
-                                    Command="{Binding ConfigureOwnYamlCommand}"
-                                    Content="Configure Your YAML" />
-                        </StackPanel>
-                        <TextBlock Margin="38,4,0,0"
-                                   TextWrapping="Wrap"
-                                   Text="{Binding OwnYamlStatusText}" />
+                        <!-- The settings editor itself, not a button that opens
+                             it. Step 3 IS Configure Your YAML (Cam, 2026-08-21,
+                             asked three times). Its own 34pt header and blurb
+                             hide via IsHostedInGuide, since the step chip and
+                             title above already say what this is. -->
+                        <ContentControl Margin="38,10,0,0"
+                                        Content="{Binding DataContext.ConfigureYaml, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" />
                     </StackPanel>
                 </Border>
 
@@ -879,14 +1619,14 @@
                                        Margin="10,0,0,0"
                                        VerticalAlignment="Center"
                                        FontWeight="SemiBold"
-                                       Foreground="#FF11662D"
+                                       Foreground="{DynamicResource SuccessTextBrush}"
                                        Text="✓ Done"
                                        Visibility="{Binding Step3Done, Converter={StaticResource BooleanToVisibilityConverter}}" />
                             <TextBlock Style="{StaticResource GuidanceStepTitleStyle}"
                                        Text="Collect everyone's settings files" />
                         </DockPanel>
                         <TextBlock Margin="38,6,0,0"
-                                   Foreground="DimGray"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
                                    TextWrapping="Wrap"
                                    Text="Every player sends you their settings file (YAML) - any Archipelago game, not just RE4R. Add them all here, including your own from the previous step." />
                         <StackPanel Margin="38,10,0,0"
@@ -905,8 +1645,8 @@
                                 <DataTemplate>
                                     <Border Margin="0,0,0,6"
                                             Padding="10,6"
-                                            Background="#FFF8F8F8"
-                                            BorderBrush="#FFE6E6E6"
+                                            Background="{DynamicResource SurfaceAltBrush}"
+                                            BorderBrush="{DynamicResource SubtleBorderBrush}"
                                             BorderThickness="1"
                                             CornerRadius="8">
                                         <Grid>
@@ -918,11 +1658,11 @@
                                                 <TextBlock FontWeight="SemiBold"
                                                            TextWrapping="Wrap"
                                                            Text="{Binding DisplayTitle}" />
-                                                <TextBlock Foreground="DimGray"
+                                                <TextBlock Foreground="{DynamicResource SubtleTextBrush}"
                                                            TextWrapping="Wrap"
                                                            Text="{Binding FileNameDetail}"
                                                            Visibility="{Binding IsParsed, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                                                <TextBlock Foreground="#FF8D6E00"
+                                                <TextBlock Foreground="{DynamicResource WarningTextBrush}"
                                                            TextWrapping="Wrap"
                                                            Text="{Binding IssueText}"
                                                            Visibility="{Binding HasIssue, Converter={StaticResource BooleanToVisibilityConverter}}" />
@@ -952,12 +1692,12 @@
                                    Text="{Binding YamlPanelStatusText}" />
                         <Border Margin="38,8,0,0"
                                 Padding="10,6"
-                                Background="#FFFFF8E1"
-                                BorderBrush="#FFFFCC80"
+                                Background="{DynamicResource WarningBackgroundBrush}"
+                                BorderBrush="{DynamicResource WarningBorderBrush}"
                                 BorderThickness="1"
                                 CornerRadius="8"
                                 Visibility="{Binding HasPlayersFolderWarning, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <TextBlock Foreground="#FF8D6E00"
+                            <TextBlock Foreground="{DynamicResource WarningTextBrush}"
                                        TextWrapping="Wrap"
                                        Text="{Binding PlayersFolderWarningText}" />
                         </Border>
@@ -979,14 +1719,14 @@
                                        Margin="10,0,0,0"
                                        VerticalAlignment="Center"
                                        FontWeight="SemiBold"
-                                       Foreground="#FF11662D"
+                                       Foreground="{DynamicResource SuccessTextBrush}"
                                        Text="✓ Done"
                                        Visibility="{Binding Step4Done, Converter={StaticResource BooleanToVisibilityConverter}}" />
                             <TextBlock Style="{StaticResource GuidanceStepTitleStyle}"
                                        Text="Generate the multiworld" />
                         </DockPanel>
                         <TextBlock Margin="38,6,0,0"
-                                   Foreground="DimGray"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
                                    TextWrapping="Wrap"
                                    Text="Open your Archipelago folder and double-click ArchipelagoGenerate.exe (on Linux, the provided generator). It reads every settings file in Players and writes an AP_*.zip into the output folder. If it fails, the error names the settings file or game that broke - fix that player's file or add the missing world; this app can't diagnose other games' errors." />
                         <StackPanel Margin="38,10,0,0"
@@ -1022,14 +1762,14 @@
                                        Margin="10,0,0,0"
                                        VerticalAlignment="Center"
                                        FontWeight="SemiBold"
-                                       Foreground="#FF11662D"
+                                       Foreground="{DynamicResource SuccessTextBrush}"
                                        Text="✓ Done"
                                        Visibility="{Binding Step6Done, Converter={StaticResource BooleanToVisibilityConverter}}" />
                             <TextBlock Style="{StaticResource GuidanceStepTitleStyle}"
                                        Text="Upload it, create the room, paste the details here" />
                         </DockPanel>
                         <TextBlock Margin="38,6,0,0"
-                                   Foreground="DimGray"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
                                    TextWrapping="Wrap"
                                    Text="On the uploads page, upload the AP_*.zip from your output folder (the zip itself - NOT the spoiler log), then click Create New Room. The room page that opens shows the room address - grab it and the page link below while you're there." />
                         <StackPanel Margin="38,10,0,0"
@@ -1058,7 +1798,7 @@
                                 <TextBox AutomationProperties.Name="Room address"
                                          Text="{Binding RoomAddress, UpdateSourceTrigger=PropertyChanged}" />
                                 <TextBlock Margin="0,4,0,0"
-                                           Foreground="DimGray"
+                                           Foreground="{DynamicResource SubtleTextBrush}"
                                            TextWrapping="Wrap"
                                            Text="Looks like archipelago.gg:38281 - it's shown on the room page." />
                             </StackPanel>
@@ -1071,7 +1811,7 @@
                                 <TextBox AutomationProperties.Name="Room page link"
                                          Text="{Binding RoomUrl, UpdateSourceTrigger=PropertyChanged}" />
                                 <TextBlock Margin="0,4,0,0"
-                                           Foreground="DimGray"
+                                           Foreground="{DynamicResource SubtleTextBrush}"
                                            TextWrapping="Wrap"
                                            Text="The archipelago.gg/room/... link from your browser. Rooms fall asleep after inactivity - opening this link wakes yours." />
                             </StackPanel>
@@ -1094,14 +1834,14 @@
                                        Margin="10,0,0,0"
                                        VerticalAlignment="Center"
                                        FontWeight="SemiBold"
-                                       Foreground="#FF11662D"
+                                       Foreground="{DynamicResource SuccessTextBrush}"
                                        Text="✓ Done"
                                        Visibility="{Binding Step7Done, Converter={StaticResource BooleanToVisibilityConverter}}" />
                             <TextBlock Style="{StaticResource GuidanceStepTitleStyle}"
                                        Text="Send each friend the address and their slot name" />
                         </DockPanel>
                         <TextBlock Margin="38,6,0,0"
-                                   Foreground="DimGray"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
                                    TextWrapping="Wrap"
                                    Text="Each player types the room address plus their own slot name into Join a Session - the slot name must match their settings file exactly, including capitals." />
                         <TextBlock Margin="38,8,0,0"
@@ -1117,7 +1857,7 @@
                                     Content="Continue to Join - I'm Playing Too" />
                         </StackPanel>
                         <TextBlock Margin="38,8,0,0"
-                                   Foreground="DimGray"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
                                    TextWrapping="Wrap"
                                    Text="Continue to Join patches YOUR RE4R against the new room. Everyone else uses Join a Session in their own launcher with the details you send them." />
                     </StackPanel>
@@ -1127,7 +1867,7 @@
                      always free and Next unlocks when the step auto-detects
                      as done. -->
                 <TextBlock Margin="0,4,0,0"
-                           Foreground="DimGray"
+                           Foreground="{DynamicResource SubtleTextBrush}"
                            Text="{Binding StepProgressText}" />
             </StackPanel>
         </DataTemplate>
@@ -1170,8 +1910,8 @@
                             <Border Grid.Row="2"
                                     Margin="0,0,0,16"
                                     Padding="12,8"
-                                    Background="#FFE3F2FD"
-                                    BorderBrush="#FF90CAF9"
+                                    Background="{DynamicResource InfoBackgroundBrush}"
+                                    BorderBrush="{DynamicResource InfoBorderBrush}"
                                     BorderThickness="1"
                                     CornerRadius="8"
                                     Visibility="{Binding ShowJoinerHandoff, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -1218,11 +1958,11 @@
                                 <StackPanel Grid.Column="1">
                                     <TextBox Text="{Binding Session.ServerAddress, UpdateSourceTrigger=PropertyChanged}" />
                                     <TextBlock Margin="0,4,0,0"
-                                               Foreground="DimGray"
+                                               Foreground="{DynamicResource SubtleTextBrush}"
                                                TextWrapping="Wrap"
-                                               Text="Looks like archipelago.gg:38281 - your host sends it to you. Just the port number on its own works too." />
+                                               Text="{Binding ServerAddressHint}" />
                                     <TextBlock Margin="0,3,0,0"
-                                               Foreground="DimGray"
+                                               Foreground="{DynamicResource SubtleTextBrush}"
                                                TextWrapping="Wrap"
                                                Text="Rooms hosted elsewhere, including one you run yourself, should also work - that path is largely untested, so treat it as use at your own risk." />
                                 </StackPanel>
@@ -1235,7 +1975,7 @@
                                             Grid.Column="1">
                                     <TextBox Text="{Binding Session.SlotName, UpdateSourceTrigger=PropertyChanged}" />
                                     <TextBlock Margin="0,4,0,0"
-                                               Foreground="DimGray"
+                                               Foreground="{DynamicResource SubtleTextBrush}"
                                                TextWrapping="Wrap"
                                                Text="Your name inside the multiworld. It must match the settings file you sent exactly, including capitalization." />
                                 </StackPanel>
@@ -1248,7 +1988,7 @@
                                             Grid.Column="1">
                                     <TextBox Text="{Binding Session.RoomUrl, UpdateSourceTrigger=PropertyChanged}" />
                                     <TextBlock Margin="0,4,0,0"
-                                               Foreground="DimGray"
+                                               Foreground="{DynamicResource SubtleTextBrush}"
                                                TextWrapping="Wrap"
                                                Text="The archipelago.gg/room/... link, if you have it. Rooms sleep after inactivity - the launcher uses this to help you wake yours later." />
                                 </StackPanel>
@@ -1262,9 +2002,9 @@
 
                                 <TextBlock Grid.Row="8"
                                            Grid.ColumnSpan="2"
-                                           Foreground="DimGray"
+                                           Foreground="{DynamicResource SubtleTextBrush}"
                                            TextWrapping="Wrap"
-                                           Text="Your host will give you these details." />
+                                           Text="{Binding SessionDetailsHint}" />
                             </Grid>
                         </Grid>
                     </Border>
@@ -1286,7 +2026,7 @@
                                            FontWeight="SemiBold"
                                            Text="BioRand Options" />
                                 <TextBlock Margin="0,6,0,0"
-                                           Foreground="DimGray"
+                                           Foreground="{DynamicResource SubtleTextBrush}"
                                            TextWrapping="Wrap"
                                            Text="BioRand is the randomizer that rebuilds your copy of the game world. These settings change only YOUR game - they cannot move multiworld items or affect other players. The defaults are fine if you just want to play." />
                             </StackPanel>
@@ -1309,8 +2049,8 @@
                                          informational blue as the other guidance panels. -->
                                     <Border Margin="0,8,0,0"
                                             Padding="12,8"
-                                            Background="#FFE3F2FD"
-                                            BorderBrush="#FF90CAF9"
+                                            Background="{DynamicResource InfoBackgroundBrush}"
+                                            BorderBrush="{DynamicResource InfoBorderBrush}"
                                             BorderThickness="1"
                                             CornerRadius="8"
                                             Visibility="{Binding BioRandOptions.HasRandomEventsNotice, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -1344,17 +2084,17 @@
                                                         <Border x:Name="CardBorder"
                                                                 Width="250"
                                                                 Padding="12"
-                                                                Background="White"
-                                                                BorderBrush="#FFD4D4D4"
+                                                                Background="{DynamicResource SurfaceBrush}"
+                                                                BorderBrush="{DynamicResource SubtleBorderBrush}"
                                                                 BorderThickness="1"
                                                                 CornerRadius="8">
                                                             <ContentPresenter />
                                                         </Border>
                                                         <ControlTemplate.Triggers>
                                                             <Trigger Property="IsSelected" Value="True">
-                                                                <Setter TargetName="CardBorder" Property="BorderBrush" Value="#FF2E7D46" />
+                                                                <Setter TargetName="CardBorder" Property="BorderBrush" Value="{DynamicResource SuccessTextBrush}" />
                                                                 <Setter TargetName="CardBorder" Property="BorderThickness" Value="2" />
-                                                                <Setter TargetName="CardBorder" Property="Background" Value="#FFF0FAF3" />
+                                                                <Setter TargetName="CardBorder" Property="Background" Value="{DynamicResource SuccessBackgroundBrush}" />
                                                             </Trigger>
                                                             <Trigger Property="IsEnabled" Value="False">
                                                                 <Setter TargetName="CardBorder" Property="Opacity" Value="0.55" />
@@ -1368,22 +2108,28 @@
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
                                             <StackPanel>
-                                                <StackPanel Orientation="Horizontal">
-                                                    <TextBlock FontWeight="SemiBold"
-                                                               TextWrapping="Wrap"
-                                                               Text="{Binding DisplayName}" />
-                                                    <Border Margin="8,0,0,0"
+                                                <!-- Badge docked right, title fills the rest: inside a
+                                                     horizontal StackPanel the title had unbounded width,
+                                                     so TextWrapping never engaged and the third card's
+                                                     title clipped ("Randomizatic", 2026-09-02). -->
+                                                <DockPanel LastChildFill="True">
+                                                    <Border DockPanel.Dock="Right"
+                                                            Margin="8,0,0,0"
                                                             Padding="6,1"
-                                                            Background="#FFEFEFEF"
+                                                            VerticalAlignment="Top"
+                                                            Background="{DynamicResource SurfaceAltBrush}"
                                                             CornerRadius="8"
                                                             Visibility="{Binding IsAvailable, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
                                                         <TextBlock FontSize="11"
-                                                                   Foreground="#FF555555"
+                                                                   Foreground="{DynamicResource SubtleTextBrush}"
                                                                    Text="COMING SOON" />
                                                     </Border>
-                                                </StackPanel>
+                                                    <TextBlock FontWeight="SemiBold"
+                                                               TextWrapping="Wrap"
+                                                               Text="{Binding DisplayName}" />
+                                                </DockPanel>
                                                 <TextBlock Margin="0,4,0,0"
-                                                           Foreground="DimGray"
+                                                           Foreground="{DynamicResource SubtleTextBrush}"
                                                            TextWrapping="Wrap"
                                                            Text="{Binding Description}" />
                                             </StackPanel>
@@ -1392,7 +2138,7 @@
                                 </ListBox>
 
                                 <TextBlock Grid.Row="4"
-                                           Foreground="DimGray"
+                                           Foreground="{DynamicResource SubtleTextBrush}"
                                            TextWrapping="Wrap"
                                            Text="{Binding BioRandOptions.ModeStatusText}" />
                             </Grid>
@@ -1431,8 +2177,8 @@
                                 <Border Grid.Row="1"
                                         Margin="0,0,0,8"
                                         Padding="10,8"
-                                        Background="#FFEFF4FB"
-                                        BorderBrush="#FFB8CDE4"
+                                        Background="{DynamicResource InfoBackgroundBrush}"
+                                        BorderBrush="{DynamicResource InfoBorderBrush}"
                                         BorderThickness="1"
                                         CornerRadius="4"
                                         Visibility="{Binding BioRandOptions.IsLocked, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -1444,15 +2190,20 @@
                                                 Command="{Binding BioRandOptions.UnlockCommand}"
                                                 Content="Change Options" />
                                         <TextBlock VerticalAlignment="Center"
-                                                   Foreground="#FF31506F"
+                                                   Foreground="{DynamicResource InfoTextBrush}"
                                                    TextWrapping="Wrap"
                                                    Text="{Binding BioRandOptions.PinnedNotice}" />
                                     </DockPanel>
                                 </Border>
 
+                                <!-- Capped to the visible page height: unbounded, the per-tab
+                                     ScrollViewer below can never scroll, and it swallows the
+                                     mouse wheel even then, so wheel scrolling inside the
+                                     options area died entirely. The binding keeps the old
+                                     grow-with-the-window behaviour without the dead zone. -->
                                 <TabControl Grid.Row="3"
-                                            MaxHeight="430"
                                             BorderThickness="1"
+                                            MaxHeight="{Binding ViewportHeight, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}}"
                                             IsEnabled="{Binding BioRandOptions.AreOptionsEditable}"
                                             ItemsSource="{Binding BioRandOptions.Pages}">
                                     <TabControl.ItemTemplate>
@@ -1468,37 +2219,157 @@
                                                 <StackPanel>
                                                     <StackPanel Margin="0,0,0,12"
                                                                 Visibility="{Binding IsEnemiesPage, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                        <!-- The headline switch. Everything below it only exists while
+                                                             it is on; off means enemies stay vanilla, and the tab says
+                                                             just that instead of showing a preset named Custom that
+                                                             does nothing. -->
+                                                        <CheckBox Content="Random Enemies"
+                                                                  IsChecked="{Binding DataContext.BioRandOptions.RandomEnemiesOption.BoolValue, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}, Mode=TwoWay}"
+                                                                  IsEnabled="{Binding DataContext.BioRandOptions.RandomEnemiesOption.IsEnabled, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
+                                                                  AutomationProperties.Name="Random Enemies" />
+                                                        <TextBlock Margin="22,2,0,0"
+                                                                   FontSize="11"
+                                                                   Foreground="{DynamicResource SubtleTextBrush}"
+                                                                   TextWrapping="Wrap"
+                                                                   Text="{Binding DataContext.BioRandOptions.RandomEnemiesOption.Description, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}" />
+                                                        <TextBlock Margin="22,2,0,0"
+                                                                   FontSize="11"
+                                                                   FontWeight="SemiBold"
+                                                                   Foreground="{DynamicResource InfoTextBrush}"
+                                                                   TextWrapping="Wrap"
+                                                                   Text="{Binding DataContext.BioRandOptions.RandomEnemiesOption.ForcedNotice, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
+                                                                   Visibility="{Binding DataContext.BioRandOptions.RandomEnemiesOption.HasForcedNotice, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                                        <StackPanel Margin="0,10,0,0"
+                                                                    Visibility="{Binding IsBodyVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                                                         <TextBlock FontWeight="SemiBold"
                                                                    Text="Enemy configuration" />
-                                                        <ComboBox Margin="0,5,0,0"
-                                                                  Width="300"
-                                                                  DisplayMemberPath="DisplayName"
-                                                                  IsEnabled="{Binding DataContext.BioRandOptions.AreOptionsEditable, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
-                                                                  ItemsSource="{Binding DataContext.BioRandOptions.EnemyPresets, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
-                                                                  SelectedItem="{Binding DataContext.BioRandOptions.SelectedEnemyPreset, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}, Mode=TwoWay}" />
+                                                        <ListBox Margin="0,5,0,0"
+                                                                 HorizontalAlignment="Left"
+                                                                 Style="{StaticResource SegmentedPickerStyle}"
+                                                                 IsEnabled="{Binding DataContext.BioRandOptions.AreOptionsEditable, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
+                                                                 ItemsSource="{Binding DataContext.BioRandOptions.EnemyPresets, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
+                                                                 SelectedItem="{Binding DataContext.BioRandOptions.SelectedEnemyPreset, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}, Mode=TwoWay}">
+                                                            <ListBox.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <TextBlock Text="{Binding DisplayName}" />
+                                                                </DataTemplate>
+                                                            </ListBox.ItemTemplate>
+                                                        </ListBox>
                                                         <TextBlock Margin="0,4,0,0"
-                                                                   Foreground="DimGray"
+                                                                   Foreground="{DynamicResource SubtleTextBrush}"
                                                                    TextWrapping="Wrap"
                                                                    Text="{Binding DataContext.BioRandOptions.EnemyPresetDescription, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}" />
+                                                        <!-- The two dials underneath the presets: every preset is a
+                                                             curated pair of them, and off-pair combinations are the
+                                                             new freedom (Overrun + Familiar is horde mode, Sparse +
+                                                             Apex is a hunt). Hand-editing a row below blanks both. -->
+                                                        <StackPanel Margin="0,10,0,0"
+                                                                    Orientation="Horizontal">
+                                                            <StackPanel Width="230">
+                                                                <TextBlock FontWeight="SemiBold"
+                                                                           Text="Crowd" />
+                                                                <TextBlock FontSize="11"
+                                                                           Foreground="{DynamicResource SubtleTextBrush}"
+                                                                           TextWrapping="Wrap"
+                                                                           Text="How busy fights are." />
+                                                                <ComboBox Margin="0,4,0,0"
+                                                                          HorizontalAlignment="Stretch"
+                                                                          DisplayMemberPath="Label"
+                                                                          IsEnabled="{Binding DataContext.BioRandOptions.AreOptionsEditable, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
+                                                                          ItemsSource="{Binding DataContext.BioRandOptions.CrowdPoints, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
+                                                                          SelectedItem="{Binding DataContext.BioRandOptions.SelectedCrowdPoint, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}, Mode=TwoWay}"
+                                                                          AutomationProperties.Name="Crowd" />
+                                                            </StackPanel>
+                                                            <StackPanel Width="230"
+                                                                        Margin="14,0,0,0">
+                                                                <TextBlock FontWeight="SemiBold"
+                                                                           Text="Roster" />
+                                                                <TextBlock FontSize="11"
+                                                                           Foreground="{DynamicResource SubtleTextBrush}"
+                                                                           TextWrapping="Wrap"
+                                                                           Text="How scary the mix is." />
+                                                                <ComboBox Margin="0,4,0,0"
+                                                                          HorizontalAlignment="Stretch"
+                                                                          DisplayMemberPath="Label"
+                                                                          IsEnabled="{Binding DataContext.BioRandOptions.AreOptionsEditable, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
+                                                                          ItemsSource="{Binding DataContext.BioRandOptions.RosterSteps, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
+                                                                          SelectedItem="{Binding DataContext.BioRandOptions.SelectedRosterStep, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}, Mode=TwoWay}"
+                                                                          AutomationProperties.Name="Roster" />
+                                                            </StackPanel>
+                                                            <StackPanel Width="230"
+                                                                        Margin="14,0,0,0">
+                                                                <TextBlock FontWeight="SemiBold"
+                                                                           Text="Vitality" />
+                                                                <TextBlock FontSize="11"
+                                                                           Foreground="{DynamicResource SubtleTextBrush}"
+                                                                           TextWrapping="Wrap"
+                                                                           Text="How tough each enemy is." />
+                                                                <ComboBox Margin="0,4,0,0"
+                                                                          HorizontalAlignment="Stretch"
+                                                                          DisplayMemberPath="Label"
+                                                                          IsEnabled="{Binding DataContext.BioRandOptions.AreOptionsEditable, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
+                                                                          ItemsSource="{Binding DataContext.BioRandOptions.VitalityPoints, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
+                                                                          SelectedItem="{Binding DataContext.BioRandOptions.SelectedVitalityPoint, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}, Mode=TwoWay}"
+                                                                          AutomationProperties.Name="Vitality" />
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                        <TextBlock Margin="0,4,0,0"
+                                                                   FontSize="11"
+                                                                   Foreground="{DynamicResource SubtleTextBrush}"
+                                                                   TextWrapping="Wrap"
+                                                                   Text="Every preset above is one setting of these three dials, and any other mix works too. Blank dials mean hand-tuned rows below." />
+                                                        <TextBlock Margin="0,2,0,0"
+                                                                   FontSize="11"
+                                                                   Foreground="{DynamicResource SubtleTextBrush}"
+                                                                   TextWrapping="Wrap"
+                                                                   Text="{Binding DataContext.BioRandOptions.VitalityExampleText, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}, StringFormat='Vitality in numbers: {0}.'}"
+                                                                   Visibility="{Binding DataContext.BioRandOptions.HasVitalityExampleText, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                                        <TextBlock Margin="0,6,0,0"
+                                                                   MaxWidth="640"
+                                                                   HorizontalAlignment="Left"
+                                                                   FontSize="11"
+                                                                   FontWeight="SemiBold"
+                                                                   Foreground="{DynamicResource WarningTextBrush}"
+                                                                   TextWrapping="Wrap"
+                                                                   Text="{Binding DataContext.BioRandOptions.ScatterIntensityWarning, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
+                                                                   Visibility="{Binding DataContext.BioRandOptions.ShowScatterIntensityWarning, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                                         <CheckBox Margin="0,8,0,0"
                                                                   IsEnabled="{Binding DataContext.BioRandOptions.AreOptionsEditable, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}}"
                                                                   IsChecked="{Binding DataContext.BioRandOptions.ExcludeDifficultMendezEncounters, RelativeSource={RelativeSource AncestorType={x:Type TabControl}}, Mode=TwoWay}"
                                                                   Content="Exclude Méndez from enemy randomization" />
                                                         <TextBlock Margin="22,2,0,0"
                                                                    FontSize="11"
-                                                                   Foreground="#FF8A8A8A"
+                                                                   Foreground="{DynamicResource SubtleTextBrush}"
                                                                    TextWrapping="Wrap"
                                                                    Text="Developer tip: Méndez is especially annoying. Recommended: exclude him from enemy randomization. Safer Méndez Hill / Krauser Fight remains available under Constraints." />
+                                                        <CheckBox Margin="0,10,0,0"
+                                                                  IsChecked="{Binding ShowAdvanced, Mode=TwoWay}"
+                                                                  Content="Set the enemy options individually" />
+                                                        <TextBlock Margin="22,2,0,0"
+                                                                   FontSize="11"
+                                                                   Foreground="{DynamicResource SubtleTextBrush}"
+                                                                   TextWrapping="Wrap"
+                                                                   Text="The preset already sets these. Change any one and the preset above becomes Custom. Two of them, Enemy Variety and Enemy Max. Pack Size, are BioRand advanced options and need Show Advanced up in the corner as well." />
+                                                        </StackPanel>
                                                     </StackPanel>
-                                                    <ItemsControl ItemsSource="{Binding Groups}">
+                                                    <ItemsControl ItemsSource="{Binding Groups}"
+                                                                  Visibility="{Binding ShowRows, Converter={StaticResource BooleanToVisibilityConverter}}">
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
                                                             <StackPanel Margin="0,0,0,10">
-                                                                <TextBlock Margin="0,6,0,5"
+                                                                <TextBlock Margin="0,10,0,2"
                                                                            FontWeight="SemiBold"
-                                                                           Foreground="DimGray"
+                                                                           Foreground="{DynamicResource TextBrush}"
                                                                            Text="{Binding Title}"
                                                                            Visibility="{Binding HasTitle, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                                                <TextBlock Margin="0,0,0,7"
+                                                                           MaxWidth="900"
+                                                                           HorizontalAlignment="Left"
+                                                                           FontSize="12"
+                                                                           Foreground="{DynamicResource SubtleTextBrush}"
+                                                                           TextWrapping="Wrap"
+                                                                           Text="{Binding Description}"
+                                                                           Visibility="{Binding HasDescription, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
                                                                 <ItemsControl ItemsSource="{Binding Options}">
                                                                     <ItemsControl.ItemsPanel>
@@ -1525,7 +2396,7 @@
                                                                                 <!-- Display-only rows (currently just the Random Events pointer:
                                                                                      AP authors the event set now, so the choice lives in the YAML). -->
                                                                                 <TextBlock FontWeight="SemiBold"
-                                                                                           Foreground="DimGray"
+                                                                                           Foreground="{DynamicResource SubtleTextBrush}"
                                                                                            TextWrapping="Wrap"
                                                                                            Text="{Binding Label}"
                                                                                            Visibility="{Binding IsNote, Converter={StaticResource BooleanToVisibilityConverter}}" />
@@ -1554,14 +2425,14 @@
                                                                                                    MinWidth="42"
                                                                                                    VerticalAlignment="Center"
                                                                                                    TextAlignment="Right"
-                                                                                                   Foreground="DimGray"
+                                                                                                   Foreground="{DynamicResource SubtleTextBrush}"
                                                                                                    Text="{Binding ValueText}" />
                                                                                     </StackPanel>
                                                                                 </Grid>
 
                                                                                 <TextBlock Margin="22,1,0,0"
                                                                                            FontSize="11"
-                                                                                           Foreground="#FF8A8A8A"
+                                                                                           Foreground="{DynamicResource SubtleTextBrush}"
                                                                                            TextWrapping="Wrap"
                                                                                            Text="{Binding Description}"
                                                                                            Visibility="{Binding ShowInlineDescription, Converter={StaticResource BooleanToVisibilityConverter}}" />
@@ -1569,7 +2440,7 @@
                                                                                 <TextBlock Margin="22,2,0,0"
                                                                                            FontSize="11"
                                                                                            FontWeight="SemiBold"
-                                                                                           Foreground="#FF1565C0"
+                                                                                           Foreground="{DynamicResource InfoTextBrush}"
                                                                                            TextWrapping="Wrap"
                                                                                            Text="{Binding ForcedNotice}"
                                                                                            Visibility="{Binding HasForcedNotice, Converter={StaticResource BooleanToVisibilityConverter}}" />
@@ -1589,7 +2460,7 @@
                             </Grid>
 
                             <TextBlock Grid.Row="6"
-                                       Foreground="DimGray"
+                                       Foreground="{DynamicResource SubtleTextBrush}"
                                        TextWrapping="Wrap"
                                        Text="Patching rebuilds your copy of the game world for this multiworld. It takes a few minutes." />
                         </Grid>
@@ -1615,7 +2486,7 @@
                            FontWeight="SemiBold"
                            Text="{Binding Title}" />
                 <TextBlock Margin="0,8,0,0"
-                           Foreground="DimGray"
+                           Foreground="{DynamicResource SubtleTextBrush}"
                            TextWrapping="Wrap"
                            Text="{Binding Description}" />
 
@@ -1628,8 +2499,8 @@
                      of progress; errors are shown ONCE, in the global banner) -->
                 <Border Margin="0,14,0,0"
                         Padding="14"
-                        Background="#FFF8F8F8"
-                        BorderBrush="#FFE0E0E0"
+                        Background="{DynamicResource SurfaceAltBrush}"
+                        BorderBrush="{DynamicResource SubtleBorderBrush}"
                         BorderThickness="1"
                         CornerRadius="10">
                     <StackPanel>
@@ -1643,18 +2514,18 @@
                                         <TextBlock TextWrapping="Wrap"
                                                    Text="{Binding Label}">
                                             <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="Gray" />
+                                                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                                    <Setter Property="Foreground" Value="{DynamicResource SubtleTextBrush}" />
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding IsRunning}" Value="True">
-                                                            <Setter Property="Foreground" Value="Black" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
                                                             <Setter Property="FontWeight" Value="SemiBold" />
                                                         </DataTrigger>
                                                         <DataTrigger Binding="{Binding IsDone}" Value="True">
-                                                            <Setter Property="Foreground" Value="#FF11662D" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource SuccessTextBrush}" />
                                                         </DataTrigger>
                                                         <DataTrigger Binding="{Binding IsFailed}" Value="True">
-                                                            <Setter Property="Foreground" Value="#FFB71C1C" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource DangerTextBrush}" />
                                                             <Setter Property="FontWeight" Value="SemiBold" />
                                                         </DataTrigger>
                                                     </Style.Triggers>
@@ -1666,7 +2537,7 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                         <TextBlock Margin="22,8,0,0"
-                                   Foreground="DimGray"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
                                    TextWrapping="Wrap"
                                    Text="{Binding Action.StatusText}" />
                     </StackPanel>
@@ -1677,15 +2548,15 @@
                      it gets its own panel rather than another gray paragraph. -->
                 <Border Margin="0,16,0,0"
                         Padding="14"
-                        Background="#FFEFF8F1"
-                        BorderBrush="#FF9CCBAA"
+                        Background="{DynamicResource SuccessBackgroundBrush}"
+                        BorderBrush="{DynamicResource SuccessBorderBrush}"
                         BorderThickness="1"
                         CornerRadius="10"
                         Visibility="{Binding HasCompletionText, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <StackPanel>
                         <TextBlock FontSize="17"
                                    FontWeight="SemiBold"
-                                   Foreground="#FF11662D"
+                                   Foreground="{DynamicResource SuccessTextBrush}"
                                    Text="Ready to play" />
                         <TextBlock Margin="0,8,0,0"
                                    TextWrapping="Wrap"
@@ -1730,8 +2601,8 @@
         <StackPanel Grid.Row="0">
             <Border Margin="0,0,0,12"
                     Padding="12,8"
-                    Background="#FFFDECEC"
-                    BorderBrush="#FFE57373"
+                    Background="{DynamicResource DangerBackgroundBrush}"
+                    BorderBrush="{DynamicResource DangerBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
                     Visibility="{Binding Action.HasError, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -1742,7 +2613,7 @@
                     </Grid.ColumnDefinitions>
                     <TextBlock VerticalAlignment="Center"
                                FontWeight="SemiBold"
-                               Foreground="#FFB71C1C"
+                               Foreground="{DynamicResource DangerTextBrush}"
                                TextWrapping="Wrap"
                                Text="{Binding Action.ErrorMessage}" />
                     <Button Grid.Column="1"
@@ -1755,12 +2626,12 @@
             </Border>
             <Border Margin="0,0,0,12"
                     Padding="12,8"
-                    Background="#FFFFF8E1"
-                    BorderBrush="#FFFFCC80"
+                    Background="{DynamicResource WarningBackgroundBrush}"
+                    BorderBrush="{DynamicResource WarningBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
                     Visibility="{Binding Session.HasWarning, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <TextBlock Foreground="#FF8D6E00"
+                <TextBlock Foreground="{DynamicResource WarningTextBrush}"
                            TextWrapping="Wrap"
                            Text="{Binding Session.WarningText}" />
             </Border>
@@ -1769,8 +2640,8 @@
                  blocks anything the player was about to do. -->
             <Border Margin="0,0,0,12"
                     Padding="12,8"
-                    Background="#FFE3F2FD"
-                    BorderBrush="#FF90CAF9"
+                    Background="{DynamicResource InfoBackgroundBrush}"
+                    BorderBrush="{DynamicResource InfoBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
                     Visibility="{Binding HasUpdate, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -1781,7 +2652,7 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <TextBlock VerticalAlignment="Center"
-                               Foreground="#FF0D47A1"
+                               Foreground="{DynamicResource InfoTextBrush}"
                                TextWrapping="Wrap"
                                Text="{Binding UpdateBannerText}" />
                     <Button Grid.Column="1"
@@ -1789,7 +2660,7 @@
                             Padding="10,2"
                             VerticalAlignment="Center"
                             Command="{Binding OpenUpdateReleaseCommand}"
-                            Content="Get the Update" />
+                            Content="{Binding UpdatePrimaryButtonText}" />
                     <Button Grid.Column="2"
                             Margin="8,0,0,0"
                             Padding="10,2"
@@ -1802,8 +2673,8 @@
 
         <Border Grid.Row="1"
                 Padding="0"
-                Background="#FFF9F9F9"
-                BorderBrush="#FFE3E3E3"
+                Background="{DynamicResource SurfaceAltBrush}"
+                BorderBrush="{DynamicResource SubtleBorderBrush}"
                 BorderThickness="1"
                 CornerRadius="14">
             <!-- Page-level scroll is a property of the shell so EVERY screen
@@ -1838,7 +2709,10 @@
                             Content="{Binding Label}"
                             Visibility="{Binding IsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <Button.Style>
-                            <Style TargetType="Button">
+                            <!-- BasedOn matters here: an inline style with none
+                                 drops back to WPF's default light chrome, which
+                                 is how these stayed pale in the dark theme. -->
+                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsPrimary}" Value="True">
                                         <Setter Property="FontWeight" Value="SemiBold" />
@@ -1857,8 +2731,8 @@
              that is the part players act on. -->
         <Border Grid.Row="3"
                 Padding="12,8"
-                Background="#FFF8F8F8"
-                BorderBrush="#FFE0E0E0"
+                Background="{DynamicResource SurfaceAltBrush}"
+                BorderBrush="{DynamicResource SubtleBorderBrush}"
                 BorderThickness="1"
                 CornerRadius="10">
             <!-- ExpandDirection=Up: the drawer opens upward, so the chevron
@@ -1868,7 +2742,7 @@
                 <Expander.Header>
                     <TextBlock Margin="4,0,0,0"
                                FontWeight="SemiBold"
-                               Foreground="#FF555555"
+                               Foreground="{DynamicResource SubtleTextBrush}"
                                TextTrimming="CharacterEllipsis"
                                Text="{Binding Action.StatusText}" />
                 </Expander.Header>
@@ -1897,22 +2771,41 @@
             </Grid.ColumnDefinitions>
             <TextBlock VerticalAlignment="Center"
                        HorizontalAlignment="Left"
-                       Foreground="DimGray"
-                       TextTrimming="CharacterEllipsis"><Run Text="{Binding Session.CurrentSessionText, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding Session.LastPatchedText, Mode=OneWay}" /></TextBlock>
+                       Foreground="{DynamicResource SubtleTextBrush}"
+                       TextTrimming="CharacterEllipsis"><Run Text="{Binding Session.CurrentSessionText, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding Session.LastPatchedText, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding PayloadVersionText, Mode=OneWay}" /></TextBlock>
             <TextBlock Grid.Column="1"
                        HorizontalAlignment="Center"
                        VerticalAlignment="Center"
-                       Foreground="DimGray">
+                       Foreground="{DynamicResource SubtleTextBrush}">
                 <Run Text="Powered by " />
                 <Hyperlink Click="BioRandLink_OnClick">
                     <Run Text="BioRand" />
                 </Hyperlink>
             </TextBlock>
-            <Button Grid.Column="2"
-                    HorizontalAlignment="Right"
-                    Padding="10,2"
-                    Command="{Binding OpenLogFolderCommand}"
-                    Content="Open Log Folder" />
+            <StackPanel Grid.Column="2"
+                        HorizontalAlignment="Right"
+                        Orientation="Horizontal">
+                <!-- Theme switcher. Bottom-right corner with the other utility
+                     buttons; handled in code-behind because the theme is a
+                     WPF-only concern and the view models here are shared
+                     sources compiled by the Linux front end too. -->
+                <ToggleButton x:Name="ThemeToggleButton"
+                              Margin="0,0,10,0"
+                              VerticalAlignment="Center"
+                              AutomationProperties.Name="Theme"
+                              Checked="ThemeToggle_OnChanged"
+                              Unchecked="ThemeToggle_OnChanged"
+                              Style="{StaticResource ThemeSwitchStyle}"
+                              ToolTip="Switch between the dark and light look." />
+                <Button Padding="10,2"
+                        Margin="0,0,6,0"
+                        Command="{Binding GenerateBugReportCommand}"
+                        ToolTip="Zip your session record, logs, drop audit and any crash dump to attach in Discord."
+                        Content="Generate Bug Report" />
+                <Button Padding="10,2"
+                        Command="{Binding OpenLogFolderCommand}"
+                        Content="Open Log Folder" />
+            </StackPanel>
         </Grid>
     </Grid>
 </Window>

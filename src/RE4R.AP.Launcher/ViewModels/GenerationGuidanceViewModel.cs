@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -114,10 +114,10 @@ public sealed class GenerationGuidanceViewModel : ObservableObject
         _copySummaryCommand = new RelayCommand(CopySummaryForFriends, () => Step6Done);
         _continueToJoinCommand = new AsyncRelayCommand(ContinueToJoinAsync, () => Step6Done);
         _backStepCommand = new RelayCommand(
-            () => CurrentStepNumber = Math.Max(1, CurrentStepNumber - 1),
+            GoBackStep,
             () => CurrentStepNumber > 1);
         _nextStepCommand = new RelayCommand(
-            () => CurrentStepNumber = Math.Min(TotalSteps, CurrentStepNumber + 1),
+            () => _ = AdvanceStepAsync(),
             () => CurrentStepNumber < TotalSteps && CanAdvanceFromCurrentStep());
         _configureOwnYamlCommand = new RelayCommand(() => ConfigureYamlRequested?.Invoke());
 
@@ -156,6 +156,7 @@ public sealed class GenerationGuidanceViewModel : ObservableObject
             }
 
             OnPropertyChanged(nameof(StepProgressText));
+            OnPropertyChanged(nameof(GuidanceMaxWidth));
             OnPropertyChanged(nameof(IsStep1Visible));
             OnPropertyChanged(nameof(IsStep2Visible));
             OnPropertyChanged(nameof(IsStep3Visible));
@@ -170,6 +171,15 @@ public sealed class GenerationGuidanceViewModel : ObservableObject
             }
         }
     }
+
+
+    /// <summary>
+    /// How wide the wizard may run. 1050 keeps the instruction cards readable,
+    /// but step 3 hosts the settings editor, which snaps itself into columns
+    /// against the width it is given - capped, it stayed a single narrow column
+    /// no matter how large the window got (Cam, 2026-08-21).
+    /// </summary>
+    public double GuidanceMaxWidth => CurrentStepNumber == 3 ? double.PositiveInfinity : 1050;
 
     public string StepProgressText => $"Step {CurrentStepNumber} of {TotalSteps}";
 
@@ -199,11 +209,74 @@ public sealed class GenerationGuidanceViewModel : ObservableObject
         private set => SetProperty(ref _ownYamlStatusText, value);
     }
 
+    /// <summary>
+    /// The step 3 editor saves the draft store as the player edits, but this
+    /// view model reads its own snapshot, loaded once on entry - so a
+    /// first-time host could fill in every field and still watch Next stay
+    /// disabled until they left the guide and came back (hgrend, 2026-08-24).
+    /// The shell calls this after every draft save so readiness tracks the
+    /// screen. Anyone with a draft from an earlier visit never saw the gap.
+    /// </summary>
+    public void NotifyDraftSaved(PendingSessionDraft? draft)
+    {
+        _draft = draft;
+        RefreshRecapAndOwnYaml();
+    }
+
     public ICommand BackStepCommand => _backStepCommand;
 
     public ICommand NextStepCommand => _nextStepCommand;
 
     public ICommand ConfigureOwnYamlCommand => _configureOwnYamlCommand;
+
+    /// <summary>Raised when leaving step 3, so the shell can bank the inline editor's draft.</summary>
+    public event Func<Task>? OwnYamlFlushRequested;
+
+    /// <summary>
+    /// Step 3's editor has two pages of its own. Asked before the step
+    /// advances: true means the editor took the Next for itself, so the guide
+    /// stays where it is. Without this, Next from the editor's first page
+    /// skipped its second page entirely and landed on step 4, with no way
+    /// back to the settings (Cam, live 2026-09-08).
+    /// </summary>
+    public Func<bool>? OwnYamlPageAdvanceRequested { get; set; }
+
+    /// <summary>The same for Back, so step 3's two pages are walked in both directions.</summary>
+    public Func<bool>? OwnYamlPageBackRequested { get; set; }
+
+    private void GoBackStep()
+    {
+        if (_currentStepNumber == 3
+            && OwnYamlPageBackRequested is not null
+            && OwnYamlPageBackRequested.Invoke())
+        {
+            return;
+        }
+
+        CurrentStepNumber = Math.Max(1, CurrentStepNumber - 1);
+    }
+
+    /// <summary>
+    /// Step 3 hosts the settings editor inline, and OwnYamlReady is computed
+    /// from the STORED draft - so leaving the step has to bank what is on
+    /// screen first, or Next reads a draft one edit behind.
+    /// </summary>
+    private async Task AdvanceStepAsync()
+    {
+        if (_currentStepNumber == 3
+            && OwnYamlPageAdvanceRequested is not null
+            && OwnYamlPageAdvanceRequested.Invoke())
+        {
+            return;
+        }
+
+        if (_currentStepNumber == 3 && OwnYamlFlushRequested is not null)
+        {
+            await OwnYamlFlushRequested.Invoke();
+        }
+
+        CurrentStepNumber = Math.Min(TotalSteps, _currentStepNumber + 1);
+    }
 
     private bool CanAdvanceFromCurrentStep() => CurrentStepNumber switch
     {

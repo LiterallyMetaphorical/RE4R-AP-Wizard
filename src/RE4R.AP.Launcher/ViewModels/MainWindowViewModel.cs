@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Sockets;
@@ -18,12 +18,15 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     private readonly IUiDialogService _dialogService;
     private readonly SettingsStore _settingsStore;
     private readonly SessionRecordStore _sessionRecordStore;
+    private readonly BugReportService _bugReportService;
     private readonly StaticGameDataProvider _staticGameDataProvider;
     private readonly LaunchWorkflowService _workflowService;
     private readonly GameInstallationInspector _gameInstallationInspector;
     private readonly ReFrameworkInstallationService _reFrameworkInstallationService;
     private readonly LuaInstallService _luaInstallService;
     private readonly LauncherUpdateService _updateService = new();
+    private readonly UpdateCheckService _payloadUpdateService = new();
+    private readonly PayloadStore _payloadStore;
     private readonly AsyncRelayCommand _browseCommand;
     private readonly AsyncRelayCommand _installReFrameworkCommand;
     private readonly AsyncRelayCommand _installArchipelagoLuaModCommand;
@@ -33,11 +36,14 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     private readonly RelayCommand _startJoinFlowCommand;
     private readonly RelayCommand _startConfigureYamlCommand;
     private readonly AsyncRelayCommand _continueFromConfigureYamlCommand;
+    private readonly AsyncRelayCommand _organizerContinueFromConfigureYamlCommand;
     private readonly RelayCommand _returnToLandingCommand;
+    private readonly AsyncRelayCommand _generateBugReportCommand;
     private readonly RelayCommand _openSetupCommand;
     private readonly RelayCommand _openRoomPageCommand;
-    private readonly RelayCommand _openUpdateReleaseCommand;
+    private readonly AsyncRelayCommand _openUpdateReleaseCommand;
     private readonly RelayCommand _dismissUpdateCommand;
+    private readonly AsyncRelayCommand _installPayloadFromFileCommand;
     private readonly RelayCommand _reconnectPrefillCommand;
     private readonly RelayCommand _repatchPrefillCommand;
     private readonly AsyncRelayCommand _retireSessionCommand;
@@ -61,8 +67,11 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? _installInspectionCancellationSource;
     private CancellationTokenSource? _sessionRefreshCancellationSource;
     private LauncherUpdateInfo? _updateInfo;
+    private UpdateManifestPayload? _payloadUpdateInfo;
     private bool _hasUpdate;
     private string _updateBannerText = string.Empty;
+    private string _updatePrimaryButtonText = "Get the Update";
+    private string _payloadVersionText = string.Empty;
     private bool _isInitializing;
     private bool _initialSetupRedirectDecided;
     private string _lastAutoDetectedGameVersion = string.Empty;
@@ -81,15 +90,23 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
         _settingsStore = settingsStore ?? new SettingsStore();
         _sessionRecordStore = sessionRecordStore ?? new SessionRecordStore(_settingsStore.AppDataRootPath);
+        _bugReportService = new BugReportService(_settingsStore.AppDataRootPath);
         _staticGameDataProvider = staticGameDataProvider ?? new StaticGameDataProvider();
+        // The live Lua payload: the app-data store while it holds a newer
+        // Lua-only update, the bundled assets otherwise. Shared with both
+        // install paths so a mod update reaches the very next install.
+        _payloadStore = new PayloadStore(_settingsStore.AppDataRootPath);
+        _payloadStore.LogMessage += OnWorkflowLogMessage;
+        _payloadUpdateService.LogMessage += OnWorkflowLogMessage;
         _workflowService = workflowService
             ?? new LaunchWorkflowService(
                 settingsStore: _settingsStore,
                 staticGameDataProvider: _staticGameDataProvider,
-                sessionRecordStore: _sessionRecordStore);
+                sessionRecordStore: _sessionRecordStore,
+                payloadStore: _payloadStore);
         _gameInstallationInspector = gameInstallationInspector ?? new GameInstallationInspector();
         _reFrameworkInstallationService = reFrameworkInstallationService ?? new ReFrameworkInstallationService();
-        _luaInstallService = luaInstallService ?? new LuaInstallService();
+        _luaInstallService = luaInstallService ?? new LuaInstallService(payloadStore: _payloadStore);
         // Dedicated runner instance purely for cache size/clear from the Setup
         // panel. Its cache methods are pure path operations (no process launch),
         // and sharing _settingsStore makes it resolve the exact same cache paths
@@ -141,6 +158,13 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         GenerationGuidance.DraftSaved += OnDraftSaved;
         GenerationGuidance.JoinRoomRequested += OnGuidanceJoinRoomRequested;
         GenerationGuidance.ConfigureYamlRequested += OnGuidanceConfigureYamlRequested;
+        // Step 3 renders the settings editor inline, so leaving it has to bank
+        // the draft before the wizard reads OwnYamlReady back off storage.
+        GenerationGuidance.OwnYamlFlushRequested += OnGuidanceOwnYamlFlushRequested;
+        // Step 3's editor has its own two pages; it takes the guide's Next
+        // while it is on the first of them.
+        GenerationGuidance.OwnYamlPageAdvanceRequested = TryAdvanceOwnYamlPage;
+        GenerationGuidance.OwnYamlPageBackRequested = TryGoBackOwnYamlPage;
         JoinFlow = new JoinFlowViewModel(Session, Action, BioRandOptions);
         PatchLaunch = new PatchLaunchViewModel(_workflowService, Action);
 
@@ -169,7 +193,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             {
                 Key = "mode1",
                 DisplayName = "AP Item Randomization Only",
-                Description = "Fixed item pickups hold what the multiworld placed there - what you find is what you (or another player) get. Enemies, merchant, and drops stay vanilla.",
+                Description = "Fixed item pickups hold what the multiworld placed there - what you find is what you (or another player) get. Enemies and drops stay vanilla; the extra merchants are placed so the shop is never far.",
                 IsAvailable = true,
             });
         BioRandOptions.AvailableModes.Add(
@@ -177,7 +201,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             {
                 Key = "mode2",
                 DisplayName = "Full BioRand Item Randomization",
-                Description = "Multiworld checks stay exactly where the multiworld put them; BioRand re-rolls every other world pickup. Enemies and the merchant stay vanilla.",
+                Description = "Multiworld checks stay exactly where the multiworld put them; BioRand re-rolls every other world pickup. Enemies stay vanilla; the extra merchants are placed.",
                 IsAvailable = true,
             });
         BioRandOptions.AvailableModes.Add(
@@ -212,24 +236,39 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         _continueFromConfigureYamlCommand = new AsyncRelayCommand(
             ContinueFromConfigureYamlAsync,
             () => ConfigureYaml.CanContinue);
+        // The organizer's Continue: one press for what used to be
+        // Back-then-Next (the host paid two presses for what a joiner did in
+        // one). Same slot-name gate as the joiner path.
+        _organizerContinueFromConfigureYamlCommand = new AsyncRelayCommand(
+            ContinueOrganizerFromConfigureYamlAsync,
+            () => ConfigureYaml.CanContinue);
         ConfigureYaml.PropertyChanged += (_, args) =>
         {
             if (args.PropertyName is nameof(ConfigureYamlViewModel.CanContinue))
             {
                 _continueFromConfigureYamlCommand.NotifyCanExecuteChanged();
+                _organizerContinueFromConfigureYamlCommand.NotifyCanExecuteChanged();
             }
         };
         _returnToLandingCommand = new RelayCommand(NavigateToLanding);
+        _generateBugReportCommand = new AsyncRelayCommand(GenerateBugReportAsync, () => !Action.IsBusy);
         _openSetupCommand = new RelayCommand(OpenSetupScreen);
         _openRoomPageCommand = new RelayCommand(OpenRoomPage);
         _updateService.LogMessage += OnWorkflowLogMessage;
-        _openUpdateReleaseCommand = new RelayCommand(OpenUpdateRelease);
-        _dismissUpdateCommand = new RelayCommand(() => HasUpdate = false);
+        // One primary button, two meanings: a launcher update opens the
+        // release page, a mod update downloads and installs in place.
+        _openUpdateReleaseCommand = new AsyncRelayCommand(RunUpdatePrimaryAsync, () => !Action.IsBusy);
+        _dismissUpdateCommand = new RelayCommand(DismissUpdate);
+        _installPayloadFromFileCommand = new AsyncRelayCommand(InstallPayloadFromFileAsync, () => !Action.IsBusy);
         _reconnectPrefillCommand = new RelayCommand(StartJoinPrefilledFromBanner);
         _repatchPrefillCommand = new RelayCommand(StartRepatchFromBanner);
         _retireSessionCommand = new AsyncRelayCommand(RetireBannerSessionAsync, () => !Action.IsBusy);
         _unlockBioRandOptionsCommand = new AsyncRelayCommand(UnlockBioRandOptionsAsync, () => !Action.IsBusy);
         BioRandOptions.UnlockCommand = _unlockBioRandOptionsCommand;
+        // The bonus-weapons force-unlock dialog used to hang off allow-bonus-items
+        // here. Retired 2026-09-05: the in-game mod keeps the game from granting
+        // or deleting the three in every AP room, so no profile is written and
+        // the trio simply scatter with the rest of the merchant's gear.
 
         // Pin the options to the previous patch of this room whenever the player reaches the
         // options step, so a re-patch can't silently discard what they pick.
@@ -310,10 +349,33 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 
     public RelayCommand OpenLogFolderCommand => _openLogFolderCommand;
 
+    public AsyncRelayCommand GenerateBugReportCommand => _generateBugReportCommand;
+
     public object? CurrentScreen
     {
         get => _currentScreen;
-        set => SetProperty(ref _currentScreen, value);
+        set
+        {
+            if (!SetProperty(ref _currentScreen, value))
+            {
+                return;
+            }
+
+            // The settings editor renders in two places: as its own screen,
+            // and inline as the organizer wizard's step 3. It hides its own
+            // 34pt header and blurb in the second case, because the step chip
+            // and title above it already say what it is.
+            var hosted = ReferenceEquals(value, GenerationGuidance);
+            ConfigureYaml.IsHostedInGuide = hosted;
+            if (hosted)
+            {
+                // Hosted means the organizer wizard, so the joiner handoff
+                // block ("your host needs two files from you") must not show.
+                // The old routing path set this; embedding removed that path
+                // and the block came back for hosts (Cam, 2026-08-21).
+                ConfigureYaml.IsOrganizerContext = true;
+            }
+        }
     }
 
     /// <summary>A newer release exists on GitHub and the player has not dismissed the notice.</summary>
@@ -329,9 +391,29 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         private set => SetProperty(ref _updateBannerText, value);
     }
 
-    public RelayCommand OpenUpdateReleaseCommand => _openUpdateReleaseCommand;
+    public AsyncRelayCommand OpenUpdateReleaseCommand => _openUpdateReleaseCommand;
 
     public RelayCommand DismissUpdateCommand => _dismissUpdateCommand;
+
+    public AsyncRelayCommand InstallPayloadFromFileCommand => _installPayloadFromFileCommand;
+
+    /// <summary>"Get the Update" for a launcher release, "Update Now" for a mod payload.</summary>
+    public string UpdatePrimaryButtonText
+    {
+        get => _updatePrimaryButtonText;
+        private set => SetProperty(ref _updatePrimaryButtonText, value);
+    }
+
+    /// <summary>
+    /// Footer line naming the Lua payload the launcher holds, read from the
+    /// effective stamp - the store's when an update is live, the bundle's
+    /// otherwise. Versions here come from stamps, never from filenames.
+    /// </summary>
+    public string PayloadVersionText
+    {
+        get => _payloadVersionText;
+        private set => SetProperty(ref _payloadVersionText, value);
+    }
 
     public async Task InitializeAsync()
     {
@@ -391,9 +473,19 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             // ready state. The Setup panel shows "checking size…" until it lands.
             _ = RefreshBioRandCacheSizeAsync();
 
+            RefreshPayloadVersionText();
+
             // Same deal for the update check - it touches the network, so it can
-            // never sit between the player and a usable window.
-            _ = CheckForUpdateAsync();
+            // never sit between the player and a usable window. check_for_updates:
+            // false in settings.json is the opt-out for silent tools.
+            if (_settings.CheckForUpdates)
+            {
+                _ = CheckForUpdateAsync();
+            }
+            else
+            {
+                Action.AppendLog("Update check disabled in settings.");
+            }
 
             Action.StatusText = "Ready.";
             Action.AppendLog("Launcher UI is ready.");
@@ -427,6 +519,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         GenerationGuidance.DraftSaved -= OnDraftSaved;
         GenerationGuidance.JoinRoomRequested -= OnGuidanceJoinRoomRequested;
         GenerationGuidance.ConfigureYamlRequested -= OnGuidanceConfigureYamlRequested;
+        GenerationGuidance.OwnYamlFlushRequested -= OnGuidanceOwnYamlFlushRequested;
         JoinFlow.PatchRequested -= OnJoinPatchRequested;
         Setup.PropertyChanged -= OnSetupPropertyChanged;
         Session.PropertyChanged -= OnSessionPropertyChanged;
@@ -446,20 +539,91 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         _ = GenerationGuidance.EnterAsync();
     }
 
+    /// <summary>
+    /// The guide's Next, offered to the settings editor first. On the content
+    /// page it always belongs to the editor: it turns to the settings when the
+    /// choice is usable, and holds still when it is not, so a half-answered
+    /// first page cannot skip the second (Cam, live 2026-09-08).
+    /// </summary>
+    private bool TryAdvanceOwnYamlPage()
+    {
+        if (!ConfigureYaml.IsOnContentPage)
+        {
+            return false;
+        }
+
+        if (ConfigureYaml.ContinueToSettingsCommand.CanExecute(null))
+        {
+            ConfigureYaml.ContinueToSettingsCommand.Execute(null);
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// The guide's Back, offered to the editor first: from the settings it
+    /// returns to the content question rather than leaving step 3 and skipping
+    /// that page on the way out.
+    /// </summary>
+    private bool TryGoBackOwnYamlPage()
+    {
+        if (!ConfigureYaml.IsOnSettingsPage)
+        {
+            return false;
+        }
+
+        ConfigureYaml.BackToContentCommand.Execute(null);
+        return true;
+    }
+
+    private async Task OnGuidanceOwnYamlFlushRequested()
+    {
+        await ConfigureYaml.FlushDraftAsync();
+        _pendingDraft = await _draftStore.TryLoadAsync();
+        await GenerationGuidance.EnterAsync();
+    }
+
     private void OnGuidanceConfigureYamlRequested()
     {
         // Configure opened from the organizer wizard's own-YAML step: Back
         // returns to the guide (not the landing) and re-enters it so the
-        // step's Done state reflects the fresh draft.
+        // step's Done state reflects the fresh draft. Continue does the same
+        // and then advances the wizard - both restore the landing-context
+        // commands so a later joiner visit gets joiner behavior.
         ConfigureYaml.BackToLandingCommand = new RelayCommand(() =>
         {
-            ConfigureYaml.BackToLandingCommand = _returnToLandingCommand;
+            RestoreConfigureYamlLandingCommands();
             CurrentScreen = GenerationGuidance;
             _ = GenerationGuidance.EnterAsync();
         });
+        ConfigureYaml.ContinueCommand = _organizerContinueFromConfigureYamlCommand;
         ConfigureYaml.IsOrganizerContext = true;
         CurrentScreen = ConfigureYaml;
         Action.AppendLog("Opening Configure Your YAML from the organizer guide.");
+    }
+
+    private void RestoreConfigureYamlLandingCommands()
+    {
+        ConfigureYaml.BackToLandingCommand = _returnToLandingCommand;
+        ConfigureYaml.ContinueCommand = _continueFromConfigureYamlCommand;
+    }
+
+    private async Task ContinueOrganizerFromConfigureYamlAsync()
+    {
+        // Flush before advancing: OwnYamlReady is computed from the stored
+        // draft, so the wizard cannot pass its own-YAML step on an unsaved
+        // edit. The reload keeps the cached copy current for the join-room
+        // prefill later in the guide.
+        await ConfigureYaml.FlushDraftAsync();
+        _pendingDraft = await _draftStore.TryLoadAsync();
+
+        RestoreConfigureYamlLandingCommands();
+        CurrentScreen = GenerationGuidance;
+        await GenerationGuidance.EnterAsync();
+        if (GenerationGuidance.NextStepCommand.CanExecute(null))
+        {
+            GenerationGuidance.NextStepCommand.Execute(null);
+        }
     }
 
     private void OnGuidanceJoinRoomRequested()
@@ -500,6 +664,23 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         // own draft is the best answer available at this point; the patch
         // screen corrects the record once the real one arrives.
         JoinFlow.BioRandOptions.RandomEventsForced = _pendingDraft?.RandomEvents == true;
+        JoinFlow.BioRandOptions.MerchantOwnedByAp = _pendingDraft is { } merchantDraft
+            && ((merchantDraft.MerchantChecksPerChapter ?? 3) > 0
+                || (merchantDraft.ShuffleMerchantGear ?? true));
+        JoinFlow.BioRandOptions.GearScattered = (_pendingDraft?.ShuffleMerchantGear ?? true) && _pendingDraft is not null;
+        JoinFlow.BioRandOptions.StartingArsenalCount =
+            _pendingDraft?.StartingArsenal ?? ConfigureYamlViewModel.DefaultStartingArsenal;
+        // The weapon-randomization three-way, split into BioRand's two
+        // switches. Toggle-era drafts carry only the bool: true meant both
+        // (upgrades rode BioRand's default on), false meant neither.
+        var weaponRandomization = _pendingDraft is { } weaponDraft
+            ? weaponDraft.WeaponRandomization
+              ?? (weaponDraft.RandomWeaponStats ? "full" : "off")
+            : null;
+        JoinFlow.BioRandOptions.WeaponStatsFromYaml =
+            weaponRandomization is null ? null : weaponRandomization != "off";
+        JoinFlow.BioRandOptions.WeaponUpgradesFromYaml =
+            weaponRandomization is null ? null : weaponRandomization == "full";
 
         CurrentScreen = JoinFlow;
         Action.AppendLog("Opening the join-session flow.");
@@ -631,23 +812,232 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         try
         {
             var info = await _updateService.CheckAsync();
-            if (info is null || !info.IsNewer)
+            if (info is not null && info.IsNewer
+                && !string.Equals(_settings.DismissedLauncherUpdate, info.TagName, StringComparison.Ordinal))
+            {
+                // A launcher release carries everything, mod included, so it
+                // always outranks a payload offer.
+                await DispatchToUiAsync(() =>
+                {
+                    _updateInfo = info;
+                    _payloadUpdateInfo = null;
+                    UpdatePrimaryButtonText = "Get the Update";
+                    UpdateBannerText =
+                        $"{info.DisplayName} is available. You are running {info.RunningVersion}.";
+                    HasUpdate = !string.IsNullOrWhiteSpace(info.ReleaseUrl);
+                });
+                return;
+            }
+
+            // No launcher offer: is there a Lua-only payload for the world
+            // data this launcher already bundles?
+            var effective = _payloadStore.GetEffectivePayload();
+            var payload = await _payloadUpdateService.CheckAsync(
+                effective.Stamp?.Payload.WorldVersion,
+                effective.Stamp?.Payload.ModVersion);
+            if (payload is null
+                || string.Equals(_settings.DismissedPayloadUpdate, payload.ModVersion, StringComparison.Ordinal))
             {
                 return;
             }
 
             await DispatchToUiAsync(() =>
             {
-                _updateInfo = info;
+                _payloadUpdateInfo = payload;
+                _updateInfo = null;
+                UpdatePrimaryButtonText = "Update Now";
+                var notes = string.IsNullOrWhiteSpace(payload.Notes) ? string.Empty : $" {payload.Notes}";
                 UpdateBannerText =
-                    $"{info.DisplayName} is available. You are running {info.RunningVersion}.";
-                HasUpdate = !string.IsNullOrWhiteSpace(info.ReleaseUrl);
+                    $"Mod update {payload.ModVersion} is available - no new launcher needed.{notes}";
+                HasUpdate = true;
             });
         }
         catch (Exception ex)
         {
             Action.AppendLog($"Update check skipped: {ex.Message}");
         }
+    }
+
+    private async Task RunUpdatePrimaryAsync()
+    {
+        if (_payloadUpdateInfo is { } payload)
+        {
+            await ApplyPayloadUpdateAsync(payload);
+            return;
+        }
+
+        OpenUpdateRelease();
+    }
+
+    private void DismissUpdate()
+    {
+        HasUpdate = false;
+        // Remember WHICH offer was waved away, so this release stays quiet
+        // and the next one still gets its banner.
+        if (_payloadUpdateInfo is { } payload)
+        {
+            _settings.DismissedPayloadUpdate = payload.ModVersion;
+        }
+        else if (_updateInfo is { } launcher)
+        {
+            _settings.DismissedLauncherUpdate = launcher.TagName;
+        }
+        else
+        {
+            return;
+        }
+
+        _ = SaveSettingsQuietlyAsync();
+    }
+
+    private async Task SaveSettingsQuietlyAsync()
+    {
+        try
+        {
+            await _settingsStore.SaveAsync(_settings);
+        }
+        catch (Exception ex)
+        {
+            Action.AppendLog($"Could not save the dismissed-update preference: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// The one-click path: download the payload zip, verify it against the
+    /// manifest hash, land it in the payload store, and offer the in-game
+    /// install right away. Every failure leaves the previous payload (and
+    /// the banner's offer) exactly where it was.
+    /// </summary>
+    private async Task ApplyPayloadUpdateAsync(UpdateManifestPayload payload)
+    {
+        if (Action.IsBusy)
+        {
+            return;
+        }
+
+        Action.ClearError();
+        Action.IsBusy = true;
+        RefreshCommandStates();
+        var offerText = UpdateBannerText;
+        try
+        {
+            UpdateBannerText = $"Downloading mod update {payload.ModVersion}...";
+            Action.StatusText = $"Downloading mod update {payload.ModVersion}...";
+            var zipPath = Path.Combine(
+                _settingsStore.AppDataRootPath, "updates", $"re4r-ap-payload-{payload.ModVersion}.zip");
+            await _payloadUpdateService.DownloadPayloadAsync(payload, zipPath);
+            Action.AppendLog($"Mod update {payload.ModVersion} downloaded and hash-verified.");
+
+            await InstallPayloadZipCoreAsync(zipPath);
+            try { File.Delete(zipPath); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+
+            _payloadUpdateInfo = null;
+            HasUpdate = false;
+        }
+        catch (Exception ex)
+        {
+            SetError($"Mod update failed - nothing was changed: {ex.Message}");
+            Action.StatusText = "Mod update failed.";
+            UpdateBannerText = offerText;
+        }
+        finally
+        {
+            Action.IsBusy = false;
+            RefreshCommandStates();
+        }
+    }
+
+    /// <summary>
+    /// Shared tail of the one-click and from-file paths. Assumes the caller
+    /// holds the busy flag. The store validates and swaps; then, when a game
+    /// install is configured, the standard verified Lua install runs so the
+    /// update reaches the game immediately instead of waiting for a patch.
+    /// </summary>
+    private async Task InstallPayloadZipCoreAsync(string zipPath)
+    {
+        var stamp = await _payloadStore.InstallFromZipAsync(zipPath);
+        Action.AppendLog($"Mod payload {stamp.Payload.ModVersion} is now in the launcher's payload store.");
+        RefreshPayloadVersionText();
+
+        if (!_inspection.InstallPathExists || string.IsNullOrWhiteSpace(Setup.InstallPath))
+        {
+            Action.StatusText = $"Mod update {stamp.Payload.ModVersion} stored. It rides your next patch.";
+            Action.AppendLog("No RE4R install is configured, so the update waits in the store and rides the next patch.");
+            return;
+        }
+
+        Action.StatusText = $"Installing mod update {stamp.Payload.ModVersion} into the game...";
+        var result = await _luaInstallService.InstallLuaModFilesAsync(
+            Setup.InstallPath.Trim(),
+            confirmation => _dialogService.ConfirmInstallAsync(confirmation));
+        if (result.Cancelled)
+        {
+            Action.StatusText = $"Mod update {stamp.Payload.ModVersion} stored; the in-game install was cancelled. It rides your next patch.";
+            Action.AppendLog("In-game install cancelled; the stored update still applies at the next patch.");
+            return;
+        }
+
+        if (!result.Success)
+        {
+            throw new InstallException(
+                result.VerificationFailures.Count > 0
+                    ? $"the in-game install finished with {result.VerificationFailures.Count} verification failure(s)."
+                    : "the in-game install did not complete.");
+        }
+
+        Action.StatusText = $"Mod update {stamp.Payload.ModVersion} installed - restart the game to pick it up.";
+        Action.AppendLog($"Mod update {stamp.Payload.ModVersion} installed into the game ({result.FilesCopiedCount} files, verified).");
+        await RefreshInstallInspectionAsync();
+    }
+
+    /// <summary>
+    /// The offline path for the same machinery: a payload zip shared by hand
+    /// (Discord hotfix, air-gapped machine) goes through identical
+    /// validation, storage and install - never hand-copied files.
+    /// </summary>
+    private async Task InstallPayloadFromFileAsync()
+    {
+        if (Action.IsBusy)
+        {
+            return;
+        }
+
+        var files = await _dialogService.BrowseForFilesAsync(
+            "Choose a RE4R AP mod payload zip",
+            "Mod payload zip (*.zip)|*.zip",
+            multiSelect: false);
+        var zipPath = files.FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(zipPath))
+        {
+            return;
+        }
+
+        Action.ClearError();
+        Action.IsBusy = true;
+        RefreshCommandStates();
+        try
+        {
+            await InstallPayloadZipCoreAsync(zipPath);
+        }
+        catch (Exception ex)
+        {
+            SetError($"Mod update from file failed - nothing was changed: {ex.Message}");
+            Action.StatusText = "Mod update failed.";
+        }
+        finally
+        {
+            Action.IsBusy = false;
+            RefreshCommandStates();
+        }
+    }
+
+    private void RefreshPayloadVersionText()
+    {
+        var effective = _payloadStore.GetEffectivePayload();
+        PayloadVersionText = effective.Stamp is null
+            ? string.Empty
+            : $"mod {effective.Stamp.Payload.ModVersion}"
+              + (effective.Origin == PayloadOrigin.Store ? " (updated)" : string.Empty);
     }
 
     private void OpenUpdateRelease()
@@ -784,7 +1174,11 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         try
         {
             _pendingDraft = await _draftStore.TryLoadAsync();
-            await DispatchToUiAsync(UpdateLandingDraftState);
+            await DispatchToUiAsync(() =>
+            {
+                UpdateLandingDraftState();
+                GenerationGuidance.NotifyDraftSaved(_pendingDraft);
+            });
         }
         catch (Exception ex)
         {
@@ -951,6 +1345,42 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             return null;
         }
 
+        await PersistSettingsAsync(trimmedServerAddress, trimmedSlotName);
+
+        // Patching precedes a game relaunch, which truncates the framework log.
+        // Preserve the last session's log now so a crash before this patch stays
+        // recoverable for a bug report (best-effort; no-ops if unchanged).
+        _bugReportService.RotateFrameworkLog(Setup.InstallPath.Trim());
+
+        return new LaunchWorkflowRequest
+        {
+            Re4rInstallPath = Setup.InstallPath.Trim(),
+            ServerAddress = trimmedServerAddress,
+            RoomUrl = Session.RoomUrl.Trim(),
+            SlotName = trimmedSlotName,
+            Password = password,
+            GameVersion = Setup.SelectedGameVersion,
+            CurrentGameFingerprint = GameFingerprint.Sanitize(_inspection.Fingerprint),
+            BioRandOptions = BioRandOptions.Build(),
+            OverrideRecordedOptions = BioRandOptions.IsUnlockedForChange,
+            IsHostedSession = isHostedSession,
+            NotifyAsync = message => _dialogService.ShowNotificationAsync("RE4R AP Launcher", message),
+            ConfirmOverwriteDifferentSeedAsync = prompt => _dialogService.ConfirmOverwriteDifferentSeedAsync(prompt),
+            ChooseResumeActionAsync = prompt => _dialogService.ChooseResumeActionAsync(prompt),
+            ConfirmForeignPatchPaksAsync = ConfirmForeignPatchPaksAsync,
+            ConfirmCampaignSafetyAsync = ConfirmCampaignSafetyAsync,
+            ConfirmPatchInstallAsync = confirmation => _dialogService.ConfirmInstallAsync(confirmation),
+            ConfirmLuaInstallAsync = confirmation => _dialogService.ConfirmInstallAsync(confirmation),
+            OnStepStarting = step => _ = DispatchToUiAsync(() => PatchLaunch.MarkStepStarting(step)),
+        };
+    }
+
+    /// <summary>
+    /// The two DLC warnings, asked by the workflow once the scout says the
+    /// room plays the campaign. A Mercenaries-only room never asks.
+    /// </summary>
+    private async Task<bool> ConfirmCampaignSafetyAsync()
+    {
         if (!_inspection.SeparateWaysDetected)
         {
             var proceedWithoutDlc = await _dialogService.ConfirmProceedWithWarningAsync(
@@ -965,8 +1395,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             if (!proceedWithoutDlc)
             {
                 Action.AppendLog("Workflow stopped because Separate Ways DLC was not confirmed.");
-                Action.StatusText = "Waiting for DLC confirmation.";
-                return null;
+                return false;
             }
         }
 
@@ -991,33 +1420,11 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             if (!proceedWithoutTreasureMap)
             {
                 Action.AppendLog("Workflow stopped because the Treasure Map expansion was not confirmed.");
-                Action.StatusText = "Waiting for DLC confirmation.";
-                return null;
+                return false;
             }
         }
 
-        await PersistSettingsAsync(trimmedServerAddress, trimmedSlotName);
-
-        return new LaunchWorkflowRequest
-        {
-            Re4rInstallPath = Setup.InstallPath.Trim(),
-            ServerAddress = trimmedServerAddress,
-            RoomUrl = Session.RoomUrl.Trim(),
-            SlotName = trimmedSlotName,
-            Password = password,
-            GameVersion = Setup.SelectedGameVersion,
-            CurrentGameFingerprint = GameFingerprint.Sanitize(_inspection.Fingerprint),
-            BioRandOptions = BioRandOptions.Build(),
-            OverrideRecordedOptions = BioRandOptions.IsUnlockedForChange,
-            IsHostedSession = isHostedSession,
-            NotifyAsync = message => _dialogService.ShowNotificationAsync("RE4R AP Launcher", message),
-            ConfirmOverwriteDifferentSeedAsync = prompt => _dialogService.ConfirmOverwriteDifferentSeedAsync(prompt),
-            ChooseResumeActionAsync = prompt => _dialogService.ChooseResumeActionAsync(prompt),
-            ConfirmForeignPatchPaksAsync = ConfirmForeignPatchPaksAsync,
-            ConfirmPatchInstallAsync = confirmation => _dialogService.ConfirmInstallAsync(confirmation),
-            ConfirmLuaInstallAsync = confirmation => _dialogService.ConfirmInstallAsync(confirmation),
-            OnStepStarting = step => _ = DispatchToUiAsync(() => PatchLaunch.MarkStepStarting(step)),
-        };
+        return true;
     }
 
     private async Task ExecutePatchLaunchAsync(LaunchWorkflowRequest request)
@@ -1036,7 +1443,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 
         if (!succeeded && PatchLaunch.LastFailedStep is { } failedStep)
         {
-            var friendly = TranslateWorkflowError(failedStep, PatchLaunch.LastErrorMessage);
+            var friendly = PrefixWithFailedArea(
+                failedStep,
+                TranslateWorkflowError(failedStep, PatchLaunch.LastErrorMessage));
             if (IsPreCommitStep(failedStep))
             {
                 // Nothing touched the game yet, so don't strand the player on
@@ -1104,6 +1513,23 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             if (raw.Contains("InvalidGame", StringComparison.OrdinalIgnoreCase))
             {
                 return "That slot exists but it isn't a Resident Evil 4 Remake slot. Double-check the slot name with your organizer.";
+            }
+
+            // The room answered but named locations this launcher does not
+            // know. Saying "couldn't reach it" here sent a tester chasing a
+            // sleeping-room fix for a version mismatch (Cam, live 2026-08-14).
+            //
+            // The replacement then asserted the ROOM was newer and led with
+            // "update the launcher", which is backwards whenever the launcher
+            // is the fresh side. That happened the day four accessory
+            // locations left the pool: every room generated before the cut hit
+            // this, and the only advice that worked was the one the message
+            // mentioned last (Cam, live 2026-08-21). Regenerating is now the
+            // lead because it is the fix that works in both directions.
+            if (raw.Contains("bundled world data does not know", StringComparison.OrdinalIgnoreCase))
+            {
+                return "The room and this launcher disagree about RE4R's locations, so patching stopped before touching your game. Nothing is broken and your game was not touched. Regenerate the room with the apworld this launcher ships - that is the usual fix, and it is the right one whenever the launcher is the newer side. If the room is the newer one instead, update the launcher to match it."
+                    + Environment.NewLine + Environment.NewLine + $"Details: {raw}";
             }
 
             return "Couldn't reach the room at that address. archipelago.gg rooms fall asleep after inactivity, and only opening the ROOM PAGE in a browser wakes them - wake it, double-check the address for typos, then try again."
@@ -1400,6 +1826,54 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Bundle the session record, launcher log, framework log (+ preserved
+    /// backups), crash dump and drop audit into one zip to attach in Discord,
+    /// then open the folder holding it. Best-effort: a missing piece is noted in
+    /// the report's manifest rather than failing the whole thing.
+    /// </summary>
+    private async Task GenerateBugReportAsync()
+    {
+        try
+        {
+            var installPath = Setup.InstallPath?.Trim() ?? string.Empty;
+            var slotName = !string.IsNullOrWhiteSpace(Session.SlotName)
+                ? Session.SlotName.Trim()
+                : ConfigureYaml.SlotName?.Trim() ?? string.Empty;
+            var version = LauncherUpdateService.GetRunningVersion();
+
+            var payloadVersion = _payloadStore.GetEffectivePayload().Stamp?.Payload.ModVersion;
+            var gameVersion = Setup.SelectedGameVersion;
+            // The quick manifest sweep (about a second) sorts the zip into
+            // "game files broken" vs "cache fine" before anyone opens the log.
+            var cacheDiagnosis = await Task.Run(() => DescribeCacheForBugReport(gameVersion));
+            var zipPath = await Task.Run(
+                () => _bugReportService.CreateBugReport(
+                    installPath, slotName, version, payloadVersion, gameVersion, cacheDiagnosis));
+
+            if (zipPath == null)
+            {
+                var failure = "Could not write the bug report. Check the log folder is writable.";
+                Action.AppendLog(failure);
+                SetError(failure);
+                return;
+            }
+
+            Action.AppendLog($"Bug report saved: {zipPath}");
+            var folder = Path.GetDirectoryName(zipPath);
+            if (!string.IsNullOrEmpty(folder))
+            {
+                _ = _dialogService.OpenFolderAsync(folder);
+            }
+        }
+        catch (Exception ex)
+        {
+            var message = $"Failed to generate the bug report: {ex.Message}";
+            Action.AppendLog(message);
+            SetError(message);
+        }
+    }
+
     private void OpenApworldFolder()
     {
         try
@@ -1540,7 +2014,8 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             warnings.Add("Your last patch didn't finish. Run the patch again to fix it - that's safe: it rebuilds the same world, with the same items in the same places.");
         }
 
-        if (!string.IsNullOrWhiteSpace(_inspection.Fingerprint.FingerprintHash)
+        if (!string.Equals(currentRecord.GameMode, "mercenaries_only", StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(_inspection.Fingerprint.FingerprintHash)
             && !string.IsNullOrWhiteSpace(currentRecord.GameFingerprintAtPatch.FingerprintHash)
             && !string.Equals(
                 _inspection.Fingerprint.FingerprintHash,
@@ -1554,6 +2029,29 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             && !string.Equals(_staticData.WorldVersion, currentRecord.WorldVersion, StringComparison.Ordinal))
         {
             warnings.Add("Bundled world data changed since the last patch. Re-patch is required.");
+        }
+
+        // The trap that ate 2026-08-16: a new launcher build faithfully shows
+        // an old session, the player launches, and every fix since the last
+        // patch silently isn't in their game. The install stamp knows exactly
+        // which payload built the world; disagree loudly, never silently.
+        // A room that never ran BioRand records "N/A" rather than a version:
+        // a Mercenaries-only room installs Lua and nothing else. Comparing
+        // that against the real version told the player their room was
+        // patched with an older build every single time they opened the
+        // launcher, which is both false and unfixable by re-patching (Cam,
+        // live 2026-09-06). No BioRand version means nothing to compare.
+        var currentBioRandVersion = _cacheManager.GetBioRandVersionDescriptor();
+        var roomRanBioRand = !string.IsNullOrWhiteSpace(currentRecord.BioRandVersionAtPatch)
+            && !string.Equals(currentRecord.BioRandVersionAtPatch, "N/A", StringComparison.OrdinalIgnoreCase);
+        if (roomRanBioRand
+            && !string.IsNullOrWhiteSpace(currentBioRandVersion)
+            && !string.Equals(currentRecord.BioRandVersionAtPatch, currentBioRandVersion, StringComparison.Ordinal))
+        {
+            warnings.Add(
+                "This room was patched with an OLDER build than the launcher you are running. "
+                + "The game still has the old world installed - re-patch before playing, or none "
+                + "of the newer fixes exist in your game.");
         }
 
         Action.AppendLog(
@@ -1696,6 +2194,19 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     private void ApplySettings(LauncherSettings settings)
     {
         settings = LauncherSettings.Sanitize(settings);
+        // Logged, not silent. A room generated with Separate Ways unlocked has
+        // to be identifiable from a bug report, or it reads as an ordinary
+        // fault (Cam, 2026-09-06).
+        ConfigureYaml.SeparateWaysUnlocked = settings.UnlockSeparateWays;
+        if (settings.UnlockSeparateWays)
+        {
+            LauncherFileLog.Append(
+                "[settings] unlock_separate_ways is on: the settings screen offers Separate Ways, "
+                + "which generates a room no build can patch yet.");
+            Action.AppendLog(
+                "Separate Ways is unlocked in your settings file. It writes a settings file and "
+                + "generates a room; no build can patch one yet.");
+        }
         Setup.InstallPath = settings.Re4rInstallPath;
         Session.ServerAddress = settings.LastServerAddress;
         Session.SlotName = settings.LastSlotName;
@@ -1990,6 +2501,8 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         _dismissErrorCommand.NotifyCanExecuteChanged();
         _retireSessionCommand.NotifyCanExecuteChanged();
         _clearBioRandCacheCommand.NotifyCanExecuteChanged();
+        _openUpdateReleaseCommand.NotifyCanExecuteChanged();
+        _installPayloadFromFileCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>
@@ -2055,6 +2568,69 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     }
 
 
+    /// <summary>
+    /// One line for the bug report's "BioRand cache check" section, or null
+    /// when no manifest ships for the game version (the report then says "not
+    /// checked"). Never throws: a diagnostic aid must not break the report.
+    /// </summary>
+    private string? DescribeCacheForBugReport(string? gameVersion)
+    {
+        try
+        {
+            var report = _cacheManager.TryQuickVerifyCache(gameVersion);
+            if (report is null)
+            {
+                return null;
+            }
+
+            if (report.IsClean)
+            {
+                return $"clean: all {report.CheckedFileCount} manifest files present with expected sizes";
+            }
+
+            var first = report.MissingFiles.Count > 0
+                ? report.MissingFiles[0]
+                : report.ModifiedFiles[0];
+            return $"NOT CLEAN: {report.MissingFiles.Count} missing, {report.SizeMismatchedFiles.Count} wrong-sized of {report.CheckedFileCount} manifest files (first: {first}). Game data is damaged or modded; see the repair steps in the launcher's error message.";
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Leads the banner with WHERE the workflow failed ("AP scouting failed.
+    /// ..."), unless the message already names its own area. The classifier
+    /// and the cache verdicts label themselves ("BioRand cache incomplete:
+    /// ..."), so those pass through; everything else gains the step label that
+    /// FormatWorkflowStep always provided but nothing ever displayed.
+    /// </summary>
+    private static string PrefixWithFailedArea(WorkflowStep step, string message)
+    {
+        if (step == WorkflowStep.Unknown || string.IsNullOrWhiteSpace(message))
+        {
+            return message;
+        }
+
+        var selfLabeledPrefixes = new[]
+        {
+            BioRandFailureClassifier.AreaCacheIncomplete,
+            BioRandFailureClassifier.AreaCachePoisoned,
+            BioRandFailureClassifier.AreaOptions,
+            BioRandFailureClassifier.AreaGameFiles,
+            BioRandFailureClassifier.AreaCrash,
+            BioRandFailureClassifier.AreaFailure,
+        };
+        if (selfLabeledPrefixes.Any(prefix => message.StartsWith(prefix + ":", StringComparison.OrdinalIgnoreCase)))
+        {
+            return message;
+        }
+
+        var area = FormatWorkflowStep(step);
+        return $"{char.ToUpperInvariant(area[0])}{area[1..]} failed. {message}";
+    }
+
     private static string FormatWorkflowStep(WorkflowStep step)
     {
         return step switch
@@ -2072,5 +2648,13 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             WorkflowStep.WriteConnectionInfo => "connection info write",
             _ => step.ToString(),
         };
+    }
+
+    /// <summary>Fan a theme switch out to the children that carry themed keys.</summary>
+    public void RefreshThemedBrushes()
+    {
+        Setup.RefreshThemedBrushes();
+        Action.RefreshThemedBrushes();
+        Landing.RefreshThemedBrushes();
     }
 }

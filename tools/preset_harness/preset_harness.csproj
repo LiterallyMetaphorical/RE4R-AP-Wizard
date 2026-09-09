@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Offline verification harness for EnemyConfigurationPresets: run with
+       `dotnet run` from this folder after any enemy_presets.json or loader
+       change. Checks derivation, dials, detection, gates and the class
+       lock; prints "<N> passed, 0 failed" when healthy. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\RE4R.AP.Launcher.Core\RE4R.AP.Launcher.Core.csproj" />
+  </ItemGroup>
+</Project>

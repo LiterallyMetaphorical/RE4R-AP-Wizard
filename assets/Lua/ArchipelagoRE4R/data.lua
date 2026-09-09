@@ -1,11 +1,15 @@
 local function install(ctx)
     ctx.data = ctx.data or {}
 
+    -- The four Leon tables, plus Ada's whole set under separate_ways. She
+    -- reuses his stage ids with other chapters, so the reader picks the set by
+    -- the campaign being played.
     local stage_chapter_map = {
         exact = {},
         exact_candidates = {},
         family = {},
         family_candidates = {},
+        separate_ways = nil,
     }
     local stage_location_guid_map = {}
     local stage_location_display_map = {}
@@ -166,6 +170,13 @@ local function install(ctx)
         stage_chapter_map.exact_candidates = payload.exact_candidates or {}
         stage_chapter_map.family = payload.family or {}
         stage_chapter_map.family_candidates = payload.family_candidates or {}
+        -- Ada's set, copied whole. Leaving it out is why Separate Ways
+        -- chapter 1 read as Leon's chapter 7 in the Castle: the reader asked
+        -- for her table, found nothing, and fell back to his (Cam, live
+        -- 2026-09-07). Absent on a payload older than world 0.8.0, where the
+        -- fallback is the right answer.
+        stage_chapter_map.separate_ways =
+            type(payload.separate_ways) == "table" and payload.separate_ways or nil
     end
 
     -- [Pickup event flags] 22 vanilla drops carry SetFlagSettings whose
@@ -329,6 +340,12 @@ local function install(ctx)
                 for guid, raw_entry in pairs(raw_entries) do
                     local normalized_guid = normalize_display_guid(guid)
                     if normalized_guid ~= nil and type(raw_entry) == "table" then
+                        -- trim_display_text answers "" for a missing field, and
+                        -- "" is TRUTHY in Lua, so `or "leon"` would never fire.
+                        local campaign = trim_display_text(raw_entry.campaign)
+                        if campaign == "" then
+                            campaign = "leon"
+                        end
                         stage_entries[normalized_guid] = {
                             location_id = tonumber(raw_entry.location_id),
                             location_name = trim_display_text(raw_entry.location_name),
@@ -336,6 +353,15 @@ local function install(ctx)
                             item_name = trim_display_text(raw_entry.item_name),
                             classification = trim_display_text(raw_entry.classification),
                             chapter = tonumber(raw_entry.chapter),
+                            -- Which campaign the check belongs to. The marker
+                            -- pass reads this to tell Ada's checks from Leon's,
+                            -- and 36 stage ids carry both. It was in the JSON
+                            -- and not extracted here, so every Separate Ways
+                            -- check read as Leon's and NONE of her markers
+                            -- drew (Cam, live 2026-09-07: 10 open, 0 drawable).
+                            -- Absent on a payload older than world 0.8.0,
+                            -- where every check was his.
+                            campaign = campaign,
                             stage_name = trim_display_text(raw_entry.stage_name),
                             -- Pause-map area name + world position (section-scoped
                             -- header counts now; world markers later).
@@ -647,9 +673,35 @@ local function install(ctx)
         return location_id_reverse_index[math.floor(numeric_id)]
     end
 
+    -- Which campaign's checks the player can actually reach. A room patches
+    -- ONE campaign, so this is the whole of the Leon/Ada separation: the
+    -- character being played first, the room's own patched campaign when the
+    -- inventory cannot be read, and Leon last, since every room built before
+    -- the campaign key existed is his.
+    local function current_campaign()
+        local who = ctx.inject_current_character or _G.inject_current_character
+        if type(who) == "function" then
+            local ok_character, character = pcall(who)
+            if ok_character and type(character) == "table"
+                and type(character.campaign) == "string" and character.campaign ~= "" then
+                return character.campaign
+            end
+        end
+        local slot_data = ctx.bridge and ctx.bridge.slot_data
+        local patched = type(slot_data) == "table" and slot_data.patched_campaign or nil
+        if patched == "Separate Ways" then return "separate_ways" end
+        return "leon"
+    end
+
     -- Section-scoped check progress: counts every display entry whose
     -- section_name matches, across all stages (a named place can span several
-    -- stages and chapter revisits). Rebuilt at most once a second.
+    -- stages and chapter revisits).
+    --
+    -- [Separate Ways] Counted PER CAMPAIGN. Ada reuses Leon's section names,
+    -- so one shared bucket added her checks to his: Village Square read 31 in
+    -- a Leon room (20 of his, 11 of hers) and hers are not in that room at all
+    -- (Cam, live 2026-09-07). A missing campaign is Leon's, the same rule the
+    -- markers use. Rebuilt at most once a second.
     local section_progress_cache = { built_at = -math.huge, counts = {} }
 
     local function get_section_progress(section_name)
@@ -667,10 +719,19 @@ local function install(ctx)
                     for guid, display_entry in pairs(stage_entries) do
                         local entry_section = display_entry and display_entry.section_name
                         if type(entry_section) == "string" and entry_section ~= "" then
-                            local bucket = counts[entry_section]
+                            local campaign = display_entry.campaign
+                            if type(campaign) ~= "string" or campaign == "" then
+                                campaign = "leon"
+                            end
+                            local by_campaign = counts[campaign]
+                            if by_campaign == nil then
+                                by_campaign = {}
+                                counts[campaign] = by_campaign
+                            end
+                            local bucket = by_campaign[entry_section]
                             if bucket == nil then
                                 bucket = { checked = 0, total = 0 }
-                                counts[entry_section] = bucket
+                                by_campaign[entry_section] = bucket
                             end
                             bucket.total = bucket.total + 1
                             local key = make_stage_guid_key(stage_id, guid)
@@ -685,11 +746,33 @@ local function install(ctx)
             section_progress_cache.built_at = now
         end
 
-        local bucket = section_progress_cache.counts[normalized]
+        local by_campaign = section_progress_cache.counts[current_campaign()] or {}
+        local bucket = by_campaign[normalized]
         if bucket == nil then
             return 0, 0
         end
         return bucket.checked, bucket.total
+    end
+
+    -- [Separate Ways] Ada reuses Leon's stage ids with different chapters:
+    -- 47101 is his chapter 6 and her chapter 2, so reading her stage off his
+    -- table told a Separate Ways player the wrong chapter (Cam, live
+    -- 2026-09-06). The chapter has never come from save data; it is a lookup
+    -- on the stage, which is why the campaign has to pick the table.
+    --
+    -- Falls back to Leon's when the block is missing, which is any payload
+    -- older than this one.
+    local function chapter_tables_for_campaign()
+        local who = ctx.inject_current_character or _G.inject_current_character
+        if type(who) == "function" then
+            local ok_character, character = pcall(who)
+            if ok_character and type(character) == "table"
+                and character.campaign == "separate_ways"
+                and type(stage_chapter_map.separate_ways) == "table" then
+                return stage_chapter_map.separate_ways
+            end
+        end
+        return stage_chapter_map
     end
 
     local function resolve_chapter_for_ui(stage_id)
@@ -697,24 +780,25 @@ local function install(ctx)
             return nil, "(unknown)", nil
         end
 
+        local tables = chapter_tables_for_campaign()
         local exact_key = tostring(stage_id)
-        local exact_chapter = stage_chapter_map.exact[exact_key]
+        local exact_chapter = tables.exact and tables.exact[exact_key]
         if type(exact_chapter) == "number" then
             return exact_chapter, tostring(exact_chapter), "exact"
         end
 
-        local exact_candidates = stage_chapter_map.exact_candidates[exact_key]
+        local exact_candidates = tables.exact_candidates and tables.exact_candidates[exact_key]
         if type(exact_candidates) == "table" and #exact_candidates > 0 then
             return nil, join_numbers(exact_candidates), "ambiguous_stage"
         end
 
         local family_key = tostring(math.floor(stage_id / 100))
-        local family_chapter = stage_chapter_map.family[family_key]
+        local family_chapter = tables.family and tables.family[family_key]
         if type(family_chapter) == "number" then
             return family_chapter, tostring(family_chapter), "family"
         end
 
-        local family_candidates = stage_chapter_map.family_candidates[family_key]
+        local family_candidates = tables.family_candidates and tables.family_candidates[family_key]
         if type(family_candidates) == "table" and #family_candidates > 0 then
             return nil, join_numbers(family_candidates), "ambiguous_family"
         end
@@ -737,6 +821,33 @@ local function install(ctx)
     -- against the display map 2026-07-23: every multi-stage family's coordinate
     -- ranges are mutually consistent; cross-FAMILY spaces are NOT (village
     -- 402xx and island 601xx overlap numerically), so never widen past /100.
+    -- [Separate Ways] The area name for a stage, taken from the checks that
+    -- sit in it. Ada's sections are AUTHORED per chapter and stage (the world
+    -- builds them from sw_sections.json) because the pause-map polygons the
+    -- overlay normally reads have no Separate Ways coverage at all. Reading
+    -- her position against Leon's polygons put her in his Hunter's Lodge while
+    -- she stood at the Castle Gate (Cam, live 2026-09-07).
+    --
+    -- Campaign-scoped because 36 stage ids carry checks from both.
+    local function get_authored_section(stage, campaign)
+        if type(stage) ~= "number" or type(campaign) ~= "string" then
+            return nil
+        end
+        local stage_entries = (stage_location_display_map or {})[tostring(stage)]
+        if type(stage_entries) ~= "table" then
+            return nil
+        end
+        for _, display_entry in pairs(stage_entries) do
+            if type(display_entry) == "table"
+                and display_entry.campaign == campaign
+                and type(display_entry.section_name) == "string"
+                and display_entry.section_name ~= "" then
+                return display_entry.section_name
+            end
+        end
+        return nil
+    end
+
     local function get_stage_family_stages(stage)
         if type(stage) ~= "number" then
             return {}
@@ -835,6 +946,74 @@ local function install(ctx)
         return results
     end
 
+    -- [D8] Locations this SAVE has not collected, but the SEED has: the death
+    -- rollback case. World pickups roll back with the save; our acknowledged
+    -- set is per-seed and never does, so after dying without saving the
+    -- pickup is physically back in the world with no marker on it.
+    --
+    -- Deliberately NOT folded into collect_open_family_locations: the check
+    -- really was sent and the header counts must keep saying so. This is a
+    -- separate class of marker, not a reopened location.
+    --
+    -- Only OUR OWN items qualify. Another player's item was already delivered
+    -- to them, so re-grabbing the placeholder achieves nothing and a marker
+    -- would just be noise (Cam, 2026-08-13).
+    --
+    -- Fails closed everywhere: no drop map (not dispatched yet), no scout data
+    -- (we cannot tell whose item it was), or a drop the game reports consumed,
+    -- and the location simply does not appear.
+    local function collect_regrab_family_locations(stage)
+        local results = {}
+        if type(stage) ~= "number" then
+            return results
+        end
+        local collect_counts = ctx.collect_drop_save_counts or _G.collect_drop_save_counts
+        if type(collect_counts) ~= "function" then
+            return results
+        end
+        local counts = collect_counts()
+        if type(counts) ~= "table" then
+            return results
+        end
+        local me = tonumber(ctx.bridge.ap_numeric_slot)
+        local scout_owner = ctx.bridge.location_scout_player
+        if me == nil or type(scout_owner) ~= "table" then
+            return results
+        end
+
+        for _, family_stage in ipairs(get_stage_family_stages(stage)) do
+            local stage_entry = get_stage_watch_entry(family_stage)
+            if stage_entry ~= nil and type(stage_entry.guids) == "table" then
+                for guid in pairs(stage_entry.guids) do
+                    local key = make_stage_guid_key(family_stage, guid)
+                    -- Acknowledged (the seed checked it) but the CURRENT save
+                    -- still has the drop sitting there.
+                    if key ~= nil
+                        and ctx.bridge.acknowledged_guid_keys[key]
+                        and not ctx.bridge.pending_check_keys[key] then
+                        local save_count = counts[guid]
+                        if type(save_count) == "number" and save_count > 0 then
+                            local display_entry = get_location_display_entry(family_stage, guid)
+                            local location_id = display_entry and tonumber(display_entry.location_id)
+                            local owner = location_id ~= nil
+                                and tonumber(scout_owner[tostring(math.floor(location_id))]) or nil
+                            if owner ~= nil and owner == me then
+                                results[#results + 1] = {
+                                    stage = family_stage,
+                                    guid = guid,
+                                    key = key,
+                                    entry = display_entry,
+                                    regrab = true,
+                                }
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        return results
+    end
+
     local function get_stage_progress(stage)
         local stage_entry = get_stage_watch_entry(stage)
         if stage_entry == nil or type(stage_entry.guids) ~= "table" then
@@ -881,6 +1060,7 @@ local function install(ctx)
     local function get_region_progress(chapter, section)
         local wanted_chapter = tonumber(chapter)
         local wanted_section = trim_string(section)
+        local wanted_campaign = current_campaign()
         local found_count = 0
         local total_count = 0
 
@@ -888,7 +1068,17 @@ local function install(ctx)
             if type(stage_entries) == "table" then
                 local stage_id = normalize_stage_id(stage_key)
                 for guid, display_entry in pairs(stage_entries) do
+                    -- [Separate Ways] The same guard get_section_progress needs.
+                    -- One (chapter, section) pair is used by both campaigns,
+                    -- chapter 2's Village Chief's Manor: 11 of Leon's and 7 of
+                    -- Ada's. Without this the typewriter tree counts eighteen
+                    -- in a room that holds eleven.
+                    local entry_campaign = display_entry and display_entry.campaign
+                    if type(entry_campaign) ~= "string" or entry_campaign == "" then
+                        entry_campaign = "leon"
+                    end
                     if type(display_entry) == "table"
+                        and entry_campaign == wanted_campaign
                         and tonumber(display_entry.chapter) == wanted_chapter
                         and trim_string(display_entry.section_name) == wanted_section then
                         total_count = total_count + 1
@@ -988,6 +1178,9 @@ local function install(ctx)
         roof = "rooftop",
         desk = "desk",
         underwater = "underwater",
+        -- Guid-override-only kind (never synthesized); lowercase here where
+        -- the parser title-cases it for location names.
+        ["china-cabinet"] = "china cabinet",
     }
 
     local function get_container_gloss(container)
@@ -1179,6 +1372,7 @@ local function install(ctx)
         is_guid_acknowledged = is_guid_acknowledged,
         is_location_key_open = is_location_key_open,
         collect_open_family_locations = collect_open_family_locations,
+        collect_regrab_family_locations = collect_regrab_family_locations,
         push_info_toast = push_info_toast,
         load_stage_chapter_map = load_stage_chapter_map,
         load_location_guid_map = load_location_guid_map,
@@ -1201,6 +1395,7 @@ local function install(ctx)
         count_lookup_entries = count_lookup_entries,
         list_lookup_keys = list_lookup_keys,
         get_location_display_entry = get_location_display_entry,
+        get_authored_section = get_authored_section,
         get_stage_progress = get_stage_progress,
         build_nearby_remaining_label = build_nearby_remaining_label,
         truncate_overlay_text = truncate_overlay_text,

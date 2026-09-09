@@ -1,0 +1,546 @@
+﻿using System.IO.Compression;
+using System.Text;
+using RE4R.AP.Launcher.Core.Utilities;
+
+namespace RE4R.AP.Launcher.Core.Services;
+
+/// <summary>
+/// Bundles the files a crash or bug report needs into one zip the player can
+/// attach in Discord, so we stop chasing session records, framework logs, drop
+/// audits and crash dumps one message at a time.
+///
+/// The launcher does NOT start the game (players launch from Steam) and
+/// REFramework truncates re2_framework_log.txt at its own init, before our Lua
+/// runs - so neither side can snapshot the previous session's log at game
+/// start. The pragmatic cover is <see cref="RotateFrameworkLog"/>, called at
+/// launcher touchpoints (startup, patch, report): it copies the current
+/// framework log to an AppData backup whenever it is newer than the newest
+/// backup, so the last session survives the relaunch the player came to the
+/// launcher for. The crash dump is a separate file that survives relaunches on
+/// its own, so crashes stay recoverable even when the log does not.
+/// </summary>
+public sealed class BugReportService
+{
+    private const int MaxFrameworkLogBackups = 5;
+
+    private readonly string _appDataRootPath;
+
+    public BugReportService(string appDataRootPath)
+    {
+        _appDataRootPath = appDataRootPath;
+    }
+
+    public string FrameworkLogBackupDirectoryPath =>
+        Path.Combine(_appDataRootPath, "framework-logs");
+
+    public string BugReportDirectoryPath =>
+        Path.Combine(_appDataRootPath, "bug-reports");
+
+    /// <summary>
+    /// Preserve the current framework log if it is newer than the newest backup
+    /// we hold. Best-effort: a diagnostic aid must never take the launcher down
+    /// or block a workflow, so every failure is swallowed. Safe to call often -
+    /// it no-ops when the log has not changed since the last backup.
+    /// </summary>
+    public void RotateFrameworkLog(string installPath)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(installPath))
+            {
+                return;
+            }
+            var currentLog = Path.Combine(installPath, "re2_framework_log.txt");
+            if (!File.Exists(currentLog))
+            {
+                return;
+            }
+
+            Directory.CreateDirectory(FrameworkLogBackupDirectoryPath);
+            var currentWriteUtc = File.GetLastWriteTimeUtc(currentLog);
+            var backups = new DirectoryInfo(FrameworkLogBackupDirectoryPath)
+                .GetFiles("re2_framework_log_*.txt");
+
+            // Skip if we already hold a backup at least as fresh as this log:
+            // repeated touchpoints in one session must not clone the same log.
+            var newestBackupUtc = backups.Length == 0
+                ? DateTime.MinValue
+                : backups.Max(file => file.LastWriteTimeUtc);
+            if (currentWriteUtc <= newestBackupUtc)
+            {
+                return;
+            }
+
+            var stamp = currentWriteUtc.ToLocalTime().ToString("yyyyMMdd_HHmmss");
+            var destination = Path.Combine(
+                FrameworkLogBackupDirectoryPath, $"re2_framework_log_{stamp}.txt");
+            File.Copy(currentLog, destination, overwrite: true);
+            // Preserve the source mtime so the freshness comparison above holds.
+            File.SetLastWriteTimeUtc(destination, currentWriteUtc);
+
+            PruneFrameworkLogBackups();
+        }
+        catch
+        {
+            // Never throw from a diagnostic aid.
+        }
+    }
+
+    private void PruneFrameworkLogBackups()
+    {
+        try
+        {
+            var backups = new DirectoryInfo(FrameworkLogBackupDirectoryPath)
+                .GetFiles("re2_framework_log_*.txt")
+                .OrderByDescending(file => file.LastWriteTimeUtc)
+                .Skip(MaxFrameworkLogBackups)
+                .ToList();
+            foreach (var stale in backups)
+            {
+                stale.Delete();
+            }
+        }
+        catch
+        {
+            // Best-effort pruning only.
+        }
+    }
+
+    /// <summary>
+    /// Assemble the bug-report zip. Returns the zip path on success, or null if
+    /// even the archive could not be written. Individual missing pieces are
+    /// noted in the manifest rather than failing the whole report.
+    /// </summary>
+    public string? CreateBugReport(
+        string installPath,
+        string slotName,
+        string launcherVersion,
+        string? payloadVersion = null,
+        string? gameVersion = null,
+        string? cacheDiagnosis = null)
+    {
+        try
+        {
+            // Capture the current framework log before anything else can move on.
+            RotateFrameworkLog(installPath);
+            LauncherFileLog.Flush();
+
+            Directory.CreateDirectory(BugReportDirectoryPath);
+            var stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            var safeSlot = SanitizeForFileName(string.IsNullOrWhiteSpace(slotName) ? "unknown" : slotName);
+            var zipPath = Path.Combine(BugReportDirectoryPath, $"RE4R-bugreport-{safeSlot}-{stamp}.zip");
+
+            var included = new List<string>();
+            var missing = new List<string>();
+
+            using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+            {
+                void TryAdd(string sourcePath, string entryName)
+                {
+                    try
+                    {
+                        if (File.Exists(sourcePath))
+                        {
+                            // Copy through a shared-read stream: the framework
+                            // log and launcher log may be open for writing.
+                            var entry = archive.CreateEntry(entryName, CompressionLevel.Optimal);
+                            using var entryStream = entry.Open();
+                            using var source = new FileStream(
+                                sourcePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                            source.CopyTo(entryStream);
+                            included.Add(entryName);
+                        }
+                        else
+                        {
+                            missing.Add(entryName);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        missing.Add($"{entryName} (error: {ex.Message})");
+                    }
+                }
+
+                // Launcher-side: newest session record and launcher log.
+                var sessionRecord = NewestFile(Path.Combine(_appDataRootPath, "sessions"), "*.json");
+                if (sessionRecord != null)
+                {
+                    TryAdd(sessionRecord, $"session/{Path.GetFileName(sessionRecord)}");
+                }
+                else
+                {
+                    missing.Add("session/<record>.json");
+                }
+
+                var launcherLog = NewestFile(LauncherFileLog.LogDirectoryPath, "launcher-*.log");
+                if (launcherLog != null)
+                {
+                    TryAdd(launcherLog, $"launcher/{Path.GetFileName(launcherLog)}");
+                }
+                else
+                {
+                    missing.Add("launcher/launcher-<date>.log");
+                }
+
+                // Game-side: framework log (current + preserved backups), crash
+                // dump, drop audit, marker edits.
+                if (!string.IsNullOrWhiteSpace(installPath))
+                {
+                    TryAdd(Path.Combine(installPath, "re2_framework_log.txt"),
+                        "framework/re2_framework_log.txt");
+                    TryAdd(Path.Combine(installPath, "reframework_crash.dmp"),
+                        "framework/reframework_crash.dmp");
+                    var dataDir = Path.Combine(installPath, "reframework", "data", "ArchipelagoRE4R");
+                    TryAdd(Path.Combine(dataDir, "drop_audit.json"),
+                        "framework/drop_audit.json");
+                    TryAdd(Path.Combine(dataDir, "marker_position_edits.json"),
+                        "framework/marker_position_edits.json");
+                }
+
+                if (Directory.Exists(FrameworkLogBackupDirectoryPath))
+                {
+                    foreach (var backup in new DirectoryInfo(FrameworkLogBackupDirectoryPath)
+                        .GetFiles("re2_framework_log_*.txt")
+                        .OrderByDescending(file => file.LastWriteTimeUtc))
+                    {
+                        TryAdd(backup.FullName, $"framework-history/{backup.Name}");
+                    }
+                }
+
+                // Manifest last, so it can report what landed.
+                var manifest = BuildManifest(
+                    installPath, slotName, launcherVersion, payloadVersion,
+                    gameVersion, cacheDiagnosis, included, missing);
+                var manifestEntry = archive.CreateEntry("manifest.txt", CompressionLevel.Optimal);
+                using var manifestStream = manifestEntry.Open();
+                using var writer = new StreamWriter(manifestStream, new UTF8Encoding(false));
+                writer.Write(manifest);
+            }
+
+            LauncherFileLog.Append($"Bug report written to {zipPath}");
+            return zipPath;
+        }
+        catch (Exception ex)
+        {
+            LauncherFileLog.Append($"Bug report failed: {ex.Message}");
+            return null;
+        }
+    }
+
+    private static string BuildManifest(
+        string installPath,
+        string slotName,
+        string launcherVersion,
+        string? payloadVersion,
+        string? gameVersion,
+        string? cacheDiagnosis,
+        IReadOnlyList<string> included,
+        IReadOnlyList<string> missing)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("RE4R AP bug report");
+        sb.AppendLine("==================");
+        sb.AppendLine($"Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+        sb.AppendLine($"Launcher version: {launcherVersion}");
+        if (!string.IsNullOrWhiteSpace(payloadVersion))
+        {
+            // Which Lua payload the LAUNCHER holds right now (bundled or
+            // updated). The one actually running in the game is stamped in
+            // the framework log's boot banner; a mismatch between the two
+            // usually means "updated but has not re-installed yet".
+            sb.AppendLine($"Mod payload: {payloadVersion}");
+        }
+        sb.AppendLine($"Slot name: {slotName}");
+        sb.AppendLine($"Install path: {installPath}");
+        if (!string.IsNullOrWhiteSpace(gameVersion))
+        {
+            sb.AppendLine($"Game version: {gameVersion}");
+        }
+        sb.AppendLine();
+
+        // Pak inventory: the single highest-information support artifact
+        // (three of three 08-2026 cases were called from it). Vanilla ends at
+        // patch_006 for every supported game version; anything above is a mod
+        // or the launcher's own patch, and a GAP in 001-006 means Steam must
+        // re-verify the install.
+        try
+        {
+            var paks = Directory.EnumerateFiles(installPath, "re_chunk_000.pak*", SearchOption.TopDirectoryOnly)
+                .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (paks.Count > 0)
+            {
+                sb.AppendLine("Game pak inventory:");
+                var seenIndexes = new HashSet<int>();
+                foreach (var pak in paks)
+                {
+                    var name = Path.GetFileName(pak);
+                    var size = new FileInfo(pak).Length;
+                    var note = string.Empty;
+                    var match = System.Text.RegularExpressions.Regex.Match(name, @"patch_(\d+)\.pak$");
+                    if (match.Success && int.TryParse(match.Groups[1].Value, out var index))
+                    {
+                        seenIndexes.Add(index);
+                        if (index > 6)
+                        {
+                            note = "  <- beyond patch_006: a mod or the launcher's AP patch, not vanilla";
+                        }
+                    }
+
+                    sb.AppendLine($"  {name,-42} {size,15:N0} bytes{note}");
+                }
+
+                var vanillaGaps = Enumerable.Range(1, 6).Where(i => !seenIndexes.Contains(i)).ToList();
+                if (vanillaGaps.Count > 0)
+                {
+                    sb.AppendLine($"  WARNING: vanilla patch pak(s) missing: {string.Join(", ", vanillaGaps.Select(i => $"patch_{i:000}"))}. "
+                        + "Verify game files in Steam.");
+                }
+
+                sb.AppendLine();
+            }
+        }
+        catch
+        {
+            // Inventory is a nicety; skip on any error.
+        }
+
+        // Cache verdict from the clean-game manifest, when the caller could
+        // compute one. "not checked" is itself information: no manifest for
+        // this game version, or the probe failed.
+        sb.AppendLine("BioRand cache check:");
+        sb.AppendLine($"  {(string.IsNullOrWhiteSpace(cacheDiagnosis) ? "not checked (no bundled manifest for this game version, or the probe failed)" : cacheDiagnosis)}");
+        sb.AppendLine();
+
+        // The last captured BioRand failure, quoted so the zip opens with the
+        // diagnosis instead of a 10 MB scroll to find it.
+        try
+        {
+            var launcherLog = NewestFile(LauncherFileLog.LogDirectoryPath, "launcher-*.log");
+            if (launcherLog != null)
+            {
+                string? lastException = null;
+                string? lastError = null;
+                foreach (var line in File.ReadLines(launcherLog))
+                {
+                    if (line.Contains("[BioRand][stderr] Unhandled exception", StringComparison.Ordinal))
+                    {
+                        lastException = line;
+                    }
+                    else if (line.Contains("[error]", StringComparison.Ordinal))
+                    {
+                        lastError = line;
+                    }
+                }
+
+                if (lastException != null || lastError != null)
+                {
+                    sb.AppendLine("Most recent failure in the launcher log:");
+                    if (lastException != null)
+                    {
+                        sb.AppendLine($"  {lastException.Trim()}");
+                    }
+                    if (lastError != null)
+                    {
+                        sb.AppendLine($"  {lastError.Trim()}");
+                    }
+                    sb.AppendLine();
+                }
+            }
+        }
+        catch
+        {
+            // Triage is a nicety; skip on any error.
+        }
+
+        // The stale-patch check that was diagnostic gold for Dizzy: a BioRand
+        // patch built against game files Steam later refreshed crashes on
+        // content load. Flag it here so nobody has to eyeball timestamps.
+        try
+        {
+            var exe = Path.Combine(installPath, "re4.exe");
+            var patch = Path.Combine(installPath, "re_chunk_000.pak.patch_007.pak");
+            if (File.Exists(exe) && File.Exists(patch))
+            {
+                var exeTime = File.GetLastWriteTime(exe);
+                var patchTime = File.GetLastWriteTime(patch);
+                sb.AppendLine("Patch freshness:");
+                sb.AppendLine($"  re4.exe               last written {exeTime:yyyy-MM-dd HH:mm}");
+                sb.AppendLine($"  ...patch_007.pak (AP) last written {patchTime:yyyy-MM-dd HH:mm}");
+                if (patchTime < exeTime)
+                {
+                    sb.AppendLine("  WARNING: the AP patch is OLDER than the game files. Steam likely "
+                        + "refreshed the game after patching - re-patch (verify + clear cache first).");
+                }
+                else
+                {
+                    sb.AppendLine("  OK: the AP patch is newer than the game files.");
+                }
+                sb.AppendLine();
+            }
+        }
+        catch
+        {
+            // Freshness check is a nicety; skip on any error.
+        }
+
+        // [Crash dump age, 2026-09-07] The dump survives relaunches on purpose,
+        // which means the one in the folder is very often NOT the crash being
+        // reported. A hang writes no dump at all, so the report then carries
+        // whatever crash happened last - hours earlier, in another session -
+        // and reads exactly like the event the player just hit. That cost a
+        // full triage pass on the day: exception record, module list and stack
+        // walked, all of the wrong crash. Say which session it belongs to.
+        try
+        {
+            var dump = Path.Combine(installPath, "reframework_crash.dmp");
+            var log = Path.Combine(installPath, "re2_framework_log.txt");
+            if (File.Exists(dump))
+            {
+                var dumpTime = File.GetLastWriteTime(dump);
+                sb.AppendLine("Crash dump:");
+                sb.AppendLine($"  reframework_crash.dmp last written {dumpTime:yyyy-MM-dd HH:mm:ss}");
+
+                DateTime? sessionStart = null;
+                if (File.Exists(log))
+                {
+                    foreach (var line in File.ReadLines(log))
+                    {
+                        var open = line.IndexOf('[');
+                        var close = line.IndexOf(']');
+                        if (open == 0 && close > open
+                            && DateTime.TryParse(line.Substring(1, close - 1), out var parsed))
+                        {
+                            sessionStart = parsed;
+                        }
+                        break;
+                    }
+                }
+
+                if (sessionStart is null)
+                {
+                    sb.AppendLine("  The framework log has no readable start time, so this dump "
+                        + "cannot be matched to a session. Check its timestamp before reading it.");
+                }
+                else if (dumpTime < sessionStart.Value)
+                {
+                    sb.AppendLine($"  The framework log in this report starts {sessionStart.Value:yyyy-MM-dd HH:mm:ss}.");
+                    sb.AppendLine("  WARNING: this dump PREDATES that session. It is a leftover from an "
+                        + "earlier crash and is NOT the event being reported. If the report is about a "
+                        + "hang or an infinite load, expect no dump: nothing crashed.");
+                }
+                else
+                {
+                    sb.AppendLine($"  The framework log in this report starts {sessionStart.Value:yyyy-MM-dd HH:mm:ss}, "
+                        + "so the dump is from this session.");
+                }
+                sb.AppendLine();
+            }
+        }
+        catch
+        {
+            // Dump age is triage help; skip on any error.
+        }
+
+        // REFramework stability triage (Amondo's freeze class, 2026-08-28):
+        // display-mode transitions fail Present and reset the D3D device, and
+        // enough churn eventually wedges REFramework's rehook path - the game
+        // froze at the merchant with audio still playing, twice. Counting the
+        // markers here lets a zip sort itself into that bucket before anyone
+        // opens a nine-megabyte log. Borderless window mode plus the latest
+        // REFramework nightly are the fixes.
+        try
+        {
+            var frameworkLog = Path.Combine(installPath, "re2_framework_log.txt");
+            if (File.Exists(frameworkLog))
+            {
+                string? refTag = null;
+                string? refCommit = null;
+                var resetCount = 0;
+                var presentFailures = 0;
+                foreach (var line in File.ReadLines(frameworkLog))
+                {
+                    if (refCommit == null && line.Contains("Commit hash: ", StringComparison.Ordinal))
+                    {
+                        refCommit = line[(line.IndexOf("Commit hash: ", StringComparison.Ordinal) + 13)..].Trim();
+                    }
+                    else if (refTag == null && line.Contains("] Tag: ", StringComparison.Ordinal))
+                    {
+                        refTag = line[(line.IndexOf("] Tag: ", StringComparison.Ordinal) + 7)..].Trim();
+                    }
+
+                    if (line.Contains("] Reset!", StringComparison.Ordinal))
+                    {
+                        resetCount++;
+                    }
+                    else if (line.Contains("Present failed", StringComparison.Ordinal))
+                    {
+                        presentFailures++;
+                    }
+                }
+
+                var shortCommit = refCommit is { Length: >= 8 } ? refCommit[..8] : refCommit ?? "unknown";
+                sb.AppendLine("Framework stability (current session log):");
+                sb.AppendLine($"  REFramework build     {refTag ?? "unknown"} ({shortCommit})");
+                sb.AppendLine($"  Device resets         {resetCount}");
+                sb.AppendLine($"  Present failures      {presentFailures}");
+                if (resetCount >= 10)
+                {
+                    sb.AppendLine("  WARNING: heavy device-reset churn - the display-mode class. "
+                        + "Borderless window mode and the latest REFramework are the fixes.");
+                }
+                sb.AppendLine();
+            }
+        }
+        catch
+        {
+            // Triage is a nicety; skip on any error.
+        }
+
+        sb.AppendLine("Included:");
+        foreach (var entry in included)
+        {
+            sb.AppendLine($"  + {entry}");
+        }
+        if (missing.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("Not found (may be normal - e.g. no crash dump if the game did not crash):");
+            foreach (var entry in missing)
+            {
+                sb.AppendLine($"  - {entry}");
+            }
+        }
+        return sb.ToString();
+    }
+
+    private static string? NewestFile(string directory, string pattern)
+    {
+        try
+        {
+            if (!Directory.Exists(directory))
+            {
+                return null;
+            }
+            return new DirectoryInfo(directory)
+                .GetFiles(pattern)
+                .OrderByDescending(file => file.LastWriteTimeUtc)
+                .FirstOrDefault()?.FullName;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string SanitizeForFileName(string value)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        var sb = new StringBuilder(value.Length);
+        foreach (var ch in value)
+        {
+            sb.Append(Array.IndexOf(invalid, ch) >= 0 ? '_' : ch);
+        }
+        return sb.ToString();
+    }
+}

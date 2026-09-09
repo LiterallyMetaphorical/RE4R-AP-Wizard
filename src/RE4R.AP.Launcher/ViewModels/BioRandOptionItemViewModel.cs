@@ -181,17 +181,63 @@ public sealed class BioRandOptionGroupViewModel
 {
     public required string Title { get; init; }
 
+    /// <summary>One or two lines under the header. Blank for most groups.</summary>
+    public string Description { get; init; } = string.Empty;
+
     public bool HasTitle => !string.IsNullOrWhiteSpace(Title);
+
+    public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
 
     public ObservableCollection<BioRandOptionItemViewModel> Options { get; } = new();
 }
 
 /// <summary>A tab: General, Merchant, Inventory, Valuables, Items, Enemies, Health.</summary>
-public sealed class BioRandOptionPageViewModel
+public sealed class BioRandOptionPageViewModel : ObservableObject
 {
+    private bool _showAdvanced;
+    private bool _isBodyVisible = true;
+
     public required string Title { get; init; }
 
     public bool IsEnemiesPage => string.Equals(Title, "Enemies", StringComparison.Ordinal);
+
+    /// <summary>
+    /// Enemies leads with a preset and keeps the individual knobs behind this.
+    /// Every other tab has no preset to lead with, so it shows its options
+    /// outright and this stays true.
+    /// </summary>
+    public bool ShowAdvanced
+    {
+        get => _showAdvanced || !IsEnemiesPage;
+        set
+        {
+            if (SetProperty(ref _showAdvanced, value))
+            {
+                OnPropertyChanged(nameof(ShowAdvanced));
+                OnPropertyChanged(nameof(ShowRows));
+            }
+        }
+    }
+
+    /// <summary>
+    /// False on the Enemies page while Random Enemies is off: everything below
+    /// the promoted checkbox hides, because none of it does anything then.
+    /// Always true elsewhere; the owning view model keeps it in sync.
+    /// </summary>
+    public bool IsBodyVisible
+    {
+        get => _isBodyVisible;
+        set
+        {
+            if (SetProperty(ref _isBodyVisible, value))
+            {
+                OnPropertyChanged(nameof(ShowRows));
+            }
+        }
+    }
+
+    /// <summary>What the option rows actually gate on: both toggles at once.</summary>
+    public bool ShowRows => ShowAdvanced && _isBodyVisible;
 
     public ObservableCollection<BioRandOptionGroupViewModel> Groups { get; } = new();
 }

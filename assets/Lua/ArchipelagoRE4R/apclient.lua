@@ -65,6 +65,32 @@ return function(ctx)
 
     local GAME_NAME = "Resident Evil 4 Remake"
     local ITEMS_HANDLING = 0x7           -- 0b111
+
+    -- [Purchase delivery] Resolved at call time: merchant.lua fills its slot
+    -- table when the room file is read, which is after this module loads.
+    -- Absent (older rooms, no shop checks) reads as "not a shop location",
+    -- so the own-find skip keeps its original behaviour.
+    local function is_merchant_shop_location(location_code)
+        local lookup = ctx.merchant_is_shop_location or _G.merchant_is_shop_location
+        if type(lookup) ~= "function" then
+            return false
+        end
+        local ok, result = pcall(lookup, location_code)
+        return ok and result == true
+    end
+    -- [Trade delivery] The twin of the above for the TRADE tab, which the
+    -- own-find skip did not consult: claiming your own check swept the
+    -- stand-in and skipped the real item, so it never arrived (Cam, live
+    -- 2026-09-07, a Chalice of Atonement claimed and never seen). Exactly the
+    -- shop case, one tab over.
+    local function is_trade_location(location_code)
+        local lookup = ctx.trade_is_trade_location or _G.trade_is_trade_location
+        if type(lookup) ~= "function" then
+            return false
+        end
+        local ok, result = pcall(lookup, location_code)
+        return ok and result == true
+    end
     -- [DeathLink] The "DeathLink" tag is carried ALWAYS (not toggled by the option),
     -- because lua-apclientpp exposes no ConnectUpdate to change tags after connect and
     -- slot_data.death_link only arrives post-connect. Behaviour is gated on
@@ -118,6 +144,9 @@ return function(ctx)
         dl_last_dead = false,       -- previous IsDead sample, for rising-edge detection
         dl_pending_incoming = nil,  -- {source, cause} queued kill, applied on a safe tick
         dl_amnesty_until = 0,       -- os.clock() until which death traffic is suppressed
+        -- [Difficulty] slot_data.difficulty: the difficulty this room's pool was
+        -- built for. nil for rooms whose apworld predates the key.
+        slot_difficulty = nil,
     }
 
     -- AP item id (number) -> { re4r_item_id = <engine id>, count = <delivery count> }
@@ -131,6 +160,30 @@ return function(ctx)
     -- rollback can re-queue items already injected. Reset on (re)connect, then
     -- rebuilt by the server's on-connect ReceivedItems replay.
     local received_ledger = {}
+    -- [EnemyGates] "Has the server EVER delivered AP item X to this slot?"
+    -- Answered from received_ledger, which the on-connect replay rebuilds in
+    -- full (own-world finds included), so possession survives reboots without
+    -- any extra persistence. The cache only ever turns ids on; a miss rescans
+    -- because the ledger grows during play.
+    local received_ap_item_cache = {}
+    local function ap_has_received_ap_item(ap_item_id)
+        local wanted = tonumber(ap_item_id)
+        if wanted == nil then
+            return false
+        end
+        wanted = math.floor(wanted)
+        if received_ap_item_cache[wanted] then
+            return true
+        end
+        for _, led in pairs(received_ledger) do
+            local item = tonumber(led and led.item)
+            if item ~= nil then
+                received_ap_item_cache[math.floor(item)] = true
+            end
+        end
+        return received_ap_item_cache[wanted] == true
+    end
+    ctx.ap_has_received_ap_item = ap_has_received_ap_item
     -- index -> consecutive failed-inject tick count (poison retry bookkeeping).
     local inject_failure_counts = {}
     -- [Phase 3] AP location ids already submitted this socket (avoid re-spamming).
@@ -142,6 +195,11 @@ return function(ctx)
     -- and LocationChecks send is filtered to this set; nil = unavailable ->
     -- fall back to the permissive pre-0.4.0 behavior.
     local room_location_ids = nil
+    -- [Mercenaries] This slot's Mercenaries rank-check ids, read from
+    -- slot_data.mercenaries.locations (character -> stage -> rank -> id).
+    -- nil = no Mercenaries content in this room.
+    local merc_location_ids = nil
+    local merc_session_enabled = false
     -- [GatedKeys] lids we already explained in the log (once per session).
     local skipped_non_room_lids = {}
 
@@ -161,6 +219,41 @@ return function(ctx)
             if seed ~= "" then return seed end
         end
         return ""
+    end
+
+    -- [Bonus weapons] The room-file flags the in-game guards key on
+    -- (injection.lua install_bonus_weapon_hooks). Read when the connect
+    -- starts, before any save can load, and again with the room's location
+    -- list once the slot answers.
+    local function apply_room_bonus_flags(payload)
+        local bridge = ctx.bridge
+        if bridge == nil or type(payload) ~= "table" then
+            return
+        end
+        -- [D5] The launcher stamps whether this room was patched with
+        -- allow-bonus-items; older room files lack the key and read as false.
+        bridge.allow_bonus_items = (payload.allow_bonus_items == true)
+        -- [Bonus Weapons] The YAML's consent: the trio are pool items in
+        -- this room. Older room files lack the key and read as false.
+        bridge.bonus_weapons_unlock = (payload.bonus_weapons_unlock == true)
+        bridge.gear_scattered = (payload.gear_scattered == true)
+        local scattered_set = {}
+        if type(payload.scattered_item_ids) == "table" then
+            for _, raw_id in ipairs(payload.scattered_item_ids) do
+                local item_id = tonumber(raw_id)
+                if item_id ~= nil then
+                    scattered_set[math.floor(item_id)] = true
+                end
+            end
+        end
+        bridge.scattered_item_ids = scattered_set
+    end
+
+    local function read_room_bonus_flags()
+        local ok, payload = pcall(function() return json.load_file(ROOM_LOCATIONS_FILE) end)
+        if ok then
+            apply_room_bonus_flags(payload)
+        end
     end
 
     -- host:port -> host, port (port nil when the address carries none).
@@ -222,6 +315,92 @@ return function(ctx)
 
     -- Load the AP-id -> engine-id + count map (emitted by data_parser.py). Keyed
     -- by AP id string on disk; we number-key it for lookup against item.item.
+    -- [Mercenaries] Helpers. The kinds come from ap_item_map.json (the
+    -- generator stamps merc_character / merc_stage / merc_filler); those
+    -- items are ownership grants, never inventory injections.
+    local function is_merc_item(mapping)
+        if type(mapping) ~= "table" then return false end
+        local kind = mapping.kind
+        return kind == "merc_character" or kind == "merc_stage" or kind == "merc_filler"
+    end
+
+    local function is_merc_location(location_id)
+        local lid = tonumber(location_id)
+        return lid ~= nil and merc_location_ids ~= nil and merc_location_ids[math.floor(lid)] == true
+    end
+
+    local function mercenaries_enabled(slot_data)
+        if type(slot_data) ~= "table" then return false end
+        local mode = slot_data.game_mode
+        if mode == "mercenaries_only" or mode == "campaign_and_mercenaries" then return true end
+        local merc_data = slot_data.mercenaries
+        return type(merc_data) == "table" and merc_data.enabled == true
+    end
+
+    -- character -> stage -> rank -> id, flattened to a set. Returns nil and a
+    -- reason when the mapping is absent or malformed.
+    local function build_merc_location_ids(slot_data)
+        local merc_data = type(slot_data) == "table" and slot_data.mercenaries or nil
+        local locations = type(merc_data) == "table" and merc_data.locations or nil
+        if type(locations) ~= "table" then
+            return nil, "slot_data.mercenaries.locations missing"
+        end
+        local result, count = {}, 0
+        for character_name, by_stage in pairs(locations) do
+            if type(by_stage) ~= "table" then
+                return nil, "bad character mapping " .. tostring(character_name)
+            end
+            for stage_name, by_rank in pairs(by_stage) do
+                if type(by_rank) ~= "table" then
+                    return nil, "bad stage mapping " .. tostring(stage_name)
+                end
+                for rank_name, raw_id in pairs(by_rank) do
+                    local lid = tonumber(raw_id)
+                    if lid == nil or lid <= 0 or lid ~= math.floor(lid) then
+                        return nil, string.format("bad id at %s/%s/%s",
+                            tostring(character_name), tostring(stage_name), tostring(rank_name))
+                    end
+                    if not result[lid] then
+                        result[lid] = true
+                        count = count + 1
+                    end
+                end
+            end
+        end
+        if count == 0 then return nil, "mapping is empty" end
+        return result, count
+    end
+
+    local function merc_domain_active()
+        local get_domain = ctx.get_runtime_domain or _G.get_runtime_domain
+        if type(get_domain) ~= "function" then return false end
+        local ok, domain = pcall(get_domain)
+        return ok and domain == "MERCENARIES"
+    end
+
+    -- [Progressive gear] A ladder item (Progressive Knife, Progressive
+    -- Attache Case) carries no engine id of its own; its tiers do, in hand-out
+    -- order. nil for every ordinary item.
+    local function progressive_tiers_of(value)
+        if type(value) ~= "table" or type(value.tiers) ~= "table" then return nil end
+        local tiers = {}
+        for _, raw in ipairs(value.tiers) do
+            local id = tonumber(raw)
+            if id ~= nil and id > 0 then tiers[#tiers + 1] = math.floor(id) end
+        end
+        if #tiers == 0 then return nil end
+        return tiers
+    end
+    local function progressive_tier_names_of(value)
+        if type(value) ~= "table" or type(value.tier_names) ~= "table" then return nil end
+        local names = {}
+        for _, raw in ipairs(value.tier_names) do names[#names + 1] = tostring(raw) end
+        return names
+    end
+    local function is_progressive_item(mapping)
+        return type(mapping) == "table" and type(mapping.tiers) == "table" and #mapping.tiers > 0
+    end
+
     local function load_ap_item_map()
         ap_item_map = {}
         st.item_map_loaded = false
@@ -244,6 +423,9 @@ return function(ctx)
                     re4r_item_id = engine_id,
                     count = math.max(1, count),
                     name = (type(value.name) == "string" and value.name ~= "") and value.name or nil,
+                    kind = (type(value.kind) == "string" and value.kind ~= "") and value.kind or nil,
+                    tiers = progressive_tiers_of(value),
+                    tier_names = progressive_tier_names_of(value),
                 }
                 n = n + 1
             end
@@ -254,6 +436,23 @@ return function(ctx)
 
     -- The exact 5-field compound bridge.lua uses before injecting (is_playable
     -- already implies the others, but we mirror the proven gate verbatim).
+    -- [Shop open state] The merchant shop is not a pause, not a cutscene and
+    -- not a load, so nothing in MainFlowManager calls it a menu and
+    -- is_playable reads TRUE while the player stands at the shelf. That is how
+    -- a DeathLink kill got waved into an open shop and came back as a grey
+    -- wash the player could only clear by restarting the game (Cam, live
+    -- 2026-08-20). merchant.lua publishes the shop's own enter/close state;
+    -- this is the only reader, deliberately, so the pickup path's own
+    -- is_playable check is left exactly as it was.
+    --
+    -- Blocking here DEFERS, it never drops: an incoming death stays queued in
+    -- st.dl_pending_incoming and the delivery watermark does not advance, so
+    -- both resume the moment the shop closes.
+    local function shop_gui_is_open()
+        local bridge = ctx.bridge
+        return bridge ~= nil and bridge.shop_gui_open == true
+    end
+
     local function safe_to_inject(rs)
         return rs ~= nil
             and rs.is_in_game
@@ -261,6 +460,7 @@ return function(ctx)
             and rs.is_playable
             and not rs.is_loading
             and not rs.is_cutscene
+            and not shop_gui_is_open()
     end
 
     -- [Phase 4/Overlay] Exact port of client.py _classify_location_scout_flags: AP
@@ -294,6 +494,8 @@ return function(ctx)
         })
         bridge.next_check_notification_id = id + 1
     end
+    -- The Mercenaries result screen announces its rank checks through this.
+    ctx.enqueue_toast = enqueue_toast
 
     -- [Overlay] Coalesce a burst of received items (the reconnect catch-up resend,
     -- or a pile of items granted while offline) into ONE rolling "Synced N items"
@@ -450,18 +652,123 @@ return function(ctx)
     ctx.ap_get_own_item_ids = ap_get_own_item_ids
 
     -- [Actions] Force-check one of OUR locations (stuck-tester escape hatch,
-    -- confirmed in the Actions tab). The server round-trip acknowledges it
-    -- through the normal on_location_checked path - no special bookkeeping.
+    -- confirmed in the Actions tab). The send goes out by raw location id,
+    -- but every marker and counter keys on "stage|guid" - and the server's
+    -- reply carries no guid, so before 2026-08-28 the marker stood until
+    -- the next connect resent and folded it in. A player pressed the button
+    -- twice in nine seconds because nothing visibly changed (Pulzematic,
+    -- LOST_CHECKS_INVESTIGATION.md section 14). Resolve the id back through
+    -- the display map's reverse index, mark the durable set, persist: the
+    -- marker clears on the spot, same optimistic ack the normal send path
+    -- uses.
     local function ap_force_check(location_id)
         local id = tonumber(location_id)
         if ap == nil or id == nil then return false end
-        local ok = pcall(function() ap:LocationChecks({ math.floor(id) }) end)
+        id = math.floor(id)
+        local ok = pcall(function() ap:LocationChecks({ id }) end)
         if ok then
-            info(string.format("FORCE-CHECK submitted for location %d (debug escape hatch)", math.floor(id)))
+            info(string.format("FORCE-CHECK submitted for location %d (debug escape hatch)", id))
+            pcall(function()
+                local reverse = ctx.get_display_entry_by_location_id
+                    or _G.get_display_entry_by_location_id
+                local bridge = ctx.bridge
+                if type(reverse) ~= "function" or bridge == nil
+                    or type(bridge.acknowledged_guid_keys) ~= "table" then
+                    return
+                end
+                local record = reverse(id)
+                if type(record) ~= "table" or record.stage == nil or record.guid == nil then
+                    info(string.format(
+                        "FORCE-CHECK %d: no display entry to acknowledge locally - marker clears on next connect",
+                        id))
+                    return
+                end
+                local key = tostring(record.stage) .. "|" .. tostring(record.guid)
+                if not bridge.acknowledged_guid_keys[key] then
+                    bridge.acknowledged_guid_keys[key] = true
+                    bridge.checks_sent_session = (bridge.checks_sent_session or 0) + 1
+                    if type(ctx.save_session_state) == "function" then
+                        ctx.save_session_state()
+                    end
+                    info(string.format(
+                        "FORCE-CHECK %d acknowledged locally as %s - marker clears now", id, key))
+                end
+            end)
         end
         return ok == true
     end
     ctx.ap_force_check = ap_force_check
+
+    -- [Multiworld hints] The mirror image of the marker hints below: OUR items
+    -- sitting in SOMEONE ELSE'S world. There is no place in RE4R to point a
+    -- marker at, so before this the hint simply vanished from the player's
+    -- view - they paid points and the game showed nothing (the answer only
+    -- ever reached the Archipelago client's text). These feed the overlay's
+    -- "Multiworld Hints" panel instead: one bullet per hint, and the panel
+    -- only exists while there is something to say.
+    --
+    -- Location names come from the FINDING player's datapackage (their world
+    -- owns the spot), item names from ours. Both resolve through
+    -- get_player_game like ap_item_name does, since apclientpp's name lookups
+    -- take a game name rather than a slot.
+    local function ap_location_name(location_id, player)
+        if ap == nil or type(location_id) ~= "number" then return nil end
+        local function usable(name)
+            return type(name) == "string" and name ~= "" and name ~= "Unknown"
+        end
+        local attempts = {}
+        if type(player) == "number" then
+            local ok_game, game = pcall(function() return ap:get_player_game(player) end)
+            if ok_game and type(game) == "string" and game ~= "" then
+                attempts[#attempts + 1] = function() return ap:get_location_name(location_id, game) end
+            end
+            attempts[#attempts + 1] = function() return ap:get_location_name(location_id, player) end
+        end
+        attempts[#attempts + 1] = function() return ap:get_location_name(location_id) end
+        for _, attempt in ipairs(attempts) do
+            local ok, name = pcall(attempt)
+            if ok and usable(name) then return name end
+        end
+        return nil
+    end
+    ctx.ap_location_name = ap_location_name
+
+    local function rebuild_multiworld_hints(value)
+        if ctx.bridge == nil then return end
+        local ours = tonumber(st.numeric_slot)
+        local result = {}
+        if type(value) == "table" and ours ~= nil then
+            for _, hint in ipairs(value) do
+                if type(hint) == "table" and hint.found ~= true then
+                    local receiving_player = tonumber(hint.receiving_player)
+                    local finding_player = tonumber(hint.finding_player)
+                    -- ours to receive, someone else's world to find it in
+                    if receiving_player == ours and finding_player ~= nil and finding_player ~= ours then
+                        local item_id = tonumber(hint.item)
+                        local location_id = tonumber(hint.location)
+                        result[#result + 1] = {
+                            item_id = item_id,
+                            item_name = ap_item_name(item_id, receiving_player) or "Unknown item",
+                            finding_player = finding_player,
+                            finding_player_name = ap_player_name(finding_player)
+                                or ("Player " .. tostring(finding_player)),
+                            location_id = location_id,
+                            location_name = location_id ~= nil
+                                and ap_location_name(location_id, finding_player) or nil,
+                        }
+                    end
+                end
+            end
+        end
+        table.sort(result, function(a, b)
+            if a.finding_player_name ~= b.finding_player_name then
+                return tostring(a.finding_player_name) < tostring(b.finding_player_name)
+            end
+            return tostring(a.item_name) < tostring(b.item_name)
+        end)
+        ctx.bridge.multiworld_hints = result
+        info(string.format("Multiworld hints (our items, other worlds): %d unfound", #result))
+    end
 
     -- [Hints] Rebuild bridge.hints_on_my_world from the server's _read_hints
     -- list: keep only UNFOUND hints where WE are the finding player (checks in
@@ -495,6 +802,7 @@ return function(ctx)
         end
         ctx.bridge.hints_on_my_world = result
         info(string.format("Hints on our world: %d unfound (storage sync)", kept))
+        rebuild_multiworld_hints(value)
     end
 
     -- DataStorage replies. Retrieved answers our initial Get; SetReply arrives on
@@ -576,6 +884,13 @@ return function(ctx)
                             tostring(req.guid), tostring(req.save_count), floor, old_wm, requeued))
                         persist()
                     end
+                    -- [Purchase settlement] The same rollback that dropped
+                    -- received items can drop a refund gem, and unlike an item
+                    -- the check behind it can never be re-earned.
+                    local settle = ctx.merchant_settle_refunds_for_loaded_save
+                    if type(settle) == "function" then
+                        pcall(settle, req.guid, req.save_count)
+                    end
                     bridge.pending_save_reconcile = nil
                 elseif bridge.loaded_session_state_path ~= nil then
                     -- Session state is loaded but this exact save version has no
@@ -584,6 +899,10 @@ return function(ctx)
                     info(string.format(
                         "F8 reconcile: no recorded watermark for save '%s' #%s -> no re-delivery (safe; pre-fix or uncaptured save)",
                         tostring(req.guid), tostring(req.save_count)))
+                    local settle = ctx.merchant_settle_refunds_for_loaded_save
+                    if type(settle) == "function" then
+                        pcall(settle, req.guid, req.save_count)
+                    end
                     bridge.pending_save_reconcile = nil
                 end
                 -- else: session state not loaded yet (pre-connect) -> keep the request
@@ -632,6 +951,70 @@ return function(ctx)
             return
         end
 
+        -- [Mercenaries] Ownership grants never touch an inventory, so they
+        -- deliver from anywhere - the title screen, the Mercenaries menus,
+        -- mid-run - ahead of the inventory gates below, still in strict
+        -- index order.
+        do
+            table.sort(pending, function(a, b) return a.index < b.index end)
+            local handle_merc = ctx.handle_merc_item_received or _G.handle_merc_item_received
+            while #pending > 0 do
+                local entry = pending[1]
+                local idx = entry.index
+                if type(idx) ~= "number" or idx ~= bridge.last_received_index + 1 then
+                    break
+                end
+                local mapping = ap_item_map[entry.item]
+                if not is_merc_item(mapping) or type(handle_merc) ~= "function" then
+                    break
+                end
+                pcall(handle_merc, mapping.name)
+                bridge.last_received_index = idx
+                bridge.injected_ap_item_indexes[idx] = true
+                bridge.state_dirty = true
+                table.remove(pending, 1)
+                pending_by_index[idx] = nil
+                info(string.format("Mercenaries unlock received idx=%d ap=%s [%s]",
+                    idx, tostring(entry.item), tostring(mapping.name)))
+                -- The result screen, when open, carries the same words in
+                -- its own unlock notice list (mercenaries.lua).
+                local note_result = ctx.merc_result_note_received or _G.merc_result_note_received
+                if mapping.kind ~= "merc_filler" then
+                    local from = (entry.player ~= st.numeric_slot) and ap_player_name(entry.player) or nil
+                    local title = (from ~= nil and (from .. " sent you " .. tostring(mapping.name)))
+                        or ("Received " .. tostring(mapping.name))
+                    if type(note_result) == "function" then pcall(note_result, mapping.kind, mapping.name, from) end
+                    if st.in_sync_burst then
+                        bump_sync_summary(1, false)
+                    else
+                        enqueue_toast(title, "unlocked for The Mercenaries", classify_flags(entry.flags), "received")
+                    end
+                elseif not st.in_sync_burst then
+                    if type(note_result) == "function" then pcall(note_result, "merc_filler", mapping.name, nil) end
+                    -- A Mercenaries-only slot's rank checks mostly pay out
+                    -- Nothing by construction (there is nothing to hand out
+                    -- inside the mode). Say so, rather than leaving a sent
+                    -- check with no answer (Cam, 2026-09-05).
+                    enqueue_toast("Nothing this time", "that rank check held no item for you",
+                        classify_flags(entry.flags), "received")
+                end
+                if not persist() then break end
+            end
+        end
+        -- [Mercenaries] Campaign items wait while the mode runs: there is no
+        -- campaign inventory on screen to put them in. Lossless, like the
+        -- character gate below.
+        if merc_domain_active() then
+            if not st.merc_hold_logged then
+                st.merc_hold_logged = true
+                info("The Mercenaries is active - campaign items wait until the campaign is back")
+            end
+            return
+        elseif st.merc_hold_logged then
+            st.merc_hold_logged = false
+            info("campaign is back - resuming received-item delivery")
+        end
+
         local get_runtime_state = ctx.get_runtime_state
         local inject_item_to_inventory = ctx.inject_item_to_inventory
         local inject_command_succeeded = ctx.inject_command_succeeded
@@ -650,6 +1033,58 @@ return function(ctx)
             st.item_delivery_stability_logged = false
             return -- busy state: defer the whole drain, do not advance
         end
+        -- [Ashley unblock] Her section's own gates need the Bunch of Keys and
+        -- the Salazar Family Insignia, and with the queue held she could
+        -- stand at her own door while the key waits in the mail. Generation
+        -- logic cannot see the character gate below, so a seed that is
+        -- logically fine can still deadlock her at runtime (Cam, 2026-08-24).
+        -- These two side-deliver immediately: injected into HER inventory
+        -- through the normal route (the class lookup targets whoever is
+        -- active), while the queue entry STAYS PUT and the watermark never
+        -- moves. Contiguity survives, and the lead still receives the real
+        -- copy on return - one line of key-tab clutter, the accepted cost.
+        -- Success-gated retry, mirror-style; the delivered set clears when
+        -- the lead returns, and a relaunch starts empty, which re-delivers
+        -- into a rolled-back save exactly when that is wanted.
+        local SECTION_KEY_ENGINE_IDS = {
+            [119275200] = true, -- Bunch of Keys
+            [119220800] = true, -- Salazar Family Insignia
+        }
+        local function side_deliver_section_keys()
+            st.section_keys_delivered = st.section_keys_delivered or {}
+            for _, entry in ipairs(pending) do
+                local mapping = ap_item_map[entry.item]
+                local engine_id = mapping ~= nil and mapping.re4r_item_id or nil
+                if engine_id ~= nil
+                    and SECTION_KEY_ENGINE_IDS[engine_id] == true
+                    and type(entry.index) == "number"
+                    and entry.index > bridge.last_received_index
+                    and st.section_keys_delivered[entry.index] ~= true then
+                    local status = tostring(inject_item_to_inventory(engine_id, mapping.count or 1))
+                    if inject_command_succeeded(status) then
+                        st.section_keys_delivered[entry.index] = true
+                        info(string.format(
+                            "section key side-delivered while the lead is away: idx=%d ap=%s engine=%d [%s]",
+                            entry.index, tostring(entry.item), engine_id, status))
+                        local push = ctx.push_info_toast or _G.push_info_toast
+                        if type(push) == "function" then
+                            local nm = (type(mapping.name) == "string" and mapping.name ~= "")
+                                and mapping.name or ("item " .. engine_id)
+                            push("Delivered to this section", nm .. " came through for the doors here")
+                        end
+                    else
+                        local now = os.clock()
+                        if now - (st.section_keys_warn_clock or -1e9) >= 10.0 then
+                            st.section_keys_warn_clock = now
+                            info(string.format(
+                                "section key idx=%d not deliverable yet (%s); retrying",
+                                entry.index, tostring(status)))
+                        end
+                    end
+                end
+            end
+        end
+
         -- [Character gate] The Ashley section runs its own inventories and
         -- DISCARDS them when it ends - live 2026-07-30, items put in her main
         -- grid and even in Storage were gone once Leon returned. Delivering
@@ -663,12 +1098,27 @@ return function(ctx)
             if ok_character and not default_active then
                 if not st.item_delivery_character_logged then
                     st.item_delivery_character_logged = true
-                    info("another character is playing (their inventory is discarded at section end) - holding received items until the campaign lead returns")
+                    -- Name them when the mod knows. Since 2026-09-07 this only
+                    -- fires for a character whose inventory is thrown away, so
+                    -- saying who removes the guesswork from a bug report.
+                    local playing = nil
+                    local who = ctx.inject_current_character or _G.inject_current_character
+                    if type(who) == "function" then
+                        local ok_character, character = pcall(who)
+                        if ok_character and type(character) == "table" then
+                            playing = character.name
+                        end
+                    end
+                    info(string.format(
+                        "%s is playing and that inventory is discarded at section end - holding received items until the campaign lead returns",
+                        playing or "another character"))
                 end
+                side_deliver_section_keys()
                 return -- do not advance
             end
             if ok_character and default_active and st.item_delivery_character_logged then
                 st.item_delivery_character_logged = false
+                st.section_keys_delivered = {}
                 info("campaign lead is back - resuming received-item delivery")
             end
         end
@@ -729,7 +1179,22 @@ return function(ctx)
                 -- ...unless a non-lead character made that pickup: the item
                 -- went into an inventory the game then threw away, so it owes
                 -- delivery to the lead exactly like a foreign gift would.
-                and bridge.non_lead_checked_locations[entry.location] ~= true then
+                and bridge.non_lead_checked_locations[entry.location] ~= true
+                -- ...or unless it was BOUGHT or TRADED. A merchant check has
+                -- no world pickup to have granted it: the till hands over the
+                -- stand-in trinket, so the real item still owes delivery (live
+                -- 2026-08-17: a bought Insignia Key was skipped here and never
+                -- reached the player; live 2026-09-07: the same on the trade
+                -- tab, which this only covered on the Buy side).
+                and not is_merchant_shop_location(entry.location)
+                and not is_trade_location(entry.location)
+                -- ...nor a Mercenaries rank: nothing physical was picked up.
+                and not is_merc_location(entry.location)
+                -- ...nor a progressive ladder item: it has no engine item of
+                -- its own, so BioRand placed the Archipelago logo there and
+                -- the pickup granted nothing. The tier is resolved and
+                -- delivered below, like a foreign gift.
+                and not is_progressive_item(ap_item_map[entry.item]) then
                 -- own-world physical pickup: BioRand already granted it in-game.
                 info(string.format("own-find skip idx=%d ap=%s location=%d",
                     idx, tostring(entry.item), entry.location))
@@ -739,7 +1204,71 @@ return function(ctx)
                 processed = processed + 1
             else
                 local mapping = ap_item_map[entry.item]
-                if mapping == nil or type(mapping.re4r_item_id) ~= "number" or mapping.re4r_item_id <= 0 then
+                -- [Progressive gear] Resolve the ladder to the tier this copy
+                -- becomes: a copy of the mapping carrying the tier's engine id,
+                -- so everything below (inject, suppression, toast) runs as for
+                -- any item. An exhausted ladder (case already at its largest,
+                -- every knife owned) delivers nothing and says so; a state the
+                -- resolver cannot read retries like a failed injection.
+                local progressive_exhausted = false
+                local progressive_unreadable = nil
+                if is_progressive_item(mapping) then
+                    local resolve = ctx.inject_resolve_progressive or _G.inject_resolve_progressive
+                    local tier_id, tier_index, note = nil, nil, "resolver unavailable"
+                    if type(resolve) == "function" then
+                        tier_id, tier_index, note = resolve(mapping.kind, mapping.tiers)
+                    end
+                    if tier_id ~= nil then
+                        local tier_name = (type(mapping.tier_names) == "table" and mapping.tier_names[tier_index]) or nil
+                        mapping = {
+                            re4r_item_id = tier_id,
+                            count = 1,
+                            name = tier_name and string.format("%s (%s)", tostring(mapping.name), tostring(tier_name))
+                                or mapping.name,
+                            kind = mapping.kind,
+                        }
+                    elseif note == "exhausted" then
+                        progressive_exhausted = true
+                    else
+                        progressive_unreadable = tostring(note)
+                    end
+                end
+                if progressive_exhausted then
+                    info(string.format(
+                        "progressive idx=%d ap=%s [%s]: already at the top tier - nothing to hand out",
+                        idx, tostring(entry.item), tostring(mapping.name)))
+                    bridge.injected_ap_item_indexes[idx] = true
+                    bridge.last_received_index = idx
+                    inject_failure_counts[idx] = nil
+                    pop_head(idx)
+                    processed = processed + 1
+                    need_flush = false
+                    if st.in_sync_burst then
+                        bump_sync_summary(1, false)
+                    else
+                        enqueue_toast("Received " .. tostring(mapping.name),
+                            "already at the top tier, nothing to add", classify_flags(entry.flags), "received")
+                    end
+                    if not persist() then break end
+                elseif progressive_unreadable ~= nil then
+                    local n = (inject_failure_counts[idx] or 0) + 1
+                    inject_failure_counts[idx] = n
+                    if n >= MAX_INJECT_RETRIES then
+                        err(string.format(
+                            "POISON: progressive resolve failed %dx for idx=%d ap=%s (%s) -> SKIPPING (item lost)",
+                            n, idx, tostring(entry.item), progressive_unreadable))
+                        bridge.last_received_index = idx
+                        inject_failure_counts[idx] = nil
+                        pop_head(idx)
+                        processed = processed + 1
+                        need_flush = false
+                        if not persist() then break end
+                    else
+                        warn(string.format("progressive resolve failed idx=%d (attempt %d/%d): %s -- retrying next tick",
+                            idx, n, MAX_INJECT_RETRIES, progressive_unreadable))
+                        break
+                    end
+                elseif mapping == nil or type(mapping.re4r_item_id) ~= "number" or mapping.re4r_item_id <= 0 then
                     -- Map is confirmed loaded (gated above), so this id is genuinely
                     -- unknown -> skip it (loud) so it can't block later items forever.
                     err(string.format(
@@ -751,6 +1280,21 @@ return function(ctx)
                     processed = processed + 1
                     need_flush = false
                     if not persist() then break end
+                elseif bridge.starting_arsenal_placed_ids ~= nil
+                    and bridge.starting_arsenal_placed_ids[mapping.re4r_item_id] == true
+                    and type(entry.location) == "number" and entry.location < 0 then
+                    -- [Starting Arsenal] The generator already placed this gun
+                    -- in the starting case, so the precollect replay owes no
+                    -- delivery and no toast. One skip per id: a later same-id
+                    -- grant (server give, a filler twin) injects normally.
+                    bridge.starting_arsenal_placed_ids[mapping.re4r_item_id] = nil
+                    info(string.format(
+                        "starting arsenal already in the case: engine=%d (idx=%d) - delivery skipped",
+                        mapping.re4r_item_id, idx))
+                    bridge.last_received_index = idx
+                    need_flush = true
+                    pop_head(idx)
+                    processed = processed + 1
                 else
                     local status = tostring(inject_item_to_inventory(mapping.re4r_item_id, mapping.count))
                     if inject_command_succeeded(status) then
@@ -788,8 +1332,16 @@ return function(ctx)
                         do
                             local nm = (type(mapping.name) == "string" and mapping.name ~= "")
                                 and mapping.name or ("item " .. mapping.re4r_item_id)
+                            -- Dataset item names usually carry their own count
+                            -- ("Shotgun Shells x3"), so only append one when
+                            -- the name lacks it - unguarded this read
+                            -- "Shotgun Shells x3 x3" (playtest round 2). Same
+                            -- guard as the overlay history line.
                             local item_label = nm
-                                .. ((mapping.count > 1) and (" x" .. mapping.count) or "")
+                            if mapping.count > 1
+                                and not string.find(string.lower(nm), " x" .. tostring(mapping.count), 1, true) then
+                                item_label = string.format("%s x%d", nm, mapping.count)
+                            end
                             local is_self_find = (entry.player == st.numeric_slot)
                             local from = (not is_self_find) and ap_player_name(entry.player) or nil
                             -- [F8] A re-delivery after a save rollback (reconcile) reads as a
@@ -799,11 +1351,16 @@ return function(ctx)
                             local classification = classify_flags(entry.flags)
                             local item_color = get_check_overlay_classification_color(classification)
                             -- "<sender> sent you <item> - routing to <where>" (Cam's format,
-                            -- 2026-07-23). <where> is the REAL landing partition: the case-full
-                            -- Storage fallback wins over the item's normal route.
-                            local to_storage = string.find(string.lower(status), "storage", 1, true) ~= nil
+                            -- 2026-07-23). <where> is the REAL landing partition. Only a real
+                            -- overflow fallback may say "case full": weapons route to Storage
+                            -- by design, and that toast claiming a full case on a fresh save
+                            -- was a lie (live 2026-08-16).
+                            local lowered_status = string.lower(status)
+                            local to_storage = string.find(lowered_status, "storage", 1, true) ~= nil
+                            local storage_overflow = string.find(lowered_status, "full; sent", 1, true) ~= nil
                             local route_fn = ctx.inject_get_route_destination or _G.inject_get_route_destination
-                            local dest = to_storage and "storage (case full)"
+                            local dest = (to_storage and storage_overflow and "storage (case full)")
+                                or (to_storage and "storage")
                                 or ((type(route_fn) == "function") and route_fn(mapping.re4r_item_id))
                                 or "inventory"
                             local title, title_segments
@@ -907,6 +1464,74 @@ return function(ctx)
         if need_flush then persist() end -- flush lazy own-find skip advances
     end
 
+    -- [Difficulty mismatch] The YAML says which difficulty the room was built
+    -- for; the save is the only thing that knows what is actually being
+    -- played. Hardcore and Professional rooms drop the Bindery Lithographic
+    -- Stone D spot because the game refuses that pickup there, so a player on
+    -- the wrong difficulty either has a location nothing can collect (worst
+    -- case: raising to Hardcore mid-run) or one extra spot that is simply not
+    -- a check (harmless). We only ever WARN - never block a send - because
+    -- the save may be legitimately mid-change and a check the player CAN
+    -- collect must always count.
+    local DIFFICULTY_RANKS = {
+        [10] = "assisted",
+        [20] = "standard",
+        [30] = "hardcore",
+        [40] = "professional",
+    }
+    local difficulty_warned_for = nil
+    local difficulty_next_poll = 0
+
+    local function current_game_difficulty()
+        local manager = sdk.get_managed_singleton("chainsaw.CampaignManager")
+        if manager == nil then return nil end
+        local has_set = nil
+        pcall(function() has_set = manager:call("get_HasSetCurrentDifficulty") end)
+        if has_set == false then return nil end
+        local rank = nil
+        pcall(function() rank = manager:call("get_CurrentDifficulty") end)
+        rank = tonumber(rank)
+        if rank == nil then return nil end
+        return DIFFICULTY_RANKS[math.floor(rank)]
+    end
+
+    local function poll_difficulty_match()
+        local bridge = ctx.bridge
+        if bridge == nil then return end
+        local expected = st.slot_difficulty
+        if expected == nil then return end
+        -- The Mercenaries has its own difficulty, not the seed's (live
+        -- 2026-09-05: "you are playing standard" fired from inside the mode).
+        if merc_domain_active() then return end
+        local now = os.clock()
+        if now < difficulty_next_poll then return end
+        difficulty_next_poll = now + 5.0
+
+        local actual = current_game_difficulty()
+        if actual == nil then
+            return
+        end
+        bridge.game_difficulty = actual
+        local mismatch = (actual ~= expected)
+        bridge.difficulty_mismatch = mismatch and expected or nil
+
+        -- Edge-triggered on the pairing, so switching difficulty mid-run
+        -- warns again rather than staying quiet after the first notice.
+        local signature = mismatch and (expected .. "/" .. actual) or nil
+        if signature == difficulty_warned_for then return end
+        difficulty_warned_for = signature
+        if not mismatch then return end
+
+        local message = string.format(
+            "Difficulty mismatch: this seed was generated for %s, you are playing %s.",
+            expected, actual)
+        warn(message)
+        local push = ctx.push_native_text or _G.push_native_text
+        if type(push) == "function" then
+            pcall(push, message .. " Some checks may not be collectable.")
+        end
+    end
+
     -- [Phase 3 Group 1] Submit detected location checks to the AP server. The
     -- detector fills ctx.bridge.pending_checks; each entry now carries a resolved
     -- AP location_id. Send them here on the poll tick, only while fully
@@ -957,7 +1582,12 @@ return function(ctx)
                 -- later resend never dupes.
                 local marked = false
                 for _, k in ipairs(keys) do
-                    if type(k) == "string" and not bridge.acknowledged_guid_keys[k] then
+                    if type(k) == "string" and string.sub(k, 1, 5) == "merc:" then
+                        -- [Mercenaries] Rank checks are remembered in
+                        -- mercenaries_completed_locations when they queue.
+                        bridge.checks_sent_session = (bridge.checks_sent_session or 0) + 1
+                        marked = true
+                    elseif type(k) == "string" and not bridge.acknowledged_guid_keys[k] then
                         bridge.acknowledged_guid_keys[k] = true
                         marked = true
                         -- [Phase 5 Group 3] session Checks-Sent counter for the status window
@@ -975,13 +1605,22 @@ return function(ctx)
                 if type(is_default) == "function" then
                     local ok_char, lead_active = pcall(is_default)
                     if ok_char and lead_active == false then
+                        local tagged = 0
                         for _, lid in ipairs(to_send) do
-                            bridge.non_lead_checked_locations[lid] = true
+                            -- A Mercenaries rank has no pickup to lose, so
+                            -- only world locations carry this debt (the ranks
+                            -- already bypass the own-find skip on their own).
+                            if not is_merc_location(lid) then
+                                bridge.non_lead_checked_locations[lid] = true
+                                tagged = tagged + 1
+                            end
                         end
-                        marked = true
-                        info(string.format(
-                            "%d location(s) collected by a non-lead character - their items will be delivered when the lead returns",
-                            #to_send))
+                        if tagged > 0 then
+                            marked = true
+                            info(string.format(
+                                "%d location(s) collected by a non-lead character - their items will be delivered when the lead returns",
+                                tagged))
+                        end
                     end
                 end
                 bridge.state_dirty = true
@@ -1033,6 +1672,19 @@ return function(ctx)
             end
         end
 
+        -- [Mercenaries] Rank checks persist as ids, not stage|guid keys.
+        for raw_id in pairs(bridge.mercenaries_completed_locations or {}) do
+            local lid = tonumber(raw_id)
+            if lid ~= nil then
+                lid = math.floor(lid)
+                if (room_location_ids == nil or room_location_ids[lid]) and not sent_location_checks[lid] then
+                    ids = ids or {}
+                    ids[#ids + 1] = lid
+                    sent_location_checks[lid] = true
+                end
+            end
+        end
+
         if ids ~= nil then
             local ok_send, e = pcall(function() ap:LocationChecks(ids) end)
             if ok_send then
@@ -1051,6 +1703,37 @@ return function(ctx)
     local function maybe_send_victory()
         local bridge = ctx.bridge
         if ap == nil or bridge == nil then return end
+        -- [Mercenaries only] The goal is Rank A on every character and stage
+        -- pair; there is no Saddler to reach. Read from the slot's own
+        -- location map and the rank checks acknowledged so far.
+        local slot_data = ctx.slot_data or bridge.slot_data
+        local merc_only = type(slot_data) == "table" and slot_data.game_mode == "mercenaries_only"
+        if merc_only and bridge.victory_sent ~= true and bridge.victory_pending ~= true then
+            local merc_data = type(slot_data.mercenaries) == "table" and slot_data.mercenaries or nil
+            local locations = merc_data and merc_data.locations
+            local done, wanted = 0, 0
+            if type(locations) == "table" then
+                for _, by_stage in pairs(locations) do
+                    if type(by_stage) == "table" then
+                        for _, by_rank in pairs(by_stage) do
+                            local lid = type(by_rank) == "table" and tonumber(by_rank.A) or nil
+                            if lid ~= nil then
+                                wanted = wanted + 1
+                                lid = math.floor(lid)
+                                if (bridge.mercenaries_completed_locations or {})[lid] == true
+                                    or (bridge.checked_locations or {})[lid] == true then
+                                    done = done + 1
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            if wanted > 0 and done >= wanted then
+                bridge.victory_pending = true
+                info(string.format("Mercenaries goal reached: Rank A on all %d loadouts", wanted))
+            end
+        end
         if bridge.victory_pending ~= true or bridge.victory_sent == true then return end
         -- Fully connected only; otherwise leave the latch to re-fire on reconnect.
         local ok_state, state = pcall(function() return ap:get_state() end)
@@ -1075,13 +1758,15 @@ return function(ctx)
         -- risk of ever becoming noise. The toast stays as well: it's what the Message Log
         -- captures from, so the goal is still recoverable after the banner fades.
         local trigger_celebration = ctx.trigger_celebration or _G.trigger_celebration
+        local banner = merc_only and "MERCENARIES COMPLETE" or "GOAL COMPLETE"
+        local line = merc_only and "Rank A on every loadout." or "Saddler's dead. Ashley's safe."
         if type(trigger_celebration) == "function" then
-            trigger_celebration("GOAL COMPLETE", {
-                "Saddler's dead. Ashley's safe.",
+            trigger_celebration(banner, {
+                line,
                 "Reported to Archipelago.",
             })
         end
-        enqueue_toast("Goal Complete!", "Saddler's dead. Ashley's safe.", "PROGRESSION", "goal")
+        enqueue_toast("Goal Complete!", line, "PROGRESSION", "goal")
     end
 
     -- [Phase 4] Scout every location once on connect so the progression-warning UI gets
@@ -1187,6 +1872,29 @@ return function(ctx)
         st.slot_connected = true
         st.port_recovery_dismissed_kind = nil
         close_port_recovery()
+        -- [Mercenaries] Slot data first: the ownership gate and the location
+        -- set read it, and the overlay and checklist reach it through ctx.
+        ctx.slot_data = slot_data
+        if ctx.bridge then ctx.bridge.slot_data = slot_data end
+        merc_session_enabled = mercenaries_enabled(slot_data)
+        do
+            local ids, detail = build_merc_location_ids(slot_data)
+            merc_location_ids = ids
+            if merc_session_enabled then
+                if ids ~= nil then
+                    info(string.format("Mercenaries: %s, %d rank check(s) in this slot",
+                        tostring(slot_data.game_mode), detail))
+                else
+                    warn("Mercenaries: enabled but the location map is unusable: " .. tostring(detail))
+                end
+            end
+        end
+        do
+            local init_merc = ctx.init_merc_ownership or _G.init_merc_ownership
+            if type(init_merc) == "function" then pcall(init_merc, slot_data) end
+            local install_hooks = ctx.install_merc_virtual_gating_hooks or _G.install_merc_virtual_gating_hooks
+            if type(install_hooks) == "function" then pcall(install_hooks) end
+        end
         -- [DeathLink] Read the slot's death_link setting (added to fill_slot_data in the
         -- apworld). Accept boolean true or numeric/string 1. Reset the per-connection
         -- death state so a reconnect can't strand a queued death or a stale edge.
@@ -1210,21 +1918,56 @@ return function(ctx)
             end
             if ctx.bridge then
                 ctx.bridge.check_guidance_ceiling = cg
-                if cg ~= "markers_rarity" then
-                    ctx.bridge.world_markers_importance_colors = false
-                end
+                -- The ceiling is also the DEFAULT. Before this, markers_rarity
+                -- only permitted colours while the actual switch was a script-UI
+                -- checkbox defaulting off, so the launcher's rarity option
+                -- changed nothing anyone could see (Cam, 2026-08-10). A rarity
+                -- slot now connects with colours on; the in-game toggle keeps
+                -- the last word for the session.
+                ctx.bridge.world_markers_importance_colors = (cg == "markers_rarity")
             end
             info("CheckGuidance ceiling: " .. cg .. " (from slot_data)")
         end
-        -- [Tutorial] The first-run guide, on unless the slot turned it off.
-        -- Older seeds without the key keep it on.
+        -- [MarkerDetail] How much a marker may say in this room, chosen by the
+        -- host. The player still picks their own tier in Guidance; this is the
+        -- cap. Absent (older rooms) = permissive, matching how it behaved when
+        -- nothing ever wrote this value.
         do
-            local tut = (type(slot_data) == "table") and slot_data.tutorial or nil
-            local enabled = not ((tut == false) or (tut == 0) or (tut == "0"))
-            if ctx.bridge then
-                ctx.bridge.tutorial_enabled = enabled
+            local md = (type(slot_data) == "table") and slot_data.marker_detail or nil
+            if md ~= "minimal" and md ~= "basic" and md ~= "locate"
+                and md ~= "identify" and md ~= "developer" then
+                md = nil
             end
-            info("Tutorial: " .. (enabled and "enabled" or "disabled") .. " (from slot_data)")
+            if ctx.bridge then
+                -- [2026-08-17] This was a CEILING, which never made sense:
+                -- everyone writes their own settings file in a multiworld, so
+                -- it only capped the person who set it, and the mod then
+                -- started them at the bottom of the ladder they had just
+                -- raised. It is the STARTING tier now - what you picked is
+                -- what you see - and the Guidance picker may go anywhere from
+                -- there. An explicit in-game choice is remembered per seed and
+                -- wins over this on later connects.
+                if md ~= nil and ctx.bridge.world_markers_detail_chosen ~= true then
+                    ctx.bridge.world_markers_detail = md
+                end
+                info(string.format(
+                    "Marker detail: %s (from slot_data)%s",
+                    tostring(md or "(unset)"),
+                    ctx.bridge.world_markers_detail_chosen == true
+                        and (" - keeping your own pick: " .. tostring(ctx.bridge.world_markers_detail))
+                        or ""))
+            end
+        end
+        -- [Difficulty] The room was generated for ONE difficulty, and on the
+        -- hard ones the pool drops the spots that cannot be collected there.
+        -- Generation cannot see the save, so a player who picks the wrong
+        -- difficulty - or raises it part-way through - ends up with a
+        -- location in their multiworld the game will not hand over. Remember
+        -- what the room expects; poll_difficulty_match does the comparing.
+        do
+            local d = (type(slot_data) == "table") and slot_data.difficulty or nil
+            st.slot_difficulty = (type(d) == "string" and d ~= "") and d or nil
+            info("Slot difficulty: " .. tostring(st.slot_difficulty or "(not in slot_data)"))
         end
         -- [Random Events] AP-authored event roll: some checks may have moved
         -- (new stage, coordinates and section) and some may not exist at all.
@@ -1279,6 +2022,8 @@ return function(ctx)
         pending = {}
         pending_by_index = {}
         received_ledger = {} -- [F8] fresh identity: rebuilt from the on-connect replay
+        received_ap_item_cache = {} -- [EnemyGates] follows the ledger's identity: a
+        -- stale cache would carry possession across seed/slot switches
         inject_failure_counts = {}
         st.item_delivery_resume_not_before = nil
         st.item_delivery_stability_logged = false
@@ -1324,6 +2069,60 @@ return function(ctx)
                             end
                         end
                     end
+                    -- [D5] The launcher stamps whether this room was patched
+                    -- with allow-bonus-items; older room files lack the key
+                    -- and read as false.
+                    if ctx.bridge then
+                        apply_room_bonus_flags(payload)
+                        -- [Starting Arsenal] Engine ids the generator placed
+                        -- in the starting case. Their precollect delivery is
+                        -- skipped once each: the in-case copy is the real one.
+                        -- Absent in older rooms -> deliveries inject exactly
+                        -- as they always did.
+                        local arsenal_set = {}
+                        if type(payload.starting_arsenal_ids) == "table" then
+                            for _, raw_id in ipairs(payload.starting_arsenal_ids) do
+                                local item_id = tonumber(raw_id)
+                                if item_id ~= nil then
+                                    arsenal_set[math.floor(item_id)] = true
+                                end
+                            end
+                        end
+                        ctx.bridge.starting_arsenal_placed_ids = arsenal_set
+                    end
+                    -- [D4] Merchant shop checks: slot records (stand-in item
+                    -- id, location code, tier refund) come from the same
+                    -- room file. Absent in older rooms -> the merchant
+                    -- behaves exactly as it always did.
+                    local configure_merchant = ctx.merchant_configure or _G.merchant_configure
+                    if type(configure_merchant) == "function" then
+                        local ok_merchant, merchant_err = pcall(configure_merchant, payload.merchant_shop)
+                        if not ok_merchant then
+                            warn("merchant shop configure failed: " .. tostring(merchant_err))
+                        end
+                    end
+                    -- [Trade takeover, Phase 2] The Trade tab's own section,
+                    -- same channel and same shape. Absent in older rooms and in
+                    -- rooms whose trade_checks_per_chapter is 0, which leaves
+                    -- the tab exactly as the fork baked it: a pure currency
+                    -- exchange with no check slots to poll.
+                    local configure_trade = ctx.trade_configure or _G.trade_configure
+                    if type(configure_trade) == "function" then
+                        local ok_trade, trade_err = pcall(configure_trade, payload.trade_shop)
+                        if not ok_trade then
+                            warn("trade shop configure failed: " .. tostring(trade_err))
+                        end
+                    end
+                    -- [EnemyGates] Possession-keyed spawn admission: the
+                    -- generator's rolled-spawn echo rides the same room file.
+                    -- Absent in older rooms -> nothing is ever gated.
+                    local configure_enemy_gates = ctx.enemy_gate_configure or _G.enemy_gate_configure
+                    if type(configure_enemy_gates) == "function" then
+                        local ok_gates, gates_err = pcall(configure_enemy_gates, payload.enemy_gates)
+                        if not ok_gates then
+                            warn("enemy gate configure failed: " .. tostring(gates_err))
+                        end
+                    end
                 else
                     warn(string.format(
                         "%s is for seed '%s' slot '%s' but this session is seed '%s' slot '%s' -- ignoring it (re-patch via the launcher)",
@@ -1348,11 +2147,50 @@ return function(ctx)
                     end
                 end
             end
+            -- [Mercenaries] Rank checks are in the room whether or not the
+            -- launcher's file listed them; the slot's own map is the source.
+            if merc_location_ids ~= nil then
+                for lid in pairs(merc_location_ids) do
+                    if not set[lid] then
+                        set[lid] = true
+                        total = total + 1
+                    end
+                end
+            end
             if total > 0 then
                 room_location_ids = set
                 info(string.format("room location set: %d location(s) via %s", total, source))
             else
                 warn("room location set unavailable (no launcher file, AP getters empty) -- location scouting is skipped this session")
+            end
+        end
+        if ctx.bridge then ctx.bridge.room_location_ids = room_location_ids end
+        -- [Mercenaries] The server's checked list, mirrored for the rank
+        -- checklist and the mercenaries-only goal.
+        if ctx.bridge then
+            local checked = {}
+            local ok_checked, result = pcall(function() return ap:get_checked_locations() end)
+            if ok_checked and type(result) == "table" then
+                for _, lid in ipairs(result) do
+                    local n = tonumber(lid)
+                    if n ~= nil then
+                        n = math.floor(n)
+                        checked[n] = true
+                        if is_merc_location(n) then
+                            ctx.bridge.mercenaries_completed_locations = ctx.bridge.mercenaries_completed_locations or {}
+                            ctx.bridge.mercenaries_completed_locations[n] = true
+                        end
+                    end
+                end
+            end
+            ctx.bridge.checked_locations = checked
+            -- The room file (shop and trade checks) is already loaded above,
+            -- and the merchant's own connect reconcile runs below, so the
+            -- shelf and the tiles derive from the folded set. The fold lives
+            -- in server_acks.lua so it can run under an offline harness.
+            local fold = ctx.fold_server_checked_merchant_acks or _G.fold_server_checked_merchant_acks
+            if ok_checked and type(result) == "table" and type(fold) == "function" then
+                fold(result, "connect")
             end
         end
         local set_ap_session_identity = ctx.set_ap_session_identity
@@ -1375,6 +2213,20 @@ return function(ctx)
         resend_checked_locations()
         -- [Phase 4] Refresh seed-aware location classifications for the progression UI.
         scout_all_locations()
+        -- [D5, retired 2026-09-05] The profile force-unlock of the bonus
+        -- weapons used to run here. The guards in injection.lua keep the
+        -- game from granting or deleting the three in every AP room, so
+        -- nothing is written to the player's profile any more.
+        -- [D4] Shop stock rolls back with the save, the server's checked list
+        -- does not: force every already-bought slot back to sold out now that
+        -- the per-seed ack set is loaded.
+        local merchant_connected = ctx.merchant_on_connected or _G.merchant_on_connected
+        if type(merchant_connected) == "function" then
+            local ok_merchant, merchant_err = pcall(merchant_connected)
+            if not ok_merchant then
+                warn("merchant shop reconcile failed: " .. tostring(merchant_err))
+            end
+        end
     end
 
     local function on_slot_refused(reasons)
@@ -1395,6 +2247,18 @@ return function(ctx)
         local bridge = ctx.bridge
         local watermark = (bridge and tonumber(bridge.last_received_index)) or -1
         local queued, lo, hi = 0, nil, nil
+        -- [Mercenaries] Ownership is rebuilt from every packet, watermark or
+        -- not: a replayed old grant still says which characters and stages
+        -- are yours after a relaunch.
+        local handle_merc = ctx.handle_merc_item_received or _G.handle_merc_item_received
+        if type(handle_merc) == "function" then
+            for _, item in ipairs(items) do
+                local mapping = type(item) == "table" and ap_item_map[item.item] or nil
+                if is_merc_item(mapping) and mapping.kind ~= "merc_filler" then
+                    pcall(handle_merc, mapping.name)
+                end
+            end
+        end
         for _, item in ipairs(items) do
             local idx = item.index
             if type(idx) == "number" then
@@ -1466,6 +2330,49 @@ return function(ctx)
     local function on_location_checked(locations)
         local n = (type(locations) == "table") and #locations or 0
         info("server-confirmed checked locations: " .. n)
+        local bridge = ctx.bridge
+        if bridge == nil or type(locations) ~= "table" then return end
+        bridge.checked_locations = bridge.checked_locations or {}
+        local changed = false
+        for _, raw in ipairs(locations) do
+            local lid = tonumber(raw)
+            if lid ~= nil then
+                lid = math.floor(lid)
+                bridge.checked_locations[lid] = true
+                -- [Mercenaries] A confirmed rank check leaves the pending
+                -- queue for good; its completion is remembered per seed.
+                if is_merc_location(lid) then
+                    bridge.mercenaries_completed_locations = bridge.mercenaries_completed_locations or {}
+                    bridge.mercenaries_completed_locations[lid] = true
+                    if type(bridge.pending_checks) == "table" then
+                        for index = #bridge.pending_checks, 1, -1 do
+                            local entry = bridge.pending_checks[index]
+                            if type(entry) == "table" and tonumber(entry.location_id) == lid then
+                                if type(entry.key) == "string" and bridge.pending_check_keys then
+                                    bridge.pending_check_keys[entry.key] = nil
+                                end
+                                table.remove(bridge.pending_checks, index)
+                            end
+                        end
+                    end
+                    changed = true
+                end
+            end
+        end
+        -- A merchant check the server confirms mid-session (another client on
+        -- this slot, or a collect) leaves both tabs right away.
+        local fold = ctx.fold_server_checked_merchant_acks or _G.fold_server_checked_merchant_acks
+        if type(fold) == "function" and fold(locations, "server update") then
+            changed = true
+            local reconcile_shelf = ctx.merchant_reconcile_sold_out or _G.merchant_reconcile_sold_out
+            if type(reconcile_shelf) == "function" then pcall(reconcile_shelf) end
+            local reconcile_tiles = ctx.trade_reconcile_slots or _G.trade_reconcile_slots
+            if type(reconcile_tiles) == "function" then pcall(reconcile_tiles) end
+        end
+        if changed then
+            bridge.state_dirty = true
+            if type(ctx.save_session_state) == "function" then ctx.save_session_state() end
+        end
     end
 
     -- [DeathLink] Inbound deaths arrive as a Bounce tagged "DeathLink" with
@@ -1736,6 +2643,12 @@ return function(ctx)
         local parts = { "enabled" }
         parts[#parts + 1] = (st.dl_pending_incoming ~= nil)
             and "kill queued, waiting for a safe tick" or "no kill queued"
+        -- Name the shop specifically: it is the one safe-state block a
+        -- player can see themselves and clear on purpose, by walking away
+        -- from the merchant.
+        if shop_gui_is_open() then
+            parts[#parts + 1] = "held: shop is open"
+        end
         if os.clock() < (st.dl_amnesty_until or 0) then
             parts[#parts + 1] = string.format(
                 "amnesty %.0fs left", (st.dl_amnesty_until or 0) - os.clock())
@@ -1765,6 +2678,7 @@ return function(ctx)
             return false
         end
         st.expected_seed = read_expected_seed()
+        read_room_bonus_flags()
         -- [Port recovery] Start the no-contact clock. Handlers restamp it the
         -- moment anything answers; the poll loop opens the recovery dialog if it
         -- stays stale (see poll_port_recovery).
@@ -1982,6 +2896,7 @@ return function(ctx)
                 ap:poll()
                 drain_received_items()
                 drain_location_checks()
+                poll_difficulty_match()
                 maybe_send_victory()
                 poll_deathlink()
                 poll_port_recovery()

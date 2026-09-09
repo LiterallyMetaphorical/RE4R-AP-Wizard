@@ -15,12 +15,48 @@ end
 ctx.now_unix_ms = now_unix_ms
 _G.now_unix_ms = now_unix_ms
 
+-- [D9] Boat summon. Before warp.lua, which calls it after a successful warp.
+dofile("reframework\\autorun\\ArchipelagoRE4R\\boat.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\warp.lua")(ctx)
+-- [A2 recovery] After injection, so inject_read_key_item_ids is on ctx.
+dofile("reframework\\autorun\\ArchipelagoRE4R\\door_recovery.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\bridge.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\native_log.lua")(ctx)
+-- [D4] AP-aware merchant runtime. After native_log (it pushes the refund
+-- toast) and before apclient, which drives it from the room file on connect.
+dofile("reframework\\autorun\\ArchipelagoRE4R\\merchant.lua")(ctx)
+-- [Trade takeover, Phase 2] The Trade tab's runtime half. After merchant.lua
+-- (same room-file channel, same bridge queue) and before apclient, which
+-- drives it from the room file on connect.
+dofile("reframework\\autorun\\ArchipelagoRE4R\\trade.lua")(ctx)
+-- [Server acks] Folds the server's checked list into both merchant tabs' ack
+-- keys. After the two tab modules it asks, before apclient, which calls it on
+-- connect and on every server update. Engine-free, so it runs under a harness.
+dofile("reframework\\autorun\\ArchipelagoRE4R\\server_acks.lua")(ctx)
+-- [EnemyGates] Possession-keyed spawn admission (Dread waits for the
+-- Biosensor Scope). Before apclient, which feeds it from the room file.
+dofile("reframework\\autorun\\ArchipelagoRE4R\\enemy_gate.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_overlay.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_world_markers.lua")(ctx)
+-- [D9 spike] Temporary dev probe for the boat-follows-the-player work. Delete
+-- this line with the module once D9 is built.
+dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_boat_spike.lua")(ctx)
+-- [Trade experiments] Popout host for merchant.lua's trade probe. Delete
+-- with the probes once Trade Phase 2 ships.
+-- [Model placement] Dev-only tuner for the AP shop model. Delete with the
+-- module once the numbers are baked into the fork.
+dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_model_tuner.lua")(ctx)
+-- [Gimmick placement] Dev-only nudger for fork-placed gimmicks (the spawn
+-- save desk and the welcome note). Stays: every future desk gets tuned
+-- with it.
+dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_gimmick_nudger.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_warning.lua")(ctx)
+-- [Theme] The window's shared look and layout helpers; before every module
+-- that draws a tab.
+dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_theme.lua")(ctx)
+-- [Customize] The player's two colours; reads ui_prefs.json and repaints the
+-- theme before any tab draws.
+dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_customize.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_windows.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_checks.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_guidance.lua")(ctx)
@@ -30,6 +66,7 @@ dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_main_window.lua")(ctx)
 -- full ctx (injection/runtime/session) in later phases. Phase 2a: log-only,
 -- behaviour identical to the former standalone reframework/autorun/
 -- ArchipelagoRE4R_apclient.lua, which this replaces.
+dofile("reframework\\autorun\\ArchipelagoRE4R\\mercenaries.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\apclient.lua")(ctx)
 
 -- Build identification for support triage: one boot line pairing the Lua
@@ -60,6 +97,7 @@ local load_stage_chapter_map = ctx.load_stage_chapter_map
 local load_warp_points = ctx.load_warp_points
 local load_warp_unlocks = ctx.load_warp_unlocks
 local process_pending_warp = ctx.process_pending_warp
+local process_pending_boat_summon = ctx.process_pending_boat_summon
 local refresh_launcher_bridge_files = ctx.refresh_launcher_bridge_files
 local save_session_state = ctx.save_session_state
 local select_known_injectable_item = ctx.select_known_injectable_item
@@ -81,8 +119,15 @@ local draw_check_notification_overlays_polished = ctx.draw_check_notification_ov
 local draw_check_progress_overlay = ctx.draw_check_progress_overlay
 local draw_ap_status_menu_overlay = ctx.draw_ap_status_menu_overlay
 local draw_world_check_markers = ctx.draw_world_check_markers
+local draw_marker_position_editor = ctx.draw_marker_position_editor
+local draw_boat_spike = ctx.draw_boat_spike
+local draw_model_tuner = ctx.draw_model_tuner
+local draw_gimmick_nudger = ctx.draw_gimmick_nudger
+local poll_door_recovery = ctx.poll_door_recovery
+local merchant_poll_pending_sweeps = ctx.merchant_poll_pending_sweeps
+local trade_poll_claims = ctx.trade_poll_claims
+local trade_poll_chapter_waypoint = ctx.trade_poll_chapter_waypoint
 local draw_main_window = ctx.draw_main_window
-local maybe_show_tutorial = ctx.maybe_show_tutorial
 local draw_tutorial_dialog = ctx.draw_tutorial_dialog
 local draw_progression_warning_dialog = ctx.draw_progression_warning_dialog
 local draw_port_recovery_dialog = ctx.draw_port_recovery_dialog
@@ -113,6 +158,11 @@ local function install_chapter_switch_hook()
         load_save_method,
         function(args)
             clear_pending_pickup_accepts("loadGameSaveData")
+            -- [Shop open state] A load cannot happen with the shop open, so
+            -- this is the backstop that stops a missed close hook from
+            -- deferring DeathLink and item delivery for the rest of the
+            -- session.
+            bridge.shop_gui_open = false
             -- [F8] Record which campaign save version is being loaded so the AP
             -- client can reconcile received-item delivery against it (restore items
             -- a rollback dropped). Runs on EVERY load (chapter switch or not);
@@ -231,6 +281,14 @@ local function install_save_watermark_hook()
                 if type(guid) == "string" and guid ~= "" and type(count) == "number" then
                     local watermark = math.floor(tonumber(bridge.last_received_index) or -1)
                     record(guid, count, watermark)
+                    -- [Purchase settlement] Same instant, same reason: this is
+                    -- the only moment we know which refund gems the file just
+                    -- written actually contains.
+                    local granted_keys = ctx.merchant_granted_gem_keys
+                    local record_gems = ctx.record_settled_gems
+                    if type(granted_keys) == "function" and type(record_gems) == "function" then
+                        record_gems(guid, count, granted_keys())
+                    end
                     if type(save_session_state) == "function" then
                         save_session_state()
                     end
@@ -245,6 +303,167 @@ local function install_save_watermark_hook()
             return retval
         end
     )
+end
+
+-- [A2] Vanilla writes SellableKeyItemUserData's strata against vanilla
+-- progression: a key counts as "spent" (so, sellable) once the chapter that
+-- uses it is behind you. Under AP the player holds keys across chapters, the
+-- rule fires anyway, and the merchant will happily buy progression the seed
+-- still needs (live 2026-08: Insignia Key obtained in ch1, sold, ch3 gate
+-- permanently shut). checkSellable is the single decision point - ItemManager
+-- registers the userdata and the merchant surface rolls up through
+-- KeyItemInventoryController.existsSellableKeyItem - so veto it at the
+-- source: no key item is ever considered spent. Costs the vanilla nicety of
+-- selling truly finished keys; keys you cannot lose are worth the clutter.
+local function install_sellable_key_veto_hook()
+    local sellable_type = sdk.find_type_definition("chainsaw.SellableKeyItemUserData")
+    if sellable_type == nil then
+        log.info("[RE4R AP] SellableKeyItemUserData type not found -- sellable-key veto disabled")
+        return
+    end
+    local check_method = sellable_type:get_method("checkSellable")
+    if check_method == nil then
+        log.info("[RE4R AP] SellableKeyItemUserData.checkSellable not found -- sellable-key veto disabled")
+        return
+    end
+    local veto_logged = false
+    sdk.hook(
+        check_method,
+        function(args)
+            return sdk.PreHookResult.CALL_ORIGINAL
+        end,
+        function(retval)
+            -- Log the first genuine veto (original said sellable) so a live
+            -- session leaves evidence the hook is earning its keep, then stay
+            -- quiet: the merchant UI can poll this per frame.
+            if not veto_logged then
+                local ok, was_sellable = pcall(function()
+                    return (sdk.to_int64(retval) or 0) ~= 0
+                end)
+                if ok and was_sellable then
+                    veto_logged = true
+                    log.info("[RE4R AP] sellable-key veto engaged: the game marked a held key item sellable; forced false")
+                end
+            end
+            return sdk.to_ptr(false)
+        end
+    )
+    log.info("[RE4R AP] sellable-key veto hook installed (checkSellable -> always false)")
+end
+
+-- [D2] Storage takes anything the player hands it, while they are at a
+-- typewriter.
+--
+-- Vanilla only offers the send-to-storage command for weapons, so a case full
+-- of herbs and ammo has no relief valve - even though Storage itself has never
+-- cared: ArmouryManager.addArmouryItem takes a plain chainsaw.Item with no type
+-- predicate, which is exactly why AP's own overflow deliveries already land
+-- there and come back out fine (Cam, 2026-08-13). The restriction is
+-- permission, not structure.
+--
+-- InventoryManager.getItemCommandMenu is the single decision point: it hands
+-- back a Dictionary<ItemCommandType, bool> of which commands to offer for the
+-- item being inspected, and chainsaw.ItemCommandType already carries a
+-- first-class SendToArmoury (15). So this post-hook flips that one entry to
+-- true and the game does the rest - its own menu row, its own label, its own
+-- execution path into ArmouryManager. Nothing here reimplements the move.
+--
+-- Two things keep the scope honest without any explicit filtering:
+--   * The armoury-opened gate. Storage is only reachable from a typewriter, so
+--     isArmouryOpened() IS "at a typewriter" (Cam's constraint: anywhere would
+--     be too much).
+--   * Key items and treasures live in their own controllers, not the attache
+--     case, so they never come through this path to begin with.
+--
+-- UNPROVEN LIVE: whether the returned Dictionary is mutable from a post-hook.
+-- If it is not, this degrades to doing nothing - the command simply does not
+-- appear - so it is safe to ship while that is still open. The mutation is
+-- attempted several ways and the FIRST SUCCESS IS LOGGED BY NAME, so one live
+-- session at a typewriter tells us which accessor works (or that none does).
+local ITEM_COMMAND_SEND_TO_ARMOURY = 15
+
+local function install_storage_accepts_anything_hook()
+    local inventory_type = sdk.find_type_definition("chainsaw.InventoryManager")
+    if inventory_type == nil then
+        log.info("[RE4R AP] InventoryManager type not found -- storage-accepts-anything disabled")
+        return
+    end
+    local menu_method = inventory_type:get_method("getItemCommandMenu")
+    if menu_method == nil then
+        log.info("[RE4R AP] InventoryManager.getItemCommandMenu not found -- storage-accepts-anything disabled")
+        return
+    end
+
+    -- Generic Dictionary accessors are the fiddly part of this from Lua, so try
+    -- the plausible shapes in order rather than betting on one. Whichever lands
+    -- gets remembered and reused, so the cost is one-time.
+    local setter_attempts = {
+        { name = "set_Item", invoke = function(menu)
+            menu:call("set_Item", ITEM_COMMAND_SEND_TO_ARMOURY, true)
+        end },
+        { name = "set_Item(sig)", invoke = function(menu)
+            menu:call("set_Item(chainsaw.ItemCommandType, System.Boolean)",
+                ITEM_COMMAND_SEND_TO_ARMOURY, true)
+        end },
+        { name = "Add", invoke = function(menu)
+            menu:call("Add", ITEM_COMMAND_SEND_TO_ARMOURY, true)
+        end },
+    }
+    local working_setter = nil
+    local widened_logged = false
+    local failure_logged = false
+
+    sdk.hook(
+        menu_method,
+        function(args)
+            return sdk.PreHookResult.CALL_ORIGINAL
+        end,
+        function(retval)
+            local ok = pcall(function()
+                local armoury = sdk.get_managed_singleton("chainsaw.ArmouryManager")
+                if armoury == nil then
+                    return
+                end
+                -- Typewriter gate. Anything else (mid-fight case juggling) is
+                -- deliberately out of scope.
+                local opened = armoury:call("isArmouryOpened")
+                if opened ~= true then
+                    return
+                end
+                local menu = sdk.to_managed_object(retval)
+                if menu == nil then
+                    return
+                end
+
+                if working_setter ~= nil then
+                    working_setter.invoke(menu)
+                    return
+                end
+                for _, attempt in ipairs(setter_attempts) do
+                    if pcall(attempt.invoke, menu) then
+                        working_setter = attempt
+                        log.info(string.format(
+                            "[RE4R AP] storage-accepts-anything engaged: SendToArmoury offered via %s",
+                            attempt.name))
+                        widened_logged = true
+                        return
+                    end
+                end
+                error("no working Dictionary setter")
+            end)
+            if not ok and not failure_logged then
+                failure_logged = true
+                log.info(
+                    "[RE4R AP] storage-accepts-anything could NOT widen the command menu " ..
+                    "(the returned Dictionary refused every setter) -- the command will not appear")
+            end
+            if ok and widened_logged == false then
+                widened_logged = true
+            end
+            return retval
+        end
+    )
+    log.info("[RE4R AP] storage-accepts-anything hook installed (SendToArmoury at typewriters)")
 end
 
 local function build_state(runtime_state)
@@ -316,19 +535,48 @@ if #bridge.typewriter_warp_points > 0 then
 end
 install_pickup_accept_hook()
 install_pickup_commit_hook()
+-- [Lost-check spike] Which DropItem path does a weapon actually take? Delete
+-- with the probe once the answer is in.
+if type(ctx.install_weapon_path_probe) == "function" then
+    pcall(ctx.install_weapon_path_probe)
+end
 install_chapter_switch_hook()
 install_save_watermark_hook()
 install_interact_holder_hit_hook()
+install_sellable_key_veto_hook()
+install_storage_sale_reconciler_hook()
+install_storage_accepts_anything_hook()
+install_extra_item_veto_hook()
+install_bonus_weapon_hooks()
 
 re.on_pre_application_entry("UpdateBehavior", function()
     local ok, err = pcall(function()
         local now_clock = os.clock()
         local runtime_state = nil
 
-        if now_clock - bridge.last_scan_clock >= SCAN_INTERVAL_SECONDS then
+        -- [Mercenaries] The mode watcher runs on the scan clock; the campaign
+        -- pickup scan pauses while The Mercenaries is active (nothing to
+        -- detect there).
+        local in_mercenaries = false
+        do
+            local get_domain = ctx.get_runtime_domain or _G.get_runtime_domain
+            if type(get_domain) == "function" then
+                local ok_domain, domain = pcall(get_domain)
+                in_mercenaries = ok_domain and domain == "MERCENARIES"
+            end
+            if type(ctx.update_mercenaries_state) == "function" then
+                pcall(ctx.update_mercenaries_state)
+            end
+        end
+        if not in_mercenaries and now_clock - bridge.last_scan_clock >= SCAN_INTERVAL_SECONDS then
+            local scan_delta = now_clock - bridge.last_scan_clock
             bridge.last_scan_clock = now_clock
             runtime_state = get_runtime_state()
             process_pending_warp(runtime_state)
+            -- [D9] Fires a beat after a warp lands, so the scene is built.
+            if type(process_pending_boat_summon) == "function" then
+                process_pending_boat_summon(scan_delta)
+            end
             scan_stage_pickups(runtime_state)
             prune_local_injection_suppressions()
             if runtime_state.is_loading then
@@ -349,6 +597,31 @@ re.on_pre_application_entry("UpdateBehavior", function()
         end
         if runtime_state ~= nil and runtime_state.is_in_game and type(runtime_state.current_stage) == "number" then
             sync_typewriter_warp_unlock_for_stage(runtime_state.current_stage)
+        end
+        -- [A2 recovery] Self-gated on its own 4s interval and on possession.
+        if type(poll_door_recovery) == "function" then
+            poll_door_recovery(runtime_state)
+        end
+        -- [Stand-in sweep] Costs nothing when the queue is empty, which is
+        -- almost always: it only fills for a few seconds after a shop check
+        -- is bought, because the trinket arrives after the purchase hook.
+        if type(merchant_poll_pending_sweeps) == "function" then
+            merchant_poll_pending_sweeps()
+        end
+        -- [Trade takeover, Phase 2] Claim detection. There is NO claim event -
+        -- notifyRecieveItem was hooked and fired zero times across five live
+        -- claims - so a claim is a getRewardProgress diff, and this poll is
+        -- the only thing that notices one. Reads only, and it returns
+        -- immediately when the room has no trade checks.
+        if type(trade_poll_claims) == "function" then
+            trade_poll_claims()
+        end
+        -- [Trade] Chapter waypoint: restocks the three gem slots and
+        -- re-derives the check window when the chapter actually changes.
+        -- Seeds on first sight rather than restocking, so loading a save
+        -- mid-run is not mistaken for a chapter arriving.
+        if type(trade_poll_chapter_waypoint) == "function" then
+            trade_poll_chapter_waypoint()
         end
         if type(refresh_launcher_bridge_files) == "function" then
             refresh_launcher_bridge_files()
@@ -403,7 +676,25 @@ re.on_frame(function()
     dispatch_native_toasts()
     -- World-space check markers first; the HUD windows layer over them.
     draw_world_check_markers()
+    if type(draw_marker_position_editor) == "function" then
+        draw_marker_position_editor()
+    end
+    -- [D9 spike] Dev-gated boat probe; no-ops unless both toggles are on.
+    if type(draw_model_tuner) == "function" then
+        draw_model_tuner()
+    end
+    if type(draw_boat_spike) == "function" then
+        draw_boat_spike()
+    end
+    if type(draw_gimmick_nudger) == "function" then
+        draw_gimmick_nudger()
+    end
     draw_check_progress_overlay()
+    -- Pinned under the header: hints bought for the player's OWN items that
+    -- turned out to live in someone else's world, where no marker can help.
+    if type(draw_multiworld_hints_overlay) == "function" then
+        draw_multiworld_hints_overlay()
+    end
     -- Outside gameplay the header draws nothing, so the AP connection
     -- status gets its own line at the menus and during loads.
     draw_ap_status_menu_overlay()
@@ -414,8 +705,6 @@ re.on_frame(function()
     -- Connection recovery sits above everything else: it is only ever
     -- visible when the session cannot reach its own multiworld.
     draw_port_recovery_dialog()
-    -- First-seed welcome: armed on the first playable Chapter 1 tick.
-    maybe_show_tutorial()
     draw_tutorial_dialog()
     draw_main_window()
 end)
@@ -423,10 +712,20 @@ end)
 re.on_draw_ui(function()
     -- Bootstrap toggles ONLY. Everything a player configures (markers and
     -- their detail) moved into the window's Guidance tab, because this menu
-    -- is REFramework's and new players never open it (2026-07-31).
+    -- is REFramework's and new players never open it (2026-07-31). One
+    -- exception by request: the hints-panel toggle lives in BOTH places
+    -- (Cam, 2026-08-24), so a player who only knows this menu can still
+    -- clear their screen.
     local changed_main, main_value = imgui.checkbox("Show Archipelago RE4R Window", bridge.main_window_enabled)
     if changed_main then
         bridge.main_window_enabled = main_value
+    end
+
+    local changed_hints_panel, hints_panel_value = imgui.checkbox(
+        "Show Multiworld Hints panel", bridge.multiworld_hints_overlay ~= false)
+    if changed_hints_panel then
+        bridge.multiworld_hints_overlay = hints_panel_value
+        bridge.multiworld_hints_overlay_chosen = true
     end
 
     local changed_dev, dev_value = imgui.checkbox("Developer Tools (Debug tab)", bridge.developer_tools_enabled)
@@ -434,6 +733,32 @@ re.on_draw_ui(function()
         bridge.developer_tools_enabled = dev_value
         if dev_value and type(sync_warp_inputs_to_current_state) == "function" then
             sync_warp_inputs_to_current_state()
+        end
+    end
+
+    -- Marker position editor: dev-only, so only surface the toggle once
+    -- Developer Tools is on.
+    if bridge.developer_tools_enabled then
+        local changed_editor, editor_value = imgui.checkbox(
+            "Marker Position Editor", bridge.marker_editor_window_enabled)
+        if changed_editor then
+            bridge.marker_editor_window_enabled = editor_value
+        end
+        -- [D9 spike] Remove with the module once the boat work is built.
+        local changed_boat, boat_value = imgui.checkbox(
+            "Boat Spike (D9)", bridge.boat_spike_window_enabled)
+        if changed_boat then
+            bridge.boat_spike_window_enabled = boat_value
+        end
+        local changed_tuner, tuner_value = imgui.checkbox(
+            "AP Shop Model Tuner", bridge.model_tuner_window_enabled)
+        if changed_tuner then
+            bridge.model_tuner_window_enabled = tuner_value
+        end
+        local changed_nudger, nudger_value = imgui.checkbox(
+            "AP Gimmick Nudger", bridge.gimmick_nudger_window_enabled)
+        if changed_nudger then
+            bridge.gimmick_nudger_window_enabled = nudger_value
         end
     end
 

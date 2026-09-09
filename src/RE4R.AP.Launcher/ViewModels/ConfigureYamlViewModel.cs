@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -17,6 +17,16 @@ namespace RE4R.AP.Launcher.ViewModels;
 /// without touching any hosting machinery. Works standalone: it needs no
 /// game install, no room, and no network.
 /// </summary>
+/// <summary>Which half of the settings editor is on screen.</summary>
+public enum YamlEditorPage
+{
+    /// <summary>What are you playing: slot name, content, and difficulty when a campaign is in.</summary>
+    Content = 1,
+
+    /// <summary>The settings, shaped by the content chosen on page 1.</summary>
+    Settings = 2,
+}
+
 public sealed class ConfigureYamlViewModel : ObservableObject
 {
     private readonly Re4rYamlBuilder _re4rYamlBuilder;
@@ -31,12 +41,57 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     private string _selectedDifficulty = "Standard";
     private int _progressionBalancing = 70;
     private CheckGuidanceOption _selectedCheckGuidance = CheckGuidanceOptionList[0];
+    private MerchantChecksOption _selectedMerchantChecks = MerchantChecksOptionList[0];
+    private MarkerDetailOption _selectedMarkerDetail = MarkerDetailOptionList[2];
     private bool _deathLink;
     private bool _allowMissableLocations;
     private bool _shuffleKeycards;
-    private bool _minimizeBacktracking;
+    private WeaponRandomizationOption _selectedWeaponRandomization = WeaponRandomizationOptionList[0];
+    // On by default, like MerchantChecksPerChapter below: the Archipelago merchant is the
+    // default experience, and drafts saved before the option existed load it
+    // back as off (their owner chose their shop before gear could scatter).
+    private bool _shuffleMerchantGear = true;
+    private bool _isHostedInGuide;
+
+    /// <summary>
+    /// True while this editor is rendered INSIDE the organizer wizard's step 3
+    /// rather than as its own screen. Suppresses its big header and blurb,
+    /// which the wizard's own step chrome already provides.
+    /// </summary>
+    public bool IsHostedInGuide
+    {
+        get => _isHostedInGuide;
+        set => SetProperty(ref _isHostedInGuide, value);
+    }
+
+    /// <summary>Two guns in the case by default (Cam, 2026-08-21).</summary>
+    public const int DefaultStartingArsenal = 2;
+
+    private int _startingArsenal = DefaultStartingArsenal;
+    // On by default (Cam, 2026-09-05): important checks stay on the main path.
+    private bool _minimizeBacktracking = true;
     private bool _randomEvents;
-    private bool _tutorial = true;
+    private int _merchantChecksPerChapter = 3;
+    private int _tradeChecksPerChapter = 3;
+    private bool _tradeChecksEnabled = true;
+    private bool _merchantChecksEnabled = true;
+    private YamlEditorPage _currentPage = YamlEditorPage.Content;
+    private readonly int _campaignLocationCount;
+    private readonly int _separateWaysLocationCount;
+    private readonly int _mercenariesCheckCount;
+    private readonly int _merchantCheckCeiling;
+    private bool _includeMainCampaign = true;
+    private bool _includeMercenaries;
+    private bool _includeSeparateWays;
+    private bool _separateWaysUnlocked;
+    private readonly RelayCommand _continueToSettingsCommand;
+    private readonly RelayCommand _backToContentCommand;
+    // 0.7.6: Ranks as Checks is a range over the ladder below, held as indexes
+    // so the two slider markers can bind straight to them.
+    private int _mercenariesRankFloorIndex;
+    private int _mercenariesRankCeilingIndex = 2;
+    // 0.7.4: Rank A may hold progression unless the player turns this off.
+    private bool _mercenariesProgression = true;
     private string _yamlPreview = "Enter your slot name to generate the YAML preview.";
     private string _statusText = "Choose your RE4R settings - they save automatically as you edit.";
     private ICommand? _backToLandingCommand;
@@ -53,6 +108,10 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         _re4rYamlBuilder = re4rYamlBuilder ?? throw new ArgumentNullException(nameof(re4rYamlBuilder));
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
         _action = action ?? throw new ArgumentNullException(nameof(action));
+        _continueToSettingsCommand = new RelayCommand(
+            () => CurrentPage = YamlEditorPage.Settings, () => CanContinue);
+        _backToContentCommand = new RelayCommand(
+            () => CurrentPage = YamlEditorPage.Content);
         _draftStore = draftStore ?? throw new ArgumentNullException(nameof(draftStore));
 
         _saveYamlCommand = new AsyncRelayCommand(SaveYamlAsync, CanUseYaml);
@@ -66,23 +125,156 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             TypewriterOptions.Add(option);
         }
 
+        foreach (var option in CreateArsenalTypeOptions())
+        {
+            option.PropertyChanged += OnArsenalTypeOptionPropertyChanged;
+            StartingArsenalTypeOptions.Add(option);
+        }
+
+        // Amondo's request: the AP item/location options, in the editor instead
+        // of hand-written. Each pair is two directions on one list, so it is one
+        // picker with a stance per row rather than two lists that could
+        // contradict each other.
+        var staticData = new StaticGameDataProvider().TryLoad();
+        // The content tiles say what each piece is worth. Counted from the
+        // bundled data, never written into the copy: the world moved from 456
+        // to 646 locations the day Ada's were added, and a hardcoded number
+        // would have gone quietly wrong (2026-09-07).
+        _campaignLocationCount =
+            staticData?.Locations.Values.Count(location => !location.IsSeparateWays) ?? 0;
+        _separateWaysLocationCount =
+            staticData?.Locations.Values.Count(location => location.IsSeparateWays) ?? 0;
+        _mercenariesCheckCount = staticData?.Counts.Mercenaries ?? 0;
+        // The merchant's checks are NOT part of the campaign's location count:
+        // the shop slots and the trade checks are their own id ranges, so the
+        // tile read 456 while a default campaign room holds 546 and a maxed one
+        // 591. Counted the same way as the rest - the chapter count comes from
+        // the bundled shop slots, and the two per-chapter ceilings are the same
+        // constants the sliders on the next page clamp to.
+        var shopChapterCount = staticData?.ShopSlots.Values
+            .Select(slot => slot.PhysicalChapter)
+            .Distinct()
+            .Count() ?? 0;
+        _merchantCheckCeiling =
+            shopChapterCount * (MerchantChecksPerChapterMax + TradeChecksPerChapterMax);
+        ItemSelection = new YamlSelectionListViewModel(
+            "Items",
+            "Anywhere",
+            "Keep in my world",
+            "Send to another world",
+            "Search items...",
+            staticData?.ItemGroups ?? new Dictionary<string, List<string>>(),
+            staticData?.Items.Values.Select(item => item.Name) ?? Enumerable.Empty<string>());
+        LocationSelection = new YamlSelectionListViewModel(
+            "Locations",
+            "Anything",
+            "Never anything important",
+            "Always something important",
+            "Search locations...",
+            staticData?.LocationGroups ?? new Dictionary<string, List<string>>(),
+            staticData?.Locations.Values.Select(location => location.Name) ?? Enumerable.Empty<string>());
+        // The world keeps Small Keys in the player's own world unless told
+        // otherwise, so a fresh page says so instead of showing the neutral
+        // "Anywhere" stance for them (Cam, 2026-09-05). A saved draft still
+        // replaces this with whatever it recorded.
+        ItemSelection.ApplySelection(new[] { "Small Keys" }, null);
+        ItemSelection.SelectionChanged += OnSelectionChanged;
+        LocationSelection.SelectionChanged += OnSelectionChanged;
+
         RebuildYamlPreview();
     }
 
+    /// <summary>local_items / non_local_items, as one stance per item.</summary>
+    public YamlSelectionListViewModel ItemSelection { get; }
+
+    /// <summary>exclude_locations / priority_locations, as one stance per location.</summary>
+    public YamlSelectionListViewModel LocationSelection { get; }
+
+    // Archipelago drops local_items and non_local_items entirely when a seed
+    // has one player (Main.py clears them before fill), so a solo player who
+    // sets them gets silence. Say so rather than let them wonder.
+    public string ItemSelectionHint =>
+        "Only applies in a multiworld. A solo seed ignores these, because there is nowhere else for an item to go. "
+        + "Progression is everything the logic can require, and it contains the other three: the 28 Key Items, the Small Key, "
+        + "and the Biosensor Scope. Choose Key Items for the doors and quest items alone, or search for one item by name.";
+
+    public string LocationSelectionHint =>
+        "\"Never anything important\" keeps progression and useful items off a spot. \"Always something important\" reserves it for one. Marking a lot of spots as important can over-constrain generation, so use it sparingly.";
+
     public ObservableCollection<TypewriterOptionViewModel> TypewriterOptions { get; } = new();
 
-    public IReadOnlyList<string> DifficultyOptions { get; } = ["Standard", "Hardcore", "Assisted", "Professional"];
+    /// <summary>Weapon classes the Starting Arsenal draw may take; all ticked by default.</summary>
+    public ObservableCollection<ArsenalTypeOptionViewModel> StartingArsenalTypeOptions { get; } = new();
+
+    // Easiest to hardest, Standard preselected (Cam, 2026-09-05).
+    public IReadOnlyList<string> DifficultyOptions { get; } = ["Assisted", "Standard", "Hardcore", "Professional"];
 
     // Mirrors ArchipelagoRE4R/options.py CheckGuidance (off/markers/markers_rarity).
     // The friendly label is shown in the dropdown; Value is written to the YAML.
     private static readonly IReadOnlyList<CheckGuidanceOption> CheckGuidanceOptionList =
     [
-        new("Markers (recommended)", "markers"),
-        new("Markers + rarity colours", "markers_rarity"),
-        new("Off (no markers)", "off"),
+        new("Markers (recommended)", "markers", "Markers"),
+        new("Markers + rarity colours", "markers_rarity", "+ Rarity"),
+        new("Off (no markers)", "off", "Off"),
     ];
 
     public IReadOnlyList<CheckGuidanceOption> CheckGuidanceOptions => CheckGuidanceOptionList;
+
+    // Who the merchant's check rows may hold. Mirrors the apworld's
+    // merchant_checks choice; mixed is the default and every older draft.
+    private static readonly IReadOnlyList<MerchantChecksOption> MerchantChecksOptionList =
+    [
+        new("Mixed (anything)", "mixed", "Mixed"),
+        new("Local only (always pays you)", "local_only", "Local"),
+        new("Remote only (trading post)", "remote_only", "Remote"),
+    ];
+
+    public IReadOnlyList<MerchantChecksOption> MerchantChecksOptions => MerchantChecksOptionList;
+
+    // How far BioRand's weapon-upgrade randomization goes. Mirrors the
+    // apworld's random_weapon_stats choice: one control for a dependent
+    // pair of BioRand switches, because upgrades-without-stats is the shape
+    // BioRand refuses and the one that broke v0.5.0's release seeds. Off is
+    // the default and every Toggle-era draft maps false->off, true->full.
+    private static readonly IReadOnlyList<WeaponRandomizationOption> WeaponRandomizationOptionList =
+    [
+        new("Off (vanilla upgrades)", "off", "Off"),
+        new("Stats only (rerolled curves)", "stats_only", "Stats Only"),
+        new("Full (curves + upgrade paths)", "full", "Full"),
+    ];
+
+    public IReadOnlyList<WeaponRandomizationOption> WeaponRandomizationOptions => WeaponRandomizationOptionList;
+
+    // How much a world marker says, and what you actually get in game: this
+    // is the tier the run starts at, changeable any time in the in-game
+    // Guidance tab. It was a ceiling until 2026-08-17, which only ever capped
+    // the person who set it, since everyone writes their own settings file.
+    // Ordered least to most revealing, defaulting to Locate: everything about
+    // finding the spot, nothing about what the multiworld put in it.
+    private static readonly IReadOnlyList<MarkerDetailOption> MarkerDetailOptionList =
+    [
+        new("Minimal - distance and height", "minimal", "Minimal"),
+        new("Basic - + chapter and area", "basic", "Basic"),
+        new("Locate - + item, container, how to reach it (recommended)", "locate", "Locate"),
+        new("Identify - + the real item and its owner (spoiler)", "identify", "Identify"),
+        new("Developer - + the location code (debug)", "developer", "Developer"),
+    ];
+
+    public IReadOnlyList<MarkerDetailOption> MarkerDetailOptions => MarkerDetailOptionList;
+
+    public MarkerDetailOption SelectedMarkerDetail
+    {
+        get => _selectedMarkerDetail;
+        set
+        {
+            // The ComboBox can push a transient null while its items rebuild.
+            if (value is not null && SetProperty(ref _selectedMarkerDetail, value))
+            {
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
 
     // Landmarks the progression-balancing slider soft-snaps to. Any 0-99 value
     // is still selectable; the snap just makes the common picks easy to land on.
@@ -142,9 +334,9 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         {
             if (SetProperty(ref _isOrganizerContext, value))
             {
-                OnPropertyChanged(nameof(ShowContinue));
                 OnPropertyChanged(nameof(HeaderDescription));
                 OnPropertyChanged(nameof(ShowJoinerHandoff));
+                OnPropertyChanged(nameof(YamlPreviewHint));
                 RebuildFooter();
             }
         }
@@ -235,6 +427,20 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         }
     }
 
+    public MerchantChecksOption SelectedMerchantChecks
+    {
+        get => _selectedMerchantChecks;
+        set
+        {
+            // Same transient-null guard as the pickers above.
+            if (value is not null && SetProperty(ref _selectedMerchantChecks, value))
+            {
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
+
     public bool DeathLink
     {
         get => _deathLink;
@@ -274,6 +480,79 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// BioRand's weapon-upgrade randomization, decided in the YAML because
+    /// the multiworld holds the weapons: Off, Stats Only, or Full. Both of
+    /// BioRand's switches for the pair pin at patch time; their rows on the
+    /// BioRand Options screen grey out and say so.
+    /// </summary>
+    public WeaponRandomizationOption SelectedWeaponRandomization
+    {
+        get => _selectedWeaponRandomization;
+        set
+        {
+            // Same transient-null guard as the pickers above.
+            if (value is not null && SetProperty(ref _selectedWeaponRandomization, value))
+            {
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
+
+    /// <summary>
+    /// D10: the merchant's gear (weapons, attachments, case sizes, recipes)
+    /// leaves the buy tab and shuffles into the multiworld item pool.
+    /// Turning it on also turns shop checks on - a scattered shop with no
+    /// check rows is nearly empty, which reads as broken rather than
+    /// configured. The player can still untick checks afterwards.
+    /// </summary>
+    public bool ShuffleMerchantGear
+    {
+        get => _shuffleMerchantGear;
+        set
+        {
+            if (SetProperty(ref _shuffleMerchantGear, value))
+            {
+                if (value && !MerchantChecksEnabled)
+                {
+                    MerchantChecksEnabled = true;
+                }
+
+                // The Trade takeover rides this switch, so its row has to
+                // re-read: with the gear shuffle off, Trade is not merely
+                // unset, it is unavailable, and the label says so.
+                OnPropertyChanged(nameof(TradeChecksLabel));
+                OnPropertyChanged(nameof(TradeChecksPerChapterEffective));
+
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Starting Arsenal: N random pool weapons precollected into the
+    /// player's hands at connect. Draws from the scattered arsenal, so it
+    /// requires the gear shuffle; the row disables without it and the hint
+    /// points at BioRand's own starting-inventory options instead.
+    /// </summary>
+    public int StartingArsenal
+    {
+        get => _startingArsenal;
+        set
+        {
+            var clamped = Math.Clamp(value, 0, 3);
+            if (SetProperty(ref _startingArsenal, clamped))
+            {
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
+
+    public IReadOnlyList<int> StartingArsenalChoices { get; } = [0, 1, 2];
+
     public bool MinimizeBacktracking
     {
         get => _minimizeBacktracking;
@@ -310,6 +589,418 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             }
         }
     }
+
+    /// <summary>
+    /// How many AP checks the merchant releases each chapter. The seed total
+    /// is derived from it and shown in the label, so there is one number to
+    /// choose and its consequence is visible. Clamped to the apworld's own
+    /// range so a hand-edited draft cannot produce a YAML the world rejects.
+    /// </summary>
+    public int MerchantChecksPerChapter
+    {
+        get => _merchantChecksPerChapter;
+        set
+        {
+            var clamped = Math.Clamp(value, 0, MerchantChecksPerChapterMax);
+            if (SetProperty(ref _merchantChecksPerChapter, clamped))
+            {
+                OnPropertyChanged(nameof(MerchantChecksLabel));
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
+
+    /// <summary>
+    /// On/off for the merchant. The count lives behind it, so turning the
+    /// feature off does not mean hunting for zero on a slider, and turning it
+    /// back on remembers the number you had.
+    /// </summary>
+    public bool MerchantChecksEnabled
+    {
+        get => _merchantChecksEnabled;
+        set
+        {
+            if (SetProperty(ref _merchantChecksEnabled, value))
+            {
+                OnPropertyChanged(nameof(MerchantChecksLabel));
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
+
+    /// <summary>
+    /// The apworld's cap and campaign length, mirrored so the slider and the
+    /// derived total cannot drift from what the world will actually accept.
+    /// </summary>
+    public const int MerchantChecksPerChapterMax = 6;
+
+    /// <summary>
+    /// How many Trade-tab checks release each chapter. Same shape as the shop
+    /// slider next to it, because they are two halves of one merchant.
+    /// </summary>
+    public int TradeChecksPerChapter
+    {
+        get => _tradeChecksPerChapter;
+        set
+        {
+            var clamped = Math.Clamp(value, 0, TradeChecksPerChapterMax);
+            if (SetProperty(ref _tradeChecksPerChapter, clamped))
+            {
+                OnPropertyChanged(nameof(TradeChecksLabel));
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
+
+    /// <summary>
+    /// On/off for the Trade tab's checks, so turning it off is not hunting for
+    /// zero on a slider and turning it back on remembers the number.
+    /// </summary>
+    public bool TradeChecksEnabled
+    {
+        get => _tradeChecksEnabled;
+        set
+        {
+            if (SetProperty(ref _tradeChecksEnabled, value))
+            {
+                OnPropertyChanged(nameof(TradeChecksLabel));
+                OnPropertyChanged(nameof(TradeChecksPerChapterEffective));
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
+
+    // [Included Content] What the slot plays. Main Campaign, Mercenaries or
+    // both; Separate Ways is on the card greyed out until it exists. At least
+    // one of the two must be on, and the footer's Continue waits for that.
+    public bool IncludeMainCampaign
+    {
+        get => _includeMainCampaign;
+        set
+        {
+            if (SetProperty(ref _includeMainCampaign, value))
+            {
+                // A room patches one campaign, so the two are exclusive. The
+                // proper three-way picker is still to come; until then, ticking
+                // one unticks the other rather than raising an error about a
+                // combination nobody can use.
+                if (value && _includeSeparateWays)
+                {
+                    IncludeSeparateWays = false;
+                }
+                RaiseContentChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Held out of this release, and only offered when settings.json says
+    /// unlock_separate_ways. Ada's campaign generates, patches and plays as of
+    /// 2026-09-07, but she has no typewriter warps and no merchant, so it is
+    /// not shipped. The apworld refuses the content too, so a yaml written
+    /// here only generates with RE4R_AP_ALLOW_SEPARATE_WAYS in the environment.
+    /// </summary>
+    public bool IncludeSeparateWays
+    {
+        get => _includeSeparateWays;
+        set
+        {
+            if (SetProperty(ref _includeSeparateWays, value))
+            {
+                if (value && _includeMainCampaign)
+                {
+                    IncludeMainCampaign = false;
+                }
+                RaiseContentChanged();
+            }
+        }
+    }
+
+    /// <summary>Whether the screen offers Separate Ways at all.</summary>
+    public bool SeparateWaysUnlocked
+    {
+        get => _separateWaysUnlocked;
+        set
+        {
+            if (SetProperty(ref _separateWaysUnlocked, value))
+            {
+                OnPropertyChanged(nameof(SeparateWaysNote));
+                if (!value && _includeSeparateWays)
+                {
+                    IncludeSeparateWays = false;
+                }
+            }
+        }
+    }
+
+    public string SeparateWaysNote => _separateWaysUnlocked
+        // Stale as of 2026-09-07: Ada generates, patches and plays now. She is
+        // held out of the release because she has no typewriter warps and no
+        // merchant, and the apworld refuses the content without
+        // RE4R_AP_ALLOW_SEPARATE_WAYS set.
+        ? "Unlocked for testing. Generating also needs RE4R_AP_ALLOW_SEPARATE_WAYS set."
+        : "[Coming Soon]";
+
+    public bool IncludeMercenaries
+    {
+        get => _includeMercenaries;
+        set
+        {
+            if (SetProperty(ref _includeMercenaries, value))
+            {
+                RaiseContentChanged();
+            }
+        }
+    }
+
+    // [Content gate, 2026-09-07] The editor asks what you are playing before
+    // it draws the settings for it. Cam, 2026-09-06: the screen "may show them
+    // like a dozen unrelated options, probably more once we add Separate
+    // Ways". Counted properly a Mercenaries-only player was shown eleven
+    // controls that do nothing, plus a location picker offering 456 campaign
+    // spots their slot does not hold.
+    //
+    // Both pages live INSIDE the editor, so organizer step 3 is still the
+    // editor from the outside and the standalone settings entry gets the same
+    // gate. Page 2 keeps the content editable, so page 1 traps nobody.
+    public YamlEditorPage CurrentPage
+    {
+        get => _currentPage;
+        private set
+        {
+            if (SetProperty(ref _currentPage, value))
+            {
+                OnPropertyChanged(nameof(IsOnContentPage));
+                OnPropertyChanged(nameof(IsOnSettingsPage));
+                RebuildFooter();
+            }
+        }
+    }
+
+    public bool IsOnContentPage => _currentPage == YamlEditorPage.Content;
+
+    public bool IsOnSettingsPage => _currentPage == YamlEditorPage.Settings;
+
+    /// <summary>
+    /// Page 1 to page 2. Gated on the same rule as the footer's Continue, so
+    /// nobody reaches the settings without a usable slot name and some
+    /// content to configure.
+    /// </summary>
+    public ICommand ContinueToSettingsCommand => _continueToSettingsCommand;
+
+    /// <summary>Back to page 1, for a player who wants to change what they are playing.</summary>
+    public ICommand BackToContentCommand => _backToContentCommand;
+
+    /// <summary>
+    /// A campaign is in. Everything the campaign owns - the merchant, the
+    /// trade tab, guidance, typewriters, keycards, backtracking, missables,
+    /// Random Events, the starting arsenal - hangs off this.
+    /// </summary>
+    public bool CampaignIncluded => _includeMainCampaign || _includeSeparateWays;
+
+    /// <summary>The slot is nothing but Mercenaries ranks.</summary>
+    public bool MercenariesOnly => _includeMercenaries && !CampaignIncluded;
+
+    /// <summary>
+    /// What each content tile is worth, straight out of the bundled static
+    /// data rather than written into the copy, so the numbers cannot drift
+    /// away from the world the launcher actually ships.
+    /// </summary>
+    public string MainCampaignCheckCount => _campaignLocationCount > 0
+        ? _merchantCheckCeiling > 0
+            ? $"{_campaignLocationCount} checks, plus up to {_merchantCheckCeiling} from the merchant"
+            : $"{_campaignLocationCount} checks"
+        : "the campaign's checks";
+
+    public string SeparateWaysCheckCount => _separateWaysLocationCount > 0
+        ? $"{_separateWaysLocationCount} checks" : "Ada's checks";
+
+    public string MercenariesCheckCount => _mercenariesCheckCount > 0
+        ? $"up to {_mercenariesCheckCount} checks" : "the mode's rank checks";
+
+    /// <summary>The running total under the tiles, so the page answers "what do I get".</summary>
+    public string IncludedContentTotal
+    {
+        get
+        {
+            if (HasIncludedContentError)
+            {
+                return "Pick at least one to carry on.";
+            }
+            var total = 0;
+            // The merchant rides Main Campaign alone: his shop and trade tabs
+            // are Leon's, which is one of the reasons Ada's campaign is held
+            // back. Counted once even if both campaigns are ticked.
+            if (_includeMainCampaign) total += _campaignLocationCount + _merchantCheckCeiling;
+            if (_includeSeparateWays) total += _separateWaysLocationCount;
+            if (_includeMercenaries) total += _mercenariesCheckCount;
+            return total > 0
+                ? $"Your slot holds up to {total} checks."
+                : "Your slot's checks are counted when the room generates.";
+        }
+    }
+
+    /// <summary>What page 2 shows at the top, so the choice stays visible.</summary>
+    public string IncludedContentSummary
+    {
+        get
+        {
+            var parts = new List<string>();
+            if (_includeMainCampaign) parts.Add("Main Campaign");
+            if (_includeSeparateWays) parts.Add("Separate Ways");
+            if (_includeMercenaries) parts.Add("The Mercenaries");
+            return parts.Count == 0 ? "Nothing selected" : string.Join(" + ", parts);
+        }
+    }
+
+    /// <summary>
+    /// Everything that reads the content. One place, because a band that
+    /// forgets to refresh does not throw - it just keeps showing options the
+    /// slot no longer has, which is the bug this whole gate exists to stop.
+    /// </summary>
+    private void RaiseContentChanged()
+    {
+        OnPropertyChanged(nameof(HasIncludedContentError));
+        OnPropertyChanged(nameof(CanContinue));
+        OnPropertyChanged(nameof(CampaignIncluded));
+        OnPropertyChanged(nameof(MercenariesOnly));
+        OnPropertyChanged(nameof(IncludedContentSummary));
+        OnPropertyChanged(nameof(IncludedContentTotal));
+        _continueToSettingsCommand.NotifyCanExecuteChanged();
+        RebuildYamlPreview();
+        QueueDraftSave();
+    }
+
+    public bool HasIncludedContentError =>
+        !_includeMainCampaign && !_includeMercenaries && !_includeSeparateWays;
+
+    public string IncludedContentError => _separateWaysUnlocked
+        ? "Include a campaign or Mercenaries (or both)."
+        : "Include Main Campaign or Mercenaries (or both).";
+
+    /// <summary>The rank ladder, lowest first. The apworld keys are the same order.</summary>
+    public static readonly IReadOnlyList<string> MercenariesRankLadder = ["C", "B", "A", "S", "S+", "S++"];
+
+    /// <summary>The same ladder, for the range slider to label its steps with.</summary>
+    public IReadOnlyList<string> MercenariesRankNames => MercenariesRankLadder;
+
+    private static readonly string[] MercenariesRankKeys = ["c", "b", "a", "s", "s_plus", "s_plus_plus"];
+
+    /// <summary>The lower marker of Ranks as Checks. Pushing it past the upper one carries that one along.</summary>
+    public int MercenariesRankFloorIndex
+    {
+        get => _mercenariesRankFloorIndex;
+        set
+        {
+            var clamped = Math.Clamp(value, 0, MercenariesRankNames.Count - 1);
+            if (SetProperty(ref _mercenariesRankFloorIndex, clamped))
+            {
+                if (_mercenariesRankCeilingIndex < clamped)
+                {
+                    MercenariesRankCeilingIndex = clamped;
+                }
+                OnPropertyChanged(nameof(MercenariesRanksSummary));
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
+
+    /// <summary>The upper marker of Ranks as Checks.</summary>
+    public int MercenariesRankCeilingIndex
+    {
+        get => _mercenariesRankCeilingIndex;
+        set
+        {
+            var clamped = Math.Clamp(value, 0, MercenariesRankNames.Count - 1);
+            if (SetProperty(ref _mercenariesRankCeilingIndex, clamped))
+            {
+                if (_mercenariesRankFloorIndex > clamped)
+                {
+                    MercenariesRankFloorIndex = clamped;
+                }
+                OnPropertyChanged(nameof(MercenariesRanksSummary));
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
+
+    /// <summary>What the two markers add up to, in the player's words.</summary>
+    public string MercenariesRanksSummary
+    {
+        get
+        {
+            var low = Math.Min(_mercenariesRankFloorIndex, _mercenariesRankCeilingIndex);
+            var high = Math.Max(_mercenariesRankFloorIndex, _mercenariesRankCeilingIndex);
+            var count = (high - low + 1) * 32;
+            var span = low == high
+                ? $"Rank {MercenariesRankNames[low]} only"
+                : $"Ranks {MercenariesRankNames[low]} through {MercenariesRankNames[high]}";
+            return $"{span} - {count} checks";
+        }
+    }
+
+    /// <summary>The YAML value behind the lower marker.</summary>
+    public string MercenariesRankFloorValue =>
+        MercenariesRankKeys[Math.Min(_mercenariesRankFloorIndex, _mercenariesRankCeilingIndex)];
+
+    /// <summary>The YAML value behind the upper marker.</summary>
+    public string MercenariesRankCeilingValue =>
+        MercenariesRankKeys[Math.Max(_mercenariesRankFloorIndex, _mercenariesRankCeilingIndex)];
+
+    private static int MercenariesRankIndexFor(string? key, int fallback)
+    {
+        var index = Array.IndexOf(MercenariesRankKeys, (key ?? string.Empty).Trim().ToLowerInvariant());
+        return index >= 0 ? index : fallback;
+    }
+
+    /// <summary>Whether a Rank A check may hold progression (apworld mercenaries_progression).</summary>
+    public bool MercenariesProgression
+    {
+        get => _mercenariesProgression;
+        set
+        {
+            if (SetProperty(ref _mercenariesProgression, value))
+            {
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
+
+
+    /// <summary>
+    /// The apworld's cap. Three per chapter is also the whole superset, so
+    /// unlike the shop's six this default sits AT the ceiling.
+    /// </summary>
+    public const int TradeChecksPerChapterMax = 3;
+
+    /// <summary>What actually reaches the YAML, dependency included.</summary>
+    public int TradeChecksPerChapterEffective =>
+        _tradeChecksEnabled && ShuffleMerchantGear ? _tradeChecksPerChapter : 0;
+
+    /// <summary>Slider read-out, e.g. "3 per chapter (45 checks this seed)".</summary>
+    public string TradeChecksLabel =>
+        !ShuffleMerchantGear
+            ? "Off - the Trade takeover needs Merchant Gear"
+            : !_tradeChecksEnabled
+                ? "Off - the tab stays a pure currency exchange"
+                : $"{_tradeChecksPerChapter} per chapter "
+                  + $"({_tradeChecksPerChapter * MerchantCheckChapters} checks this seed)";
+
+
+    private const int MerchantCheckChapters = 15;
+
+    /// <summary>Slider read-out, e.g. "3 per chapter (45 checks)".</summary>
+    public string MerchantChecksLabel => !_merchantChecksEnabled
+        ? "Off - the merchant sells no checks"
+        : $"{_merchantChecksPerChapter} per chapter "
+          + $"({_merchantChecksPerChapter * MerchantCheckChapters} checks this seed)";
 
     /// <summary>
     /// The old BioRand-page warning said the logic knows nothing about Random
@@ -355,19 +1046,6 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         catch (Exception ex)
         {
             _action.AppendLog($"Could not show the Random Events note: {ex.Message}");
-        }
-    }
-
-    public bool Tutorial
-    {
-        get => _tutorial;
-        set
-        {
-            if (SetProperty(ref _tutorial, value))
-            {
-                RebuildYamlPreview();
-                QueueDraftSave();
-            }
         }
     }
 
@@ -421,17 +1099,29 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     private void RebuildFooter()
     {
         FooterButtons.Clear();
-        FooterButtons.Add(new FooterButtonViewModel("Back", BackToLandingCommand));
+
+        // [Content gate] Page 1 has no file to save or copy yet, and its
+        // Continue goes to page 2 rather than out of the editor. Every screen
+        // in this app navigates from the footer, so the gate does too.
+        if (_currentPage == YamlEditorPage.Content)
+        {
+            FooterButtons.Add(new FooterButtonViewModel("Back", BackToLandingCommand));
+            FooterButtons.Add(new FooterButtonViewModel(
+                "Continue", ContinueToSettingsCommand, isPrimary: true));
+            return;
+        }
+
+        // Back returns to the content question, not out of the editor: leaving
+        // is then two presses, which is the right shape for a two-page step.
+        FooterButtons.Add(new FooterButtonViewModel("Back", BackToContentCommand));
         FooterButtons.Add(new FooterButtonViewModel("Save to File...", SaveYamlCommand));
         FooterButtons.Add(new FooterButtonViewModel("Copy to Clipboard", CopyYamlCommand));
-        if (!IsOrganizerContext)
-        {
-            FooterButtons.Add(new FooterButtonViewModel("Continue", ContinueCommand, isPrimary: true));
-        }
+        // Both roles get Continue. The organizer's command (wired by the
+        // shell) returns to the guide and advances it, so the host no longer
+        // pays Back-then-Next for what a joiner does in one press
+        // (playtest round 2).
+        FooterButtons.Add(new FooterButtonViewModel("Continue", ContinueCommand, isPrimary: true));
     }
-
-    /// <summary>Organizers return to their guide instead; they have their own step.</summary>
-    public bool ShowContinue => !IsOrganizerContext;
 
     public ICommand SaveYamlCommand { get; }
 
@@ -442,6 +1132,14 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     /// not sending anything to anybody.
     /// </summary>
     public bool ShowJoinerHandoff => !IsOrganizerContext;
+
+    // An organizer reaches this screen too, and telling them to send their file
+    // "to your host" is telling them to post it to themselves. The panels either
+    // side of this already switch on context; this line was loose text and got
+    // missed when they did (fafa8cb).
+    public string YamlPreviewHint => IsOrganizerContext
+        ? "This updates automatically from the settings above. Save it into your Players folder alongside everyone else's, or copy it if you would rather paste it in yourself."
+        : "This updates automatically from the settings above. Save or copy it to send the file to your host - your settings are remembered here either way.";
 
     /// <summary>Opens the folder holding the bundled RE4R.apworld.</summary>
     public System.Windows.Input.ICommand? OpenApworldFolderCommand { get; set; }
@@ -458,7 +1156,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     /// Continuing needs a usable slot name - it is the player's identity in
     /// the room, and the join step cannot be completed without it.
     /// </summary>
-    public bool CanContinue => CanUseYaml();
+    public bool CanContinue => CanUseYaml() && !HasIncludedContentError;
 
     // Archipelago silently truncates slot names to 16 characters at
     // generation time and refuses the reserved name - authoring an invalid
@@ -604,17 +1302,87 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             SelectedCheckGuidance = guidance;
         }
 
+        // Absent in older drafts -> mixed, which is also the apworld default.
+        var merchantChecks = MerchantChecksOptions.FirstOrDefault(
+            option => string.Equals(option.Value, draft.MerchantChecks, StringComparison.OrdinalIgnoreCase));
+        SelectedMerchantChecks = merchantChecks ?? MerchantChecksOptionList[0];
+
+        var markerDetail = MarkerDetailOptions.FirstOrDefault(
+            option => string.Equals(option.Value, draft.MarkerDetail, StringComparison.OrdinalIgnoreCase));
+        if (markerDetail is not null)
+        {
+            SelectedMarkerDetail = markerDetail;
+        }
+
         DeathLink = draft.DeathLink;
         AllowMissableLocations = draft.AllowMissableLocations;
         ShuffleKeycards = draft.ShuffleKeycards;
+        // Prefer the three-way; Toggle-era drafts carry only the bool, and
+        // true meant both switches (upgrades rode BioRand's default), so it
+        // migrates to full.
+        var weaponRandomization = WeaponRandomizationOptions.FirstOrDefault(
+            option => string.Equals(option.Value, draft.WeaponRandomization, StringComparison.OrdinalIgnoreCase));
+        SelectedWeaponRandomization = weaponRandomization
+            ?? (draft.RandomWeaponStats ? WeaponRandomizationOptionList[2] : WeaponRandomizationOptionList[0]);
+        // ?? is the whole point of these being nullable: absent means the
+        // draft predates the option, so the DEFAULT applies rather than the
+        // zero value the field would otherwise deserialize to.
+        ShuffleMerchantGear = draft.ShuffleMerchantGear ?? true;
+        StartingArsenal = draft.StartingArsenal ?? DefaultStartingArsenal;
+        // Null/absent means every type: drafts predating the option, or an
+        // untrimmed set (which is never persisted).
+        var draftArsenalTypes = draft.StartingArsenalTypes;
+        foreach (var option in StartingArsenalTypeOptions)
+        {
+            option.IsSelected = draftArsenalTypes == null || draftArsenalTypes.Contains(option.Key);
+        }
         MinimizeBacktracking = draft.MinimizeBacktracking;
         RandomEvents = draft.RandomEvents;
-        Tutorial = draft.Tutorial;
+        // A saved 0 means it was switched off; keep the slider on a sensible
+        // number so switching it back on is not a fresh decision.
+        var draftMerchantRate = draft.MerchantChecksPerChapter;
+        MerchantChecksEnabled = draftMerchantRate is null || draftMerchantRate > 0;
+        MerchantChecksPerChapter = draftMerchantRate is > 0 ? draftMerchantRate.Value : 3;
+        // Null means a draft from before the control existed: take the
+        // apworld default rather than reading absence as off.
+        var draftTradeRate = draft.TradeChecksPerChapter;
+        TradeChecksEnabled = draftTradeRate is not 0;
+        TradeChecksPerChapter = draftTradeRate is > 0 ? draftTradeRate.Value : 3;
+        IncludeSeparateWays = draft.IncludeSeparateWays && _separateWaysUnlocked;
+        IncludeMainCampaign = draft.IncludeMainCampaign && !IncludeSeparateWays;
+        IncludeMercenaries = draft.IncludeMercenaries;
+        // A draft saved by the Mercenaries branch build carried the mode as
+        // one string; land it on the checkboxes once.
+        if (!string.IsNullOrWhiteSpace(draft.LegacyGameMode))
+        {
+            var legacy = draft.LegacyGameMode.Trim().ToLowerInvariant().Replace(' ', '_');
+            IncludeMercenaries = legacy.Contains("mercenaries", StringComparison.Ordinal);
+            IncludeMainCampaign = !legacy.StartsWith("mercenaries_only", StringComparison.Ordinal);
+        }
+        // A returning player who ANSWERED page 1 does not get asked again: land
+        // on the settings with the content shown compact at the top.
+        //
+        // Answered means both halves. Checking the content alone skipped the
+        // gate for a draft carrying a content default and no slot name, which
+        // dropped the player on a settings page whose Continue could never
+        // light up and hid the one field that would fix it (Cam, live
+        // 2026-09-07, first run of this build). CanContinue is the same gate
+        // page 1's own Continue uses, so the two cannot disagree.
+        if (CanContinue)
+        {
+            CurrentPage = YamlEditorPage.Settings;
+        }
+        MercenariesRankCeilingIndex = MercenariesRankIndexFor(draft.MercenariesRankCeiling, 2);
+        MercenariesRankFloorIndex = MercenariesRankIndexFor(draft.MercenariesRankFloor, 0);
+        MercenariesProgression = draft.MercenariesProgression;
         var selected = new HashSet<string>(draft.UnlockedTypewriterStageIds, StringComparer.Ordinal);
         foreach (var option in TypewriterOptions)
         {
             option.IsSelected = selected.Contains(option.StageId);
         }
+
+        ItemSelection.ApplySelection(draft.LocalItems, draft.NonLocalItems);
+        LocationSelection.ApplySelection(draft.ExcludeLocations, draft.PriorityLocations);
 
         StatusText = $"Restored your saved settings from {draft.SavedAtUtc.ToLocalTime():yyyy-MM-dd HH:mm}.";
     }
@@ -644,16 +1412,40 @@ public sealed class ConfigureYamlViewModel : ObservableObject
                 draft.Difficulty = SelectedDifficulty;
                 draft.ProgressionBalancing = ProgressionBalancing;
                 draft.CheckGuidance = SelectedCheckGuidance.Value;
+                draft.MerchantChecks = SelectedMerchantChecks.Value;
+                draft.MarkerDetail = SelectedMarkerDetail.Value;
                 draft.DeathLink = DeathLink;
                 draft.AllowMissableLocations = AllowMissableLocations;
                 draft.ShuffleKeycards = ShuffleKeycards;
+                draft.WeaponRandomization = SelectedWeaponRandomization.Value;
+                // Toggle-era mirror so an older launcher reading this draft
+                // still sees the right half of the choice.
+                draft.RandomWeaponStats = SelectedWeaponRandomization.Value != "off";
+                draft.ShuffleMerchantGear = ShuffleMerchantGear;
+                draft.StartingArsenal = StartingArsenal;
+                var trimmedArsenalTypes = TrimmedArsenalTypeKeys();
+                draft.StartingArsenalTypes = trimmedArsenalTypes.Count > 0
+                    ? trimmedArsenalTypes.ToList()
+                    : null;
                 draft.MinimizeBacktracking = MinimizeBacktracking;
                 draft.RandomEvents = RandomEvents;
-                draft.Tutorial = Tutorial;
+                draft.MerchantChecksPerChapter = MerchantChecksEnabled ? MerchantChecksPerChapter : 0;
+                draft.TradeChecksPerChapter = TradeChecksPerChapterEffective;
+                draft.IncludeMainCampaign = IncludeMainCampaign;
+                draft.IncludeMercenaries = IncludeMercenaries;
+                draft.IncludeSeparateWays = IncludeSeparateWays;
+                draft.MercenariesRankFloor = MercenariesRankFloorValue;
+                draft.MercenariesRankCeiling = MercenariesRankCeilingValue;
+                draft.MercenariesProgression = MercenariesProgression;
+                draft.LegacyGameMode = null;
                 draft.UnlockedTypewriterStageIds = TypewriterOptions
                     .Where(option => option.IsSelected)
                     .Select(option => option.StageId)
                     .ToList();
+                draft.LocalItems = ItemSelection.BuildFirstList().ToList();
+                draft.NonLocalItems = ItemSelection.BuildSecondList().ToList();
+                draft.ExcludeLocations = LocationSelection.BuildFirstList().ToList();
+                draft.PriorityLocations = LocationSelection.BuildSecondList().ToList();
                 draft.YamlText = BuildYaml();
             });
             DraftSaved?.Invoke();
@@ -677,17 +1469,45 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             Difficulty = SelectedDifficulty.Trim().ToLowerInvariant(),
             ProgressionBalancing = ProgressionBalancing,
             CheckGuidance = SelectedCheckGuidance.Value,
+            MarkerDetail = SelectedMarkerDetail.Value,
             DeathLink = DeathLink,
             AllowMissableLocations = AllowMissableLocations,
             ShuffleKeycards = ShuffleKeycards,
+            WeaponRandomization = SelectedWeaponRandomization.Value,
+            ShuffleMerchantGear = ShuffleMerchantGear,
+            StartingArsenal = ShuffleMerchantGear ? StartingArsenal : 0,
+            StartingArsenalTypes = TrimmedArsenalTypeKeys(),
             MinimizeBacktracking = MinimizeBacktracking,
             RandomEvents = RandomEvents,
-            Tutorial = Tutorial,
+            MerchantChecksPerChapter = MerchantChecksEnabled ? MerchantChecksPerChapter : 0,
+            TradeChecksPerChapter = TradeChecksPerChapterEffective,
+            MerchantChecks = SelectedMerchantChecks.Value,
+            IncludeMainCampaign = IncludeMainCampaign,
+            IncludeMercenaries = IncludeMercenaries,
+            IncludeSeparateWays = IncludeSeparateWays,
+            MercenariesRankFloor = MercenariesRankFloorValue,
+            MercenariesRankCeiling = MercenariesRankCeilingValue,
+            MercenariesProgression = MercenariesProgression,
             UnlockedTypewriterStageIds = TypewriterOptions
                 .Where(option => option.IsSelected)
                 .Select(option => option.StageId)
                 .ToArray(),
+            LocalItems = ItemSelection.BuildFirstList(),
+            NonLocalItems = ItemSelection.BuildSecondList(),
+            ExcludeLocations = LocationSelection.BuildFirstList(),
+            PriorityLocations = LocationSelection.BuildSecondList(),
         };
+    }
+
+    private void OnSelectionChanged()
+    {
+        if (_isRestoring)
+        {
+            return;
+        }
+
+        RebuildYamlPreview();
+        QueueDraftSave();
     }
 
     private void RebuildYamlPreview()
@@ -708,6 +1528,62 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             RebuildYamlPreview();
             QueueDraftSave();
         }
+    }
+
+    private void OnArsenalTypeOptionPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (string.Equals(e.PropertyName, nameof(ArsenalTypeOptionViewModel.IsSelected), StringComparison.Ordinal))
+        {
+            RebuildYamlPreview();
+            QueueDraftSave();
+        }
+    }
+
+    // Mirrors the apworld's StartingArsenalTypes valid_keys, which mirror
+    // BioRand's own starting-inventory pickers.
+    //
+    // The Rocket Launcher ("special") is GONE, not merely unticked: an
+    // infinite-ammo novelty has no business in an opening loadout, and the
+    // same gun is already stripped from the merchant's shelf under scatter for
+    // exactly that reason (Cam, 2026-08-21).
+    //
+    // Bolt Thrower and Arrows ship unticked. They are available, just not what
+    // you want handed to you at the start of a run.
+    private static IEnumerable<ArsenalTypeOptionViewModel> CreateArsenalTypeOptions()
+    {
+        (string Key, string Label, bool OnByDefault)[] entries =
+        [
+            ("handgun", "Handgun", true),
+            ("shotgun", "Shotgun", true),
+            ("smg", "SMG", true),
+            ("rifle", "Rifle", true),
+            ("magnum", "Magnum", true),
+            ("flame", "Flamethrower", true),
+            ("bolt", "Bolt Thrower", false),
+            ("arrow", "Arrows", false),
+        ];
+        foreach (var (key, label, onByDefault) in entries)
+        {
+            yield return new ArsenalTypeOptionViewModel
+            {
+                Key = key,
+                Label = label,
+                IsSelected = onByDefault,
+            };
+        }
+    }
+
+    // The YAML only carries the type list when the player trimmed it: the
+    // full set is the apworld default, and the key would churn every YAML.
+    private IReadOnlyList<string> TrimmedArsenalTypeKeys()
+    {
+        var selected = StartingArsenalTypeOptions
+            .Where(option => option.IsSelected)
+            .Select(option => option.Key)
+            .ToArray();
+        return selected.Length == StartingArsenalTypeOptions.Count
+            ? []
+            : selected;
     }
 
     /// <summary>
@@ -762,6 +1638,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         _copyYamlCommand.NotifyCanExecuteChanged();
         // The shell watches CanContinue to gate the footer's Continue.
         OnPropertyChanged(nameof(CanContinue));
+        _continueToSettingsCommand.NotifyCanExecuteChanged();
     }
 
     private static int SoftSnapProgressionBalancing(int value)
@@ -822,4 +1699,10 @@ public sealed class ConfigureYamlViewModel : ObservableObject
 /// player and the underlying apworld option key (off / markers / markers_rarity)
 /// written into the YAML.
 /// </summary>
-public sealed record CheckGuidanceOption(string Label, string Value);
+public sealed record CheckGuidanceOption(string Label, string Value, string Short);
+
+public sealed record MerchantChecksOption(string Label, string Value, string Short);
+
+public sealed record WeaponRandomizationOption(string Label, string Value, string Short);
+
+public sealed record MarkerDetailOption(string Label, string Value, string Short);

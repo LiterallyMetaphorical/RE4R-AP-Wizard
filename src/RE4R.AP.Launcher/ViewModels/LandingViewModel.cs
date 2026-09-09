@@ -13,12 +13,17 @@ namespace RE4R.AP.Launcher.ViewModels;
 /// </summary>
 public sealed class LandingViewModel : ObservableObject
 {
-    private const string OkBackground = "#D9F2E3";
-    private const string OkBorder = "#9CD6B4";
-    private const string WarnBackground = "#FFF4D6";
-    private const string WarnBorder = "#E8C97A";
-    private const string NeutralBackground = "#EFEFEF";
-    private const string NeutralBorder = "#D4D4D4";
+    // These are THEME RESOURCE KEYS, not colours. Each front end resolves
+    // them against its own palette, so the same view model drives the
+    // Windows light/dark themes and the Linux look without knowing about
+    // either. Every name here must exist in Themes/Light.xaml and
+    // Themes/Dark.xaml.
+    private const string OkBackground = "SuccessBackgroundBrush";
+    private const string OkBorder = "SuccessBorderBrush";
+    private const string WarnBackground = "WarningBackgroundBrush";
+    private const string WarnBorder = "WarningBorderBrush";
+    private const string NeutralBackground = "SurfaceAltBrush";
+    private const string NeutralBorder = "SubtleBorderBrush";
 
     private string _blockingIssuesText = string.Empty;
     private bool _isBannerVisible;
@@ -341,5 +346,21 @@ public sealed class LandingViewModel : ObservableObject
             ? DefaultDraftPrimaryButtonText
             : primaryButtonText;
         IsDraftVisible = !string.IsNullOrWhiteSpace(draftText);
+    }
+
+    /// <summary>
+    /// Re-announce the themed brush properties after a theme switch.
+    /// </summary>
+    /// <remarks>
+    /// These properties carry a theme resource KEY, so their value does not
+    /// change when the theme does - only what the key resolves to. The Windows
+    /// front end converts key to brush at binding time, and a binding has no
+    /// reason to re-run on its own, so it has to be told. No WPF here on
+    /// purpose: this is just a property-changed nudge.
+    /// </remarks>
+    public void RefreshThemedBrushes()
+    {
+        OnPropertyChanged(nameof(BannerBackground));
+        OnPropertyChanged(nameof(BannerBorder));
     }
 }

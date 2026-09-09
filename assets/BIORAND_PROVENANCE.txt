@@ -19,7 +19,24 @@ HISTORY SQUASHED 2026-08-10: the fork's branch was flattened to a single commit,
                 .cs/.csv/.json, so the SHA-256 below still describes the code
                 that is on the branch today. Keep the old ids for the reasoning
                 they carry; treat 703e59a as the citable source commit.
-Source commit:  05f581e (2026-08-06: FORCED EVENTS - BioRand takes its event
+Source commit:  b2cdd94 (2026-09-05 the welcome note, third edition; see the REBUILD entries below)
+HISTORY REWRITTEN 2026-09-03: the unpushed fork commits (2026-08-24 onward) were
+                squashed by scope and re-worded in plain language before review.
+                Every id cited in the REBUILD entries below is OFF-BRANCH now (still
+                reachable by hash in a local clone); the code is unchanged, the final
+                tree was verified byte-identical. Old id -> new id:
+                78a8a5f..6b2ac16 (23 commits) -> a0c6123  Add a save desk at the spawn, with the welcome note on it
+                c667850 -> bf28fab  Starting attachments go in the case with the starting guns
+                8d0e693..54d8bee (3 commits) -> 64ca726  The welcome note covers the whole mod
+                1d579eb -> 116351e  Bonus weapons in the pool cannot be bought from the Extra Content shop
+                5cb02e2 -> 701452a  The trade tab only draws Leon's treasures
+                53d5ef1 -> 2fd1c33  Every check row carries the [AP] tag
+                af00f80 -> a3abf73  The Trade tab sells multiworld checks
+                1b73404 -> 77ddfd1  A starting rifle starts with its scope
+                aaa67e6 -> 5691e40  Empty trade slots say Nothing to Trade
+                1f01b44..bc6a2a1 (2 commits) -> d9a1062  Trade tiles show a model, and both tabs name items the same way
+                84d18ed -> 1f86519  Key items show their model on the merchant
+Previous:       05f581e (2026-08-06: FORCED EVENTS - BioRand takes its event
                 set from the multiworld. The apworld rolls the Village event
                 set at generation time and the launcher pins it in as
                 ap-forced-events, with an event-data hash so a drifted
@@ -150,11 +167,468 @@ Source commit:  05f581e (2026-08-06: FORCED EVENTS - BioRand takes its event
                 DLC entitlement needed). Includes b27f7ac (drop-catalog fix)
                 and 90140f0 (purity gates).)
 Publish:        -c Release -r win-x64 --self-contained -p:PublishSingleFile=true (net10.0)
-biorand-re4r.exe SHA-256: 9c1699d0034e082d3ef028ce079f525b371e98a05b6c442e23b40735f9d64b1c
-ProductVersion: 1.0.0+05f581e7cdf1c912869903a760539cdebb1c7bac (the launcher
-                writes this into version_stamp.json, and a change here is what
-                triggers the one-time setup cache re-harvest)
+biorand-re4r.exe SHA-256: 72675fc4fd5df498154e12dc6fb2c608a00bec2bb3e6b8e879b4ca024cddca81
+ProductVersion: 1.0.0+b2cdd94 (the launcher writes this into version_stamp.json,
+                and a change here is what triggers the one-time setup cache
+                re-harvest)
 Built with:     .NET SDK 10.0.301
+
+REBUILD 2026-09-06 (second)
+  Source commit: a13083f  (biorand-re4r-ap, ap-manifest-input)
+  exe SHA-256:   55989ddf81937cd3
+  Why:           the first attempt wrote the difficulty onto one catalog row
+                 per item, and the catalog holds more than one; the game read
+                 an untouched row and the shelf stayed Standard. Every row for
+                 an item now gets the stock rule.
+
+REBUILD 2026-09-06
+  Source commit: e274bf4  (biorand-re4r-ap, ap-manifest-input)
+  exe SHA-256:   3ee924a124e785c7323f3b87d49bd85243919b3bc615da4f40f97c56ac49ceba
+  Why:           the merchant's shelf is written for the difficulty the room
+                 is played on. A shop row carries one stock setting and the
+                 game only honours it on a matching difficulty, so every
+                 shelf held a single unit of everything on anything but
+                 Standard. Price settings now cover all four difficulties too.
+
+REBUILD 2026-09-05 fourth (b2cdd94)
+    The welcome note, third edition.
+      * PlaceWelcomeDocument's Content regenerated from the apworld's
+        data/welcome_note.txt by welcome_note.py: the Starting Arsenal page no
+        longer says the bonus weapons need a settings-file permission (the
+        option is gone in apworld 0.7.4). Text only; no data or placement
+        change.
+    Offline verify: library builds clean; payload restaged, launcher tests pass
+    (54); the note harness passes (20 pages).
+    biorand-re4r.exe SHA-256: 72675fc4fd5df498154e12dc6fb2c608a00bec2bb3e6b8e879b4ca024cddca81
+
+REBUILD 2026-09-05 third (71d597a)
+    The bonus trio never sells in an AP room, and mode 1 places the extra merchants.
+      * StripExtraContentConversions strips the Extra Content shop entries of
+        the Chicago Sweeper, the Handcannon and the Primal Knife in EVERY AP
+        room, scattered or not. The in-game mod vetoes the game's grant of the
+        three everywhere (MOD 2026.09.05-88) and the bonus_weapons consent
+        option is gone (apworld 0.7.4: the trio scatter with the rest of the
+        gear), so a 50,000 purchase would have handed over nothing.
+      * GimmickPlaceModifier keeps the Biorand_Merchant / Biorand_MerchantTorch
+        placements in mode 1 (Cam, 2026-09-05: extra merchants everywhere,
+        they are shop access for the AP economy and cannot touch a check).
+        Every other extra still stays out of mode 1; the extra-merchants key
+        still switches them off.
+    Offline verify: library builds clean; payload restaged, launcher tests pass
+    (54). Live confirm owed with the 0.7.4 room (checklist 25).
+    biorand-re4r.exe SHA-256: df8146f4c397b20a6ff8ce1790ea4c50b9faa4c44ccc87f5e60a37855598fe8c
+
+REBUILD 2026-09-05 second (9ab06de)
+    The welcome note, second edition.
+      * PlaceWelcomeDocument's Content is Cam's rewrite for v0.6.0-beta,
+        generated from the apworld's data/welcome_note.txt by welcome_note.py
+        (the same text feeds the mod's welcome-note window). Text only; no
+        data or placement change.
+    Offline verify: library builds clean; payload restaged, launcher tests pass.
+    biorand-re4r.exe SHA-256: e3b364d1b515dd24054b69cc79dd3f3496bc02e0d881898c42444f2026b7d5d2
+
+REBUILD 2026-09-05 (b7343ff)
+    A remote check's caption says the refund is spinel.
+      * The buy-tab caption baked for another player's check read "refunds
+        a gemstone of equal value"; the refund rework (MERCHANT_TRADE_DESIGN.md
+        4.6, built 2026-09-05 across apworld 7eb0967 / mod 2026.09.05-85 /
+        launcher 2c596e8) pays 1 / 3 / 6 spinel by tier, so the caption says
+        "refunds you in spinel". Text only; no data or placement change.
+    Offline verify: library builds clean; the payload restaged and the launcher
+    tests pass (53). Live confirm owed with the rest of the release.
+    biorand-re4r.exe SHA-256: c28f14cbc9f32a068194be8da85cf7ef7fbf552db446f0a52379544c2bab8612
+
+REBUILD 2026-09-03 (84d18ed)
+    Key items show their model on the merchant.
+      * MintShopModelsForLocalItems: a local check holding a key item showed
+        nothing on either tab (vanilla never sells key items, so they have no
+        shop model entry). Every such item now gets a shop prefab minted from
+        the fuel-canister donor with the mesh and material read from the
+        item's valuables-tab prefab, a row in both main model tables, and a
+        framing row cloned from the Level 3 Keycard's. Items with nothing to
+        borrow (bonus weapons, the gold case) stay on the AP logo; the mod
+        (2026.09.03-77) refuses to swap a row to an item the game cannot
+        model.
+      * 17 of the 28 key items needed this; the other 11 already had vanilla
+        entries.
+    Offline verify: library builds clean; harness over the real paks minted
+    all 17 with their own mesh (two use a _UI material, one a _10 mesh
+    variant), left the keycard that had an entry alone and the gold case to
+    the logo; staged and hash-verified by tools/stage_payload.py.
+    exe SHA-256: 95c7e3231ec9d8d6f6597b2bef3e75df92ed071e8cf18594e151f0a9a530e4c6
+    Prior exe SHA-256: 69d32c51882879cf8695c9a1dc1da2898092490703370b874b9c0f6938878b8d
+    Rebuilt the same day after the history rewrite (source 1f86519, same code):
+    exe SHA-256: d9f2a365b5122f3c00972f0a01a88cfcf6516c5b50e30d108541b12d40a7f835
+
+PAYLOAD 2026-09-03 second (exe unchanged, d9f2a365...)
+    Apworld eb609fa (world_version 0.7.2) and mod 2026.09.03-78 bring The
+    Mercenaries as multiworld content. The fork is untouched: rank checks
+    never enter the manifest, and a Mercenaries-only room installs no pak.
+    Staged with --skip-exe, hash-verified by tools/stage_payload.py.
+
+REBUILD 2026-09-02 third (bc6a2a1)
+    One shop prefab per stand-in.
+      * RepointStandinShopModels: every stand-in row used to point at the
+        one minted ingameshop_itemmodel_ap_check_00.pfb, verified in the
+        patched pak; the shop showed the AP logo model for exactly one
+        stand-in per session on the shelf and for none on the trade tab.
+        Now one file per stand-in, file and GameObject named after the
+        item id, minted only where absent so either tab can ask first.
+      * Pairs with mod 2026.09.02-68 (apworld b62c173): model probe and
+        icon rect/UV measurements on both tabs. Re-patch required; seeds
+        unchanged (apworld bytes identical).
+    Offline verify: library builds clean, 0 warnings; staged and
+    hash-verified by tools/stage_payload.py.
+    exe SHA-256: 69d32c51882879cf8695c9a1dc1da2898092490703370b874b9c0f6938878b8d
+    Prior exe SHA-256: fe67ffb9a7f91beb630f95f383f3032e064e7ccf7f4a8ba852140dd80facc600
+
+REBUILD 2026-09-02 second (1f01b44)
+    Give the trade tiles a model, and one name rule for both tabs.
+      * ApplyTradeTab: trade stand-ins get the shelf's full model recipe
+        (AO shop-model entry copy + repoint to the minted AP prefab), so the
+        tab instantiates a model for them at all; the mod swaps a local
+        tile to its real item and frames the AP logo on the rest. The prefab
+        mint is guarded, once per patch whichever tab asks first.
+      * BakeTradeText no longer appends the owner: the launcher shapes
+        both tabs' names with one rule (own item plain, "<player>'s <item>"
+        for a remote one) and the fork bakes it behind the [AP] tag.
+      * Pairs with mod 2026.09.02-67 (apworld 7bed242): buy-panel captions
+        for local checks via registerCaptionSetting (diagnostic logged),
+        trade model swap/placement, Emerald icon diagnostic. Re-patch
+        required; seeds unchanged (apworld bytes identical).
+    Offline verify: library builds clean, 0 warnings; staged and
+    hash-verified by tools/stage_payload.py.
+    exe SHA-256: fe67ffb9a7f91beb630f95f383f3032e064e7ccf7f4a8ba852140dd80facc600
+    Prior exe SHA-256: 1644e6642edfe8e0c10c487f73a0b825b9e876487919ea82ba260fda286dbf83
+
+REBUILD 2026-09-02 (aaa67e6)
+    Give the empty trade slot something honest to say.
+      * BakeTradeText: the per-slot baseline is now the EMPTY-slot text
+        ("[AP] Nothing to Trade" / "Nothing to Trade here yet, Stranger -
+        come find me again later for more."), baked ONCE at the GUIDs the
+        launcher carries in ap-trade-shop (empty-name-msg-guid /
+        empty-caption-msg-guid) so the mod can point a parked slot back
+        at it. A manifest without them bakes at fresh GUIDs (pre-fix look).
+      * Check captions are the buy tab's line; "Merchant" capitalised on
+        both tabs (Cam, 2026-09-02).
+      * Pairs with mod 2026.09.02-66 (apworld 9e54a1a): empty slots are
+        PARKED as already-received (Option A), text dressing routed to the
+        item message manager, stable assignment, Invalid-read guard.
+        Needs a re-patch; seeds unchanged (apworld bytes identical).
+    Offline verify: library builds clean, 0 warnings; staged and
+    hash-verified by tools/stage_payload.py.
+    exe SHA-256: 1644e6642edfe8e0c10c487f73a0b825b9e876487919ea82ba260fda286dbf83
+    Prior exe SHA-256: 8744832f28ef87af6c770ff6a3ff91112d1fccede36deaaa94a70c5dc76e84c0
+
+REBUILD 2026-09-01 (1b73404) - RECORDED LATE
+    Two rebuilds went unrecorded here on 2026-09-01: af00f80 "Take over
+    the Trade tab" (the fork's ApplyTradeTab: strip every vanilla one-shot
+    row, mint 7 check slots at reward ids 0-6, gems, Velvet Blue, Gold
+    Token, baked text; exe prefix b289462b per HANDOFF_SESSION_20260831.md,
+    full hash not kept) and then 1b73404 "Give the starting scope its
+    Start discovery" (the starting-arsenal scope fix), which is the exe
+    below and the payload Cam's -59 to -65 sessions ran on.
+    exe SHA-256: 8744832f28ef87af6c770ff6a3ff91112d1fccede36deaaa94a70c5dc76e84c0
+    Prior exe SHA-256: b289462b (prefix only; af00f80), before that
+                       8fbfdc566e5fe5d960efe23b5a9180a348543e6281240532bf475af9b14aa2e3
+
+REBUILD 2026-08-31 (54d1853) - SPIKE REVERTED, CLEAN AGAIN
+    The 45-slot experiment is done and its build is out of circulation.
+    Verdicts recorded in MERCHANT_TRADE_DESIGN.md 4.6.5: the pak takes
+    45 slots (BioRand's 30 is prudence, not engine law), the manager
+    registered 33, the tab rendered 24, the per-save claim state has a
+    boundary near the mid-20s, runtime slot re-registration WORKS
+    (rotation is real, upsert-by-RewardId overlay semantics), and
+    notifyRecieveItem was REFUTED as the claim event - claim state is
+    polled via getRewardProgress instead. This exe is byte-equivalent
+    in behavior to the 53d5ef1 build.
+    exe SHA-256: 8fbfdc566e5fe5d960efe23b5a9180a348543e6281240532bf475af9b14aa2e3
+    Prior exe SHA-256: ab80cb97e78aa9f62f4ff0eca6b8cd89ff994f900ef7e2bca1488ad5e0155e78
+
+REBUILD 2026-08-28 third - SPIKE, TEMPORARY (470ab2e)
+    NEVER SHIPS TO A PLAYER. The over-30 trade-row experiment: every
+    trade tab pads to 45 distinct 1-spinel treasures so one live look
+    answers render/claim/save-survival past BioRand's uncommented
+    30-row cap (pairs with mod 2026.08.28-49's rotation-probe buttons).
+    Deployed to Cam's copies for the experiment session ONLY; the
+    commit reverts and the payload restages immediately after. If this
+    entry is the newest and no revert entry sits above it, the deploy
+    is stale mid-experiment - restage before anything ships.
+    exe SHA-256: ab80cb97e78aa9f62f4ff0eca6b8cd89ff994f900ef7e2bca1488ad5e0155e78
+    Prior exe SHA-256: 1872a4fffb72336fedb60c3e120bc1c701c669c6865e08c7f5755e93e20dd411
+
+REBUILD 2026-08-28 second (53d5ef1)
+    Every check row wears the tag.
+      * BakeCheckText: every baked check name now carries the [AP]
+        prefix, local rows included - reversing the 2026-08-16 "a row
+        wearing a real item needs no marking" rule. Rotation reversed
+        it (Cam): a check row is one-shot, sends a location when
+        bought, and re-labels into a different check after purchase,
+        so a row reading exactly like native stock lies three ways.
+        Local rows keep their real item's icon, model, and caption
+        behind the tag.
+      * Pairs with mod cf9d840 (MOD_VERSION 2026.08.28-48): the
+        runtime re-label now prefers the baked tagged name and keeps
+        borrowing the native caption for local rows. Baked halves need
+        a re-patch; runtime dressing covers rotated rows either way.
+    Offline verify: library builds clean, 0 warnings; staged and
+    hash-verified by tools/stage_payload.py.
+    exe SHA-256: 1872a4fffb72336fedb60c3e120bc1c701c669c6865e08c7f5755e93e20dd411
+    Prior exe SHA-256: bf523d11c27cff0c55713c5be94fc9b12786e0a3f30613bf9c0e03029d22efa8
+
+REBUILD 2026-08-28 (5cb02e2)
+    The knives batch rides one rebuild: attachments seated, the whole
+    welcome note, the Extra Content back door closed, the trade tab
+    filtered by campaign.
+      * c667850 seats the generator's starting attachments on both
+        inventory paths. Random Inventory's class dedupe is weapons-only
+        now so two rolled attachments both land, the stray
+        ammo-for-attachments quirk is gone, and the legacy arsenal roll
+        only runs for rooms whose manifest carries no attachment list.
+      * 8d0e693 + ca806f0 + 54d8bee bake Cam's welcome-note copy verbatim
+        (13 pages plus the title, BioRand's original pages restored after
+        the AP section) and true up the scope-guarantee gun list and the
+        arsenal count.
+      * 1d579eb strips the ExShop conversion rows for scattered bonus
+        guns (the 50k purchase route closes at the source; _ItemIds is
+        exactly the Sweeper/Handcannon/Primal trio) and pins the Combat
+        Knife as the starter on AP Random Inventory seeds.
+      * 5cb02e2 filters DistributeTreasures by SupportsCampaign, which
+        ends the "AP Multiworld Item for 3 spinels" trade row (the
+        placeholder is the repurposed SW - Glasses, an SW-exclusive) and
+        the wider Separate Ways treasure leak into Leon's trade tab.
+    Offline verify: library builds clean on .NET SDK 10.0.301, 0 warnings;
+    staged and hash-verified by tools/stage_payload.py.
+    LEDGER NOTE: the prior sha below is an UNRECORDED rebuild (the
+    2026-08-24 deploy; the desk-pair bake rounds through 6b2ac16, "Lift
+    the note out of the lid"). Both deployed copies carried it and agreed,
+    so it is recorded here to keep the chain honest.
+    exe SHA-256: bf523d11c27cff0c55713c5be94fc9b12786e0a3f30613bf9c0e03029d22efa8
+    Prior exe SHA-256: b4eb17435f5a3208572f155c1e135378de041f0fa25646f4e5e3b150a1d4965d
+
+REBUILD 2026-08-21 third (634b582)
+    The welcome note stands up at spawn.
+      * CORRECTION to the previous entry, which was wrong: there is no desk.
+        PlaceFileGimmick places the READABLE only - GimmickTemplate.Get pulls
+        one GameObject carrying a chainsaw.GmReadFile and nothing else. The
+        desk the note used to sit on is VANILLA scenery, the chapter 1
+        typewriter save point, and the original coordinates were chosen to
+        land the note on top of it. Moving the note therefore moved a note,
+        not a desk.
+      * At the new spot that left an interact prompt lying in the dirt at
+        floor height, which every player would walk past (Cam, live).
+      * Y raised about a metre to waist height and Pitch set to 90 so it
+        stands upright, broad face out, instead of lying flat.
+    Offline verify: library builds clean on .NET SDK 10.0.301, 0 warnings;
+    staged and hash-verified by tools/stage_payload.py.
+    NOT YET VERIFIED IN GAME: if it stands on the wrong axis, Roll is the
+    other candidate; if it faces away, Yaw is a single number.
+    exe SHA-256: 7f2d8e616910a86b8a26a3edc7c2d57c0e164c48974ef2b7366f844a3ba322d1
+    Prior exe SHA-256: c7c3852b59151f1ec238a8f92e4f17bafc1c0b6aecbd2e20e5e151bd0d8cfeeb
+
+REBUILD 2026-08-21 second (6a8ad72)
+    The welcome desk meets you at the start.
+      * FileModifier.PlaceWelcomeDocument moves from stage 40502 (the first
+        cabin) to 40501 (the opening area), a few feet from where Leon starts.
+        The getting-started guide explaining what Archipelago is had been
+        waiting a cabin away from the player who needed it.
+      * Position is runtime truth, not a guess: Cam stood on the spot and used
+        the Debug tab's Save Current Point, which wrote
+        40501,-255.909,5.218,32.103 into warp.csv.
+      * One transform drives the gimmick Transform, the StaticDataReadFile
+        position in the save table and the FindBestArea stage lookup, so the
+        desk prefab and the readable document move together.
+      * Yaw held at 45 on purpose so the first look is unambiguous about
+        whether POSITION is right. Expect a nudge or two on Y and Yaw.
+    Offline verify: library builds clean on .NET SDK 10.0.301, 0 warnings;
+    staged and hash-verified by tools/stage_payload.py.
+    NOT YET VERIFIED IN GAME: start a new run and look for the desk near spawn.
+    Watch for it sinking into the floor - Y is the height Cam's boots were at,
+    which assumes the prefab origin sits at its base.
+    exe SHA-256: c7c3852b59151f1ec238a8f92e4f17bafc1c0b6aecbd2e20e5e151bd0d8cfeeb
+    Prior exe SHA-256: 88d4e7400cc8aff3b8261ed378a205bcf9cdeac8b4587f4b5d03fbfb3886482b
+
+REBUILD 2026-08-21 (e743134)
+    The spinel trade gets randomized again.
+      * The launcher forces random-merchant off whenever the Archipelago
+        merchant owns the shelf, and that switch gated the WHOLE modifier.
+        SetRewards lives inside it, so an AP run shipped a VANILLA trade tab
+        while every other BioRand run got a randomized one. Nothing about
+        Archipelago wants to own Trade.
+      * Apply now also runs when the manifest carries a merchant shop, in a
+        rewards-only mode that skips InitializeShop and everything from SetShop
+        down. The four Distribute passes only fill _availableItems and write
+        nothing to the shop, so SetRewards keeps its full candidate list.
+      * random-merchant genuinely off with no AP merchant still randomizes
+        nothing, which is what that switch means to a base BioRand player.
+      * SetRewards refuses pool items up front. ApMerchantShopModifier strips
+        them afterwards either way, so rolling them just handed the player a
+        SHORTER trade tab than a non-AP run gets.
+    Offline verify: library and full solution build clean on .NET SDK 10.0.301,
+    0 warnings; staged and hash-verified by tools/stage_payload.py.
+    NOT YET VERIFIED IN GAME: open the merchant's Trade tab in an AP room and
+    confirm the spinel rows are not the vanilla set.
+    exe SHA-256: 88d4e7400cc8aff3b8261ed378a205bcf9cdeac8b4587f4b5d03fbfb3886482b
+    Prior exe SHA-256: a94286f5dfa09e3ad26b6281fbe03ea498860c39fcb9c1f6d8437050a08ecbb2
+
+REBUILD 2026-08-20 second (ddcfaf5)
+    Your starting arsenal picks the guns.
+      * A run that asks for a starting arsenal has already said how many guns
+        it wants, so RandomizeStartLoadout stops rolling a primary and a
+        secondary on top of them. InventoryModifier's class dedupe only ever
+        dropped a roll COLLIDING with an arsenal weapon's class, so a one-gun
+        arsenal opened the case with three: the arsenal shotgun, a rolled
+        handgun and a rolled rifle.
+      * The attachment roll survives and aims at the arsenal instead, so a
+        scope can still start on the gun the multiworld actually gave you.
+      * The knife roll is untouched. With no starting arsenal, nothing about
+        this path changes.
+      * Launcher side: inventory-weapon-primary/secondary grey out whenever
+        the manifest carries starting weapon ids, since they now choose the
+        class of rolls that never happen.
+    Offline verify: library and full solution build clean on .NET SDK 10.0.301,
+    0 warnings; staged and hash-verified by tools/stage_payload.py.
+    NOT YET VERIFIED IN GAME: confirm by starting a run with Starting Arsenal
+    at 1 and counting the guns in the opening case. One, plus the knife.
+    exe SHA-256: a94286f5dfa09e3ad26b6281fbe03ea498860c39fcb9c1f6d8437050a08ecbb2
+    Prior exe SHA-256: a3c3d2802e5cd0d569f934faac44612095a569e982cee0f5f4bc5c4a406616a3
+
+REBUILD 2026-08-20 (e125e4c)
+    The staples reach the shelf, and the bonus guns leave it.
+      * The staple restock was landing in the pak perfectly and appearing
+        nowhere. RE4R carries herbs, resources and gunpowder as SELL-ONLY rows
+        at _PurchasePrice -1 so the player can sell them, and the "vanilla
+        pricing wins" rule was faithfully preserving "not for sale". An
+        existing row now gets a purchase price when it has none and its unlock
+        condition cleared. _SellingPrice is left alone, so selling herbs stays
+        vanilla.
+      * The same mechanism, used on purpose, is what finally stops the
+        Handcannon and Chicago Sweeper. Clearing them from the purchase
+        categories emptied every real tab but not ALL, which is built from
+        shop.Items - confirmed live at 50,000 under ALL. Pooled ids are priced
+        at -1 now, so the row survives for selling and cannot be bought.
+      * Check rows carry a real description in the same "stranger" voice the
+        refund toast uses, and one row in 4096 says something else entirely.
+    Offline verify: publishes clean on .NET SDK 10.0.301; staged and
+    hash-verified by tools/stage_payload.py.
+    NOT YET VERIFIED IN GAME: no seed has been patched or played against this
+    exe. Sections 1 and 2 of LIVE_TEST_CHECKLIST_20260817.md are the tests it
+    owes, and the staples are the one to watch - they landed in the pak
+    correctly once before and still did not appear.
+    exe SHA-256: a3c3d2802e5cd0d569f934faac44612095a569e982cee0f5f4bc5c4a406616a3
+    Prior exe SHA-256: b6c4999d3bd42d0d9ff71bc2310acb88dc628cf098aa4955a10ec28c1fda4166
+
+REBUILD 2026-08-17 (d3d0bdd)
+    Slot rotation, and the shop sells consumables again.
+      * The shelf and the checks are separate lists in ap-merchant-shop now.
+        Rows are a display window with a FIXED tier each (so the price stays
+        baked and no runtime price call is needed), and a room can carry up to
+        ninety checks against at most twenty rows. The mod decides which check
+        a row is showing.
+      * Every check's name and caption are baked at message GUIDs the LAUNCHER
+        assigns, derived from the check identity, so the fork never reports
+        anything back and the mod finds the same text at runtime. A check
+        holding one of the player's own RE4R items skips the [AP] tag, because
+        the mod dresses that row as the real item.
+      * Staple restock: herbs, first aid, Resources, gunpowder and grenades
+        return to the buy tab at every chapter waypoint. ENSURE semantics
+        throughout - an item the shop already sells keeps its vanilla price and
+        only has its stock topped up, MaxStock is only ever raised, and an
+        existing addition is raised rather than duplicated. Ammo is
+        deliberately absent: it is crafted, and the multiworld now carries it.
+      * Refuses loudly on a manifest that cannot work, including a check whose
+        classification no row carries (it could never be displayed, which in
+        Archipelago is an unreachable location).
+      * spike-standin-item-id retired; the synthetic-id question is settled.
+    Offline verify: fork library builds clean, and a reflection probe against
+    the real assembly feeds it the exact JSON ManifestBuilder writes - parses,
+    and all six malformed shapes refuse with the right message (14/14).
+    NOT YET VERIFIED: no headless generation has run against this exe. The
+    first patch from the launcher is the smoke test; a throw would surface
+    there as a failed patch, not as a bad world.
+    exe SHA-256: b6c4999d3bd42d0d9ff71bc2310acb88dc628cf098aa4955a10ec28c1fda4166
+    Prior exe SHA-256: 7f3fd23571ef7848f52cae73f94dde25fdff2107eebe66dadbc8116b0a58334c
+
+REBUILD 2026-08-16 fourth (01ac858)
+    Starting Arsenal support: ap-start-weapons manifest ids parse into
+    ApManifestConfiguration and IsAmmoAvailableYet treats their ammo as
+    available from chapter zero, so drops match the guns the multiworld
+    put in the player's hands at connect.
+    exe SHA-256: 89681b1bfe02a9a8655291e84a5c312872cb9027109d2a7ae9b04aae55088d73
+    Prior exe SHA-256: 1bd03cb2f5b1892e4f2a10380ac188f52cb4cdb84ccb3274398c3147140188c0
+
+REBUILD 2026-08-16 third (b98ca49)
+    The shop-shelf root fix + scatter integrity. Check-slot stock additions
+    move to the chapter flag that actually fires (chapter-1 slots were a
+    chapter late; InGameShopUpdateFlagType enum 0 fires at campaign start)
+    and are written into all four difficulty buckets (the old first-bucket
+    write starved three difficulties). The ValuableDistributor bounces
+    AP-excluded ids to the Item bucket so pool gear can never materialize
+    as enemy drops, shop restocks, rewards or the starting loadout; the
+    distribution schedule (ammo pacing) is untouched. Offline verify:
+    regenerated Cam's exact 10:56 config/seed - 80 additions (20 slots x 4
+    difficulties) written.
+    exe SHA-256: 1bd03cb2f5b1892e4f2a10380ac188f52cb4cdb84ccb3274398c3147140188c0
+    Prior exe SHA-256: b26a9b3cf828907a3ecc84e681712503c3e2c77e07850f1fc697910971dad78f
+
+REBUILD 2026-08-16 second (725dba8)
+    The class lock (Cam's call: Familiar/Varied locked, Wild+ free, cows
+    exempt). With ap-class-lock in the config, SetClassPool intersects each
+    spawn's pool with its vanilla occupant's class members plus the exempt
+    classes; identityless vanilla kinds (designed bosses, NPCs) stay
+    unfiltered and an emptied pool keeps the vanilla enemy. LogEnemy grows a
+    trailing rolled/kept provenance marker (census splits on it; old-format
+    parsers unaffected, the marker rides the tolerant tail). Verified
+    offline: locked-Familiar census on the harvested cache (seed 4242)
+    rolled ONLY within-class identities (fodder families, 9 brutes /
+    7 chainsaws / 3 garradors in vanilla heavy spots, 114 exempt cows,
+    zero boss or dread kinds rolled); the kept column is exactly the
+    designed encounters.
+    exe SHA-256: b26a9b3cf828907a3ecc84e681712503c3e2c77e07850f1fc697910971dad78f
+    Prior exe SHA-256: 6f39dc27495b32e272849005e369a726da66ea22f56f52517f4246aa0c6f5630
+
+REBUILD 2026-08-16 (01f8782)
+    Enemy spawn gates (ENEMY_CLASS_DESIGN.md). When the manifest carries an
+    ap-enemy-gates section, a post-pass behind EnemyModifier echoes every
+    rolled spawn in a gated class (controller GUID + spawn-param component)
+    into ap_enemy_gates.json for the launcher/mod; the mod then holds those
+    spawns until the named AP item is possessed. Dormant without the config
+    section, and vanilla spawns are never listed. Also adds tools/
+    enemy_census.py (headless roster tallies; the numbers behind the enemy
+    preset retune). Verified offline: a Menacing-ratio config on the
+    harvested cache (seed 4242) emitted 29 dread spawns across 28 distinct
+    controllers, zero orphans, all GUIDs well-formed, including a chapter 1
+    village regenerador (the exact case the gate exists for).
+    exe SHA-256: 6f39dc27495b32e272849005e369a726da66ea22f56f52517f4246aa0c6f5630
+    Prior exe SHA-256: 35e8892cc71fda2889e39f48169f0526516da5574a45793d17e1cc960c0148c2
+
+REBUILD 2026-08-14 (5a7c369)
+    The live test's empty AP shelf. The check rows existed in the pak with
+    DefaultStock 1, but stock-enabled rows only ever draw shelf stock from
+    the per-waypoint addition table (every vanilla stocked item starts at 0),
+    so the rows never reached the shelf. Each slot now gets +1 stock at its
+    unlock waypoint and DefaultStock stays 0. Verified offline: regenerated
+    the exact live config/seed and diffed the shop userdata - all 22 slots
+    stocked at their waypoints, rows otherwise unchanged.
+    Prior exe SHA-256: 3e87e16b66c5e0b5687df1f4745ad3a19de9feb16f3bb9ea5ff92e3552da318e
+
+REBUILD 2026-08-13 (2e59593)
+    Staged by tools/stage_payload.py, which is now the only supported way to
+    build this payload. It refuses to run against uncommitted tracked changes
+    and checks every staged file against its source afterwards.
+    Contents new since the 2026-08-06 exe:
+      * snow's weapon-modifier crash fix (PR #1), merged, plus the follow-up
+        that stops a missing upgrade template killing every seed.
+      * The in-game welcome file is an Archipelago getting-started guide, in
+        every AP preset.
+      * Blasphemer's Head corrected to stage 46110 in items.csv.
+      * The AP merchant shop post-pass, which adds multiworld checks to the
+        merchant's buy tab. Dormant unless the manifest carries an
+        ap-merchant-shop section, so an ordinary seed is unaffected.
+    Gate: 15 seeds generated clean on the config that reproduced the crash,
+    plus 5 more after the merchant merge to confirm it no-ops when off.
+    NOTE: generation is not byte-reproducible for a fixed seed, so pak size is
+    no use as a regression signal.
 
 DOOR LOCKS ARE BANNED IN AP MODE - DO NOT "FIX" THIS
     LockDoor/LockShutter CREATE a lock component vanilla does not have, keyed to
@@ -252,3 +726,17 @@ Prior payload:  66b92490a53674bab7e5d95fd3a31805226a76272fa406127cc7ec94cd3c5166
                 (commit a309282) - ap-mode gates skipped modifiers wholesale.
                 12cf330e7cb2227532ca5e1e62ada57fdd4e927ba9b4b79567573a50e22e0460
                 (commit 7241cff) - full setup+generation verified end-to-end.
+                2fbfa8cea32746f83cd803f411e4293bd64f90ce91f76f90fa4e61ec10e272f0
+                (commit c8bba01) - starting arsenal placed in the opening case
+                on both inventory paths; pooled guns barred from world
+                valuables and from veteran-account shop rows.
+                a8c3af456aed99bd0e2e85425c223bc1cfb920adbe4cd1f7b348973e55cc49af
+                (commit 64b9f43) - stand-in shop rows point at a minted
+                main-campaign prefab framing the AP logo.
+                36d84b23b2214d782c7fbf003565d40a0f5542d2938b356a89b7b00c8e64f430
+                (commit 952163c) - check rows carry the [AP] name tag until
+                the stand-in id rework can give them icons.
+                7f3fd23571ef7848f52cae73f94dde25fdff2107eebe66dadbc8116b0a58334c
+                (commit a5b6812) - pooled guns leave the merchant's purchase
+                categories; the entitlement-driven bonus DLC guns were
+                purchasable at 50k on a fresh save under the old flag park.

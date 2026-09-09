@@ -6,7 +6,9 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Data;
 using Avalonia.Data.Converters;
 using Avalonia.Layout;
+using Avalonia.Controls.Templates;
 using Avalonia.Media;
+using RE4R.AP.Launcher.Models;
 using RE4R.AP.Launcher.ViewModels;
 
 internal sealed class MainWindow : Window
@@ -80,9 +82,13 @@ internal sealed class MainWindow : Window
                     },
                 },
             });
-        var logs = CommandButton("Open Log Folder", _viewModel.OpenLogFolderCommand);
-        Grid.SetColumn(logs, 1);
-        panel.Children.Add(logs);
+        var footerButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        footerButtons.Children.Add(
+            CommandButton("Generate Bug Report", _viewModel.GenerateBugReportCommand));
+        footerButtons.Children.Add(
+            CommandButton("Open Log Folder", _viewModel.OpenLogFolderCommand));
+        Grid.SetColumn(footerButtons, 1);
+        panel.Children.Add(footerButtons);
         return panel;
     }
 
@@ -221,15 +227,13 @@ internal sealed class MainWindow : Window
     private static Control LandingScreen(LandingViewModel vm)
     {
         var body = Screen("What would you like to do?", "Create or join a RE4R Archipelago multiworld.", vm);
-        // BannerBackground comes from the shared view-model as a light pastel,
-        // picked for the Windows light theme. Avalonia runs the dark theme, so
-        // its default near-white text on that background was close to unreadable
-        // - the banner has to pin its own dark foreground.
+        // BannerBackground is now a theme token the converter resolves to a DARK
+        // surface, so the default light text reads correctly and the old
+        // hardcoded dark foregrounds (needed when the view model handed out a
+        // light pastel) are gone.
         var bannerTitle = Text("BannerTitle", true, 18);
         var bannerBody = Text("BannerBody", true);
-        bannerTitle.Foreground = new SolidColorBrush(Color.Parse("#FF1A1A1A"));
         bannerTitle.FontWeight = FontWeight.SemiBold;
-        bannerBody.Foreground = new SolidColorBrush(Color.Parse("#FF33302A"));
         // The banner's own buttons need the same treatment as its text: the dark
         // theme styles them light-on-light against the pastel card.
         var bannerActions = Row(
@@ -301,12 +305,105 @@ internal sealed class MainWindow : Window
         slotError.Bind(IsVisibleProperty, Binding("HasSlotNameError"));
         body.Children.Add(slotError);
 
+        body.Children.Add(Label("Included content"));
+        body.Children.Add(Check("Main Campaign", "IncludeMainCampaign"));
+        body.Children.Add(Check("Mercenaries", "IncludeMercenaries"));
+        body.Children.Add(new TextBlock { Text = "Separate Ways [Coming Soon]", Opacity = 0.6 });
+        var includedContentError = Text("IncludedContentError", true);
+        includedContentError.Bind(IsVisibleProperty, Binding("HasIncludedContentError"));
+        body.Children.Add(includedContentError);
+        var mercRanksLabel = Label("Ranks as checks");
+        mercRanksLabel.Bind(IsVisibleProperty, Binding("IncludeMercenaries"));
+        body.Children.Add(mercRanksLabel);
+        var mercRanksSummary = Text("MercenariesRanksSummary", false);
+        mercRanksSummary.Bind(IsVisibleProperty, Binding("IncludeMercenaries"));
+        body.Children.Add(mercRanksSummary);
+        var mercFloor = new Slider { Minimum = 0, Maximum = 5, TickFrequency = 1, IsSnapToTickEnabled = true };
+        mercFloor.Bind(Slider.ValueProperty, new Binding("MercenariesRankFloorIndex") { Mode = BindingMode.TwoWay });
+        mercFloor.Bind(IsVisibleProperty, Binding("IncludeMercenaries"));
+        body.Children.Add(mercFloor);
+        var mercCeiling = new Slider { Minimum = 0, Maximum = 5, TickFrequency = 1, IsSnapToTickEnabled = true };
+        mercCeiling.Bind(Slider.ValueProperty, new Binding("MercenariesRankCeilingIndex") { Mode = BindingMode.TwoWay });
+        mercCeiling.Bind(IsVisibleProperty, Binding("IncludeMercenaries"));
+        body.Children.Add(mercCeiling);
+        var mercProgression = Check("Ranks may hold progression", "MercenariesProgression");
+        mercProgression.Bind(IsVisibleProperty, Binding("IncludeMercenaries"));
+        body.Children.Add(mercProgression);
+
+        body.Children.Add(Label("Difficulty"));
+        body.Children.Add(Combo("DifficultyOptions", "SelectedDifficulty"));
+        body.Children.Add(new TextBlock
+        {
+            Text = "Match this to the save you will actually play. Do not change difficulty mid-run: "
+                + "moving up to Hardcore can strand an item in a spot you are no longer able to pick up.",
+            TextWrapping = TextWrapping.Wrap,
+            FontSize = 12,
+        });
         // Two columns, matching the Windows pass. Stacking every setting in one
         // narrow column wasted the whole right-hand side and pushed the YAML
         // preview off the bottom of the window.
         var left = new StackPanel { Spacing = 10 };
-        left.Children.Add(Label("Difficulty"));
-        left.Children.Add(Combo("DifficultyOptions", "SelectedDifficulty"));
+        left.Children.Add(Section("THE MERCHANT"));
+        left.Children.Add(Label("Merchant checks per chapter"));
+        left.Children.Add(Text("MerchantChecksLabel"));
+        left.Children.Add(new Slider
+        {
+            Minimum = 0,
+            Maximum = 6,
+            IsSnapToTickEnabled = true,
+            TickFrequency = 1,
+            [!RangeBase.ValueProperty] = Binding("MerchantChecksPerChapter", BindingMode.TwoWay),
+        });
+        left.Children.Add(Label("Merchant checks"));
+        left.Children.Add(Combo("MerchantChecksOptions", "SelectedMerchantChecks", "Label"));
+        // [Trade takeover] The other half of the merchant. Same shape as the
+        // shelf slider above; the view model forces it to 0 when the gear
+        // shuffle is off, because the takeover is what empties the tab.
+        left.Children.Add(Label("Trade checks per chapter"));
+        left.Children.Add(Text("TradeChecksLabel"));
+        var tradeRow = new StackPanel { Spacing = 6 };
+        tradeRow.Children.Add(Check("Let the merchant trade checks for Spinel", "TradeChecksEnabled"));
+        tradeRow.Children.Add(new Slider
+        {
+            Minimum = 0,
+            Maximum = 3,
+            IsSnapToTickEnabled = true,
+            TickFrequency = 1,
+            [!RangeBase.ValueProperty] = Binding("TradeChecksPerChapter", BindingMode.TwoWay),
+        });
+        tradeRow.Bind(IsEnabledProperty, Binding("ShuffleMerchantGear"));
+        left.Children.Add(tradeRow);
+        left.Children.Add(Check("Shuffle merchant gear into the multiworld", "ShuffleMerchantGear"));
+        var arsenalRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        arsenalRow.Children.Add(new TextBlock { Text = "Starting arsenal:", VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center });
+        arsenalRow.Children.Add(Combo(nameof(ConfigureYamlViewModel.StartingArsenalChoices), nameof(ConfigureYamlViewModel.StartingArsenal), null));
+        arsenalRow.Bind(IsEnabledProperty, Binding("ShuffleMerchantGear"));
+        left.Children.Add(arsenalRow);
+        var arsenalTypesRow = new WrapPanel();
+        foreach (var option in vm.StartingArsenalTypeOptions)
+        {
+            arsenalTypesRow.Children.Add(new CheckBox
+            {
+                Content = option.Label,
+                DataContext = option,
+                Margin = new Thickness(0, 0, 12, 4),
+                [!ToggleButton.IsCheckedProperty] = Binding("IsSelected", BindingMode.TwoWay),
+            });
+        }
+        arsenalTypesRow.Bind(IsEnabledProperty, Binding("ShuffleMerchantGear"));
+        left.Children.Add(arsenalTypesRow);
+        left.Children.Add(new TextBlock
+        {
+            Text = "Random pool weapons already in the case, ammo to match, BioRand-style; each leaves the pool. The type boxes trim the draw (keep at least one). Needs the gear shuffle - without it, use BioRand's own starting-inventory options.",
+            TextWrapping = TextWrapping.Wrap,
+            Opacity = .65,
+        });
+        left.Children.Add(Label("Weapon randomization"));
+        left.Children.Add(Combo("WeaponRandomizationOptions", "SelectedWeaponRandomization", "Label"));
+        left.Children.Add(Section("WHERE THINGS END UP"));
+        left.Children.Add(Check("Allow missable locations", "AllowMissableLocations"));
+        left.Children.Add(Check("Minimize backtracking + side areas", "MinimizeBacktracking"));
+        left.Children.Add(Check("Shuffle keycards", "ShuffleKeycards"));
         left.Children.Add(Label("Progression balancing"));
         left.Children.Add(Text("ProgressionBalancingLabel"));
         left.Children.Add(new Slider
@@ -315,24 +412,13 @@ internal sealed class MainWindow : Window
             Maximum = 99,
             [!RangeBase.ValueProperty] = Binding("ProgressionBalancing", BindingMode.TwoWay),
         });
-        left.Children.Add(Label("Check guidance"));
-        left.Children.Add(Combo("CheckGuidanceOptions", "SelectedCheckGuidance", "Label"));
 
         var right = new StackPanel { Spacing = 10, Margin = new Thickness(20, 0, 0, 0) };
-        right.Children.Add(Label("Options"));
-        right.Children.Add(Check("Death Link", "DeathLink"));
-        right.Children.Add(Check("Allow missable locations", "AllowMissableLocations"));
-        right.Children.Add(Check("Shuffle keycards", "ShuffleKeycards"));
-        right.Children.Add(Check("Minimize backtracking + side areas", "MinimizeBacktracking"));
-        right.Children.Add(Label("Random Events (Experimental)"));
-        right.Children.Add(Check("Let the multiworld author BioRand's Random Events", "RandomEvents"));
-        right.Children.Add(new TextBlock
-        {
-            Text = "Off by default. On: the Village chapters gain scripted set-pieces that the multiworld itself picks when the room generates, so the logic reacts to them - a couple of checks can trade places, and one event can replace the Hexagonal Emblem pickup with a guardian enemy who drops the emblem. Experimental and lightly tested; the launcher's bundled BioRand applies your room's roll automatically at patch time.",
-            TextWrapping = TextWrapping.Wrap,
-            Opacity = .72,
-        });
-        right.Children.Add(Check("Show the in-game getting-started guide", "Tutorial"));
+        right.Children.Add(Section("HELP WHILE YOU PLAY"));
+        right.Children.Add(Label("Check guidance"));
+        right.Children.Add(Combo("CheckGuidanceOptions", "SelectedCheckGuidance", "Label"));
+        right.Children.Add(Label("Marker detail"));
+        right.Children.Add(Combo("MarkerDetailOptions", "SelectedMarkerDetail", "Label"));
         right.Children.Add(Label("Typewriter locations"));
         foreach (var option in vm.TypewriterOptions)
         {
@@ -343,12 +429,28 @@ internal sealed class MainWindow : Window
                 [!ToggleButton.IsCheckedProperty] = Binding("IsSelected", BindingMode.TwoWay),
             });
         }
+        right.Children.Add(Section("EXTRAS"));
+        right.Children.Add(Check("Death Link", "DeathLink"));
+        right.Children.Add(Label("Random Events (Experimental)"));
+        right.Children.Add(Check("Let the multiworld author BioRand's Random Events", "RandomEvents"));
+        right.Children.Add(new TextBlock
+        {
+            Text = "Off by default. On: the Village chapters gain scripted set-pieces that the multiworld itself picks when the room generates, so the logic reacts to them - a couple of checks can trade places, and one event can replace the Hexagonal Emblem pickup with a guardian enemy who drops the emblem. Experimental and lightly tested; the launcher's bundled BioRand applies your room's roll automatically at patch time.",
+            TextWrapping = TextWrapping.Wrap,
+            Opacity = .72,
+        });
 
         var columns = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*") };
         Grid.SetColumn(right, 1);
         columns.Children.Add(left);
         columns.Children.Add(right);
         body.Children.Add(columns);
+
+        // Item and location stances, the same two pickers the Windows pass
+        // shows. The view models are shared sources, so only this construction
+        // differs; anything decided about behaviour belongs there, not here.
+        body.Children.Add(SelectionPicker("Where your items go", vm.ItemSelection, vm.ItemSelectionHint));
+        body.Children.Add(SelectionPicker("What can appear where", vm.LocationSelection, vm.LocationSelectionHint));
 
         body.Children.Add(Label("YAML preview"));
         body.Children.Add(new TextBox
@@ -446,15 +548,23 @@ internal sealed class MainWindow : Window
         foreach (var page in vm.Pages)
         {
             var panel = new StackPanel { Margin = new Thickness(12), Spacing = 8 };
+            var rowsHost = panel;
             if (page.IsEnemiesPage)
             {
-                panel.Children.Add(EnemyPresetControls(vm));
+                // Random Enemies is the headline switch: the preset card and
+                // every enemy row only render while it is on.
+                panel.Children.Add(RandomEnemiesToggle(vm));
+                var body = new StackPanel { DataContext = vm, Spacing = 8 };
+                body.Bind(IsVisibleProperty, Binding(nameof(BioRandOptionsViewModel.IsEnemyConfigurationVisible)));
+                body.Children.Add(EnemyPresetControls(vm));
+                panel.Children.Add(body);
+                rowsHost = body;
             }
             foreach (var group in page.Groups)
             {
                 if (group.HasTitle)
                 {
-                    panel.Children.Add(new TextBlock { Text = group.Title, FontSize = 17, FontWeight = FontWeight.SemiBold });
+                    rowsHost.Children.Add(new TextBlock { Text = group.Title, FontSize = 17, FontWeight = FontWeight.SemiBold });
                 }
                 foreach (var option in group.Options)
                 {
@@ -520,7 +630,7 @@ internal sealed class MainWindow : Window
                     var forcedNotice = new TextBlock { TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DodgerBlue, [!TextBlock.TextProperty] = Binding("ForcedNotice") };
                     forcedNotice.Bind(IsVisibleProperty, Binding("HasForcedNotice"));
                     optionRow.Children.Add(forcedNotice);
-                    panel.Children.Add(optionRow);
+                    rowsHost.Children.Add(optionRow);
                 }
             }
             tabs.Items.Add(new TabItem
@@ -532,12 +642,74 @@ internal sealed class MainWindow : Window
         return tabs;
     }
 
+    private static Control RandomEnemiesToggle(BioRandOptionsViewModel vm)
+    {
+        if (vm.RandomEnemiesOption is null)
+        {
+            return new StackPanel();
+        }
+
+        var panel = new StackPanel { DataContext = vm.RandomEnemiesOption, Spacing = 2, Margin = new Thickness(0, 0, 0, 8) };
+        panel.Children.Add(new CheckBox
+        {
+            Content = "Random Enemies",
+            [!ToggleButton.IsCheckedProperty] = Binding("BoolValue", BindingMode.TwoWay),
+            [!IsEnabledProperty] = Binding("IsEnabled"),
+        });
+        var description = new TextBlock { TextWrapping = TextWrapping.Wrap, Opacity = .72, [!TextBlock.TextProperty] = Binding("Description") };
+        panel.Children.Add(description);
+        var forcedNotice = new TextBlock { TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DodgerBlue, [!TextBlock.TextProperty] = Binding("ForcedNotice") };
+        forcedNotice.Bind(IsVisibleProperty, Binding("HasForcedNotice"));
+        panel.Children.Add(forcedNotice);
+        return panel;
+    }
+
     private static Control EnemyPresetControls(BioRandOptionsViewModel vm)
     {
         var panel = new StackPanel { DataContext = vm, Spacing = 4, Margin = new Thickness(0, 0, 0, 8) };
         panel.Children.Add(Label("Enemy configuration"));
         panel.Children.Add(Combo(nameof(BioRandOptionsViewModel.EnemyPresets), nameof(BioRandOptionsViewModel.SelectedEnemyPreset), "DisplayName"));
         panel.Children.Add(Text(nameof(BioRandOptionsViewModel.EnemyPresetDescription), true));
+
+        // The two dials every preset is a pair of; off-pair combos are legal
+        // (Overrun + Familiar = horde mode, Sparse + Apex = a hunt).
+        var dials = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+        var crowd = new StackPanel { Spacing = 2, Width = 200 };
+        crowd.Children.Add(Label("Crowd"));
+        crowd.Children.Add(Combo(nameof(BioRandOptionsViewModel.CrowdPoints), nameof(BioRandOptionsViewModel.SelectedCrowdPoint), "Label"));
+        dials.Children.Add(crowd);
+        var roster = new StackPanel { Spacing = 2, Width = 200 };
+        roster.Children.Add(Label("Roster"));
+        roster.Children.Add(Combo(nameof(BioRandOptionsViewModel.RosterSteps), nameof(BioRandOptionsViewModel.SelectedRosterStep), "Label"));
+        dials.Children.Add(roster);
+        var vitality = new StackPanel { Spacing = 2, Width = 200 };
+        vitality.Children.Add(Label("Vitality"));
+        vitality.Children.Add(Combo(nameof(BioRandOptionsViewModel.VitalityPoints), nameof(BioRandOptionsViewModel.SelectedVitalityPoint), "Label"));
+        dials.Children.Add(vitality);
+        panel.Children.Add(dials);
+        panel.Children.Add(new TextBlock
+        {
+            Text = "Crowd is how busy fights are, Roster is how scary the mix is, Vitality is how tough each enemy is. Blank dials mean hand-tuned rows.",
+            TextWrapping = TextWrapping.Wrap,
+            Opacity = .65,
+        });
+        var vitalityExamples = new TextBlock
+        {
+            TextWrapping = TextWrapping.Wrap,
+            Opacity = .65,
+            [!TextBlock.TextProperty] = Binding(nameof(BioRandOptionsViewModel.VitalityExampleText)),
+        };
+        vitalityExamples.Bind(IsVisibleProperty, Binding(nameof(BioRandOptionsViewModel.HasVitalityExampleText)));
+        panel.Children.Add(vitalityExamples);
+        var scatterWarning = new TextBlock
+        {
+            TextWrapping = TextWrapping.Wrap,
+            Foreground = Brushes.Orange,
+            [!TextBlock.TextProperty] = Binding(nameof(BioRandOptionsViewModel.ScatterIntensityWarning)),
+        };
+        scatterWarning.Bind(IsVisibleProperty, Binding(nameof(BioRandOptionsViewModel.ShowScatterIntensityWarning)));
+        panel.Children.Add(scatterWarning);
+
         panel.Children.Add(Check("Exclude Méndez from enemy randomization", nameof(BioRandOptionsViewModel.ExcludeDifficultMendezEncounters)));
         panel.Children.Add(new TextBlock
         {
@@ -638,11 +810,69 @@ internal sealed class MainWindow : Window
         var titleText = new TextBlock { Text = title, FontWeight = FontWeight.SemiBold };
         var labelText = Text(labelPath, true, 16);
         var statusText = Text(textPath, true);
-        titleText.Bind(TextBlock.ForegroundProperty, Binding(foregroundPath));
-        labelText.Bind(TextBlock.ForegroundProperty, Binding(foregroundPath));
-        statusText.Bind(TextBlock.ForegroundProperty, Binding(foregroundPath));
+        foreach (var text in new[] { titleText, labelText, statusText })
+        {
+            var fg = Binding(foregroundPath);
+            fg.Converter = ThemeTokenBrushConverter.Instance;
+            text.Bind(TextBlock.ForegroundProperty, fg);
+        }
         var card = Card(backgroundPath, titleText, labelText, statusText);
         return card;
+    }
+
+    /// <summary>
+    /// Resolves the theme resource keys the shared view models emit into this
+    /// front end's colours.
+    /// </summary>
+    /// <remarks>
+    /// The view models used to hand out light pastels picked for the Windows
+    /// light theme, which this window then had to fight with hardcoded dark
+    /// text to stay readable against Avalonia's dark Fluent theme. They now name
+    /// a token instead, so Linux answers with colours that suit it and the
+    /// workaround is gone.
+    /// </remarks>
+    private sealed class ThemeTokenBrushConverter : IValueConverter
+    {
+        private static readonly Dictionary<string, string> Palette = new(StringComparer.Ordinal)
+        {
+            ["SurfaceAltBrush"] = "#FF2B2F35",
+            ["SubtleBorderBrush"] = "#FF3A3F46",
+            ["SubtleTextBrush"] = "#FF9AA0A6",
+            ["TextBrush"] = "#FFE8EAED",
+            ["AccentBrush"] = "#FF2E9E5B",
+            ["AccentForegroundBrush"] = "#FFF2FFF7",
+            ["SuccessBackgroundBrush"] = "#FF1C2E22",
+            ["SuccessBorderBrush"] = "#FF3E6B4E",
+            ["SuccessTextBrush"] = "#FF7BD69B",
+            ["InfoBackgroundBrush"] = "#FF1B2836",
+            ["InfoBorderBrush"] = "#FF3C5A78",
+            ["InfoTextBrush"] = "#FF8FC4F5",
+            ["WarningBackgroundBrush"] = "#FF332A16",
+            ["WarningBorderBrush"] = "#FF6B5A2E",
+            ["WarningTextBrush"] = "#FFE8C26A",
+            ["DangerBackgroundBrush"] = "#FF34201F",
+            ["DangerBorderBrush"] = "#FF7A4444",
+            ["DangerTextBrush"] = "#FFF08A8A",
+        };
+
+        public static ThemeTokenBrushConverter Instance { get; } = new();
+
+        public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (value is not string key || key.Length == 0)
+            {
+                return AvaloniaProperty.UnsetValue;
+            }
+
+            // Tolerate a literal colour so a caller can still pass one directly.
+            var hex = Palette.TryGetValue(key, out var mapped) ? mapped : key;
+            return hex.StartsWith('#')
+                ? new SolidColorBrush(Color.Parse(hex))
+                : AvaloniaProperty.UnsetValue;
+        }
+
+        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+            throw new NotSupportedException();
     }
 
     private static Border Card(string background, params Control[] children)
@@ -664,12 +894,30 @@ internal sealed class MainWindow : Window
         }
         else
         {
-            border.Bind(Border.BackgroundProperty, Binding(background));
+            var binding = Binding(background);
+            binding.Converter = ThemeTokenBrushConverter.Instance;
+            border.Bind(Border.BackgroundProperty, binding);
         }
         return border;
     }
 
     private static TextBlock Label(string value) => new() { Text = value, FontWeight = FontWeight.SemiBold };
+
+    /// <summary>A settings group heading, distinct from the field labels around it.</summary>
+    /// <remarks>
+    /// The Linux screen used Label() for both jobs, so "Options" and "Difficulty"
+    /// rendered identically and the settings read as one long undifferentiated
+    /// list. The Windows pass has SettingsSectionHeaderStyle for this; the two
+    /// screens now group the same way and in the same order.
+    /// </remarks>
+    private static TextBlock Section(string value) => new()
+    {
+        Text = value.ToUpperInvariant(),
+        FontWeight = FontWeight.Bold,
+        FontSize = 13,
+        Opacity = .6,
+        Margin = new Thickness(0, 14, 0, 2),
+    };
 
     private static TextBlock Text(string path, bool wrap = false, double fontSize = 14)
     {
@@ -695,6 +943,52 @@ internal sealed class MainWindow : Window
             combo.DisplayMemberBinding = Binding(displayMember);
         }
         return combo;
+    }
+
+    /// <summary>
+    /// An item or location picker: search box, then a stance combo per row.
+    /// </summary>
+    /// <remarks>
+    /// DataContext is set to the list view model so every binding inside is
+    /// relative to it, which keeps this construction the same shape as the WPF
+    /// template and means the two front ends read the same properties.
+    /// </remarks>
+    private static Control SelectionPicker(
+        string title,
+        YamlSelectionListViewModel selection,
+        string hint)
+    {
+        var panel = new StackPanel { Spacing = 6, DataContext = selection };
+        panel.Children.Add(Label(title));
+
+        var search = new TextBox { PlaceholderText = selection.SearchHint };
+        search.Bind(TextBox.TextProperty, Binding("SearchText", BindingMode.TwoWay));
+        panel.Children.Add(search);
+
+        var rows = new ItemsControl();
+        rows.Bind(ItemsControl.ItemsSourceProperty, Binding("VisibleEntries"));
+        rows.ItemTemplate = new FuncDataTemplate<YamlSelectionEntryViewModel>((entry, _) =>
+        {
+            var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+            var name = new TextBlock
+            {
+                Text = entry.DisplayName,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                FontWeight = entry.IsGroup ? FontWeight.SemiBold : FontWeight.Normal,
+            };
+            var stance = new ComboBox { ItemsSource = selection.StanceOptions, Width = 220 };
+            stance.Bind(SelectingItemsControl.SelectedIndexProperty, Binding("Stance", BindingMode.TwoWay));
+            Grid.SetColumn(stance, 1);
+            row.Children.Add(name);
+            row.Children.Add(stance);
+            return row;
+        });
+
+        panel.Children.Add(new ScrollViewer { MaxHeight = 220, Content = rows });
+        panel.Children.Add(Text("SummaryText", true, 12));
+        panel.Children.Add(new TextBlock { Text = hint, TextWrapping = TextWrapping.Wrap, FontSize = 12 });
+        return panel;
     }
 
     private static CheckBox Check(string label, string path) =>

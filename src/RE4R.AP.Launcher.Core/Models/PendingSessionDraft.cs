@@ -37,6 +37,11 @@ public sealed class PendingSessionDraft
     [JsonPropertyName("check_guidance")]
     public string CheckGuidance { get; set; } = "markers";
 
+    // The tier markers start at. Defaults to the apworld's own default so
+    // drafts saved before this option existed generate the same seed.
+    [JsonPropertyName("marker_detail")]
+    public string MarkerDetail { get; set; } = "locate";
+
     [JsonPropertyName("death_link")]
     public bool DeathLink { get; set; }
 
@@ -48,20 +53,107 @@ public sealed class PendingSessionDraft
     [JsonPropertyName("shuffle_keycards")]
     public bool ShuffleKeycards { get; set; }
 
+    // NULLABLE on purpose. A plain bool cannot tell "the player switched this
+    // off" from "this draft predates the option", and both deserialize to
+    // false - so a draft saved before the Archipelago merchant existed loaded
+    // with the merchant switched OFF, silently overriding a default that is
+    // meant to be ON (Cam, live 2026-08-21: "just now in the launcher they
+    // were off by default"). Absent now means "use the default", which is
+    // exactly how StartingArsenalTypes already behaves.
+    [JsonPropertyName("shuffle_merchant_gear")]
+    public bool? ShuffleMerchantGear { get; set; }
+
+    // Nullable for the same reason: 0 is a legitimate choice AND the value an
+    // older draft deserializes to, so they have to be distinguishable.
+    [JsonPropertyName("starting_arsenal")]
+    public int? StartingArsenal { get; set; }
+
+    // Trimmed Starting Arsenal type keys; null/absent means every type
+    // (drafts from before the option existed load as the full set).
+    [JsonPropertyName("starting_arsenal_types")]
+    public List<string>? StartingArsenalTypes { get; set; }
+
+    // Merchant check locality; null/absent in older drafts means mixed.
+    [JsonPropertyName("merchant_checks")]
+    public string? MerchantChecks { get; set; }
+
+    // Toggle-era field, kept for older readers and as the migration source:
+    // drafts saved before the three-way load it as full (true) or off (false).
+    [JsonPropertyName("random_weapon_stats")]
+    public bool RandomWeaponStats { get; set; }
+
+    // The weapon-randomization three-way: off / stats_only / full.
+    // Null/absent in older drafts - fall back to RandomWeaponStats above.
+    [JsonPropertyName("weapon_randomization")]
+    public string? WeaponRandomization { get; set; }
+
+    // On by default since 2026-09-05; a draft that recorded false keeps false.
     [JsonPropertyName("minimize_backtracking")]
-    public bool MinimizeBacktracking { get; set; }
+    public bool MinimizeBacktracking { get; set; } = true;
 
     // EXPERIMENTAL apworld option; off by default, and absent in older drafts.
     [JsonPropertyName("random_events")]
     public bool RandomEvents { get; set; }
 
-    // Default TRUE so drafts saved before this option existed keep the guide
-    // on, matching the apworld default.
-    [JsonPropertyName("tutorial")]
-    public bool Tutorial { get; set; } = true;
+    // How many AP checks the merchant releases each chapter. The key changed
+    // with rotation, and deliberately so: a draft saved before it holds a
+    // TOTAL (up to 20), and reading that as a per-chapter rate would silently
+    // multiply the shelf. An old draft falls back to the current default.
+    // Nullable: 0 means "the player turned merchant checks off", which is not
+    // the same as an older draft that never had the field. See
+    // ShuffleMerchantGear above.
+    [JsonPropertyName("merchant_checks_per_chapter")]
+    public int? MerchantChecksPerChapter { get; set; }
+
+    /// <summary>
+    /// [Trade takeover] How many Trade-tab checks release each chapter.
+    /// Null on a draft written before the control existed, which reads as
+    /// the apworld default rather than as off.
+    /// </summary>
+    [JsonPropertyName("trade_checks_per_chapter")]
+    public int? TradeChecksPerChapter { get; set; }
+
+    [JsonPropertyName("include_main_campaign")]
+    public bool IncludeMainCampaign { get; set; } = true;
+
+    [JsonPropertyName("include_mercenaries")]
+    public bool IncludeMercenaries { get; set; }
+
+    // Absent in older drafts, which read as false: the campaign they recorded.
+    [JsonPropertyName("include_separate_ways")]
+    public bool IncludeSeparateWays { get; set; }
+
+    // 0.7.6: the rank range that counts. Absent in older drafts, which read as
+    // the default C through A.
+    [JsonPropertyName("mercenaries_rank_floor")]
+    public string MercenariesRankFloor { get; set; } = "c";
+
+    [JsonPropertyName("mercenaries_rank_ceiling")]
+    public string MercenariesRankCeiling { get; set; } = "a";
+
+    // 0.7.4; absent in older drafts, which read as on.
+    [JsonPropertyName("mercenaries_progression")]
+    public bool MercenariesProgression { get; set; } = true;
+
+    // A draft saved by the Mercenaries branch build carried the mode as one
+    // string; read once so that draft still lands on the right checkboxes.
+    [JsonPropertyName("game_mode")]
+    public string? LegacyGameMode { get; set; }
 
     [JsonPropertyName("unlocked_typewriter_stage_ids")]
     public List<string> UnlockedTypewriterStageIds { get; set; } = new();
+
+    // The AP item/location picks, stored in their collapsed form (group names
+    // where a group is whole) so the draft reads the same as the YAML it
+    // produced. Restoring expands groups back to members, so a bundle whose
+    // groups changed between sessions still restores every name it can.
+    public List<string> LocalItems { get; set; } = new();
+
+    public List<string> NonLocalItems { get; set; } = new();
+
+    public List<string> ExcludeLocations { get; set; } = new();
+
+    public List<string> PriorityLocations { get; set; } = new();
 
     [JsonPropertyName("yaml_text")]
     public string YamlText { get; set; } = string.Empty;

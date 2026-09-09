@@ -29,7 +29,7 @@
                        TextWrapping="Wrap" />
             <TextBlock x:Name="DestinationTextBlock"
                        Margin="0,6,0,0"
-                       Foreground="DimGray"
+                       Foreground="{DynamicResource SubtleTextBrush}"
                        TextWrapping="Wrap" />
         </StackPanel>
 
@@ -37,8 +37,8 @@
              grid was unreadable in the field (step-0 note) -->
         <Border Grid.Row="2"
                 Padding="12"
-                Background="#FFF8F8F8"
-                BorderBrush="#FFE0E0E0"
+                Background="{DynamicResource SurfaceAltBrush}"
+                BorderBrush="{DynamicResource SubtleBorderBrush}"
                 BorderThickness="1"
                 CornerRadius="8">
             <StackPanel>

@@ -6,14 +6,19 @@ namespace RE4R.AP.Launcher.ViewModels;
 
 public sealed class SetupViewModel : ObservableObject
 {
-    private const string SuccessBrush = "#D9F2E3";
-    private const string SuccessForegroundBrush = "#115E2D";
-    private const string WarningBrush = "#FFF4D6";
-    private const string WarningForegroundBrush = "#8A5800";
-    private const string ErrorBrush = "#FDE5E5";
-    private const string ErrorForegroundBrush = "#8A1F1F";
-    private const string NeutralBrush = "#EFEFEF";
-    private const string NeutralForegroundBrush = "#555555";
+    // These are THEME RESOURCE KEYS, not colours. Each front end resolves
+    // them against its own palette, so the same view model drives the
+    // Windows light/dark themes and the Linux look without knowing about
+    // either. Every name here must exist in Themes/Light.xaml and
+    // Themes/Dark.xaml.
+    private const string SuccessBrush = "SuccessBackgroundBrush";
+    private const string SuccessForegroundBrush = "SuccessTextBrush";
+    private const string WarningBrush = "WarningBackgroundBrush";
+    private const string WarningForegroundBrush = "WarningTextBrush";
+    private const string ErrorBrush = "DangerBackgroundBrush";
+    private const string ErrorForegroundBrush = "DangerTextBrush";
+    private const string NeutralBrush = "SurfaceAltBrush";
+    private const string NeutralForegroundBrush = "SubtleTextBrush";
 
     private string _installPath = string.Empty;
     private string _detectedGameVersionText = "Select your RE4R install path to detect the game version.";
@@ -331,5 +336,26 @@ public sealed class SetupViewModel : ObservableObject
                 foreground = NeutralForegroundBrush;
                 break;
         }
+    }
+
+    /// <summary>
+    /// Re-announce the themed brush properties after a theme switch.
+    /// </summary>
+    /// <remarks>
+    /// These carry a theme resource KEY rather than a colour, so a switch does
+    /// not change their value - only what the key resolves to - and the binding
+    /// has to be told to re-run. Deliberately WPF-free: it is a
+    /// property-changed nudge and nothing more.
+    /// </remarks>
+    public void RefreshThemedBrushes()
+    {
+        OnPropertyChanged(nameof(Re4rStatusBackground));
+        OnPropertyChanged(nameof(Re4rStatusForeground));
+        OnPropertyChanged(nameof(ReFrameworkStatusBackground));
+        OnPropertyChanged(nameof(ReFrameworkStatusForeground));
+        OnPropertyChanged(nameof(ArchipelagoLuaModStatusBackground));
+        OnPropertyChanged(nameof(ArchipelagoLuaModStatusForeground));
+        OnPropertyChanged(nameof(SeparateWaysStatusBackground));
+        OnPropertyChanged(nameof(SeparateWaysStatusForeground));
     }
 }

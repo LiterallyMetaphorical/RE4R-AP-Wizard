@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
@@ -180,14 +180,108 @@ public sealed class ArchipelagoScoutClient
                     + $"{randomEvents.RemovedLocationCodes.Count} checks removed by events.");
             }
 
+            // The YAML's weapon-randomization choice (absent on older rooms).
+            // Two booleans, one per BioRand switch: stats, and upgrades for
+            // rooms new enough to carry the three-way.
+            bool? randomWeaponStats = null;
+            bool? randomWeaponUpgrades = null;
+            if (TryGetProperty(connectedPacket, "slot_data", out var weaponStatsSlotData)
+                && weaponStatsSlotData.ValueKind == JsonValueKind.Object)
+            {
+                if (weaponStatsSlotData.TryGetProperty("random_weapon_stats", out var weaponStatsElement)
+                    && weaponStatsElement.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                {
+                    randomWeaponStats = weaponStatsElement.ValueKind == JsonValueKind.True;
+                }
+                if (weaponStatsSlotData.TryGetProperty("random_weapon_upgrades", out var weaponUpgradesElement)
+                    && weaponUpgradesElement.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                {
+                    randomWeaponUpgrades = weaponUpgradesElement.ValueKind == JsonValueKind.True;
+                }
+            }
+
+            // [Bonus Weapons] Whether the room holds the Extra Content trio as
+            // pool items. Since 2026-09-08 the apworld sets it for every room
+            // with a campaign, because the three scatter whether or not the
+            // gear shuffle is on: the mod vetoes the game's grant of them into
+            // Storage in any AP room and the fork strips their Extra Content
+            // rows, so riding the shuffle left them unobtainable when it was
+            // off. False when absent, which is an older room.
+            var bonusWeaponsConsented = false;
+            if (TryGetProperty(connectedPacket, "slot_data", out var bonusSlotData)
+                && bonusSlotData.ValueKind == JsonValueKind.Object
+                && bonusSlotData.TryGetProperty("bonus_weapons", out var bonusElement)
+                && bonusElement.ValueKind is JsonValueKind.True or JsonValueKind.False)
+            {
+                bonusWeaponsConsented = bonusElement.ValueKind == JsonValueKind.True;
+            }
+
+            // [Mercenaries] What the slot plays, and the rank checks it carries.
+            var gameMode = ParseGameModeSlotData(connectedPacket);
+            var patchedCampaign = ParsePatchedCampaignSlotData(connectedPacket);
+            RefuseUnpatchableCampaign(patchedCampaign, ParseRawGameModeSlotData(connectedPacket));
+            if (patchedCampaign is not null && patchedCampaign.Length > 0)
+            {
+                Log($"This room needs the {patchedCampaign} campaign patched.");
+            }
+
+            var mercenaries = ParseMercenariesSlotData(connectedPacket);
+            if (mercenaries.Enabled)
+            {
+                Log($"This room plays {DescribeGameMode(gameMode)}: {mercenaries.LocationIds.Count} Mercenaries rank check(s), {DescribeRank(mercenaries.RankFloor)} through {DescribeRank(mercenaries.RankCeiling)}.");
+            }
+
+            var merchantShop = ParseMerchantShopSlotData(connectedPacket);
+            if (merchantShop.Enabled)
+            {
+                var scatterSuffix = merchantShop.ScatteredItemIds.Count > 0
+                    ? $" {merchantShop.ScatteredItemIds.Count} piece(s) of his gear are scattered into the multiworld."
+                    : string.Empty;
+                Log($"The merchant sells {merchantShop.Slots.Count} Archipelago check(s) in this room.{scatterSuffix}");
+            }
+
+            var tradeShop = ParseTradeShopSlotData(connectedPacket);
+            if (tradeShop.Enabled)
+            {
+                var stripSuffix = tradeShop.ShuffledTradeItemIds.Count > 0
+                    ? $" {tradeShop.ShuffledTradeItemIds.Count} piece(s) of his trade stock are shuffled into the multiworld."
+                    : string.Empty;
+                Log($"The merchant trades {tradeShop.Checks.Count} Archipelago check(s) for spinel in this room.{stripSuffix}");
+            }
+
             // Since apworld 0.4.0 the room's location count varies with the
             // RandomizeGatedKeys option, so scout exactly what the room
             // declares (missing + checked from Connected) instead of the full
             // bundled list - the server rejects unknown location ids.
-            var roomLocationIds = GetRoomLocationIds(connectedPacket, requestedLocationIds);
-            Log(roomLocationIds.Length == requestedLocationIds.Length
-                ? $"Scouting {roomLocationIds.Length} locations"
-                : $"Scouting {roomLocationIds.Length} of {requestedLocationIds.Length} bundled locations (the rest are vanilla/preserved spots that are not part of this multiworld).");
+            var extraKnownIds = new HashSet<long>(request.ShopSlotLocationIds);
+            extraKnownIds.UnionWith(request.TradeCheckLocationIds);
+            extraKnownIds.UnionWith(request.MercenariesLocationIds);
+            var roomLocationIds = GetRoomLocationIds(
+                connectedPacket, requestedLocationIds, extraKnownIds);
+            var knownShopSlotIds = new HashSet<long>(request.ShopSlotLocationIds);
+            var knownTradeCheckIds = new HashSet<long>(request.TradeCheckLocationIds);
+            var roomShopSlotCount = roomLocationIds.Count(knownShopSlotIds.Contains);
+            var roomTradeCheckCount = roomLocationIds.Count(knownTradeCheckIds.Contains);
+            var knownMercenariesIds = new HashSet<long>(request.MercenariesLocationIds);
+            var roomMercenariesCount = roomLocationIds.Count(knownMercenariesIds.Contains);
+            var roomWorldCount = roomLocationIds.Length - roomShopSlotCount - roomTradeCheckCount - roomMercenariesCount;
+            var scoutingMessage = roomWorldCount == requestedLocationIds.Length
+                ? $"Scouting {roomWorldCount} locations"
+                : $"Scouting {roomWorldCount} of {requestedLocationIds.Length} bundled locations (the rest are vanilla/preserved spots that are not part of this multiworld).";
+            if (roomShopSlotCount > 0)
+            {
+                scoutingMessage += $" Plus {roomShopSlotCount} merchant shop check(s).";
+            }
+            if (roomTradeCheckCount > 0)
+            {
+                scoutingMessage += $" Plus {roomTradeCheckCount} trade check(s).";
+            }
+            if (roomMercenariesCount > 0)
+            {
+                scoutingMessage += $" Plus {roomMercenariesCount} Mercenaries rank check(s).";
+            }
+
+            Log(scoutingMessage);
             await SendMessagesAsync(
                 socket,
                 new object[]
@@ -218,9 +312,19 @@ public sealed class ArchipelagoScoutClient
                 SeedName = seedName,
                 Team = team,
                 ConnectedPlayerSlot = connectedSlot,
+                SlotName = request.SlotName,
                 Locations = locations,
                 RoomLocationIds = roomLocationIds,
                 RandomEvents = randomEvents,
+                SlotDifficulty = ParseSlotDifficulty(connectedPacket),
+                MerchantShop = merchantShop,
+                TradeShop = tradeShop,
+                RandomWeaponStats = randomWeaponStats,
+                RandomWeaponUpgrades = randomWeaponUpgrades,
+                BonusWeaponsConsented = bonusWeaponsConsented,
+                GameMode = gameMode,
+                PatchedCampaign = patchedCampaign,
+                Mercenaries = mercenaries,
             };
         }
         catch (ArchipelagoScoutException)
@@ -317,6 +421,55 @@ public sealed class ArchipelagoScoutClient
             || (bytes[0] == 169 && bytes[1] == 254);
     }
 
+    /// <summary>
+    /// Strip what a copy-paste from an Archipelago room page brings with it:
+    /// the /connect verb, wrapping quotes, and any invisible character the
+    /// HTML carried. Deliberately conservative - it removes decoration, never
+    /// anything that could be part of a real host or port.
+    /// </summary>
+    private static string CleanPastedServerAddress(string serverAddress)
+    {
+        var value = serverAddress.Trim();
+
+        // Quotes THEN verb THEN quotes again, because the room page renders
+        // the whole command inside quotes - '/connect archipelago.gg:49239' -
+        // so one pass in either order leaves the other wrapper behind.
+        // Stripping the verb first and the quotes second failed on exactly
+        // the string the page displays, which is the likeliest paste there
+        // is. Caught by the test, not by reading it.
+        const string connectVerb = "/connect";
+        char[] quoteChars =
+        {
+            '\'', '\"', '`',
+            '\u2018', '\u2019',
+            '\u201c', '\u201d',
+        };
+        for (var pass = 0; pass < 2; pass++)
+        {
+            value = value.Trim(quoteChars).Trim();
+            if (value.StartsWith(connectVerb, StringComparison.OrdinalIgnoreCase))
+            {
+                value = value[connectVerb.Length..].Trim();
+            }
+        }
+
+        // Zero-width and non-breaking characters survive Trim() and are
+        // invisible in the error message, which is what made this so
+        // confusing to diagnose.
+        var builder = new System.Text.StringBuilder(value.Length);
+        foreach (var c in value)
+        {
+            if (char.IsControl(c) || c == '\u200b' || c == '\u200c' || c == '\u200d'
+                || c == '\u00a0' || c == '\ufeff')
+            {
+                continue;
+            }
+            builder.Append(c);
+        }
+
+        return builder.ToString().Trim();
+    }
+
     public static string NormalizeServerAddress(string serverAddress, int defaultPort = 38281)
     {
         if (string.IsNullOrWhiteSpace(serverAddress))
@@ -324,7 +477,18 @@ public sealed class ArchipelagoScoutClient
             throw new ArchipelagoConnectionException("AP server address is empty.");
         }
 
-        var trimmed = serverAddress.Trim();
+        // Players get this address by copying it off the room page, and that
+        // page renders it as: You can connect to this room by using
+        // '/connect archipelago.gg:49239' in the client. So the paste arrives
+        // wrapped in quotes, carrying the /connect verb, or with an invisible
+        // character the HTML brought along - and Uri.TryCreate rejects ALL of
+        // those while the string still looks perfect in an error message.
+        // Cam hit exactly that on 2026-09-01: the wizard said
+        // "'ws://archipelago.gg:49239' is not a valid websocket URI" about an
+        // address that reads as valid, because the junk was unprintable.
+        //
+        // So clean the paste instead of blaming it.
+        var trimmed = CleanPastedServerAddress(serverAddress);
         if (trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
         {
             trimmed = "ws://" + trimmed[7..];
@@ -341,7 +505,19 @@ public sealed class ArchipelagoScoutClient
 
         if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri))
         {
-            throw new ArchipelagoConnectionException($"AP server address '{serverAddress}' is not a valid websocket URI.");
+            // Say WHICH character is the problem. An address that looks right
+            // and is refused anyway is the worst kind of error to be handed,
+            // and unprintable junk is the usual cause.
+            var offenders = trimmed
+                .Where(c => char.IsControl(c) || c > 126)
+                .Select(c => $"U+{(int)c:X4}")
+                .Distinct()
+                .ToArray();
+            var detail = offenders.Length > 0
+                ? $" It contains {string.Join(", ", offenders)}, which usually means it was pasted from a web page."
+                : " Expected something like archipelago.gg:38281.";
+            throw new ArchipelagoConnectionException(
+                $"AP server address '{serverAddress}' is not a valid websocket URI.{detail}");
         }
 
         if (!string.Equals(uri.Scheme, "ws", StringComparison.OrdinalIgnoreCase)
@@ -665,7 +841,7 @@ public sealed class ArchipelagoScoutClient
     /// ManifestBuilder count check still catches a world that removed
     /// locations without telling us.
     /// </summary>
-    private static RandomEventsSlotData ParseRandomEventsSlotData(JsonElement connectedPacket)
+    internal static RandomEventsSlotData ParseRandomEventsSlotData(JsonElement connectedPacket)
     {
         if (!TryGetProperty(connectedPacket, "slot_data", out var slotData)
             || slotData.ValueKind != JsonValueKind.Object
@@ -725,7 +901,591 @@ public sealed class ArchipelagoScoutClient
         };
     }
 
-    private static long[] GetRoomLocationIds(JsonElement connectedPacket, long[] knownLocationIds)
+    /// <summary>
+    /// Reads slot_data.merchant_shop from the Connected packet (D4). The
+    /// apworld resolves slots after fill, so this block already names each
+    /// slot's item and owner. Absent or malformed reads as disabled - older
+    /// rooms have no block, and the merchant then behaves exactly as before.
+    /// A slot missing its price tier is dropped rather than guessed at: the
+    /// fork refuses a manifest whose slot has no tier, so a half-parsed block
+    /// must not reach it.
+    /// </summary>
+    /// <summary>
+    /// slot_data.trade_shop -> model. Absent/malformed reads as Disabled,
+    /// which leaves the Trade tab exactly as BioRand made it (older rooms).
+    /// A check missing its price is dropped rather than guessed: the fork
+    /// refuses a manifest slot with no price, so a half-parsed check must
+    /// not reach it.
+    /// </summary>
+    internal static TradeShopSlotData ParseTradeShopSlotData(JsonElement connectedPacket)
+    {
+        if (!TryGetProperty(connectedPacket, "slot_data", out var slotData)
+            || slotData.ValueKind != JsonValueKind.Object
+            || !slotData.TryGetProperty("trade_shop", out var block)
+            || block.ValueKind != JsonValueKind.Object
+            || !block.TryGetProperty("enabled", out var enabled)
+            || enabled.ValueKind != JsonValueKind.True)
+        {
+            return TradeShopSlotData.Disabled;
+        }
+
+        var checks = new List<TradeShopCheck>();
+        if (block.TryGetProperty("checks", out var checksElement)
+            && checksElement.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var element in checksElement.EnumerateArray())
+            {
+                if (element.ValueKind != JsonValueKind.Object
+                    || !element.TryGetProperty("code", out var codeElement)
+                    || !codeElement.TryGetInt64(out var locationCode)
+                    || !element.TryGetProperty("release_index", out var releaseElement)
+                    || !releaseElement.TryGetInt32(out var releaseIndex)
+                    || !element.TryGetProperty("chapter", out var chapterElement)
+                    || !chapterElement.TryGetInt32(out var chapter)
+                    || !element.TryGetProperty("price_spinel", out var priceElement)
+                    || !priceElement.TryGetInt32(out var priceSpinel)
+                    || priceSpinel < 1)
+                {
+                    continue;
+                }
+
+                checks.Add(new TradeShopCheck
+                {
+                    LocationCode = locationCode,
+                    ReleaseIndex = releaseIndex,
+                    Chapter = chapter,
+                    PriceSpinel = priceSpinel,
+                    Identity = element.TryGetProperty("identity", out var identityElement)
+                        && identityElement.ValueKind == JsonValueKind.String
+                        && !string.IsNullOrWhiteSpace(identityElement.GetString())
+                            ? identityElement.GetString()!
+                            : $"trade:release:{releaseIndex}",
+                    ChapterOrdinal = element.TryGetProperty("chapter_ordinal", out var ordinalElement)
+                        && ordinalElement.TryGetInt32(out var parsedOrdinal)
+                        && parsedOrdinal > 0
+                            ? parsedOrdinal
+                            : 1,
+                    Tier = element.TryGetProperty("tier", out var tierElement)
+                        && tierElement.ValueKind == JsonValueKind.String
+                            ? tierElement.GetString() ?? "FILLER"
+                            : "FILLER",
+                    CumulativeSpinel = element.TryGetProperty("cumulative_spinel", out var cumulativeElement)
+                        && cumulativeElement.TryGetInt32(out var parsedCumulative)
+                        && parsedCumulative > 0
+                            ? parsedCumulative
+                            : priceSpinel,
+                    ItemId = element.TryGetProperty("item_id", out var itemIdElement)
+                        && itemIdElement.TryGetInt32(out var parsedItemId)
+                        && parsedItemId > 0
+                            ? parsedItemId
+                            : 0,
+                    ItemStack = element.TryGetProperty("item_stack", out var stackElement)
+                        && stackElement.TryGetInt32(out var parsedStack)
+                        && parsedStack > 0
+                            ? parsedStack
+                            : 0,
+                    DisplayName = element.TryGetProperty("display_name", out var nameElement)
+                        && nameElement.ValueKind == JsonValueKind.String
+                            ? nameElement.GetString() ?? string.Empty
+                            : string.Empty,
+                    PlayerName = element.TryGetProperty("player_name", out var playerElement)
+                        && playerElement.ValueKind == JsonValueKind.String
+                            ? playerElement.GetString() ?? string.Empty
+                            : string.Empty,
+                    Remote = element.TryGetProperty("remote", out var remoteElement)
+                        && remoteElement.ValueKind == JsonValueKind.True,
+                });
+            }
+        }
+
+        var gems = new Dictionary<string, TradeShopGem>(StringComparer.OrdinalIgnoreCase);
+        if (block.TryGetProperty("gems", out var gemsElement)
+            && gemsElement.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var gemProperty in gemsElement.EnumerateObject())
+            {
+                var gem = gemProperty.Value;
+                if (gem.ValueKind != JsonValueKind.Object
+                    || !gem.TryGetProperty("item_id", out var gemIdElement)
+                    || !gemIdElement.TryGetInt32(out var gemItemId)
+                    || !gem.TryGetProperty("spinel", out var gemSpinelElement)
+                    || !gemSpinelElement.TryGetInt32(out var gemSpinel)
+                    || gemSpinel < 1)
+                {
+                    continue;
+                }
+
+                gems[gemProperty.Name] = new TradeShopGem(gemItemId, gemSpinel);
+            }
+        }
+
+        var shuffledTradeItemIds = new List<int>();
+        if (block.TryGetProperty("shuffled_trade_item_ids", out var shuffledElement)
+            && shuffledElement.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var element in shuffledElement.EnumerateArray())
+            {
+                if (element.ValueKind == JsonValueKind.Number
+                    && element.TryGetInt32(out var itemId)
+                    && itemId > 0)
+                {
+                    shuffledTradeItemIds.Add(itemId);
+                }
+            }
+        }
+
+        return new TradeShopSlotData
+        {
+            Enabled = true,
+            Checks = checks,
+            Gems = gems,
+            ShuffledTradeItemIds = shuffledTradeItemIds,
+            VelvetBlueSpinel = block.TryGetProperty("velvet_blue_spinel", out var vbElement)
+                && vbElement.TryGetInt32(out var vbSpinel)
+                && vbSpinel > 0
+                    ? vbSpinel
+                    : 2,
+            SpinelItemId = block.TryGetProperty("spinel_item_id", out var spinelIdElement)
+                && spinelIdElement.TryGetInt32(out var spinelItemId)
+                    ? spinelItemId
+                    : 0,
+            SpinelPoolTotal = block.TryGetProperty("spinel_pool_total", out var spinelTotalElement)
+                && spinelTotalElement.TryGetInt32(out var spinelTotal)
+                    ? spinelTotal
+                    : 0,
+        };
+    }
+
+    /// <summary>
+    /// slot_data.game_mode: "campaign" (also when absent),
+    /// "campaign_and_mercenaries" or "mercenaries_only".
+    /// </summary>
+    internal static string ParseGameModeSlotData(JsonElement connectedPacket)
+    {
+        if (TryGetProperty(connectedPacket, "slot_data", out var slotData)
+            && slotData.ValueKind == JsonValueKind.Object
+            && slotData.TryGetProperty("game_mode", out var modeElement)
+            && modeElement.ValueKind == JsonValueKind.String)
+        {
+            var mode = (modeElement.GetString() ?? string.Empty).Trim().ToLowerInvariant();
+            if (mode is "campaign" or "campaign_and_mercenaries" or "mercenaries_only")
+            {
+                return mode;
+            }
+        }
+
+        return "campaign";
+    }
+
+    /// <summary>
+    /// The campaigns this launcher can actually patch, as the patcher names
+    /// them. Empty string means a room with no campaign at all, which is a
+    /// Mercenaries-only room and needs no patch.
+    ///
+    /// Separate Ways joined the list on 2026-09-07, when the bundled patcher
+    /// gained the ability to build Ada's campaign. It was deliberately absent
+    /// before that, because the world can describe a campaign before the
+    /// patcher can build it and this list is what stops that gap being silent.
+    /// A campaign belongs here only once the bundled patcher can produce it.
+    /// </summary>
+    private static readonly string[] PatchableCampaigns = ["", "Main Story", "Separate Ways"];
+
+    /// <summary>
+    /// slot_data.patched_campaign (apworld 0.7.6): which campaign this room
+    /// needs patched, or "" for none. Null when the room did not say, which is
+    /// every room made before 0.7.6; the game_mode fallback covers those.
+    /// The value is returned as written, because it is a patcher-facing name
+    /// rather than a key, and an unrecognised one has to stay recognisable in
+    /// the message that refuses it.
+    /// </summary>
+    /// <summary>
+    /// game_mode exactly as the room wrote it, or null when it did not write
+    /// one. ParseGameModeSlotData normalises an unknown value to "campaign",
+    /// which is right for wording and wrong for deciding what to patch.
+    /// </summary>
+    internal static string? ParseRawGameModeSlotData(JsonElement connectedPacket)
+    {
+        if (TryGetProperty(connectedPacket, "slot_data", out var slotData)
+            && slotData.ValueKind == JsonValueKind.Object
+            && slotData.TryGetProperty("game_mode", out var modeElement)
+            && modeElement.ValueKind == JsonValueKind.String)
+        {
+            return (modeElement.GetString() ?? string.Empty).Trim();
+        }
+
+        return null;
+    }
+
+    internal static string? ParsePatchedCampaignSlotData(JsonElement connectedPacket)
+    {
+        if (TryGetProperty(connectedPacket, "slot_data", out var slotData)
+            && slotData.ValueKind == JsonValueKind.Object
+            && slotData.TryGetProperty("patched_campaign", out var campaignElement)
+            && campaignElement.ValueKind == JsonValueKind.String)
+        {
+            return (campaignElement.GetString() ?? string.Empty).Trim();
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Stop before a room whose campaign this launcher cannot patch.
+    ///
+    /// Without this the launcher patches Leon's campaign for anything it does
+    /// not recognise, because game_mode falls back to "campaign". The bundled
+    /// world data can know a room's locations while the bundled patcher cannot
+    /// build its campaign, which is exactly the window between Separate Ways
+    /// generating and Separate Ways patching, so the location id check is not
+    /// the guard for this.
+    /// </summary>
+    internal static void RefuseUnpatchableCampaign(string? patchedCampaign, string? rawGameMode = null)
+    {
+        if (patchedCampaign is not null)
+        {
+            if (PatchableCampaigns.Contains(patchedCampaign, StringComparer.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            throw new ArchipelagoScoutException(
+                $"This room needs the {patchedCampaign} campaign patched, and this launcher cannot patch it. " +
+                "The room was generated with a newer RE4R.apworld than the one this launcher ships. " +
+                "Update the launcher, or regenerate the room with the apworld this launcher bundles. " +
+                "Nothing has been changed in your game.");
+        }
+
+        // The room named no campaign, so game_mode is all there is. A mode this
+        // build has never heard of means the room was made on a newer world and
+        // the launcher cannot tell what to patch. Guessing means patching
+        // Leon's campaign, because that is what the normalised fallback says.
+        //
+        // This is not theoretical. A Separate Ways room built on the branch as
+        // it stands writes game_mode "separate_ways" and no patched_campaign,
+        // and without this the launcher patches Leon for it (verified against a
+        // generated room, 2026-09-06).
+        if (rawGameMode is null
+            || rawGameMode.Length == 0
+            || KnownGameModes.Contains(rawGameMode, StringComparer.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        throw new ArchipelagoScoutException(
+            $"This room reports a mode this launcher does not know ('{rawGameMode}'), and it does not say " +
+            "which campaign to patch, so the launcher cannot tell what your game should be patched with. " +
+            "The room was generated with a newer RE4R.apworld than the one this launcher ships. " +
+            "Update the launcher, or regenerate the room with the apworld this launcher bundles. " +
+            "Nothing has been changed in your game.");
+    }
+
+    private static readonly string[] KnownGameModes =
+        ["campaign", "campaign_and_mercenaries", "mercenaries_only"];
+
+    /// <summary>The room's difficulty as the game numbers it; 20 when unsaid.</summary>
+    internal static int ParseSlotDifficulty(JsonElement connectedPacket)
+    {
+        if (!TryGetProperty(connectedPacket, "slot_data", out var slotData)
+            || slotData.ValueKind != JsonValueKind.Object
+            || !slotData.TryGetProperty("difficulty", out var value)
+            || value.ValueKind != JsonValueKind.String)
+        {
+            return 20;
+        }
+
+        return (value.GetString() ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "assisted" => 10,
+            "hardcore" => 30,
+            "professional" => 40,
+            _ => 20,
+        };
+    }
+
+    private static string DescribeRank(string rank) => rank switch
+    {
+        "c" => "C",
+        "b" => "B",
+        "a" => "A",
+        "s" => "S",
+        "s_plus" => "S+",
+        "s_plus_plus" => "S++",
+        _ => string.IsNullOrWhiteSpace(rank) ? "?" : rank,
+    };
+
+    private static string DescribeGameMode(string gameMode) => gameMode switch
+    {
+        "mercenaries_only" => "The Mercenaries only",
+        "campaign_and_mercenaries" => "the campaign and The Mercenaries",
+        _ => "the campaign",
+    };
+
+    /// <summary>
+    /// slot_data.mercenaries -> model. Absent, disabled or malformed reads as
+    /// Disabled; the ids come from the character -> stage -> rank map.
+    /// </summary>
+    internal static MercenariesSlotData ParseMercenariesSlotData(JsonElement connectedPacket)
+    {
+        if (!TryGetProperty(connectedPacket, "slot_data", out var slotData)
+            || slotData.ValueKind != JsonValueKind.Object
+            || !slotData.TryGetProperty("mercenaries", out var block)
+            || block.ValueKind != JsonValueKind.Object
+            || !block.TryGetProperty("enabled", out var enabledElement)
+            || enabledElement.ValueKind != JsonValueKind.True)
+        {
+            return MercenariesSlotData.Disabled;
+        }
+
+        var ids = new List<long>();
+        if (block.TryGetProperty("locations", out var byCharacter) && byCharacter.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var character in byCharacter.EnumerateObject())
+            {
+                if (character.Value.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+
+                foreach (var stage in character.Value.EnumerateObject())
+                {
+                    if (stage.Value.ValueKind != JsonValueKind.Object)
+                    {
+                        continue;
+                    }
+
+                    foreach (var rank in stage.Value.EnumerateObject())
+                    {
+                        if (rank.Value.ValueKind == JsonValueKind.Number
+                            && rank.Value.TryGetInt64(out var id)
+                            && id > 0)
+                        {
+                            ids.Add(id);
+                        }
+                    }
+                }
+            }
+        }
+
+        static string ReadString(JsonElement element, string name) =>
+            element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
+                ? value.GetString() ?? string.Empty
+                : string.Empty;
+
+        return new MercenariesSlotData
+        {
+            Enabled = true,
+            RankFloor = ReadString(block, "rank_floor"),
+            RankCeiling = ReadString(block, "rank_ceiling"),
+            StartingCharacter = ReadString(block, "starting_character"),
+            StartingStage = ReadString(block, "starting_stage"),
+            LocationIds = ids.Distinct().OrderBy(id => id).ToArray(),
+        };
+    }
+
+    internal static MerchantShopSlotData ParseMerchantShopSlotData(JsonElement connectedPacket)
+    {
+        if (!TryGetProperty(connectedPacket, "slot_data", out var slotData)
+            || slotData.ValueKind != JsonValueKind.Object
+            || !slotData.TryGetProperty("merchant_shop", out var block)
+            || block.ValueKind != JsonValueKind.Object
+            || !block.TryGetProperty("enabled", out var enabled)
+            || enabled.ValueKind != JsonValueKind.True)
+        {
+            return MerchantShopSlotData.Disabled;
+        }
+
+        var tiers = new Dictionary<string, MerchantShopTier>(StringComparer.OrdinalIgnoreCase);
+        if (block.TryGetProperty("tiers", out var tiersElement)
+            && tiersElement.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var tierProperty in tiersElement.EnumerateObject())
+            {
+                var tier = tierProperty.Value;
+                if (tier.ValueKind != JsonValueKind.Object
+                    || !tier.TryGetProperty("price", out var priceElement)
+                    || !priceElement.TryGetInt32(out var price)
+                    || price < 1)
+                {
+                    continue;
+                }
+
+                var refundItemId = 0;
+                if (tier.TryGetProperty("refund_item_id", out var refundIdElement))
+                {
+                    refundIdElement.TryGetInt32(out refundItemId);
+                }
+
+                var refundItemName = string.Empty;
+                if (tier.TryGetProperty("refund_item_name", out var refundNameElement)
+                    && refundNameElement.ValueKind == JsonValueKind.String)
+                {
+                    refundItemName = refundNameElement.GetString() ?? string.Empty;
+                }
+
+                // Rooms from before the spinel refund carry no count: one gem.
+                var refundCount = 1;
+                if (tier.TryGetProperty("refund_count", out var refundCountElement)
+                    && refundCountElement.TryGetInt32(out var parsedCount)
+                    && parsedCount > 0)
+                {
+                    refundCount = parsedCount;
+                }
+
+                tiers[tierProperty.Name] = new MerchantShopTier(price, refundItemId, refundItemName, refundCount);
+            }
+        }
+
+        var slots = new List<MerchantShopSlot>();
+        if (block.TryGetProperty("slots", out var slotsElement)
+            && slotsElement.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var element in slotsElement.EnumerateArray())
+            {
+                if (element.ValueKind != JsonValueKind.Object
+                    || !element.TryGetProperty("code", out var codeElement)
+                    || !codeElement.TryGetInt64(out var locationCode)
+                    || !element.TryGetProperty("index", out var indexElement)
+                    || !indexElement.TryGetInt32(out var index)
+                    || !element.TryGetProperty("unlock_chapter", out var chapterElement)
+                    || !chapterElement.TryGetInt32(out var unlockChapter))
+                {
+                    continue;
+                }
+
+                var classification = element.TryGetProperty("classification", out var classElement)
+                    && classElement.ValueKind == JsonValueKind.String
+                        ? classElement.GetString() ?? "FILLER"
+                        : "FILLER";
+                if (!tiers.ContainsKey(classification))
+                {
+                    continue;
+                }
+
+                // Rotation rooms key on the check; pre-rotation rooms had one
+                // check per row and acked on the row number, so that is the
+                // honest fallback rather than a guess.
+                var identity = element.TryGetProperty("identity", out var identityElement)
+                    && identityElement.ValueKind == JsonValueKind.String
+                    && !string.IsNullOrWhiteSpace(identityElement.GetString())
+                        ? identityElement.GetString()!
+                        : $"shop:slot:{index}";
+
+                var chapterOrdinal = element.TryGetProperty("chapter_ordinal", out var ordinalElement)
+                    && ordinalElement.TryGetInt32(out var parsedOrdinal)
+                    && parsedOrdinal > 0
+                        ? parsedOrdinal
+                        : 1;
+
+                var itemId = element.TryGetProperty("item_id", out var itemIdElement)
+                    && itemIdElement.TryGetInt32(out var parsedItemId)
+                    && parsedItemId > 0
+                        ? parsedItemId
+                        : 0;
+
+                var itemStack = element.TryGetProperty("item_stack", out var stackElement)
+                    && stackElement.TryGetInt32(out var parsedStack)
+                    && parsedStack > 0
+                        ? parsedStack
+                        : 0;
+
+                slots.Add(new MerchantShopSlot
+                {
+                    LocationCode = locationCode,
+                    Index = index,
+                    Identity = identity,
+                    ChapterOrdinal = chapterOrdinal,
+                    ItemId = itemId,
+                    ItemStack = itemStack,
+                    UnlockChapter = unlockChapter,
+                    Classification = classification,
+                    DisplayName = element.TryGetProperty("display_name", out var nameElement)
+                        && nameElement.ValueKind == JsonValueKind.String
+                            ? nameElement.GetString() ?? string.Empty
+                            : string.Empty,
+                    PlayerName = element.TryGetProperty("player_name", out var playerElement)
+                        && playerElement.ValueKind == JsonValueKind.String
+                            ? playerElement.GetString() ?? string.Empty
+                            : string.Empty,
+                    Remote = element.TryGetProperty("remote", out var remoteElement)
+                        && remoteElement.ValueKind == JsonValueKind.True,
+                });
+            }
+        }
+
+        // [D10] Gear the multiworld holds instead of the shelf. Present
+        // (possibly empty) whenever the apworld emits the section.
+        var scatteredItemIds = new List<int>();
+        if (block.TryGetProperty("scattered_item_ids", out var scatteredElement)
+            && scatteredElement.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var element in scatteredElement.EnumerateArray())
+            {
+                if (element.ValueKind == JsonValueKind.Number
+                    && element.TryGetInt32(out var itemId)
+                    && itemId > 0)
+                {
+                    scatteredItemIds.Add(itemId);
+                }
+            }
+        }
+
+        // [Starting Arsenal] The engine ids the player begins with; the fork
+        // paces their ammo from chapter zero. Absent in older rooms.
+        var startingWeaponIds = new List<int>();
+        if (block.TryGetProperty("starting_weapon_ids", out var startingElement)
+            && startingElement.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var element in startingElement.EnumerateArray())
+            {
+                if (element.ValueKind == JsonValueKind.Number
+                    && element.TryGetInt32(out var itemId)
+                    && itemId > 0)
+                {
+                    startingWeaponIds.Add(itemId);
+                }
+            }
+        }
+
+        // [Starting attachments] Null when the key is absent (an apworld
+        // that predates the roll); present-but-empty means the generator
+        // rolled and granted nothing. The distinction reaches the fork,
+        // which keeps its legacy arsenal-aimed roll only for null.
+        List<int>? startingAttachmentIds = null;
+        if (block.TryGetProperty("starting_attachment_ids", out var attachmentElement)
+            && attachmentElement.ValueKind == JsonValueKind.Array)
+        {
+            startingAttachmentIds = new List<int>();
+            foreach (var element in attachmentElement.EnumerateArray())
+            {
+                if (element.ValueKind == JsonValueKind.Number
+                    && element.TryGetInt32(out var attachmentId)
+                    && attachmentId > 0)
+                {
+                    startingAttachmentIds.Add(attachmentId);
+                }
+            }
+        }
+
+        if (slots.Count == 0 && scatteredItemIds.Count == 0)
+        {
+            return MerchantShopSlotData.Disabled;
+        }
+
+        return new MerchantShopSlotData
+        {
+            Enabled = true,
+            Slots = slots,
+            Tiers = tiers,
+            ScatteredItemIds = scatteredItemIds,
+            StartingWeaponIds = startingWeaponIds,
+            StartingAttachmentIds = startingAttachmentIds,
+        };
+    }
+
+    private static long[] GetRoomLocationIds(
+        JsonElement connectedPacket,
+        long[] knownLocationIds,
+        IReadOnlyCollection<long> shopSlotLocationIds)
     {
         var roomIds = new SortedSet<long>();
         foreach (var propertyName in new[] { "missing_locations", "checked_locations" })
@@ -752,13 +1512,25 @@ public sealed class ArchipelagoScoutClient
             return knownLocationIds;
         }
 
+        // Shop slots are known ids too, but only for recognising what the
+        // room declares - the fallback above never requests them.
         var knownIds = new HashSet<long>(knownLocationIds);
+        knownIds.UnionWith(shopSlotLocationIds);
         var unknownIds = roomIds.Where(locationId => !knownIds.Contains(locationId)).ToList();
         if (unknownIds.Count > 0)
         {
+            // Direction is UNKNOWABLE from here. All this comparison proves is
+            // that the two sets differ; it cannot tell which side moved. The
+            // old wording asserted the room was NEWER and told the player to
+            // update the launcher, which is exactly backwards when the launcher
+            // is the fresh side - and it was, the day four cosmetic accessory
+            // locations left the pool and every room generated before that
+            // tripped this (Cam, live 2026-08-21). Name both remedies, rank
+            // neither.
             throw new ArchipelagoScoutException(
                 $"The room contains {unknownIds.Count} RE4R location id(s) this launcher's bundled world data does not know (first: {unknownIds[0]}). " +
-                "The room was probably generated with a newer RE4R.apworld than this launcher bundles - update the launcher and re-check.");
+                "The room and this launcher were built from different versions of RE4R.apworld; which one is older cannot be told from here. " +
+                "Either regenerate the room with the apworld this launcher ships, or update the launcher to match the one the room was generated with.");
         }
 
         return roomIds.ToArray();

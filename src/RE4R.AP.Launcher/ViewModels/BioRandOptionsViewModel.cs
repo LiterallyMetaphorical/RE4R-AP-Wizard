@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Text.Json.Nodes;
 using RE4R.AP.Launcher.Core.Models;
 using RE4R.AP.Launcher.Infrastructure;
@@ -25,6 +26,16 @@ public sealed class BioRandOptionsViewModel : ObservableObject
 
     private LaunchModeOption? _selectedMode;
     private EnemyConfigurationPreset _selectedEnemyPreset = EnemyConfigurationPresets.Custom;
+    // Dial state. When the combination is one of the five named pairs the
+    // picker shows that preset; off-ladder combos keep the picker on Custom
+    // and this holds the synthesized preset (its promise line included).
+    private EnemyCrowdPoint? _selectedCrowdPoint;
+    private EnemyRosterStep? _selectedRosterStep;
+    private EnemyVitalityPoint? _selectedVitalityPoint;
+    private EnemyConfigurationPreset? _activeDialPreset;
+    private bool _isSyncingDials;
+    private bool _gearScattered;
+    private int _startingArsenalCount;
     // The Méndez ratios as they stood when the exclusion toggle last went on,
     // so unchecking restores the player's own numbers. Session-scoped.
     private Dictionary<string, double>? _mendezValuesBeforeExclusion;
@@ -33,6 +44,9 @@ public sealed class BioRandOptionsViewModel : ObservableObject
     private bool _isPinnedToPreviousPatch;
     private bool _isUnlockedForChange;
     private bool _randomEventsForced;
+    private bool _merchantOwnedByAp;
+    private bool? _weaponStatsFromYaml;
+    private bool? _weaponUpgradesFromYaml;
     private string _pinnedNotice = string.Empty;
     private string _modeStatusText = "Choose a launch mode to continue.";
 
@@ -59,15 +73,291 @@ public sealed class BioRandOptionsViewModel : ObservableObject
 
             if (value.Key == EnemyConfigurationPresets.Custom.Key)
             {
+                if (!_isSyncingDials)
+                {
+                    _activeDialPreset = null;
+                    SyncDialsFrom(null, null, null);
+                }
+
                 OnPropertyChanged(nameof(EnemyPresetDescription));
                 return;
             }
 
+            _activeDialPreset = null;
+            SyncDialsFrom(value.CrowdKey, value.RosterKey, value.VitalityKey);
             ApplyEnemyPreset(value);
         }
     }
 
-    public string EnemyPresetDescription => $"{SelectedEnemyPreset.Intensity} intensity — {SelectedEnemyPreset.Description}";
+    public string EnemyPresetDescription => _activeDialPreset is { } dialed
+        ? $"{dialed.DisplayName}. {dialed.Description}"
+        : $"{SelectedEnemyPreset.Intensity} intensity. {SelectedEnemyPreset.Description}";
+
+    public IReadOnlyList<EnemyCrowdPoint> CrowdPoints => EnemyConfigurationPresets.CrowdPoints;
+
+    public IReadOnlyList<EnemyRosterStep> RosterSteps => EnemyConfigurationPresets.RosterSteps;
+
+    public IReadOnlyList<EnemyVitalityPoint> VitalityPoints => EnemyConfigurationPresets.VitalityPoints;
+
+    /// <summary>Vitality dial (how tough each enemy is). Null while hand-tweaked values make the mix Custom.</summary>
+    public EnemyVitalityPoint? SelectedVitalityPoint
+    {
+        get => _selectedVitalityPoint;
+        set
+        {
+            if (SetProperty(ref _selectedVitalityPoint, value) && !_isSyncingDials)
+            {
+                ApplyDialCombination();
+            }
+
+            OnPropertyChanged(nameof(VitalityExampleText));
+            OnPropertyChanged(nameof(HasVitalityExampleText));
+            UpdateHealthRowNotices();
+        }
+    }
+
+    /// <summary>
+    /// Real numbers for the selected Vitality point ("Villager 600 to 1,300, ..."), so the
+    /// adjective is never the only context. Empty while the dial is blank.
+    /// </summary>
+    public string VitalityExampleText => _selectedVitalityPoint is { } vitality
+        ? EnemyConfigurationPresets.DescribeVitality(vitality.Key)
+        : string.Empty;
+
+    public bool HasVitalityExampleText => !string.IsNullOrEmpty(VitalityExampleText);
+
+    /// <summary>
+    /// The Health page's enemy rows explain themselves while a named Vitality drives them;
+    /// hand-editing one still works and flips the mix to Custom like any other row.
+    /// </summary>
+    private void UpdateHealthRowNotices()
+    {
+        var notice = _selectedVitalityPoint is { } vitality
+            ? $"Driven by the Vitality dial ({vitality.Label}). Editing this makes the enemy mix Custom."
+            : string.Empty;
+        foreach (var (key, item) in _itemsByKey)
+        {
+            if (key.StartsWith("enemy-health-", StringComparison.Ordinal)
+                || string.Equals(key, "enemy-random-health", StringComparison.Ordinal))
+            {
+                item.ForcedNotice = notice;
+            }
+        }
+    }
+
+    /// <summary>Crowd dial (how busy fights are). Null while hand-tweaked values make the mix Custom.</summary>
+    public EnemyCrowdPoint? SelectedCrowdPoint
+    {
+        get => _selectedCrowdPoint;
+        set
+        {
+            if (SetProperty(ref _selectedCrowdPoint, value) && !_isSyncingDials)
+            {
+                ApplyDialCombination();
+            }
+
+            OnPropertyChanged(nameof(ShowScatterIntensityWarning));
+        }
+    }
+
+    /// <summary>Roster dial (how scary the mix is). Null while hand-tweaked values make the mix Custom.</summary>
+    public EnemyRosterStep? SelectedRosterStep
+    {
+        get => _selectedRosterStep;
+        set
+        {
+            if (SetProperty(ref _selectedRosterStep, value) && !_isSyncingDials)
+            {
+                ApplyDialCombination();
+            }
+
+            OnPropertyChanged(nameof(ShowScatterIntensityWarning));
+        }
+    }
+
+    /// <summary>
+    /// Set by the shell alongside <see cref="MerchantOwnedByAp"/>: true when the player's
+    /// settings scatter the merchant's gear into the multiworld (D10).
+    /// </summary>
+    public bool GearScattered
+    {
+        get => _gearScattered;
+        set
+        {
+            if (SetProperty(ref _gearScattered, value))
+            {
+                OnPropertyChanged(nameof(ShowScatterIntensityWarning));
+                ApplyStartingWeaponForcing();
+            }
+        }
+    }
+
+    /// <summary>
+    /// The settings file's Starting Arsenal count, set by the shell from the
+    /// pending draft like <see cref="GearScattered"/>. Drives the composed
+    /// starting-kit note on the Random Inventory row.
+    /// </summary>
+    public int StartingArsenalCount
+    {
+        get => _startingArsenalCount;
+        set
+        {
+            if (SetProperty(ref _startingArsenalCount, value))
+            {
+                ApplyStartingKitOverlapNote();
+            }
+        }
+    }
+
+    // Random Inventory stays fully the player's choice; the note just says
+    // both systems shape the opening case so nobody thinks one replaced the
+    // other. Same editable-row notice pattern as the enemy Health rows.
+    private void ApplyStartingKitOverlapNote()
+    {
+        // Rides the same triggers, but must not sit behind the early return
+        // below: the pickers grey out whether or not Random Inventory exists
+        // in this catalog.
+        ApplyStartingWeaponForcing();
+
+        if (!_itemsByKey.TryGetValue("random-inventory", out var item))
+        {
+            return;
+        }
+
+        item.ForcedNotice = item.BoolValue && _startingArsenalCount > 0
+            ? "Also on: your settings file's Starting Arsenal. They compose - BioRand rolls the opening kit, then your precollected arsenal joins it, ammo included."
+            : string.Empty;
+    }
+
+    /// <summary>
+    /// Primary and Secondary Weapon: inert once the settings file asks for a
+    /// starting arsenal, so they grey out.
+    /// </summary>
+    /// <remarks>
+    /// These two groups pick the CLASS of the primary and secondary weapons
+    /// BioRand rolls into the opening case. A run with a starting arsenal has
+    /// already said how many guns it wants, so the fork stops rolling them
+    /// (ValuableDistributor.RandomizeStartLoadout) and the switches choose the
+    /// class of something that never happens.
+    ///
+    /// Before that they were worse than decorative. InventoryModifier's class
+    /// dedupe only drops a roll COLLIDING with an arsenal weapon, so a one-gun
+    /// arsenal opened the case with three: the arsenal shotgun plus a rolled
+    /// handgun plus a rolled rifle.
+    ///
+    /// The condition is exactly when the manifest carries starting weapon ids:
+    /// the arsenal draws from the scattered pool, so it needs the gear shuffle,
+    /// and at a count of zero it asks for nothing. Either off and BioRand rolls
+    /// as it always did, so the pickers come back.
+    ///
+    /// Random Inventory itself is untouched. It still owns the kit AROUND the
+    /// guns, which is the whole reason to leave it on.
+    /// </remarks>
+    private void ApplyStartingWeaponForcing()
+    {
+        var arsenalOwnsWeapons = _gearScattered && _startingArsenalCount > 0;
+        const string reason =
+            "Off because your settings file's Starting Arsenal picks the guns you begin with.";
+
+        foreach (var (key, item) in _itemsByKey)
+        {
+            if (!key.StartsWith(BioRandOptionCatalog.StartingWeaponPrimaryKeyPrefix, StringComparison.Ordinal)
+                && !key.StartsWith(BioRandOptionCatalog.StartingWeaponSecondaryKeyPrefix, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            item.IsEnabled = !arsenalOwnsWeapons;
+            item.ForcedNotice = arsenalOwnsWeapons ? reason : string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// Scattered gear thins the early arsenal while heavy Crowd/Roster settings raise what the
+    /// player must answer; warn when both are on the table (ENEMY_CLASS_DESIGN.md rider).
+    /// </summary>
+    public bool ShowScatterIntensityWarning =>
+        _gearScattered
+        && (IndexOfOrMinusOne(EnemyConfigurationPresets.CrowdPoints, _selectedCrowdPoint) >= 3
+            || IndexOfOrMinusOne(EnemyConfigurationPresets.RosterSteps, _selectedRosterStep) >= 3);
+
+    public string ScatterIntensityWarning =>
+        "Merchant gear is scattered into the multiworld, so your arsenal grows as deliveries "
+        + "land, not on the game's schedule. At this intensity the roster can outpace your kit. "
+        + "Consider Busy / Wild or below, or turn the gear shuffle off in your settings file.";
+
+    private static int IndexOfOrMinusOne<T>(IReadOnlyList<T> list, T? item) where T : class
+    {
+        if (item == null)
+        {
+            return -1;
+        }
+
+        for (var i = 0; i < list.Count; i++)
+        {
+            if (ReferenceEquals(list[i], item))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private void SyncDialsFrom(string? crowdKey, string? rosterKey, string? vitalityKey)
+    {
+        _isSyncingDials = true;
+        try
+        {
+            SelectedCrowdPoint = crowdKey is null
+                ? null
+                : EnemyConfigurationPresets.CrowdPoints.FirstOrDefault(c => c.Key == crowdKey);
+            SelectedRosterStep = rosterKey is null
+                ? null
+                : EnemyConfigurationPresets.RosterSteps.FirstOrDefault(r => r.Key == rosterKey);
+            SelectedVitalityPoint = vitalityKey is null
+                ? null
+                : EnemyConfigurationPresets.VitalityPoints.FirstOrDefault(v => v.Key == vitalityKey);
+        }
+        finally
+        {
+            _isSyncingDials = false;
+        }
+    }
+
+    private void ApplyDialCombination()
+    {
+        if (_selectedCrowdPoint is not { } crowd
+            || _selectedRosterStep is not { } roster
+            || _selectedVitalityPoint is not { } vitality)
+        {
+            return;
+        }
+
+        var combination = EnemyConfigurationPresets.BuildCombination(crowd.Key, roster.Key, vitality.Key);
+        if (EnemyConfigurationPresets.FindPair(crowd.Key, roster.Key, vitality.Key) is { } pair)
+        {
+            _activeDialPreset = null;
+            SelectedEnemyPreset = pair;
+            return;
+        }
+
+        // Off-ladder mix: the picker reads Custom (the combination is not in
+        // its list), the description carries the synthesized promise line.
+        _activeDialPreset = combination;
+        _isSyncingDials = true;
+        try
+        {
+            SelectedEnemyPreset = EnemyConfigurationPresets.Custom;
+        }
+        finally
+        {
+            _isSyncingDials = false;
+        }
+
+        ApplyEnemyPreset(combination);
+        OnPropertyChanged(nameof(EnemyPresetDescription));
+    }
 
     /// <summary>Removes both Méndez classes from BioRand's random-enemy probability table.</summary>
     public bool ExcludeDifficultMendezEncounters
@@ -329,6 +619,36 @@ public sealed class BioRandOptionsViewModel : ObservableObject
         return options;
     }
 
+    // BioRand ships the Enemies page as ten groups, three of them with no
+    // title at all - including the 36 drop-ratio sliders. Keyed on the group's
+    // first option, which is stabler than an index and readable in a diff.
+    // Titles fill the blanks; blurbs are only where the label alone leaves a
+    // real question.
+    private static readonly Dictionary<string, (string Title, string Blurb)> EnemyGroupHeadings =
+        new(StringComparer.Ordinal)
+        {
+            ["random-enemies"] = ("Placement",
+                "Whether BioRand re-rolls who appears where, and how many spawns it adds on top of the originals - including in areas that were quiet and in boss arenas."),
+            ["enemy-multiplier"] = ("Crowd size and variety",
+                "Multiplier duplicates the enemies a fight already has. Variety and pack size decide how many different types can share an area."),
+            ["enemy-waves-probability"] = ("Waves",
+                "Some fights send follow-up groups once the first is down."),
+            ["enemy-scale-probability"] = ("Size",
+                "Chance an enemy spawns unusually large or small."),
+            ["balanced-enemies"] = ("Safety rails",
+                "Keep these on for a first run or permadeath. They hold the nastiest types out of the spots that punish them most."),
+            ["enemy-strong-mini-boss"] = ("Individual behaviour", ""),
+            ["enemy-ratio-villager"] = ("Which enemies appear",
+                "Relative weight per type. Higher means it turns up more often; zero takes it out of the pool entirely."),
+            ["parasite-ratio-none"] = ("Parasites",
+                "Which Plaga bursts out when you stagger or finish a host. None is the weight for no parasite at all."),
+            ["random-enemy-drops"] = ("Drops",
+                "Whether enemies drop randomized loot, and how much."),
+            ["enemy-drop-ratio-none"] = ("What they drop",
+                "Relative weight per item. These are shares of the drop table, not percentages, so raising one lowers everything else."),
+            ["enemy-drop-valuable-weapon"] = ("Valuable drops",
+                "Chance an enemy carries something worth more than ammo."),
+        };
     private void BuildPages()
     {
         foreach (var page in BioRandOptionCatalog.Pages)
@@ -336,7 +656,15 @@ public sealed class BioRandOptionsViewModel : ObservableObject
             var pageVm = new BioRandOptionPageViewModel { Title = page.Title };
             foreach (var group in page.Groups)
             {
-                var groupVm = new BioRandOptionGroupViewModel { Title = group.Title };
+                var firstKey = group.Items.Count > 0 ? group.Items[0].Key : string.Empty;
+                var heading = pageVm.IsEnemiesPage && EnemyGroupHeadings.TryGetValue(firstKey, out var found)
+                    ? found
+                    : (Title: group.Title, Blurb: string.Empty);
+                var groupVm = new BioRandOptionGroupViewModel
+                {
+                    Title = string.IsNullOrWhiteSpace(group.Title) ? heading.Title : group.Title,
+                    Description = heading.Blurb,
+                };
                 foreach (var definition in group.Items)
                 {
                     var item = new BioRandOptionItemViewModel(definition);
@@ -346,6 +674,19 @@ public sealed class BioRandOptionsViewModel : ObservableObject
                     {
                         _enemyOptionKeys.Add(definition.Key);
                     }
+
+                    // Random Enemies is promoted to the headline checkbox of
+                    // the Enemies tab (both UIs), so it does not render as an
+                    // ordinary row. It stays registered: presets,
+                    // serialization and the Random Events forcing all address
+                    // it through _itemsByKey.
+                    if (string.Equals(definition.Key, BioRandOptionCatalog.RandomEnemiesKey, StringComparison.Ordinal))
+                    {
+                        RandomEnemiesOption = item;
+                        item.PropertyChanged += OnRandomEnemiesOptionPropertyChanged;
+                        continue;
+                    }
+
                     groupVm.Options.Add(item);
                 }
 
@@ -355,7 +696,45 @@ public sealed class BioRandOptionsViewModel : ObservableObject
             Pages.Add(pageVm);
         }
 
+        // Preset ownership extends past the Enemies page (the Health page's
+        // enemy band rows ride the roster's HP position curve), so the
+        // flip-to-Custom set derives from what a preset actually pins.
+        foreach (var key in EnemyConfigurationPresets.Named[0].Values.Keys)
+        {
+            _enemyOptionKeys.Add(key);
+        }
+
         AddRandomEventsNote();
+        SyncEnemyPageBodyVisibility();
+    }
+
+    /// <summary>
+    /// The promoted Random Enemies switch. The whole enemy configuration
+    /// block (preset picker, Méndez exclusion, individual rows) only shows
+    /// while it is on; off means enemies stay vanilla.
+    /// </summary>
+    public BioRandOptionItemViewModel? RandomEnemiesOption { get; private set; }
+
+    public bool IsEnemyConfigurationVisible => RandomEnemiesOption?.BoolValue ?? true;
+
+    private void OnRandomEnemiesOptionPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (!string.Equals(e.PropertyName, nameof(BioRandOptionItemViewModel.BoolValue), StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        OnPropertyChanged(nameof(IsEnemyConfigurationVisible));
+        SyncEnemyPageBodyVisibility();
+    }
+
+    private void SyncEnemyPageBodyVisibility()
+    {
+        var enemiesPage = Pages.FirstOrDefault(page => page.IsEnemiesPage);
+        if (enemiesPage is not null)
+        {
+            enemiesPage.IsBodyVisible = IsEnemyConfigurationVisible;
+        }
     }
 
     /// <summary>
@@ -474,6 +853,209 @@ public sealed class BioRandOptionsViewModel : ObservableObject
                 item.ForcedNotice = string.Empty;
             }
         }
+
+        ApplyMerchantForcing();
+        ApplyStartingKitOverlapNote();
+        ApplyBossHealthForcing();
+        ApplyWeaponStatsForcing();
+    }
+
+    /// <summary>
+    /// The YAML's Random Weapon Stats choice, when the player's settings
+    /// carry one. Null leaves BioRand's own switch player-controlled (drafts
+    /// and rooms from before the option existed). Draft-sourced hint like
+    /// the others; the manifest enforces the room's answer either way.
+    /// </summary>
+    public bool? WeaponStatsFromYaml
+    {
+        get => _weaponStatsFromYaml;
+        set
+        {
+            if (SetProperty(ref _weaponStatsFromYaml, value))
+            {
+                ApplyWeaponStatsForcing();
+            }
+        }
+    }
+
+    /// <summary>
+    /// The upgrades half of the settings file's weapon-randomization
+    /// three-way. Null when the draft predates the choice - the stats-off
+    /// fallback below still covers the pair's one invalid shape.
+    /// </summary>
+    public bool? WeaponUpgradesFromYaml
+    {
+        get => _weaponUpgradesFromYaml;
+        set
+        {
+            if (SetProperty(ref _weaponUpgradesFromYaml, value))
+            {
+                ApplyWeaponStatsForcing();
+            }
+        }
+    }
+
+    private void ApplyWeaponStatsForcing()
+    {
+        if (_itemsByKey.TryGetValue(BioRandOptionCatalog.RandomWeaponStatsKey, out var statsItem))
+        {
+            if (_weaponStatsFromYaml is bool yamlChoice)
+            {
+                // The multiworld holds the weapons, so their character rides
+                // with them: the YAML decides once, every patch agrees.
+                statsItem.LoadValue(System.Text.Json.Nodes.JsonValue.Create(yamlChoice));
+                statsItem.IsEnabled = false;
+                statsItem.ForcedNotice = yamlChoice
+                    ? "On because your settings file says so - weapon randomization rides with the multiworld's weapons."
+                    : "Off because your settings file says so - weapon randomization rides with the multiworld's weapons.";
+            }
+            else
+            {
+                statsItem.IsEnabled = true;
+                statsItem.ForcedNotice = string.Empty;
+            }
+        }
+
+        if (!_itemsByKey.TryGetValue(BioRandOptionCatalog.RandomWeaponUpgradesKey, out var upgradesItem))
+        {
+            return;
+        }
+
+        if (_weaponUpgradesFromYaml is bool upgradesChoice)
+        {
+            // The other half of the same three-way: Off pins both, Stats
+            // Only pins this off, Full pins both on.
+            upgradesItem.LoadValue(System.Text.Json.Nodes.JsonValue.Create(upgradesChoice));
+            upgradesItem.IsEnabled = false;
+            upgradesItem.ForcedNotice = upgradesChoice
+                ? "On because your settings file says so - weapon randomization rides with the multiworld's weapons."
+                : "Off because your settings file says so - weapon randomization rides with the multiworld's weapons.";
+        }
+        else if (_weaponStatsFromYaml == false)
+        {
+            // Toggle-era settings file: stats off must drag upgrades off or
+            // BioRand refuses the patch outright (the v0.5.0 blocker).
+            upgradesItem.LoadValue(System.Text.Json.Nodes.JsonValue.Create(false));
+            upgradesItem.IsEnabled = false;
+            upgradesItem.ForcedNotice =
+                "Off because your settings file turns weapon stats off - BioRand refuses upgrades without stats.";
+        }
+        else
+        {
+            upgradesItem.IsEnabled = true;
+            upgradesItem.ForcedNotice = string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// True when the player's own settings give the multiworld the merchant
+    /// (shop checks or scattered gear). Same draft-sourced hint as
+    /// <see cref="RandomEventsForced"/>: the room's authoritative answer
+    /// arrives at the scout, and the manifest enforces it either way.
+    /// </summary>
+    public bool MerchantOwnedByAp
+    {
+        get => _merchantOwnedByAp;
+        set
+        {
+            if (SetProperty(ref _merchantOwnedByAp, value))
+            {
+                ApplyMerchantForcing();
+                ApplyStartingKitOverlapNote();
+                ApplyBossHealthForcing();
+            }
+        }
+    }
+
+    /// <summary>
+    /// The per-boss HP dials go inert when Random Boss Health is off, so they
+    /// grey out and say why.
+    /// </summary>
+    /// <remarks>
+    /// EnemyModifier keeps the entire boss branch inside
+    /// "if (boss-random-health)". With the switch off, enemy.Health is never
+    /// assigned for a boss and all 38 dials do nothing. Nothing else reads
+    /// them either: the Pesanta chapter-HP fix in FixesModifier is gated on
+    /// the same switch.
+    ///
+    /// This cost a real test. Del Lago was set to min 0 / max 1 for a quick
+    /// kill and behaved exactly as normal, because the switch above the dials
+    /// was off and nothing said so (Cam, 2026-08-21).
+    ///
+    /// Deliberately NOT applied to the enemy-health-* group, which looks
+    /// identical but is not: FixesModifier reads enemy-health-min-brute_weapon
+    /// and -max-brute_weapon UNGATED to set the brute chapter HP. Greying that
+    /// group when enemy-random-health is off would be wrong about those two.
+    /// </remarks>
+    private void ApplyBossHealthForcing()
+    {
+        if (!_itemsByKey.TryGetValue(BioRandOptionCatalog.BossRandomHealthKey, out var master))
+        {
+            return;
+        }
+
+        var inert = !master.BoolValue;
+        const string reason =
+            "Inert while Random Boss Health is off - nothing reads these until you tick it.";
+
+        foreach (var (key, item) in _itemsByKey)
+        {
+            if (!key.StartsWith(BioRandOptionCatalog.BossHealthKeyPrefix, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            item.IsEnabled = !inert;
+            item.ForcedNotice = inert ? reason : string.Empty;
+        }
+    }
+
+    private void ApplyMerchantForcing()
+    {
+        // Two owners cannot stock one shop: BioRand's merchant reroll would
+        // put weapons back on a shelf the multiworld just took over (its
+        // added arsenal is not pool-excludable) and reprice the check rows
+        // whose price IS their classification. Stock, prices and the
+        // per-chapter restock schedule all live behind random-merchant in the
+        // fork, so it is forced off and the restock sliders grey out as the
+        // inert controls they become.
+        //
+        // The spinel TRADE rows are NOT part of that. They used to be, purely
+        // because SetRewards sat inside the same gated modifier, so an AP run
+        // shipped a vanilla trade tab while every other BioRand run got a
+        // randomized one. The fork now rolls them regardless, so the notice
+        // says shelf rather than merchant.
+        const string reason =
+            "Off because the multiworld runs this room's shelf (shop checks or scattered gear). The spinel trade rows are still randomized.";
+        foreach (var (key, item) in _itemsByKey)
+        {
+            var isHeadline = string.Equals(key, BioRandOptionCatalog.RandomMerchantKey, StringComparison.Ordinal)
+                || string.Equals(key, BioRandOptionCatalog.RandomMerchantPricesKey, StringComparison.Ordinal);
+            var isStockDial = key.StartsWith(BioRandOptionCatalog.MerchantStockKeyPrefix, StringComparison.Ordinal);
+            if (!isHeadline && !isStockDial)
+            {
+                continue;
+            }
+
+            if (_merchantOwnedByAp)
+            {
+                if (isHeadline)
+                {
+                    item.LoadValue(System.Text.Json.Nodes.JsonValue.Create(false));
+                    item.ForcedNotice = reason;
+                }
+
+                item.IsEnabled = false;
+            }
+            else
+            {
+                item.IsEnabled = true;
+                if (isHeadline)
+                {
+                    item.ForcedNotice = string.Empty;
+                }
+            }
+        }
     }
 
     /// <summary>Any player tweak means the config is no longer the preset - so say so.</summary>
@@ -492,9 +1074,27 @@ public sealed class BioRandOptionsViewModel : ObservableObject
             UpdateModeState();
         }
 
+        if (string.Equals(item.Key, "random-inventory", StringComparison.Ordinal))
+        {
+            ApplyStartingKitOverlapNote();
+        }
+        if (string.Equals(item.Key, BioRandOptionCatalog.BossRandomHealthKey, StringComparison.Ordinal))
+        {
+            ApplyBossHealthForcing();
+        }
         if (_enemyOptionKeys.Contains(item.Key))
         {
             MarkEnemyPresetCustom();
+        }
+
+        // Ticking Random Enemies on from a bare Custom starts from the
+        // mildest named mix, so the picker names a real configuration
+        // instead of labelling untouched stock values Custom.
+        if (string.Equals(item.Key, BioRandOptionCatalog.RandomEnemiesKey, StringComparison.Ordinal)
+            && item.BoolValue
+            && ReferenceEquals(_selectedEnemyPreset, EnemyConfigurationPresets.Custom))
+        {
+            SelectedEnemyPreset = EnemyConfigurationPresets.Named[0]; // Gentle Remix
         }
 
         if (EnemyConfigurationPresets.MendezPoolKeys.Contains(item.Key, StringComparer.Ordinal))
@@ -547,18 +1147,58 @@ public sealed class BioRandOptionsViewModel : ObservableObject
             _itemsByKey.TryGetValue(pair.Key, out var item) && ValuesMatch(item, pair.Value)))
             ?? EnemyConfigurationPresets.Custom;
 
+        // Not a named pair: the values may still be an off-ladder dial mix.
+        // Each axis detects independently against its own fragment, so a
+        // hand-tweak on one axis blanks only what it actually touched away
+        // from; all three found means the dials restore on reload.
+        EnemyConfigurationPreset? dialed = null;
+        string? crowdKey = preset.CrowdKey;
+        string? rosterKey = preset.RosterKey;
+        string? vitalityKey = preset.VitalityKey;
+        if (ReferenceEquals(preset, EnemyConfigurationPresets.Custom))
+        {
+            JsonNode? Getter(string key) => _itemsByKey.TryGetValue(key, out var item) ? item.ToJsonNode() : null;
+            var crowd = EnemyConfigurationPresets.DetectCrowdPoint(Getter);
+            var roster = EnemyConfigurationPresets.DetectRosterStep(Getter);
+            var vitality = EnemyConfigurationPresets.DetectVitalityPoint(Getter);
+            crowdKey = crowd?.Key;
+            rosterKey = roster?.Key;
+            vitalityKey = vitality?.Key;
+            if (crowd != null && roster != null && vitality != null)
+            {
+                dialed = EnemyConfigurationPresets.BuildCombination(crowd.Key, roster.Key, vitality.Key);
+            }
+        }
+
+        _activeDialPreset = dialed;
+        SyncDialsFrom(crowdKey, rosterKey, vitalityKey);
+
         if (!ReferenceEquals(_selectedEnemyPreset, preset))
         {
             _selectedEnemyPreset = preset;
             OnPropertyChanged(nameof(SelectedEnemyPreset));
-            OnPropertyChanged(nameof(EnemyPresetDescription));
         }
+
+        OnPropertyChanged(nameof(EnemyPresetDescription));
     }
 
     private void MarkEnemyPresetCustom()
     {
+        var dialsWereSet = _selectedCrowdPoint != null || _selectedRosterStep != null
+            || _selectedVitalityPoint != null || _activeDialPreset != null;
+        if (dialsWereSet)
+        {
+            _activeDialPreset = null;
+            SyncDialsFrom(null, null, null);
+        }
+
         if (ReferenceEquals(_selectedEnemyPreset, EnemyConfigurationPresets.Custom))
         {
+            if (dialsWereSet)
+            {
+                OnPropertyChanged(nameof(EnemyPresetDescription));
+            }
+
             return;
         }
 

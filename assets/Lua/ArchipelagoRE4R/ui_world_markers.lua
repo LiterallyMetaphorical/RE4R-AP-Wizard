@@ -22,6 +22,10 @@ local function install(ctx)
     local MARKER_COLOR_PROGRESSION = 0xFF4AB2E0
     local MARKER_COLOR_USEFUL = 0xFFE88B6D
     local MARKER_COLOR_HINT = 0xFFD08BE8
+    -- [D8] Rollback re-grabs: white, same as a plain marker - the [RE-GRAB]
+    -- prefix is the distinguisher (Cam, live 2026-08-14; the green tried too
+    -- hard). Kept as its own constant so the choice stays revisitable.
+    local MARKER_COLOR_REGRAB = 0xFFFFFFFF
 
     -- Text floats a little above the pickup so it reads at eye level.
     local MARKER_Y_OFFSET = 1.4
@@ -31,17 +35,21 @@ local function install(ctx)
     -- they read as "not this chapter" without hiding the data.
     local MARKER_COLOR_OFFCHAPTER = 0x99AAAAAA
 
-    -- Enrichment ladder (marker_detail): basic < locate < identify < developer
-    -- (developer = identify + the [guid8] location code, the one token that
-    -- correlates a marker with its spoiler-log line - Cam 2026-07-29), each tier a
-    -- superset of the prior. The player's client pick is capped by the YAML host
-    -- ceiling (bridge.marker_detail_ceiling, absent = permissive "identify"), and
-    -- identify additionally needs Developer Tools (a self-spoiler gate). A HINTED
-    -- check always renders identify regardless (you paid to know).
-    local DETAIL_TIER = { basic = 1, locate = 2, identify = 3, developer = 4 }
+    -- Enrichment tiers (marker_detail), each a superset of the one before:
+    --   minimal   [AP] 9m | +1m
+    --   basic     + chapter tag and area name          (the default)
+    --   locate    + the vanilla item, its container, and the finding note
+    --   identify  + the REAL placement (item + recipient) - a spoiler
+    --   developer + the [guid8] code that matches the spoiler log
+    -- What you pick is what renders, with no cap at all (2026-08-17). The
+    -- ceiling this used to obey was self-imposed - everyone writes their own
+    -- settings file in a multiworld - so it only ever stopped a player seeing
+    -- what they had already asked for, twice over.
+    -- A HINTED check always renders identify regardless (you paid to know).
+    local DETAIL_TIER = { minimal = 1, basic = 2, locate = 3, identify = 4, developer = 5 }
 
     local function detail_tier_of(name)
-        return DETAIL_TIER[name] or 1
+        return DETAIL_TIER[name] or DETAIL_TIER.basic
     end
 
     local function frame_detail_tier()
@@ -49,13 +57,7 @@ local function install(ctx)
         if type(pick) ~= "string" then
             pick = (type(_G.WORLD_MARKER_DETAIL) == "string" and _G.WORLD_MARKER_DETAIL) or "basic"
         end
-        -- Absent ceiling = permissive top tier. identify AND developer both
-        -- sit behind the Developer Tools gate (the >= check covers them).
-        local tier = math.min(detail_tier_of(pick), detail_tier_of(bridge.marker_detail_ceiling or "developer"))
-        if tier >= DETAIL_TIER.identify and bridge.developer_tools_enabled ~= true then
-            tier = DETAIL_TIER.locate
-        end
-        return tier
+        return detail_tier_of(pick)
     end
 
     -- identify: the ACTUAL AP placement here (real item + recipient) from the
@@ -95,13 +97,45 @@ local function install(ctx)
         entries = {},
     }
 
+    -- [Marker position editor] Developer tool. When a marker points at empty
+    -- space (the drop audit can't correct these - it reads the DropItem's
+    -- logical Transform, which stays at the authored anchor even when the item
+    -- is visibly elsewhere), stand in-game, pick the marker, nudge it in world
+    -- axes onto the real item, and log a table-ready line for
+    -- data_parser._POSITION_OVERRIDES. Overrides are keyed by guid and applied
+    -- in build_marker_entry, so the in-world marker moves live as you nudge.
+    -- In-session only; nothing writes to game or save data.
+    local MARKER_EDIT_FILE = "ArchipelagoRE4R/marker_position_edits.json"
+    local marker_edit_overrides = {}
+    local marker_edit_selected_guid = nil
+    local marker_edit_step = 0.5
+
+    local function marker_edit_invalidate_cache()
+        -- Force the next get_marker_entries to rebuild so a nudge shows this
+        -- frame instead of waiting out the 1s cache.
+        marker_cache.built_at = -math.huge
+    end
+
     -- Presentation-only projection: membership + family iteration live in
     -- data.lua's collect_open_family_locations (shared with the Actions-tab
     -- nearby list and the header progression notice), so an eligibility rule
     -- edit there lands here automatically. This function only turns each open
     -- location into a drawable marker entry.
+    -- Which campaign the player is in, or nil when it could not be read.
+    -- Refreshed once a frame by draw_world_check_markers.
+    local playing_campaign = nil
+
     local function build_marker_entry(open_location)
         local display_entry = open_location.entry
+        -- [Separate Ways] Ada revisits much of Leon's map and 36 stage ids
+        -- carry checks from both campaigns, so a marker chosen by stage alone
+        -- points at his checks while she is in a room they were never placed
+        -- in (Cam, live 2026-09-06, chapter 2). A check with no campaign is
+        -- Leon's, which is every check in a room built before the key existed.
+        if playing_campaign ~= nil
+            and ((display_entry and display_entry.campaign) or "leon") ~= playing_campaign then
+            return nil
+        end
         local x = display_entry and tonumber(display_entry.x)
         local y = display_entry and tonumber(display_entry.y)
         local z = display_entry and tonumber(display_entry.z)
@@ -110,6 +144,14 @@ local function install(ctx)
         if x == nil or y == nil or z == nil
             or (x == 0.0 and y == 0.0 and z == 0.0) then
             return nil
+        end
+        -- [Marker position editor] Live nudge: a per-guid override moves the
+        -- in-world marker as the editor adjusts it. Base xyz kept so the editor
+        -- can show the delta and reset.
+        local base_x, base_y, base_z = x, y, z
+        local override = open_location.guid and marker_edit_overrides[open_location.guid]
+        if override ~= nil then
+            x, y, z = override.x, override.y, override.z
         end
         local location_id = display_entry and tonumber(display_entry.location_id)
         -- [Hints] An unfound hint on this location upgrades the
@@ -130,6 +172,9 @@ local function install(ctx)
             x = x,
             y = y,
             z = z,
+            base_x = base_x,
+            base_y = base_y,
+            base_z = base_z,
             location_id = location_id,
             hinted = hinted,
             stage = open_location.stage,
@@ -150,16 +195,39 @@ local function install(ctx)
     -- Square Hand Grenade (36416bae) is keyed under 40211 ("grenade house"),
     -- so from 40200 - two metres outside the door - it never drew (Cam's
     -- footage, 2026-07-23). The 40m distance cap still bounds what shows.
+    -- [Marker diagnostics] How many open checks this stage family holds and
+    -- how many became drawable, so "no markers" can be attributed instead of
+    -- guessed at (Cam, live 2026-09-07: none in Separate Ways).
+    local marker_open_count = 0
+    local marker_report = nil
+
     local function rebuild_marker_entries(stage)
         local entries = {}
         local collect = ctx.collect_open_family_locations or _G.collect_open_family_locations
         if type(collect) ~= "function" then
+            marker_open_count = 0
             return entries
         end
-        for _, open_location in ipairs(collect(stage)) do
+        local open_locations = collect(stage)
+        marker_open_count = #open_locations
+        for _, open_location in ipairs(open_locations) do
             local entry = build_marker_entry(open_location)
             if entry ~= nil then
                 entries[#entries + 1] = entry
+            end
+        end
+        -- [D8] Plus the rollback class: spots this SEED has checked but this
+        -- SAVE has not, holding one of our own items. The check stays sent -
+        -- these are not reopened locations - but the item is physically back
+        -- in the world and nothing else would point at it.
+        local collect_regrab = ctx.collect_regrab_family_locations or _G.collect_regrab_family_locations
+        if type(collect_regrab) == "function" then
+            for _, regrab_location in ipairs(collect_regrab(stage)) do
+                local entry = build_marker_entry(regrab_location)
+                if entry ~= nil then
+                    entry.regrab = true
+                    entries[#entries + 1] = entry
+                end
             end
         end
         return entries
@@ -223,12 +291,56 @@ local function install(ctx)
         return contained == true
     end
 
+    local function is_mercenaries_active()
+        local slot_data = ctx.slot_data or bridge.slot_data
+        if type(slot_data) == "table" and slot_data.game_mode == "mercenaries_only" then
+            return true
+        end
+        local get_domain = ctx.get_runtime_domain or _G.get_runtime_domain
+        if type(get_domain) == "function" then
+            local ok_d, dom = pcall(get_domain)
+            if ok_d and dom == "MERCENARIES" then
+                return true
+            end
+        end
+        local get_ctrl = ctx.get_merc_controller or _G.get_merc_controller
+        if type(get_ctrl) == "function" then
+            local ok_c, ctrl = pcall(get_ctrl)
+            if ok_c and ctrl ~= nil then
+                return true
+            end
+        end
+        return false
+    end
+
     local function draw_world_check_markers()
+        -- Mercenaries mode does not have campaign world pickup markers
+        if is_mercenaries_active() then
+            return
+        end
+
+        -- Who is playing comes off the inventory ContextID, the only thing
+        -- that separates Ada's campaign from Leon's. Ashley's section is his
+        -- campaign on his map, so it keeps his markers.
+        --
+        -- Unread means carry on: a failure to read the inventory table must
+        -- never blank the markers on an ordinary campaign run, so nil here
+        -- leaves every check eligible exactly as before.
+        playing_campaign = nil
+        local who = ctx.inject_current_character or _G.inject_current_character
+        if type(who) == "function" then
+            local ok_character, character = pcall(who)
+            if ok_character and type(character) == "table" then
+                playing_campaign = character.campaign
+            end
+        end
+
         -- YAML ceiling: check_guidance "off" disables ALL world guidance,
         -- including hinted markers (the ceiling is absolute).
         if bridge.check_guidance_ceiling == "off" then
             return
         end
+
         -- Ambient [AP] markers and purchased [HINT] markers gate separately:
         -- a player who opted out of ambient guidance still sees hints they
         -- (or teammates) explicitly bought, unless they turn those off too.
@@ -263,6 +375,19 @@ local function install(ctx)
 
         local max_distance = tonumber(bridge.world_markers_max_distance) or 40.0
         local entries = get_marker_entries(state.current_stage)
+        do
+            local report = string.format(
+                "world markers: stage %s (%s), %d open check(s) in this stage family, %d drawable, cap %.0fm",
+                tostring(state.current_stage),
+                tostring(playing_campaign or "campaign unread"),
+                marker_open_count,
+                #entries,
+                max_distance)
+            if report ~= marker_report then
+                marker_report = report
+                log.info("[RE4R AP] " .. report)
+            end
+        end
         for _, entry in ipairs(entries) do
             local dx = entry.x - player_position.x
             local dy = entry.y - player_position.y
@@ -276,6 +401,14 @@ local function install(ctx)
             if entry.hinted and hints_enabled then
                 label_prefix = "[HINT]"
                 color = MARKER_COLOR_HINT
+            elseif entry.regrab then
+                -- Same ambient rules as any marker (toggle + distance): this is
+                -- guidance, not a paid hint. The tag says what it is - the
+                -- check already sent, the item is just lying there again.
+                if ambient_enabled and distance <= max_distance then
+                    label_prefix = "[RE-GRAB]"
+                    color = MARKER_COLOR_REGRAB
+                end
             elseif ambient_enabled and distance <= max_distance then
                 label_prefix = "[AP]"
                 color = get_marker_color(entry.location_id)
@@ -302,22 +435,33 @@ local function install(ctx)
                 -- be prepended after the fact, which put it BEFORE the [AP]
                 -- tag and made the marker read "[Ch1] [AP] ...".
                 local parts = { label_prefix }
-                if type(entry.chapter) == "number" then
+                -- Basic and up: the chapter tag. Minimal keeps only the
+                -- spatial reading (tag, distance, height).
+                local head_length = 1
+                if eff_tier >= DETAIL_TIER.basic and type(entry.chapter) == "number" then
                     parts[#parts + 1] = "[Ch" .. tostring(entry.chapter) .. "]"
+                    head_length = 2
                 end
                 parts[#parts + 1] = string.format("%dm", math.floor(distance + 0.5))
 
-                -- Basic: height (signed metres) + area.
+                -- Every tier carries height; it is spatial, not informational.
                 if dy >= MARKER_HEIGHT_MIN then
                     parts[#parts + 1] = string.format("+%dm", math.floor(dy + 0.5))
                 elseif dy <= -MARKER_HEIGHT_MIN then
                     parts[#parts + 1] = string.format("-%dm", math.floor((-dy) + 0.5))
                 end
-                if type(entry.section_name) == "string" and entry.section_name ~= "" then
+                -- Basic and up: the area name.
+                if eff_tier >= DETAIL_TIER.basic
+                    and type(entry.section_name) == "string" and entry.section_name ~= "" then
                     parts[#parts + 1] = entry.section_name
                 end
 
-                -- Locate: what to look for = vanilla item name + container tag.
+                -- Locate: what to look for = vanilla item name + container tag,
+                -- plus the finding note. The note used to sit at identify, but
+                -- it describes how to REACH the thing ("boost Ashley through the
+                -- hole above the gate") rather than what the multiworld put
+                -- there, so it belongs with the rest of the finding aids
+                -- (Cam, 2026-08-13).
                 if eff_tier >= DETAIL_TIER.locate then
                     local item_name = tostring(entry.item_name or "")
                     if item_name ~= "" then
@@ -327,23 +471,23 @@ local function install(ctx)
                         end
                         parts[#parts + 1] = '"' .. item_name .. '"' .. tag
                     end
-                end
-
-                -- Identify: the finding note (authored prose or the English
-                -- translation of the scene dev note) as its own pipe field.
-                -- Hinted markers render identify, so a paid hint gets it too.
-                if eff_tier >= DETAIL_TIER.identify then
                     local note = tostring(entry.note or "")
                     if note ~= "" then
                         parts[#parts + 1] = note
                     end
                 end
 
-                -- The tag and chapter read as one unit, so they are joined by
-                -- spaces; the spatial and item fields stay pipe-separated.
-                local head = table.concat({ parts[1], parts[2] }, " ")
+                -- The tag and the chapter read as one unit, so they are joined
+                -- by spaces; the spatial and item fields stay pipe-separated.
+                -- At minimal there is no chapter, so the head is the tag alone
+                -- and the distance becomes the first piped field.
+                local head_pieces = {}
+                for index = 1, head_length do
+                    head_pieces[#head_pieces + 1] = parts[index]
+                end
+                local head = table.concat(head_pieces, " ")
                 local rest = {}
-                for index = 3, #parts do
+                for index = head_length + 1, #parts do
                     rest[#rest + 1] = parts[index]
                 end
                 local label = head
@@ -451,8 +595,175 @@ local function install(ctx)
         return string.format("dumped %d unchecked marker(s) to log", #rows)
     end
 
+    -- [Marker position editor] Record the edited marker's corrected position.
+    -- Persists a structured JSON of every edit (guid -> position + label, keyed
+    -- by guid so re-editing a spot overwrites cleanly) via the same json file
+    -- API the drop audit uses, and ALSO emits the paste-ready
+    -- _POSITION_OVERRIDES line to the framework log. Cam sends either.
+    local function marker_edit_log_position(entry)
+        local label = tostring(entry.section_name or "")
+        local item = tostring(entry.item_name or "")
+        if item ~= "" then
+            label = (label ~= "" and (label .. " - ") or "") .. item
+        end
+        -- Round to cm - matches the audit's precision and the table's style.
+        local rx = math.floor(entry.x * 100 + 0.5) / 100
+        local ry = math.floor(entry.y * 100 + 0.5) / 100
+        local rz = math.floor(entry.z * 100 + 0.5) / 100
+        local line = string.format(
+            '        "%s": (%.2f, %.2f, %.2f),  # %s',
+            tostring(entry.guid), rx, ry, rz, label)
+        log.info("[RE4R AP] marker editor -> " .. line)
+
+        local ok = pcall(function()
+            local existing = json.load_file(MARKER_EDIT_FILE)
+            if type(existing) ~= "table" then
+                existing = { version = 1, edits = {} }
+            end
+            if type(existing.edits) ~= "table" then
+                existing.edits = {}
+            end
+            existing.edits[tostring(entry.guid)] = {
+                x = rx, y = ry, z = rz, label = label,
+                stage = entry.stage,
+            }
+            json.dump_file(MARKER_EDIT_FILE, existing)
+        end)
+        if ok then
+            return string.format("logged %s (%.2f, %.2f, %.2f)",
+                tostring(entry.guid):sub(1, 8), rx, ry, rz)
+        end
+        return "line is in re2_framework_log.txt (file write failed)"
+    end
+
+    -- [Marker position editor] Dev-gated window: pick a marker in the current
+    -- stage, nudge it in world axes onto the real item, log the corrected
+    -- position. Gated on developer_tools_enabled AND its own toggle.
+    local function draw_marker_position_editor()
+        if bridge.developer_tools_enabled ~= true
+            or bridge.marker_editor_window_enabled ~= true then
+            return
+        end
+        local state = bridge.last_state or {}
+        if not state.is_playable or type(state.current_stage) ~= "number" then
+            return
+        end
+        -- Only while REFramework's menu is open (Insert). Without this the
+        -- editor drew straight over gameplay and Insert had nothing to do with
+        -- it, because it was never tied to the menu at all - the same mistake
+        -- the tutorial dialog made, and the same fix.
+        local ok_ui, drawing_ui = pcall(function() return reframework:is_drawing_ui() end)
+        if not ok_ui or not drawing_ui then
+            return
+        end
+
+        -- begin_window reports whether the window is still open, and throwing
+        -- that away is why the X did nothing: the click was read and forgotten,
+        -- so the window came back the next frame. Dismissing turns the tool
+        -- off, which is what the Debug tab's toggle already means. Collapsing
+        -- counts as dismissing, same as the tutorial dialog.
+        local visible = imgui.begin_window("AP Marker Position Editor", true)
+        if not visible then
+            bridge.marker_editor_window_enabled = false
+            imgui.end_window()
+            return
+        end
+        imgui.text("Nudge a marker onto the real item, then Log New Position.")
+        imgui.text("Send marker_position_edits.log to have it merged.")
+
+        local entries = get_marker_entries(state.current_stage)
+        if #entries == 0 then
+            imgui.text("No markers in this stage.")
+            imgui.end_window()
+            return
+        end
+
+        -- Marker list as a combo: "section - item [guid8]".
+        local labels = {}
+        local selected_index = 1
+        for i, entry in ipairs(entries) do
+            local place = tostring(entry.item_name or "")
+            if entry.gloss ~= nil and entry.gloss ~= "" then
+                place = place .. " (" .. entry.gloss .. ")"
+            end
+            labels[i] = string.format("%s - %s [%s]",
+                tostring(entry.section_name or "?"),
+                place ~= "" and place or "?",
+                type(entry.guid) == "string" and entry.guid:sub(1, 8) or "?")
+            if entry.guid == marker_edit_selected_guid then
+                selected_index = i
+            end
+        end
+
+        local changed, new_index = imgui.combo("Marker", selected_index, labels)
+        if changed and entries[new_index] ~= nil then
+            selected_index = new_index
+        end
+        local selected = entries[selected_index]
+        if selected == nil then
+            imgui.end_window()
+            return
+        end
+        marker_edit_selected_guid = selected.guid
+
+        imgui.text(string.format("Current: %.2f, %.2f, %.2f", selected.x, selected.y, selected.z))
+        imgui.text(string.format("Authored: %.2f, %.2f, %.2f",
+            selected.base_x, selected.base_y, selected.base_z))
+        local ddx = selected.x - selected.base_x
+        local ddy = selected.y - selected.base_y
+        local ddz = selected.z - selected.base_z
+        imgui.text(string.format("Delta: %.2f, %.2f, %.2f", ddx, ddy, ddz))
+
+        -- Step size selector.
+        if imgui.button("step 0.1") then marker_edit_step = 0.1 end
+        imgui.same_line()
+        if imgui.button("step 0.5") then marker_edit_step = 0.5 end
+        imgui.same_line()
+        if imgui.button("step 1.0") then marker_edit_step = 1.0 end
+        imgui.same_line()
+        imgui.text(string.format("(step %.1fm)", marker_edit_step))
+
+        -- Nudge in world axes. N/S move Z, E/W move X, Up/Down move Y. The
+        -- absolute mapping does not matter - the editor watches the marker move
+        -- and presses whichever direction closes the gap.
+        local function nudge(dx, dy, dz)
+            local base = marker_edit_overrides[selected.guid]
+                or { x = selected.base_x, y = selected.base_y, z = selected.base_z }
+            marker_edit_overrides[selected.guid] = {
+                x = base.x + dx, y = base.y + dy, z = base.z + dz,
+            }
+            marker_edit_invalidate_cache()
+        end
+        local s = marker_edit_step
+        if imgui.button("N (+Z)") then nudge(0, 0, s) end
+        imgui.same_line()
+        if imgui.button("S (-Z)") then nudge(0, 0, -s) end
+        imgui.same_line()
+        if imgui.button("E (+X)") then nudge(s, 0, 0) end
+        imgui.same_line()
+        if imgui.button("W (-X)") then nudge(-s, 0, 0) end
+        if imgui.button("Up (+Y)") then nudge(0, s, 0) end
+        imgui.same_line()
+        if imgui.button("Down (-Y)") then nudge(0, -s, 0) end
+
+        if imgui.button("Reset This Marker") then
+            marker_edit_overrides[selected.guid] = nil
+            marker_edit_invalidate_cache()
+        end
+        imgui.same_line()
+        if imgui.button("Log New Position") then
+            bridge.marker_edit_status = marker_edit_log_position(selected)
+        end
+        if type(bridge.marker_edit_status) == "string" then
+            imgui.text(bridge.marker_edit_status)
+        end
+
+        imgui.end_window()
+    end
+
     export("draw_world_check_markers", draw_world_check_markers)
     export("dump_world_markers_to_log", dump_world_markers_to_log)
+    export("draw_marker_position_editor", draw_marker_position_editor)
 end
 
 return install

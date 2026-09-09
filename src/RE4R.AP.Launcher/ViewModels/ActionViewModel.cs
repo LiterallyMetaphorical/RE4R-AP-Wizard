@@ -6,10 +6,15 @@ namespace RE4R.AP.Launcher.ViewModels;
 
 public sealed class ActionViewModel : ObservableObject
 {
-    private const string HighlightBackgroundBrush = "#27AE60";
-    private const string HighlightForegroundBrush = "#FFFFFF";
-    private const string NeutralBackgroundBrush = "#E1E1E1";
-    private const string NeutralForegroundBrush = "#555555";
+    // These are THEME RESOURCE KEYS, not colours. Each front end resolves
+    // them against its own palette, so the same view model drives the
+    // Windows light/dark themes and the Linux look without knowing about
+    // either. Every name here must exist in Themes/Light.xaml and
+    // Themes/Dark.xaml.
+    private const string HighlightBackgroundBrush = "AccentBrush";
+    private const string HighlightForegroundBrush = "AccentForegroundBrush";
+    private const string NeutralBackgroundBrush = "SurfaceAltBrush";
+    private const string NeutralForegroundBrush = "SubtleTextBrush";
 
     // The visible log keeps only a rolling window. Every appended line
     // rebuilds the bound LogText string and re-renders the TextBox on a
@@ -176,5 +181,21 @@ public sealed class ActionViewModel : ObservableObject
     public void ClearError()
     {
         ErrorMessage = string.Empty;
+    }
+
+    /// <summary>
+    /// Re-announce the themed brush properties after a theme switch.
+    /// </summary>
+    /// <remarks>
+    /// These properties carry a theme resource KEY, so their value does not
+    /// change when the theme does - only what the key resolves to. The Windows
+    /// front end converts key to brush at binding time, and a binding has no
+    /// reason to re-run on its own, so it has to be told. No WPF here on
+    /// purpose: this is just a property-changed nudge.
+    /// </remarks>
+    public void RefreshThemedBrushes()
+    {
+        OnPropertyChanged(nameof(GoButtonBackground));
+        OnPropertyChanged(nameof(GoButtonForeground));
     }
 }

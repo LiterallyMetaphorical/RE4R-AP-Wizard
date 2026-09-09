@@ -88,7 +88,7 @@ public sealed class PatchLaunchViewModel : ObservableObject
         Stages = new ObservableCollection<WorkflowStageItem>
         {
             new(WorkflowStep.ValidateSettings, "Checking prerequisites"),
-            new(WorkflowStep.CheckSetup, "BioRand setup (first time or after updates: about a minute)"),
+            new(WorkflowStep.CheckSetup, "BioRand setup (campaign rooms; first time or after updates: about a minute)"),
             new(WorkflowStep.ScoutApServer, "Contacting your room and reading item placements"),
             new(WorkflowStep.CheckExistingSession, "Checking saved sessions"),
             new(WorkflowStep.BuildManifest, "Building the AP manifest"),
@@ -298,8 +298,12 @@ public sealed class PatchLaunchViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            var message = $"Patch + launch failed unexpectedly: {ex.Message}";
-            LastFailedStep = WorkflowStep.ValidateSettings;
+            var message = $"Patch + launch failed unexpectedly: {ex.GetType().Name}: {ex.Message}";
+            // Unknown, not ValidateSettings: the real step is unknowable here,
+            // and mislabeling it pre-commit used to bounce the player back to
+            // Session Info even when game files might already have been
+            // touched (2026-08-29 audit).
+            LastFailedStep = WorkflowStep.Unknown;
             LastErrorMessage = message;
             MarkRunningStageFailed();
             Action.ErrorMessage = message;

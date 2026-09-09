@@ -22,12 +22,52 @@ public sealed class StaticGameData
     [JsonPropertyName("counts")]
     public StaticGameDataCounts Counts { get; set; } = new();
 
+    // Spots the game draws but refuses to hand over on Hardcore and
+    // Professional, so those slots never create them. A room short by exactly
+    // these is a hard-difficulty room, not a drifted apworld - without this the
+    // count check refused to patch a legitimate Hardcore seed outright.
+    // Empty on a pre-2026-08-21 bundle, which just means no allowance is made.
+    [JsonPropertyName("difficulty_inert_locations")]
+    public List<StaticDifficultyInertLocation> DifficultyInertLocations { get; set; } = new();
+
     [JsonPropertyName("location_codes")]
     public List<long> LocationCodes { get; set; } = new();
 
     [JsonPropertyName("locations")]
     public Dictionary<long, StaticGameLocation> Locations { get; set; } = new();
 
+    // Merchant shop slots (D4), keyed by location code. Deliberately not in
+    // Locations: a room carries between none and all of them depending on
+    // shop_checks, so they stay clear of the exact-count contracts. Empty on
+    // a pre-shop bundle.
+    [JsonPropertyName("shop_slots")]
+    public Dictionary<long, StaticShopSlot> ShopSlots { get; set; } = new();
+
+    // Trade-tab checks (Phase 2), keyed by location code. Same reasoning as
+    // ShopSlots: variable per room, so outside the exact-count contracts.
+    // Empty on a pre-trade bundle.
+    [JsonPropertyName("trade_checks")]
+    public Dictionary<long, StaticTradeCheck> TradeChecks { get; set; } = new();
+
+    /// <summary>
+    /// Mercenaries rank checks (apworld 0.7.2): no world spot and no BioRand
+    /// placement; the mod sends them from the mode's result screen. The scout
+    /// must know the ids or a Mercenaries room trips the unknown-id refusal.
+    /// </summary>
+    [JsonPropertyName("mercenaries")]
+    public Dictionary<long, StaticMercenariesCheck> Mercenaries { get; set; } = new();
+
     [JsonPropertyName("items")]
     public Dictionary<long, StaticGameItem> Items { get; set; } = new();
+
+    // YAML picker source. Same buckets the apworld publishes as
+    // item_name_groups / location_name_groups, generated from the same
+    // builders in data_parser, so a group offered here always exists in the
+    // apworld that reads the YAML back. Empty on a pre-2026-08-13 bundle: the
+    // picker degrades to individual names rather than failing to load.
+    [JsonPropertyName("item_groups")]
+    public Dictionary<string, List<string>> ItemGroups { get; set; } = new();
+
+    [JsonPropertyName("location_groups")]
+    public Dictionary<string, List<string>> LocationGroups { get; set; } = new();
 }

@@ -1,0 +1,2631 @@
+-- merchant.lua - the AP-aware merchant's runtime half (D4).
+--
+-- The fork writes the shop catalog at patch time: one buy-tab row per shop
+-- check, on a stand-in item id, priced by the credit-check tier, stock 1 so
+-- the game's own SOLD OUT panel does the bookkeeping. Everything that has to
+-- happen WHEN the player buys one lives here.
+--
+-- On purchase (chainsaw.InGameShopManager.notifyPurchaseItem, the exact twin
+-- of the notifySellItems hook the storage reconciler rides):
+--   1. queue the slot's location check (bridge.pending_checks, same queue the
+--      detector fills, so room filtering / ack set / persistence all apply)
+--   2. hand back the tier's refund when the purchase helped someone else -
+--      the credit check: you must HAVE the money, and you get trade currency
+--      back. Since the refund rework (MERCHANT_TRADE_DESIGN.md 4.6, built
+--      2026-09-05) that is SPINEL, 1 / 3 / 6 by tier, granted through the
+--      game's own wallet call so it can never fail for case space. Room
+--      files from before it name a gemstone and no count; those still get
+--      their one gem, so an old room keeps behaving the way it was generated.
+--   3. push the refund toast onto the native rail, after the normal sent-item
+--      toast the delivery path already shows
+--   4. arm a save: buying is a real transaction and the shop's stock lives in
+--      the per-save blob, so we ask for a game save when the player closes the
+--      shop (one save per visit, not per purchase, and the shop screen is a
+--      safe moment - no combat, no cutscene)
+--
+-- Correctness does NOT depend on that save. Shop stock rolls back with the
+-- save; the server's checked list never does. So on connect and on every shop
+-- open we FORWARD-RECONCILE: any slot whose location is already checked gets
+-- its stock zeroed, which is the inverse of the marker rollback (D8) and
+-- makes a re-purchase impossible rather than merely unlikely. If a
+-- reconcile ever loses the race, a second purchase is still economically
+-- neutral - the player pays again and is refunded again.
+--
+-- Everything is defensive: an old room file with no merchant section, a
+-- missing method, a failed grant - each degrades to "log it and behave like
+-- the merchant always did".
+return function(ctx)
+    local bridge = ctx.bridge
+
+    local merchant = {
+        -- [Rotation] The shelf: row records from the room file, a fixed tier
+        -- each. Rows are a display window, not a home for one check.
+        rows = {},
+        -- Every check in the room, in release order (chapter, then ordinal).
+        checks = {},
+        -- row item id -> the check that row is CURRENTLY showing. Derived on
+        -- every reconcile, never stored, so nothing can drift out of step.
+        slots_by_item = {},
+        -- location_code -> check record
+        slots_by_location = {},
+        -- row item id -> the identity it was last re-labelled for, so a row is
+        -- only re-registered when the check it shows actually changes
+        dressed = {},
+        -- row item id -> "native:<item id>" or "pak": which caption the shop
+        -- manager's own caption table holds for the row (see dress_row).
+        shop_caption = {},
+        -- released checks with no free row of their tier, surfaced on the HUD
+        backlog = 0,
+        slot_count = 0,
+        hooks_installed = false,
+        save_armed = false,
+        purchases_this_session = 0,
+        -- stand-in item id -> ticks ELAPSED hunting it. Purchase debts,
+        -- never expiring (2026-08-28): a full case parks the purchase in
+        -- the acquire flow, where it sits in NO inventory until the player
+        -- resolves the UI - no retry window survives that.
+        pending_sweeps = {},
+        -- stand-in item id -> ticks LEFT. Load-time residue probes: short
+        -- window, always quiet, they only ever find already-settled items.
+        residue_probes = {},
+        -- slot key -> true for every refund gem handed over in THIS session,
+        -- seeded on load from what the loaded save version recorded
+        gems_granted = {},
+    }
+    ctx.merchant = merchant
+
+    -- Sweep cadence. Declared here (before the room-file loader) so the
+    -- residue seeding below can see them; the sweep machinery itself sits
+    -- with suppress_standin further down.
+    local SWEEP_LOG_FIRST_TICKS = 40    -- ~10s at the 4 Hz poll: first note
+    local SWEEP_LOG_EVERY_TICKS = 240   -- ~60s: repeat note cadence
+    local RESIDUE_PROBE_TICKS = 40      -- settled items are found at once
+
+    local function info(text)
+        log.info("[RE4R AP][merchant] " .. tostring(text))
+    end
+
+    local function shop_manager()
+        return sdk.get_managed_singleton("chainsaw.InGameShopManager")
+    end
+
+    -- ------------------------------------------------------------- room file
+    -- The launcher stamps "merchant_shop" into ap_room_locations.json beside
+    -- the location ids (same channel as D5's allow_bonus_items). Slot records
+    -- carry everything the runtime needs, so the mod never has to know the
+    -- tier table or the stand-in id assignment.
+    local function load_slots(payload)
+        merchant.rows = {}
+        merchant.checks = {}
+        merchant.slots_by_item = {}
+        merchant.slots_by_location = {}
+        merchant.slot_count = 0
+        merchant.backlog = 0
+        if type(payload) ~= "table" or type(payload.slots) ~= "table" then
+            return
+        end
+
+        -- [Rotation] The shelf and the checks are separate lists now: rows are
+        -- a display window and checks rotate through them. A room file from
+        -- before rotation has no rows and one check per row, so each check
+        -- becomes its own permanent row - that is exactly the old behaviour,
+        -- expressed in the new model.
+        if type(payload.rows) == "table" and #payload.rows > 0 then
+            for _, raw in ipairs(payload.rows) do
+                local item_id = tonumber(raw and raw.item_id)
+                if item_id ~= nil then
+                    merchant.rows[#merchant.rows + 1] = {
+                        item_id = math.floor(item_id),
+                        classification = tostring(raw.classification or "FILLER"),
+                        price = math.floor(tonumber(raw.price) or 0),
+                        refund_item_id = math.floor(tonumber(raw.refund_item_id) or 0),
+                        refund_item_name = tostring(raw.refund_item_name or "a gemstone"),
+                        refund_count = math.max(1, math.floor(tonumber(raw.refund_count) or 1)),
+                    }
+                end
+            end
+        end
+
+        -- Captured BEFORE the loop: the fallback appends rows as it goes, so
+        -- testing the list inside the loop would only ever fire for the first
+        -- check and leave every other one without a row.
+        local legacy_room_file = (#merchant.rows == 0)
+        -- A pre-rotation room's checks stay PINNED to their own row. Letting
+        -- them compact onto the lowest free row would change what a row sells
+        -- part-way through somebody's existing run, and their save's sold-out
+        -- state is already keyed to the old pairing.
+        merchant.legacy_pinned = legacy_room_file
+
+        for _, raw in ipairs(payload.slots) do
+            local location_code = tonumber(raw and raw.location_code)
+            if location_code ~= nil then
+                local index = math.floor(tonumber(raw.index) or 0)
+                local check = {
+                    location_code = math.floor(location_code),
+                    index = index,
+                    identity = tostring(raw.identity or string.format("shop:slot:%d", index)),
+                    unlock_chapter = math.floor(tonumber(raw.unlock_chapter) or 1),
+                    chapter_ordinal = math.floor(tonumber(raw.chapter_ordinal) or 1),
+                    classification = tostring(raw.classification or "FILLER"),
+                    display_name = tostring(raw.display_name or "an item"),
+                    player_name = tostring(raw.player_name or ""),
+                    remote = (raw.remote == true),
+                    -- Engine id of a LOCAL RE4R item, so its row can wear the
+                    -- real name, caption, icon and model. Zero keeps the AP
+                    -- dressing, which is what every remote check gets.
+                    item_id_real = math.floor(tonumber(raw.item_id) or 0),
+                    item_stack = math.floor(tonumber(raw.item_stack) or 0),
+                    name_msg_guid = raw.name_msg_guid and tostring(raw.name_msg_guid) or nil,
+                    caption_msg_guid = raw.caption_msg_guid and tostring(raw.caption_msg_guid) or nil,
+                    price = math.floor(tonumber(raw.price) or 0),
+                    refund_item_id = math.floor(tonumber(raw.refund_item_id) or 0),
+                    refund_item_name = tostring(raw.refund_item_name or "a gemstone"),
+                    refund_count = math.max(1, math.floor(tonumber(raw.refund_count) or 1)),
+                }
+                merchant.checks[#merchant.checks + 1] = check
+                merchant.slots_by_location[check.location_code] = check
+                merchant.slot_count = merchant.slot_count + 1
+
+                -- Pre-rotation room file: the check owns its row forever.
+                if legacy_room_file then
+                    local standin = tonumber(raw.standin_item_id)
+                    if standin ~= nil then
+                        check.row_item_id = math.floor(standin)
+                        merchant.rows[#merchant.rows + 1] = {
+                            item_id = check.row_item_id,
+                            classification = check.classification,
+                            price = check.price,
+                            refund_item_id = check.refund_item_id,
+                            refund_item_name = check.refund_item_name,
+                            refund_count = check.refund_count,
+                        }
+                    end
+                end
+            end
+        end
+
+        -- Release order: chapter first, then position within the chapter.
+        table.sort(merchant.checks, function(a, b)
+            if a.unlock_chapter ~= b.unlock_chapter then
+                return a.unlock_chapter < b.unlock_chapter
+            end
+            if a.chapter_ordinal ~= b.chapter_ordinal then
+                return a.chapter_ordinal < b.chapter_ordinal
+            end
+            return a.index < b.index
+        end)
+
+        info(string.format(
+            "%d shop check(s) across %d shelf row(s) loaded from the room file",
+            merchant.slot_count, #merchant.rows))
+
+        -- [Residue healer, 2026-08-28] Row stand-ins legitimately exist ONLY
+        -- on the shelf. Any copy sitting in the player's inventories at load
+        -- is a stranded purchase from a give-up-era sweep (Amondo carried
+        -- six across sessions) - probe every row id once, quietly, and
+        -- remove whatever turns up. This is also why purchase debts need no
+        -- cross-session persistence: whatever a quit strands, this pass
+        -- catches at the next load.
+        -- CORRECTED same day: this loop read merchant.slots_by_item, which
+        -- load_slots resets and nothing fills until the first reconcile, so
+        -- the pass probed an empty table and healed nothing. The row list is
+        -- the id source that exists at load time, in both room shapes.
+        for _, row in ipairs(merchant.rows) do
+            local normalized = math.floor(tonumber(row.item_id) or 0)
+            if normalized > 0 then
+                merchant.residue_probes[normalized] = RESIDUE_PROBE_TICKS
+            end
+        end
+
+        -- [Stand-in toasts, 2026-08-28] Publish every row id the till can
+        -- hand over: native_log drops the game's blank-square pickup toast
+        -- for exactly these ids, and on_purchase pushes the icon-bearing
+        -- replacement.
+        local suppress_ids = nil
+        for _, row in ipairs(merchant.rows) do
+            local normalized = math.floor(tonumber(row.item_id) or 0)
+            if normalized > 0 then
+                suppress_ids = suppress_ids or {}
+                suppress_ids[normalized] = true
+            end
+        end
+        -- Plus whatever another module registered (the trade tab's slot
+        -- stand-ins), whichever of the two configured first.
+        for extra_id in pairs(merchant.extra_standin_ids or {}) do
+            suppress_ids = suppress_ids or {}
+            suppress_ids[extra_id] = true
+        end
+        bridge.suppress_item_toast_ids = suppress_ids
+    end
+
+    -- ------------------------------------------------------------ ack helpers
+    -- Shop slots have no scene GUID, so they use their own durable key in the
+    -- same per-seed ack set every world check uses.
+    -- The ack keys on the CHECK, never on the row showing it, or a rotated row
+    -- would inherit the previous check's acknowledgement. Rooms from before
+    -- rotation carry no identity and fall back to the row key they already
+    -- acked against, so their saves keep working untouched.
+    local function slot_key(slot)
+        if type(slot.identity) == "string" and slot.identity ~= "" then
+            return slot.identity
+        end
+        return string.format("shop:slot:%d", slot.index)
+    end
+
+    local function slot_is_checked(slot)
+        local acknowledged = bridge and bridge.acknowledged_guid_keys
+        if type(acknowledged) == "table" and acknowledged[slot_key(slot)] then
+            return true
+        end
+        return false
+    end
+
+    -- Forward declaration: a purchase frees a row and re-derives the shelf,
+    -- but the reconciler is defined further down. Without this the call would
+    -- compile as a global lookup and silently do nothing.
+    local reconcile_stock
+
+    -- --------------------------------------------------------------- purchase
+    local function queue_check(slot)
+        if type(bridge.pending_checks) ~= "table" then
+            return false
+        end
+        local key = slot_key(slot)
+        bridge.pending_check_keys = bridge.pending_check_keys or {}
+        if bridge.pending_check_keys[key] then
+            return false
+        end
+        bridge.pending_check_keys[key] = true
+        table.insert(bridge.pending_checks, {
+            id = bridge.next_pending_check_id or 1,
+            guid = nil,
+            stage = bridge.last_state and bridge.last_state.current_stage or nil,
+            key = key,
+            location_id = slot.location_code,
+            queued_at_unix_ms = (ctx.now_unix_ms and ctx.now_unix_ms()) or 0,
+        })
+        bridge.next_pending_check_id = (bridge.next_pending_check_id or 1) + 1
+        bridge.state_dirty = true
+        return true
+    end
+
+    -- Only remote purchases refund: you fronted the money for someone else's
+    -- item, so the refund hands trade currency straight back. Your own items
+    -- are yours to buy at face value, progression included (Cam, 2026-08-17).
+    local function refund_is_due(slot)
+        return slot.remote
+    end
+
+    -- "3 Spinel" for the new tiers, the bare gem name for an old room file.
+    local function refund_label(slot)
+        local count = math.max(1, math.floor(tonumber(slot.refund_count) or 1))
+        if count > 1 then
+            return string.format("%d %s", count, tostring(slot.refund_item_name))
+        end
+        return tostring(slot.refund_item_name)
+    end
+
+    local function grant_refund(slot)
+        if slot.refund_item_id <= 0 then
+            return false, "no refund item id in the room file"
+        end
+        local inject = ctx.inject_item_to_inventory or _G.inject_item_to_inventory
+        local succeeded = ctx.inject_status_succeeded or _G.inject_status_succeeded
+        if type(inject) ~= "function" then
+            return false, "injection unavailable"
+        end
+        local count = math.max(1, math.floor(tonumber(slot.refund_count) or 1))
+        local status = tostring(inject(slot.refund_item_id, count))
+        if type(succeeded) == "function" and not succeeded(status) then
+            return false, status
+        end
+        return true, status
+    end
+
+    local function push_toast(text)
+        local push = ctx.push_native_text or _G.push_native_text
+        if type(push) == "function" then
+            pcall(push, text)
+        end
+    end
+
+    -- ------------------------------------------------- stand-in suppression
+    -- Buying a slot hands the player the stand-in item itself: the row has to
+    -- BE something for the shop to sell it. The stand-in is the AP placeholder
+    -- (a Separate Ways trinket the fork re-skins per slot), so what lands is a
+    -- worthless duplicate of the row you just bought. Sweep it back out.
+    --
+    -- Deliberately id-gated and safe-failing: it only ever touches ids this
+    -- room's own slots use, and a stand-in it cannot find is logged and left
+    -- alone. Removal keys on the INVENTORY-INSTANCE guid (reduce takes a Guid,
+    -- not an ItemID), so the sweep enumerates, matches on item id, and reduces
+    -- by guid.
+    --
+    -- NOTE (unconfirmed offline): which inventory a purchased treasure-kind
+    -- item lands in has not been observed - vanilla never sells treasures. The
+    -- sweep looks in the treasure inventory, which is where the mod's own
+    -- treasure delivery routes; if the live test shows it landing elsewhere,
+    -- the "not found" log line below says so and the resolver gains a case.
+    -- Both per-character inventory controllers hang off the PlayerHeadUpdater
+    -- (il2cpp dump: get_TreasureInventoryController and
+    -- get_KeyItemInventoryController sit side by side on it).
+    local function resolve_head_controller(getter)
+        local character_manager = sdk.get_managed_singleton("chainsaw.CharacterManager")
+        if character_manager == nil then return nil end
+        local player = nil
+        pcall(function() player = character_manager:call("getPlayerContextRef()") end)
+        if player == nil then
+            pcall(function() player = character_manager:call("getPlayerContextRef") end)
+        end
+        if player == nil then return nil end
+        local head_updater = nil
+        pcall(function() head_updater = player:call("get_HeadUpdater()") end)
+        if head_updater == nil then
+            pcall(function() head_updater = player:call("get_HeadUpdater") end)
+        end
+        if head_updater == nil then return nil end
+        local controller = nil
+        pcall(function() controller = head_updater:call(getter .. "()") end)
+        if controller == nil then
+            pcall(function() controller = head_updater:call(getter) end)
+        end
+        return controller
+    end
+
+    local function resolve_treasure_controller()
+        return resolve_head_controller("get_TreasureInventoryController")
+    end
+
+    -- [Trade stand-ins, 2026-09-05] A claimed trade check hands over its
+    -- stand-in the way a bought row hands over its trinket, but the trade
+    -- stand-ins are key-item kind, so the copy lands in Key Items & Treasures
+    -- (live: an "[AP] Nothing to Trade" square in the key item row, which a
+    -- player cannot drop or sell). Third inventory the sweep has to cover.
+    local function resolve_key_item_controller()
+        return resolve_head_controller("get_KeyItemInventoryController")
+    end
+
+    -- An inventory entry wraps the item; both the wrapper and the inner item
+    -- have been seen carrying the id in this codebase, so try both. The
+    -- instance guid likewise lives under one of a few names across the
+    -- inventory types.
+    local ITEM_ID_FIELDS = { "_ItemId", "_ItemID" }
+    local INSTANCE_GUID_FIELDS = { "_Id", "_ID", "_Guid", "_InventoryItemId" }
+
+    local function read_first_field(managed, names)
+        for _, name in ipairs(names) do
+            local value = nil
+            local ok = pcall(function() value = managed:get_field(name) end)
+            if ok and value ~= nil then
+                return value
+            end
+        end
+        return nil
+    end
+
+    local function entry_item_id(entry)
+        -- The treasure and key item entries are chainsaw.InventoryItemBase:
+        -- the item sits behind get_ItemId / get_Item with only compiler
+        -- backing fields underneath (il2cpp dump, 2026-09-05), so the getters
+        -- come first and the field names stay as fallbacks for other shapes.
+        local via_getter = nil
+        pcall(function() via_getter = tonumber(entry:call("get_ItemId")) end)
+        if via_getter ~= nil then return math.floor(via_getter) end
+        local direct = tonumber(read_first_field(entry, ITEM_ID_FIELDS))
+        if direct ~= nil then return math.floor(direct) end
+        local inner = nil
+        pcall(function() inner = entry:call("get_Item") end)
+        if inner == nil then
+            pcall(function() inner = entry:get_field("_Item") end)
+        end
+        if inner ~= nil then
+            local nested = tonumber(read_first_field(inner, ITEM_ID_FIELDS))
+            if nested ~= nil then return math.floor(nested) end
+        end
+        return nil
+    end
+
+    -- The instance guid the controllers' remove(System.Guid) takes: the
+    -- entry's own get_ID, else the wrapped chainsaw.Item's _ID.
+    local function entry_instance_guid(entry)
+        local guid = nil
+        pcall(function() guid = entry:call("get_ID") end)
+        if guid ~= nil then return guid end
+        guid = read_first_field(entry, INSTANCE_GUID_FIELDS)
+        if guid ~= nil then return guid end
+        local inner = nil
+        pcall(function() inner = entry:call("get_Item") end)
+        if inner == nil then
+            pcall(function() inner = entry:get_field("_Item") end)
+        end
+        if inner ~= nil then
+            return read_first_field(inner, INSTANCE_GUID_FIELDS)
+        end
+        return nil
+    end
+
+    -- One controller's list: every entry carrying item_id is removed by
+    -- instance guid, walked from the end so a removal never shifts an entry
+    -- the walk has not reached. Returns the removed count, or nil and a
+    -- reason when the list cannot be read at all.
+    local function sweep_controller_inventory(controller, item_id)
+        local items = nil
+        pcall(function() items = controller:call("getInventoryItems") end)
+        if items == nil then
+            pcall(function() items = controller:call("getInventoryItems()") end)
+        end
+        if items == nil then
+            return nil, "inventory list unavailable"
+        end
+        local count = nil
+        pcall(function() count = items:call("get_Count") end)
+        count = tonumber(count)
+        if count == nil then
+            return nil, "inventory count unavailable"
+        end
+        local removed = 0
+        for index = count - 1, 0, -1 do
+            local entry = nil
+            pcall(function() entry = items:call("get_Item", index) end)
+            if entry ~= nil and entry_item_id(entry) == item_id then
+                local guid = entry_instance_guid(entry)
+                if guid ~= nil then
+                    -- The key item controller overloads remove (Guid, a Guid
+                    -- list, a slot index), so name the overload first.
+                    local ok, result = pcall(function()
+                        return controller:call("remove(System.Guid)", guid)
+                    end)
+                    if not ok then
+                        ok, result = pcall(function() return controller:call("remove", guid) end)
+                    end
+                    if ok and result ~= false then removed = removed + 1 end
+                end
+            end
+        end
+        return removed, nil
+    end
+
+    -- [Stand-in diagnosis 2026-08-17] Both of these run ONLY on the loud last
+    -- try, so they cost nothing in the normal case. The walk and the
+    -- reflection both live in injection.lua, which owns the accessors that are
+    -- already proven against this object; the point is to stop merchant.lua
+    -- having its own second idea of how a CsInventory works.
+    local case_methods_reported = false
+
+    local function report_case_contents(wanted_id)
+        local walk = ctx.inject_debug_walk_case_items or _G.inject_debug_walk_case_items
+        if type(walk) ~= "function" then
+            info("case dump unavailable: inject_debug_walk_case_items is not exported")
+            return
+        end
+        local items, why = walk()
+        if items == nil then
+            info(string.format("case dump failed: %s", tostring(why)))
+            return
+        end
+        if #items == 0 then
+            info("case dump: walked clean, 0 items in the case")
+            return
+        end
+        local parts, present = {}, false
+        for _, entry in ipairs(items) do
+            parts[#parts + 1] = string.format("%d x%d", entry.id, entry.count)
+            if entry.id == wanted_id then present = true end
+        end
+        info(string.format("case dump (%d items): %s", #items, table.concat(parts, ", ")))
+        -- The line this whole exercise exists for.
+        info(string.format(
+            "case dump: stand-in %d is %s in the case",
+            wanted_id, present and "PRESENT" or "ABSENT"))
+    end
+
+    local function report_case_methods_once()
+        if case_methods_reported then return end
+        case_methods_reported = true
+        local reflect = ctx.inject_debug_case_methods or _G.inject_debug_case_methods
+        if type(reflect) ~= "function" then
+            info("case methods unavailable: inject_debug_case_methods is not exported")
+            return
+        end
+        for _, filter in ipairs({ "reduce", "remove" }) do
+            local found, why = reflect(filter)
+            if found == nil then
+                info(string.format("case methods (%s) failed: %s", filter, tostring(why)))
+            elseif #found == 0 then
+                info(string.format("case methods (%s): none on the live object", filter))
+            else
+                info(string.format(
+                    "case methods (%s): %s", filter, table.concat(found, " | ")))
+            end
+        end
+    end
+
+    -- The case is where a bought stand-in actually lands (live 2026-08-17).
+    -- This used to call reduce(chainsaw.ItemID, Int32, Boolean) directly and
+    -- got nil back every single time: the live object's three reduce overloads
+    -- take other param types, so that signature never bound. The removal now
+    -- lives in injection.lua next to the accessors that are already proven
+    -- against a CsInventory, and it confirms success by counting the case
+    -- before and after rather than reading a return value.
+    local function sweep_case_inventory(item_id, quiet)
+        local function note(text)
+            if not quiet then info(text) end
+        end
+        local remove_from_case = ctx.inject_remove_case_item or _G.inject_remove_case_item
+        if type(remove_from_case) ~= "function" then
+            note(string.format(
+                "stand-in %d left in the case (inject_remove_case_item not exported)", item_id))
+            return 0
+        end
+        local ok, removed, reason = pcall(remove_from_case, item_id)
+        if not ok then
+            info(string.format("stand-in %d case sweep errored: %s", item_id, tostring(removed)))
+            return 0
+        end
+        removed = tonumber(removed) or 0
+        if removed > 0 then
+            return removed
+        end
+        -- "not in the case" is the ordinary early-retry answer and stays quiet.
+        -- Anything else is the interesting failure, so it brings the evidence.
+        if reason ~= "not in the case" then
+            note(string.format(
+                "stand-in %d not removed from the case: %s", item_id, tostring(reason)))
+            if not quiet then
+                report_case_contents(item_id)
+                report_case_methods_once()
+            end
+        else
+            note(string.format("stand-in %d not in the case yet", item_id))
+        end
+        return 0
+    end
+
+    -- Returns true once the stand-in has actually been taken back. Quiet
+    -- during retries: the interesting line is the one that says it worked, or
+    -- the single give-up line when the retry window closes.
+    local function suppress_standin(item_id, quiet)
+        local function note(text)
+            if not quiet then info(text) end
+        end
+        -- Key items first: the trade stand-ins are key-item kind and that is
+        -- where a claimed one lands (live 2026-09-05). Then the treasure tab,
+        -- then the case.
+        local key_items = resolve_key_item_controller()
+        if key_items ~= nil then
+            local removed_keys, why_keys = sweep_controller_inventory(key_items, item_id)
+            if removed_keys ~= nil and removed_keys > 0 then
+                info(string.format("stand-in %d swept from the key items (%d)", item_id, removed_keys))
+                return true
+            elseif removed_keys == nil then
+                note(string.format("stand-in %d: key item inventory unreadable (%s)",
+                    item_id, tostring(why_keys)))
+            end
+        end
+        local controller = resolve_treasure_controller()
+        if controller == nil then
+            note(string.format("stand-in %d left in place (treasure controller unavailable)", item_id))
+            return false
+        end
+        local removed, why = sweep_controller_inventory(controller, item_id)
+        if removed == nil then
+            note(string.format("stand-in %d left in place (%s)", item_id, tostring(why)))
+            return false
+        end
+        if removed > 0 then
+            info(string.format("stand-in %d swept from the treasure inventory (%d)", item_id, removed))
+            return true
+        end
+        -- ANSWERED 2026-08-17: a bought row's trinket lands in the main case,
+        -- not the treasure tab. The stand-in is a treasure-kind item, but a
+        -- shop purchase routes it like ordinary merchandise, so the case is
+        -- the last place to look.
+        local swept_case = sweep_case_inventory(item_id, quiet)
+        if swept_case > 0 then
+            info(string.format("stand-in %d swept from the case (%d)", item_id, swept_case))
+            return true
+        end
+        note(string.format(
+            "stand-in %d not in the key items, the treasure inventory or the case yet", item_id))
+        return false
+    end
+
+    -- The purchase hook fires BEFORE the game hands the trinket over: live
+    -- 2026-08-17 timed the sweep at .841 and the delivery at .083 of the next
+    -- second, so an inline sweep searches an inventory the stand-in has not
+    -- reached. Queue it and keep looking instead.
+    --
+    -- NOT FRAMES, despite where this runs. The poll is driven from the entry
+    -- file's UpdateBehavior block, but it sits AFTER that block's
+    -- WRITE_INTERVAL_SECONDS early return, so it ticks at 4 Hz, not 60. 40
+    -- ticks is therefore about 10 SECONDS.
+    --
+    -- [2026-08-28] The give-up is GONE for purchase debts. Amondo's log
+    -- said it all: four "never appeared within the retry window" give-ups,
+    -- and six stranded stand-ins sitting in his case minutes later. Paired
+    -- with the 2026-08-17 seventy-five-second miss ("not where we are
+    -- looking, not late"), the mechanism is clear: with the case FULL, the
+    -- purchase parks the stand-in in the acquire FLOW - the same limbo the
+    -- S3 lost-checks class lives in - and it is in NO inventory until the
+    -- player resolves the UI, however long that takes. No retry window
+    -- survives that, so a purchase debt now holds until the item is
+    -- actually seen and removed; the load-time residue probes catch
+    -- whatever a quit strands mid-limbo.
+    local function poll_pending_sweeps()
+        for item_id, elapsed in pairs(merchant.pending_sweeps) do
+            local ok, swept = pcall(suppress_standin, item_id, true)
+            if ok and swept then
+                merchant.pending_sweeps[item_id] = nil
+            else
+                elapsed = elapsed + 1
+                merchant.pending_sweeps[item_id] = elapsed
+                if elapsed == SWEEP_LOG_FIRST_TICKS
+                    or (elapsed > SWEEP_LOG_FIRST_TICKS
+                        and (elapsed - SWEEP_LOG_FIRST_TICKS) % SWEEP_LOG_EVERY_TICKS == 0) then
+                    info(string.format(
+                        "stand-in %d still pending after ~%ds - debt held (acquire-flow limbo suspected)",
+                        item_id, math.floor(elapsed / 4)))
+                end
+            end
+        end
+        -- Residue probes: short window, always quiet - anything they can
+        -- find is already settled in an inventory at boot. Success speaks
+        -- through suppress_standin's own "swept" line plus the tag below.
+        -- The window only counts down while the player is in-game: at the
+        -- title screen there are no inventories to probe, and a probe that
+        -- burned its ticks there would miss the leftover the moment the save
+        -- loaded (2026-09-05: the trade stand-ins stranded in Key Items).
+        local in_game = bridge.last_state ~= nil and bridge.last_state.is_in_game == true
+        for item_id, ticks_left in pairs(merchant.residue_probes) do
+            local ok, swept = pcall(suppress_standin, item_id, true)
+            if ok and swept then
+                merchant.residue_probes[item_id] = nil
+                info(string.format(
+                    "stand-in %d was residue from an earlier session", item_id))
+            elseif not in_game then
+                -- Stay armed until there is something to look at.
+                merchant.residue_probes[item_id] = ticks_left
+            elseif ticks_left <= 1 then
+                merchant.residue_probes[item_id] = nil
+            else
+                merchant.residue_probes[item_id] = ticks_left - 1
+            end
+        end
+    end
+
+    local function on_purchase(item_id)
+        local slot = merchant.slots_by_item[item_id]
+        if slot == nil then
+            return
+        end
+
+        merchant.purchases_this_session = merchant.purchases_this_session + 1
+        merchant.save_armed = true
+
+        -- The row had to BE an item for the shop to sell it; the player wanted
+        -- the check, not the trinket. Try once now in case the hand-over
+        -- already happened, then leave it queued for the frame poll, which is
+        -- what actually catches it.
+        -- Sweep the ROW's trinket, which is what the till actually handed over.
+        local row_item_id = math.floor(tonumber(item_id) or 0)
+        local ok_sweep, swept = pcall(suppress_standin, row_item_id, true)
+        if not (ok_sweep and swept) then
+            -- Ticks ELAPSED, not remaining: the debt holds until swept.
+            merchant.pending_sweeps[row_item_id] = 0
+        end
+
+        local queued = queue_check(slot)
+        info(string.format(
+            "check '%s' bought: '%s' (%s, %s)%s",
+            slot.identity or tostring(slot.index), slot.display_name,
+            slot.player_name, slot.classification,
+            queued and "" or " [check already queued]"))
+
+        -- [AP purchase toast, 2026-08-28] The organic toast for the row's
+        -- stand-in id is suppressed (a blank icon square over a cut id), so
+        -- push the native icon-bearing toast instead: the real item for a
+        -- local check, the AP placeholder (logo plus its localized name) for
+        -- a foreign one. Falls back to a plain text line if the rail
+        -- refuses, so a purchase is never silent.
+        local push_item_get = ctx.push_native_item_get or _G.push_native_item_get
+        local toast_ok = false
+        if type(push_item_get) == "function" then
+            local toast_id = (ctx.config and tonumber(ctx.config.PLACEHOLDER_ITEM_ID)) or 120486400
+            if not slot.remote and math.floor(tonumber(slot.item_id_real) or 0) > 0 then
+                toast_id = math.floor(slot.item_id_real)
+            end
+            local ok_push, pushed = pcall(push_item_get, toast_id, 1)
+            toast_ok = (ok_push and pushed == true)
+        end
+        if not toast_ok then
+            push_toast(string.format("[AP] %s", slot.display_name))
+        end
+
+        if refund_is_due(slot) then
+            local ok, detail = grant_refund(slot)
+            if ok then
+                merchant.gems_granted[slot_key(slot)] = true
+                push_toast(string.format(
+                    "Received %s, a refund for helping a fellow stranger.",
+                    refund_label(slot)))
+                info(string.format("check '%s' refunded %s", slot_key(slot), refund_label(slot)))
+            else
+                -- Never silent: the player paid and is owed this.
+                info(string.format(
+                    "check '%s' refund FAILED (%s) - item %d not granted",
+                    slot_key(slot), tostring(detail), slot.refund_item_id))
+            end
+        end
+
+        -- [Rotation] The row is free now. Re-derive immediately so the next
+        -- released check of this tier takes its place while the player is
+        -- still standing at the merchant, rather than after a reload.
+        merchant.dressed[row_item_id] = nil
+        pcall(reconcile_stock)
+    end
+
+    -- --------------------------------------------------- purchase settlement
+    -- A purchase has two halves in different places: the check is server state
+    -- and never rolls back, the refund gem is save state and does. Reload
+    -- without saving and the slot still reads sold out while the gem is gone,
+    -- with no way to earn it again, because a re-purchase is impossible. So the
+    -- gem is granted at purchase (immediate, as it should be) AND repaired on
+    -- load when the version being loaded never contained it.
+    --
+    -- Never guesses: a save version we have no record of writing yields nil,
+    -- and nil means leave it alone rather than risk minting a second gem. Same
+    -- rule the F8 watermarks follow.
+    local function settle_refunds_for_loaded_save(guid, save_count)
+        if merchant.slot_count == 0 then
+            return
+        end
+        -- One settlement per loaded version. The caller runs once per load
+        -- today, but granting is not idempotent on its own and a second pass
+        -- would mint a second gem.
+        local token = tostring(guid) .. "#" .. tostring(save_count)
+        if merchant.settled_for == token then
+            return
+        end
+        merchant.settled_for = token
+        local lookup = ctx.lookup_settled_gems or _G.lookup_settled_gems
+        if type(lookup) ~= "function" then
+            return
+        end
+        local settled = lookup(guid, save_count)
+        if settled == nil then
+            info(string.format(
+                "settlement: no record of save '%s' #%s -> refunds left alone (safe; pre-fix save)",
+                tostring(guid), tostring(save_count)))
+            merchant.gems_granted = {}
+            return
+        end
+
+        -- The loaded version's set becomes the live set: anything it contains
+        -- is already in the player's hands.
+        local live = {}
+        for slot_key_name in pairs(settled) do
+            live[slot_key_name] = true
+        end
+        merchant.gems_granted = live
+
+        -- Every CHECK, not just the ones currently on a row: a bought check has
+        -- left the shelf by definition, and it is exactly the bought ones that
+        -- can be owed a gem.
+        local repaired = 0
+        for _, slot in ipairs(merchant.checks) do
+            local key = slot_key(slot)
+            if refund_is_due(slot) and slot_is_checked(slot) and not live[key] then
+                local ok, detail = grant_refund(slot)
+                if ok then
+                    live[key] = true
+                    repaired = repaired + 1
+                    info(string.format(
+                        "settlement: check '%s' was bought but this save had no %s - re-granted",
+                        key, refund_label(slot)))
+                else
+                    info(string.format(
+                        "settlement: check '%s' owed %s but the grant failed (%s)",
+                        key, refund_label(slot), tostring(detail)))
+                end
+            end
+        end
+        if repaired > 0 then
+            bridge.state_dirty = true
+        end
+    end
+
+    -- ------------------------------------------------------------- reconcile
+    -- Stock lives in the per-save shop blob; the server's checked list is the
+    -- only truth that survives deaths, reloads and old saves. So stock is
+    -- reconciled in BOTH directions on connect and on every shop open:
+    --   checked slot with stock  -> reduced to zero (no re-purchase)
+    --   unchecked slot with none -> restored to one, PROVIDED the game says
+    --     its unlock waypoint has fired (isEnableUpdateFlag) - this heals
+    --     saves that walked a chapter before its addition existed (the
+    --     2026-08-16 chapter-1 rows) and any future waypoint quirk.
+    -- The waypoint flag enum: value N-1 fires entering display chapter N,
+    -- value 0 at campaign start; clamped to the cp10 range 0..15.
+    local function slot_unlock_flag(slot)
+        local chapter = tonumber(slot.unlock_chapter) or 1
+        local flag = math.floor(chapter) - 1
+        if flag < 0 then flag = 0 end
+        if flag > 15 then flag = 15 end
+        return flag
+    end
+
+    local function slot_is_unlocked(manager, slot)
+        local unlocked = nil
+        pcall(function()
+            unlocked = manager:call("isEnableUpdateFlag", slot_unlock_flag(slot))
+        end)
+        return unlocked == true
+    end
+
+    -- ------------------------------------------------------------- rotation
+    -- Which check a row is showing is DERIVED, never stored: ask the server
+    -- which checks are already done and the game which chapters have arrived,
+    -- then hand each row the oldest released check it can display. That is why
+    -- it survives death, reload and save-hopping for free - there is no state
+    -- to get out of step.
+    --
+    -- Rows carry a FIXED tier because their price is baked into the pak, so a
+    -- check only ever lands on a row of its own classification.
+    local function assign_rows(manager)
+        -- Pre-rotation room: every check owns its row, so there is nothing to
+        -- derive beyond "is it released and still unbought".
+        if merchant.legacy_pinned then
+            local assignment = {}
+            for _, check in ipairs(merchant.checks) do
+                if check.row_item_id ~= nil
+                    and not slot_is_checked(check)
+                    and slot_is_unlocked(manager, check)
+                then
+                    assignment[check.row_item_id] = check
+                end
+            end
+            merchant.backlog = 0
+            merchant.slots_by_item = assignment
+            merchant.assignment_ready = true
+            if bridge ~= nil then
+                bridge.merchant_backlog = 0
+            end
+            return assignment, 0
+        end
+
+        local by_class = {}
+        for _, check in ipairs(merchant.checks) do
+            if not slot_is_checked(check) and slot_is_unlocked(manager, check) then
+                local bucket = by_class[check.classification]
+                if bucket == nil then
+                    bucket = {}
+                    by_class[check.classification] = bucket
+                end
+                bucket[#bucket + 1] = check
+            end
+        end
+
+        local assignment = {}
+        local shown = 0
+        local taken = {}
+        for _, row in ipairs(merchant.rows) do
+            local bucket = by_class[row.classification]
+            local next_index = (taken[row.classification] or 0) + 1
+            local check = bucket and bucket[next_index] or nil
+            if check ~= nil then
+                taken[row.classification] = next_index
+                assignment[row.item_id] = check
+                check.row_item_id = row.item_id
+                shown = shown + 1
+            end
+        end
+
+        -- Anything released but off the shelf is the backlog. It is never
+        -- lost: a row frees the moment its check is bought.
+        local waiting = 0
+        for _, bucket in pairs(by_class) do
+            waiting = waiting + #bucket
+        end
+        merchant.backlog = math.max(0, waiting - shown)
+        merchant.slots_by_item = assignment
+        merchant.assignment_ready = true
+        if bridge ~= nil then
+            bridge.merchant_backlog = merchant.backlog
+            bridge.merchant_shown = shown
+        end
+        return assignment, shown
+    end
+
+    -- The proven runtime rename (live 2026-08-17): a Setting of exactly
+    -- {_ItemId, _NameMsgId, _CaptionMsgId} handed to the item message manager
+    -- re-labels a shop row while the game runs.
+    --
+    -- [AP prefix, Cam 2026-08-28 - reversing the 2026-08-16 rule this
+    -- comment used to state] Every check row's NAME points at the baked
+    -- "[AP] ..." text: rotation made unmarked local rows misleading - a
+    -- check row is one-shot, sends a location, and re-labels into a
+    -- DIFFERENT check after purchase, none of which the shop's own stock
+    -- does. A LOCAL row keeps its real item's CAPTION here (and its icon
+    -- and model, handled below), so the identity stays native while the
+    -- promise is marked. Legacy rooms with no baked guid fall back to the
+    -- native name, unprefixed - old seeds keep their old look.
+    local function dress_row(row_item_id, check)
+        local item_manager = sdk.get_managed_singleton("chainsaw.ItemManager")
+        if item_manager == nil then
+            return false, "ItemManager unavailable"
+        end
+        local message_manager = nil
+        pcall(function()
+            message_manager = item_manager:call("get_ItemMessageManager")
+        end)
+        if message_manager == nil then
+            return false, "ItemMessageManager unavailable"
+        end
+
+        local name_id, caption_id = nil, nil
+        if check.name_msg_guid ~= nil then
+            local box = ctx.box_system_guid or _G.box_system_guid
+            if type(box) == "function" then
+                name_id = box(check.name_msg_guid)
+                caption_id = box(check.caption_msg_guid)
+            end
+        end
+        if check.item_id_real > 0 and not check.remote then
+            local native_name, native_caption = nil, nil
+            pcall(function()
+                native_name = message_manager:call("getItemNameMsgId", check.item_id_real)
+                native_caption = message_manager:call("getItemCaptionMsgId", check.item_id_real)
+            end)
+            if name_id == nil then
+                name_id = native_name
+            end
+            if native_caption ~= nil then
+                caption_id = native_caption
+            end
+        end
+        if name_id == nil then
+            return false, "no message ids for this check"
+        end
+
+        local ok, err = pcall(function()
+            local setting = sdk.create_instance("chainsaw.ItemMessageIdOverwriteSettingUserdata.Setting")
+            setting._ItemId = row_item_id
+            setting._NameMsgId = name_id
+            if caption_id ~= nil then
+                setting._CaptionMsgId = caption_id
+            end
+            message_manager:call("registerItemMessageOverwriteSetting", setting)
+        end)
+        if not ok then
+            return false, tostring(err)
+        end
+
+        -- [Buy tab caption parity, Cam 2026-09-02] The buy panel's description
+        -- does NOT read the item-message overwrite above (the fork's own note
+        -- on the row caption says as much, and a local row read the pak's
+        -- "Not from this village" line in Cam's game). It asks the shop
+        -- manager - getPurchaseCaptionMsgId, backed by _CaptionSettingTable -
+        -- which has its own register lever. So a LOCAL check registers its
+        -- item's own caption on the row, and a row going back to a REMOTE
+        -- check unregisters so the pak's line returns. The trade tab already
+        -- reads the overwrite, so this is what brings the two tabs level.
+        --
+        -- UNPROVEN until live; the before/after read is the diagnostic.
+        pcall(function()
+            local manager = shop_manager()
+            if manager == nil then
+                return
+            end
+            local wants_native = check.item_id_real > 0 and not check.remote and caption_id ~= nil
+            local key = wants_native and ("native:" .. tostring(check.item_id_real)) or "pak"
+            local had = merchant.shop_caption[row_item_id]
+            if had == key then
+                return
+            end
+            if not wants_native and had == nil then
+                -- Nothing of ours to take back yet.
+                merchant.shop_caption[row_item_id] = "pak"
+                return
+            end
+            local before = nil
+            pcall(function() before = manager:call("getPurchaseCaptionMsgId", row_item_id) end)
+            if wants_native then
+                local setting = sdk.create_instance("chainsaw.InGameShopItemCaptionSetting")
+                setting._CaptionMsgId = caption_id
+                manager:call("registerCaptionSetting", row_item_id, setting)
+            else
+                manager:call("unregisterCaptionSetting", row_item_id)
+            end
+            local after = nil
+            pcall(function() after = manager:call("getPurchaseCaptionMsgId", row_item_id) end)
+            merchant.shop_caption[row_item_id] = key
+            info(string.format("shop caption: row %d -> %s (%s -> %s)",
+                row_item_id, key, tostring(before), tostring(after)))
+        end)
+        return true, nil
+    end
+
+    -- ------------------------------------------------------- row icons
+    -- A row's icon is pattern-indexed, and the game has a static helper that
+    -- does the item-id-to-pattern work for us, so we never build a lookup
+    -- table: hand it the row's texture control and a real engine item id.
+    -- Proven live 2026-08-17 (a row was made to wear another row's picture).
+    --
+    -- Only LOCAL checks get this. A remote check has no RE4R item to show, so
+    -- it keeps the AP badge, which is the intended way to tell the two apart.
+    local set_item_icon_method = nil
+    local set_item_icon_resolved = false
+
+    local function resolve_set_item_icon()
+        if set_item_icon_resolved then
+            return set_item_icon_method
+        end
+        set_item_icon_resolved = true
+        local ext = sdk.find_type_definition("chainsaw.gui.GuiPlayObjectExtension")
+        if ext == nil then
+            info("row icons: GuiPlayObjectExtension not found; icons stay AP-branded")
+            return nil
+        end
+        -- The dump decorates overloads, so match by prefix and arity rather
+        -- than by an exact name we would have to guess.
+        -- Resolve by name first; the dump decorates overloads, so fall back to
+        -- scanning. REMethodDefinition exposes get_num_params(), NOT
+        -- get_params() - guessing that cost a live round (2026-08-17: "no
+        -- 2-argument setItemIcon" while the method was sitting right there).
+        pcall(function() set_item_icon_method = ext:get_method("setItemIcon") end)
+        if set_item_icon_method == nil then
+            local seen = {}
+            pcall(function()
+                for _, method in ipairs(ext:get_methods()) do
+                    local name = method:get_name()
+                    if name:find("setItemIcon", 1, true) == 1 then
+                        seen[#seen + 1] = name
+                        local arity = nil
+                        pcall(function() arity = method:get_num_params() end)
+                        -- Prefer the two-argument overload; take any match
+                        -- rather than none if the arity call is unavailable.
+                        if arity == 2 then
+                            set_item_icon_method = method
+                            break
+                        elseif arity == nil and set_item_icon_method == nil then
+                            set_item_icon_method = method
+                        end
+                    end
+                end
+            end)
+            if #seen > 0 then
+                info("row icons: candidates seen: " .. table.concat(seen, " "))
+            end
+        end
+        local ok = set_item_icon_method ~= nil
+        if not ok or set_item_icon_method == nil then
+            info("row icons: no 2-argument setItemIcon; icons stay AP-branded")
+            return nil
+        end
+        info("row icons: using " .. set_item_icon_method:get_name())
+        return set_item_icon_method
+    end
+
+    -- The AP placeholder (SW - Glasses re-skinned with the Archipelago logo).
+    -- config owns the id so this can never drift from the world-drop path.
+    local function ap_placeholder_item_id()
+        local from_config = ctx.config and ctx.config.PLACEHOLDER_ITEM_ID
+        if type(from_config) == "number" and from_config > 0 then
+            return math.floor(from_config)
+        end
+        return 120486400
+    end
+
+    -- LEARNED ON -70 (Cam, 2026-09-02), two ways:
+    --
+    --   1. The control is CENTRE-anchored. The shelf's sat at x 130 and the
+    --      tile's at 0 before the -70 shift of +38 - and every logo moved
+    --      right by exactly that. A narrower box stays centred on its own;
+    --      no position is touched any more.
+    --   2. The widgets are POOLED. The lists recycle them as they scroll, the
+    --      game re-stamps the icon pattern on a rebound widget but not its
+    --      box, so a box squared for the logo stayed square when the widget
+    --      was rebound to a First Aid Spray, a herb, a gunpowder pack or
+    --      Velvet Blue - every "squished" icon in Cam's list. And it most
+    --      likely does not re-select the atlas either, which is why herb rows
+    --      wore another cell entirely.
+    --
+    -- So the rule is: leave no residue. A widget is squared only while it
+    -- wears the logo; the moment we see it wearing anything else, its box is
+    -- put back and the game's OWN icon setup is run for the item it now
+    -- shows (PurchaseSelectItem.setIconTex), atlas and all.
+    local VANILLA_ICON_BOX = { w = 226, h = 150 }   -- measured on -69, both tabs, every control
+    local GUNPOWDER_ITEM_ID = 117600000
+    local gunpowder_badge_reported = false
+    local stamped = {}          -- widget address -> { w, h } the box had before we touched it
+    local box_reported = {}
+    local restore_count = 0
+
+    local function read_size(size)
+        if size == nil then
+            return nil, nil
+        end
+        local w, h = nil, nil
+        pcall(function() w = size.w; h = size.h end)
+        if w == nil or h == nil then
+            pcall(function() w = size:get_field("w"); h = size:get_field("h") end)
+        end
+        return tonumber(w), tonumber(h)
+    end
+
+    local function write_size(tex, size, w, h)
+        local ok = pcall(function()
+            size:set_field("w", w)
+            size:set_field("h", h)
+        end)
+        if not ok then
+            size.w = w
+            size.h = h
+        end
+        tex:call("set_Size", size)
+    end
+
+    local function widget_key(widget)
+        local key = nil
+        pcall(function() key = widget:get_address() end)
+        return key or tostring(widget)
+    end
+
+    -- Which icons get the square box: the Archipelago logo, and any TREASURE
+    -- (gems, trinkets). Capcom's shop art is pre-squeezed for the wide box,
+    -- but treasure art is square because vanilla never shows a treasure in
+    -- it - Cam, 2026-09-02: the gems read stretched beside the round logo.
+    -- The kind comes from the injection module's item table.
+    local function wears_square_art(icon_item_id)
+        if icon_item_id == ap_placeholder_item_id() then
+            return true
+        end
+        local kind_of = ctx.inject_item_kind or _G.inject_item_kind
+        if type(kind_of) ~= "function" then
+            return false
+        end
+        local ok, kind = pcall(kind_of, icon_item_id)
+        return ok and kind == "treasure"
+    end
+
+    -- After OUR icon is set on a widget: square the box for square art, or
+    -- make sure a pre-squeezed item's box is the vanilla one (the widget may
+    -- have worn the logo a moment ago). Records the box we found so it can
+    -- be given back.
+    local function icon_stamp(widget, tex, wears_logo)
+        if widget == nil or tex == nil then
+            return
+        end
+        pcall(function()
+            local size = tex:call("get_Size")
+            local w, h = read_size(size)
+            if w == nil or h == nil or h <= 0 then
+                return
+            end
+            local key = widget_key(widget)
+            local rec = stamped[key]
+            if rec == nil then
+                -- First touch. A square box here means a record was lost (a
+                -- script reset); the vanilla box is what it started as.
+                local square = math.abs(w - h) < 0.5
+                rec = square and { w = VANILLA_ICON_BOX.w, h = VANILLA_ICON_BOX.h } or { w = w, h = h }
+                stamped[key] = rec
+            end
+            local want_w = wears_logo and rec.h or rec.w
+            if math.abs(w - want_w) > 0.5 or math.abs(h - rec.h) > 0.5 then
+                write_size(tex, size, want_w, rec.h)
+                local tag = wears_logo and "logo" or "item"
+                if not box_reported[tag] then
+                    box_reported[tag] = true
+                    info(string.format("icon box (%s): %.0fx%.0f -> %.0fx%.0f, position untouched",
+                        tag, w, h, want_w, rec.h))
+                end
+            end
+        end)
+    end
+
+    -- A widget we touched now shows something that is not ours: give its
+    -- box back and let the game redo its icon for the item it shows now.
+    local function icon_release(widget, tex, item_id)
+        if widget == nil then
+            return
+        end
+        local key = widget_key(widget)
+        local rec = stamped[key]
+        local square = false
+        if tex ~= nil then
+            pcall(function()
+                local w, h = read_size(tex:call("get_Size"))
+                square = w ~= nil and h ~= nil and math.abs(w - h) < 0.5
+            end)
+        end
+        if rec == nil and not square then
+            return
+        end
+        stamped[key] = nil
+        pcall(function()
+            if tex ~= nil then
+                local size = tex:call("get_Size")
+                write_size(tex, size, (rec and rec.w) or VANILLA_ICON_BOX.w, (rec and rec.h) or VANILLA_ICON_BOX.h)
+            end
+            if item_id ~= nil and item_id > 0 then
+                widget:call("setIconTex", item_id, 0)
+            end
+        end)
+        restore_count = restore_count + 1
+        if restore_count <= 5 or restore_count % 50 == 0 then
+            info(string.format("icon box: widget recycled to item %s, box and icon handed back (%d so far)",
+                tostring(item_id), restore_count))
+        end
+    end
+
+    -- [Gunpowder badge, Cam 2026-09-02] The staple row wears the game's "x10"
+    -- stack marker while a purchase hands over ONE grain (measured: x1, 70
+    -- charged). The badge is the widget's ItemInfoGui._BoxNumText (the dump:
+    -- ItemInfoGui = { _BoxNumText, _CaseNumText, _RootPanel }). Build -73
+    -- called setHasCount(0, 1) from the PRE-hook and the game's own update
+    -- put the x10 straight back, so this blanks the text itself and runs
+    -- from the POST-hook too, after the game has had its say.
+    local gunpowder_badge_seen = nil
+
+    local function silence_stack_badge(row, row_item_id)
+        if row_item_id ~= GUNPOWDER_ITEM_ID then
+            return
+        end
+        pcall(function()
+            local info_gui = row:get_field("_ItemInfoGui")
+            if info_gui == nil then
+                return
+            end
+            local box_text = info_gui:get_field("_BoxNumText")
+            if box_text == nil then
+                return
+            end
+            local current = nil
+            pcall(function() current = box_text:call("get_Message") end)
+            current = current ~= nil and tostring(current) or ""
+            if current ~= "" then
+                box_text:call("set_Message", "")
+                if gunpowder_badge_seen ~= current then
+                    gunpowder_badge_seen = current
+                    info(string.format("gunpowder badge: box text read '%s', blanked", current))
+                end
+            end
+        end)
+    end
+
+    -- Rows the post-hook re-checks after the game's update: the badge is
+    -- re-stamped by the widget each frame, so the pre-hook alone loses.
+    local last_list_gui = nil
+
+    local function silence_stack_badges_after_update(list_gui)
+        local rows = nil
+        pcall(function() rows = list_gui:get_field("_AppSelectItems") end)
+        if rows == nil then
+            return
+        end
+        local count = nil
+        pcall(function() count = rows:call("get_Count") end)
+        for i = 0, (tonumber(count) or 0) - 1 do
+            pcall(function()
+                local row = rows:call("get_Item", i)
+                local row_item_id = row and row:call("get_ItemId")
+                if row_item_id ~= nil then
+                    silence_stack_badge(row, math.floor(row_item_id))
+                end
+            end)
+        end
+    end
+
+    -- [Buy tab icons, Cam 2026-09-06] Green Herb and Red Herb wore the wrong
+    -- art after the empty rows left the tab, and the log shows why our code is
+    -- the first suspect: it recycled widgets onto Green Herb and First Aid
+    -- Spray in that very session. Every row the game draws shares one widget
+    -- pool, so a widget that carried an AP icon can be handed to a staple; the
+    -- release path is supposed to give the game's own icon back and the dump
+    -- says the call it makes (PurchaseSelectItem.setIconTex) is real, so
+    -- reading the code further cannot settle it.
+    --
+    -- This switch does. Turn the dressing off from the Debug tab and the whole
+    -- pass stops: every widget we hold is handed back once and nothing of ours
+    -- is written again, so the Buy tab renders exactly as the game intends. If
+    -- the herb icons come back, the fault is ours and this narrows it to this
+    -- pass; if they stay wrong, it never was.
+    local icon_dressing_off_reported = false
+    -- The staple rows, so the icon pass can recognise them without walking
+    -- the table on every row of every frame. Filled once the table exists.
+    local staple_icon_ids = {}
+    local staple_icon_reported = {}
+
+    local function row_icon_dressing_enabled()
+        if bridge ~= nil and bridge.merchant_row_icons_enabled ~= nil then
+            return bridge.merchant_row_icons_enabled == true
+        end
+        return MERCHANT_ROW_ICON_DRESSING ~= false
+    end
+
+    local function release_every_stamped_widget(list_gui)
+        local rows = nil
+        pcall(function() rows = list_gui:get_field("_AppSelectItems") end)
+        if rows == nil then return end
+        local count = nil
+        pcall(function() count = rows:call("get_Count") end)
+        count = tonumber(count) or 0
+        for i = 0, count - 1 do
+            pcall(function()
+                local row = rows:call("get_Item", i)
+                if row == nil then return end
+                local row_item_id = row:call("get_ItemId")
+                local tex = row:get_field("_ItemIconTex")
+                icon_release(row, tex, row_item_id and math.floor(row_item_id) or nil)
+            end)
+        end
+    end
+
+    local function dress_row_icons(list_gui)
+        if merchant.slot_count == 0 then
+            return
+        end
+        if not row_icon_dressing_enabled() then
+            -- Hand back what we hold ONCE, then never touch the tab again.
+            -- The first build of this switch ran the release every frame,
+            -- which still called setIconTex on every row: "off" was our code
+            -- painting vanilla art rather than our code standing aside, so
+            -- the test it was built for could not tell the two apart (my
+            -- error, Cam 2026-09-06). Now off means untouched.
+            if not icon_dressing_off_reported then
+                icon_dressing_off_reported = true
+                pcall(release_every_stamped_widget, list_gui)
+                info("row icons: dressing OFF - handed back once, the tab is untouched from here")
+            end
+            return
+        end
+        if icon_dressing_off_reported then
+            icon_dressing_off_reported = false
+            info("row icons: dressing back ON")
+        end
+        local setter = resolve_set_item_icon()
+        if setter == nil then
+            return
+        end
+
+        local rows = nil
+        pcall(function() rows = list_gui:get_field("_AppSelectItems") end)
+        if rows == nil then
+            return
+        end
+        local count = nil
+        pcall(function() count = rows:call("get_Count") end)
+        count = tonumber(count) or 0
+
+        for i = 0, count - 1 do
+            pcall(function()
+                local row = rows:call("get_Item", i)
+                if row == nil then
+                    return
+                end
+                local row_item_id = row:call("get_ItemId")
+                if row_item_id == nil then
+                    return
+                end
+                local check = merchant.slots_by_item[math.floor(row_item_id)]
+                if check == nil then
+                    -- Not one of our rows.
+                    --
+                    -- [Staple icons, Cam 2026-09-06] Some of them draw wrong
+                    -- on their own: Green Herb and Red Herb wear the First Aid
+                    -- Spray's art and the two grenades have none, while Yellow
+                    -- Herb and Gunpowder are right. The split is which rows
+                    -- vanilla already sold - the patcher mints a purchasable
+                    -- row for the rest, and a minted row has no icon of its
+                    -- own to draw. Proven not ours: with the dressing switched
+                    -- off the wrong icons stayed exactly as they were, while
+                    -- the Matilda Stock icon (which IS ours) disappeared.
+                    --
+                    -- The same call that gives an Archipelago row its real
+                    -- item's art works for any item id, so the staples get it
+                    -- too. A row the game already draws correctly is handed
+                    -- the same icon it already has.
+                    local staple_id = staple_icon_ids[math.floor(row_item_id)]
+                    if staple_id ~= nil then
+                        local tex = nil
+                        pcall(function() tex = row:get_field("_ItemIconTex") end)
+                        if tex ~= nil then
+                            local ok_icon = pcall(function()
+                                setter:call(nil, tex, staple_id)
+                            end)
+                            if ok_icon then
+                                -- Square box. The art this call hands over is
+                                -- the item's inventory picture, which is
+                                -- square, so the shop's wide 226x150 box
+                                -- stretches every one of them (Cam, live: the
+                                -- herbs, the sprays, the resources and the
+                                -- grenades all came out wide the moment we
+                                -- started drawing them). Gunpowder is the odd
+                                -- one out and reads well stretched, because
+                                -- the wide box crops the x10 baked into its
+                                -- art, so that row keeps the vanilla box.
+                                icon_stamp(row, tex, staple_id ~= GUNPOWDER_ITEM_ID)
+                                if not staple_icon_reported[staple_id] then
+                                    staple_icon_reported[staple_id] = true
+                                    info(string.format(
+                                        "staple icon: row %d given its own art", staple_id))
+                                end
+                            end
+                        end
+                        silence_stack_badge(row, math.floor(row_item_id))
+                        return
+                    end
+                    -- If this widget wore our icon a moment ago (the list
+                    -- recycles them), give it back to the game; otherwise
+                    -- leave it exactly as it is.
+                    local vanilla_tex = nil
+                    pcall(function() vanilla_tex = row:get_field("_ItemIconTex") end)
+                    icon_release(row, vanilla_tex, math.floor(row_item_id))
+                    silence_stack_badge(row, math.floor(row_item_id))
+                    return
+                end
+
+                -- A LOCAL check wears its real item. A REMOTE one has no RE4R
+                -- item to borrow from, and the stand-in ids are cut content
+                -- with no icon of their own, which is why those rows drew
+                -- BLANK. Point them at the AP placeholder instead: that id
+                -- already carries the Archipelago logo art the world drops and
+                -- the valuables tab use, so a remote row now looks like an
+                -- Archipelago item rather than a hole in the list.
+                local icon_item_id = nil
+                if not check.remote and check.item_id_real > 0 then
+                    icon_item_id = check.item_id_real
+                else
+                    icon_item_id = ap_placeholder_item_id()
+                end
+                if icon_item_id == nil or icon_item_id <= 0 then
+                    return
+                end
+
+                local tex = row:get_field("_ItemIconTex")
+                if tex == nil then
+                    return
+                end
+                -- Re-applied every frame on purpose: the GUI stamps its own
+                -- icon back whenever it redraws or the list scrolls.
+                setter:call(nil, tex, icon_item_id)
+                icon_stamp(row, tex, wears_square_art(icon_item_id))
+            end)
+        end
+    end
+
+    -- ------------------------------------------------------- row models
+    -- Same trick as the icon, one level up: the shop builds a row's 3D model
+    -- through InGameShopManager.instantiateItemModel(ShopItemParam param, ...)
+    -- and ShopItemParam carries a plain ItemID field. So instead of hunting a
+    -- via.Prefab for the real item (registerItemModelPrefab wants an object
+    -- and the manager exposes no getter), we let the game instantiate it and
+    -- hand it the real id.
+    --
+    -- This also sidesteps the AP model's bad transform for local rows: a real
+    -- item's shop prefab brings its own framing, so only remote rows are left
+    -- needing that fixed.
+    --
+    -- UNPROVEN. The call is real and the field is real, but writing into a
+    -- by-reference struct from Lua is the part that could refuse, so every
+    -- route is tried and the first live run says which one answered.
+    local model_swap_route = nil
+
+    local function swap_model_item_id(param_arg, real_item_id)
+        local target = nil
+        pcall(function() target = sdk.to_managed_object(param_arg) end)
+        if target ~= nil then
+            local ok = pcall(function() target:set_field("ItemID", real_item_id) end)
+            if ok then
+                return "set_field"
+            end
+        end
+        -- Value types come through as a different wrapper; try it directly.
+        if sdk.to_valuetype ~= nil then
+            local value = nil
+            pcall(function()
+                value = sdk.to_valuetype(param_arg, "chainsaw.ShopItemParam")
+            end)
+            if value ~= nil then
+                local ok = pcall(function() value:set_field("ItemID", real_item_id) end)
+                if ok then
+                    return "valuetype"
+                end
+            end
+        end
+        return nil
+    end
+
+    -- [Key item models, 2026-09-03] The fork now mints a model entry for
+    -- every local check item that lacked one (key items). A real id the
+    -- game still cannot model - an older pak, or an item with no mesh to
+    -- mint from - would instantiate nothing and leave the row blank, so the
+    -- swap is refused and the AP logo stays. Logged once per item.
+    local function real_item_has_model(item_id)
+        local manager = shop_manager()
+        if manager == nil then
+            return true
+        end
+        local ok, has = pcall(function()
+            local model_table = manager:get_field("_ItemModelSettingTable")
+            if model_table == nil then
+                return true
+            end
+            return model_table:call("ContainsKey", item_id) == true
+        end)
+        return (not ok) or has == true
+    end
+
+    local function install_row_model_hook()
+        if merchant.model_hook_installed then
+            return
+        end
+        local manager_type = sdk.find_type_definition("chainsaw.InGameShopManager")
+        if manager_type == nil then
+            return
+        end
+        local method = manager_type:get_method("instantiateItemModel")
+        if method == nil then
+            info("row models: instantiateItemModel not found; models stay AP-branded")
+            return
+        end
+        merchant.model_hook_installed = true
+        sdk.hook(method, function(args)
+            pcall(function()
+                -- args: [1] context, [2] this, [3] the ShopItemParam.
+                local param_arg = args[3]
+                if param_arg == nil then
+                    return
+                end
+                local holder = sdk.to_managed_object(param_arg)
+                local row_item_id = nil
+                if holder ~= nil then
+                    pcall(function() row_item_id = holder:get_field("ItemID") end)
+                end
+                if row_item_id == nil then
+                    return
+                end
+                local check = merchant.slots_by_item[math.floor(row_item_id)]
+                if check == nil then
+                    -- [Parity, 2026-09-02] Trade stand-ins come through the
+                    -- same instantiate call now that the fork gives them a
+                    -- model entry; ask the trade module what the tile shows.
+                    local trade_lookup = ctx.trade_check_showing_on or _G.trade_check_showing_on
+                    if type(trade_lookup) == "function" then
+                        local ok_lookup, showing = pcall(trade_lookup, math.floor(row_item_id))
+                        if ok_lookup then
+                            check = showing
+                        end
+                    end
+                end
+                if check == nil or check.remote or check.item_id_real <= 0 then
+                    return
+                end
+                if not real_item_has_model(check.item_id_real) then
+                    merchant.model_missing_logged = merchant.model_missing_logged or {}
+                    if not merchant.model_missing_logged[check.item_id_real] then
+                        merchant.model_missing_logged[check.item_id_real] = true
+                        info(string.format(
+                            "row models: item %d has no shop model entry; row %d keeps the AP model",
+                            check.item_id_real, math.floor(row_item_id)))
+                    end
+                    return
+                end
+                local route = swap_model_item_id(param_arg, check.item_id_real)
+                if route ~= nil and model_swap_route == nil then
+                    model_swap_route = route
+                    info(string.format(
+                        "row models: swapped row %d to item %d via %s",
+                        math.floor(row_item_id), check.item_id_real, route))
+                elseif route == nil and model_swap_route == nil then
+                    model_swap_route = "refused"
+                    info("row models: ShopItemParam.ItemID would not take a write - "
+                        .. "local rows keep the AP model")
+                end
+            end)
+        end, nil)
+        info("row models: local check rows will show their real item")
+    end
+
+    -- --------------------------------------------------- AP model placement
+    -- The minted AP prefab inherits the fuel canister donor's transform, so
+    -- the model floats over the tab bar instead of sitting in the display
+    -- area. registerItemModelParam overrides that per item id.
+    --
+    -- These numbers were dialled in live by Cam on 2026-08-17 with the
+    -- Developer Tools tuner (ui_model_tuner.lua, which exists only to produce
+    -- them and can be deleted). Change them there, not by guessing here.
+    local AP_MODEL_OFFSET = { x = 0.335, y = 0.000, z = 0.235 }
+    local AP_MODEL_SCALE = 1.000
+    local AP_MODEL_TILT = { x = -90.0, y = 0.0, z = 0.0 }   -- degrees
+
+    -- Quaternion.new takes (w, x, y, z). PROVEN by read-back 2026-08-17: the
+    -- value passed as the second argument came back as x. The natural-looking
+    -- (x, y, z, w) guess builds a 180 degree flip at "zero", which is exactly
+    -- how the model kept vanishing. Do not reorder this without re-proving it.
+    local function ap_model_rotation()
+        if Quaternion == nil or Quaternion.new == nil then
+            return nil
+        end
+        local hx = math.rad(AP_MODEL_TILT.x) * 0.5
+        local hy = math.rad(AP_MODEL_TILT.y) * 0.5
+        local hz = math.rad(AP_MODEL_TILT.z) * 0.5
+        local cx, sx = math.cos(hx), math.sin(hx)
+        local cy, sy = math.cos(hy), math.sin(hy)
+        local cz, sz = math.cos(hz), math.sin(hz)
+        local qx = sx * cy * cz - cx * sy * sz
+        local qy = cx * sy * cz + sx * cy * sz
+        local qz = cx * cy * sz - sx * sy * cz
+        local qw = cx * cy * cz + sx * sy * sz
+        local ok, quat = pcall(function() return Quaternion.new(qw, qx, qy, qz) end)
+        return ok and quat or nil
+    end
+
+    -- Registrations live in the manager and survive a script reload, so this
+    -- only needs to run once per row per session.
+    local function place_ap_models()
+        -- Shelf rows, plus (parity, 2026-09-02) the trade window's stand-ins:
+        -- the fork gives those a model entry pointing at the same AP prefab,
+        -- so a remote or empty trade tile needs the same repositioning.
+        local targets = {}
+        for _, row in ipairs(merchant.rows) do
+            targets[#targets + 1] = { item_id = row.item_id, check = merchant.slots_by_item[row.item_id] }
+        end
+        local trade_state = ctx.trade
+        local trade_lookup = ctx.trade_check_showing_on or _G.trade_check_showing_on
+        if type(trade_state) == "table" and type(trade_state.slots) == "table" then
+            for _, slot in ipairs(trade_state.slots) do
+                local showing = nil
+                if type(trade_lookup) == "function" then
+                    local ok_lookup, result = pcall(trade_lookup, slot.item_id)
+                    if ok_lookup then
+                        showing = result
+                    end
+                end
+                targets[#targets + 1] = { item_id = slot.item_id, check = showing }
+            end
+        end
+        if #targets == 0 then
+            return
+        end
+        local manager = shop_manager()
+        if manager == nil then
+            return
+        end
+        local table_ok, model_table = pcall(function()
+            return manager:get_field("_ItemModelSettingTable")
+        end)
+        if not table_ok then
+            model_table = nil
+        end
+
+        local Vec = _G.Vector3f
+        if Vec == nil or Vec.new == nil then
+            return
+        end
+        local offset = nil
+        local scale = nil
+        pcall(function()
+            offset = Vec.new(AP_MODEL_OFFSET.x, AP_MODEL_OFFSET.y, AP_MODEL_OFFSET.z)
+            scale = Vec.new(AP_MODEL_SCALE, AP_MODEL_SCALE, AP_MODEL_SCALE)
+        end)
+        if offset == nil or scale == nil then
+            return
+        end
+        local rotation = ap_model_rotation()
+
+        merchant.models_placed = merchant.models_placed or {}
+        local placed = 0
+        for _, target in ipairs(targets) do
+            local row_item_id = target.item_id
+            local check = target.check
+            -- A LOCAL check shows its real item's model, which brings its own
+            -- framing; only the AP placeholder needs repositioning.
+            local wears_ap_model = (check == nil) or check.remote or (check.item_id_real <= 0)
+            if wears_ap_model and not merchant.models_placed[row_item_id] then
+                -- Edit the live entry where the game has one; only mint when
+                -- it does not, because minting is what overrides the prefab.
+                local data = nil
+                if model_table ~= nil then
+                    pcall(function()
+                        if model_table:call("ContainsKey", row_item_id) == true then
+                            data = model_table:call("get_Item", row_item_id)
+                        end
+                    end)
+                end
+                if data == nil then
+                    pcall(function()
+                        data = sdk.create_instance(
+                            "chainsaw.InGameShopItemModelParamUserData.ItemModelData")
+                    end)
+                end
+                if data ~= nil then
+                    local ok = pcall(function()
+                        data:call("set_ItemID", row_item_id)
+                        data:call("set_OffsetPosition", offset)
+                        data:call("set_Scale", scale)
+                        if rotation ~= nil then
+                            data:call("set_Rotation", rotation)
+                        end
+                        manager:call("registerItemModelParam", row_item_id, data)
+                    end)
+                    if ok then
+                        merchant.models_placed[row_item_id] = true
+                        placed = placed + 1
+                    end
+                end
+            end
+        end
+        if placed > 0 then
+            info(string.format(
+                "%d AP model(s) placed at offset (%.3f, %.3f, %.3f) tilt (%.1f, %.1f, %.1f)",
+                placed, AP_MODEL_OFFSET.x, AP_MODEL_OFFSET.y, AP_MODEL_OFFSET.z,
+                AP_MODEL_TILT.x, AP_MODEL_TILT.y, AP_MODEL_TILT.z))
+        end
+    end
+
+    local function install_row_icon_hook()
+        if merchant.icon_hook_installed then
+            return
+        end
+        local list_type = sdk.find_type_definition("chainsaw.gui.shop.PurchaseItemListGui")
+        if list_type == nil then
+            info("row icons: PurchaseItemListGui not found")
+            return
+        end
+        local method = list_type:get_method("onLateUpdate")
+        if method == nil then
+            info("row icons: PurchaseItemListGui.onLateUpdate not found")
+            return
+        end
+        merchant.icon_hook_installed = true
+        sdk.hook(method, function(args)
+            local ok, list_gui = pcall(function()
+                return sdk.to_managed_object(args[2])
+            end)
+            if ok and list_gui ~= nil then
+                last_list_gui = list_gui
+                pcall(dress_row_icons, list_gui)
+            end
+        end, function(retval)
+            -- After the game's own late update: the stack badge it just
+            -- re-stamped gets blanked again, so what renders is ours.
+            if last_list_gui ~= nil then
+                pcall(silence_stack_badges_after_update, last_list_gui)
+            end
+            return retval
+        end)
+        info("row icons: local check rows will wear their real item's icon")
+    end
+
+    local function dress_assigned_rows(assignment)
+        local dressed, failed = 0, 0
+        local first_error = nil
+        for row_item_id, check in pairs(assignment) do
+            if merchant.dressed[row_item_id] ~= check.identity then
+                local ok, err = dress_row(row_item_id, check)
+                if ok then
+                    merchant.dressed[row_item_id] = check.identity
+                    dressed = dressed + 1
+                else
+                    failed = failed + 1
+                    first_error = first_error or err
+                end
+            end
+        end
+        if dressed > 0 then
+            info(string.format("%d row(s) re-labelled for the check they now show", dressed))
+        end
+        if failed > 0 then
+            info(string.format(
+                "%d row(s) could NOT be re-labelled (%s) - they still sell the right check, "
+                .. "they just read as the generic AP row", failed, tostring(first_error)))
+        end
+    end
+
+    function reconcile_stock()
+        if merchant.slot_count == 0 then
+            return
+        end
+        local manager = shop_manager()
+        if manager == nil then
+            return
+        end
+        -- Derive the shelf first, then make the game's stock agree with it: a
+        -- row showing a check is stocked, a row showing nothing is emptied.
+        local assignment = assign_rows(manager)
+
+        local zeroed, restored = 0, 0
+        for _, row in ipairs(merchant.rows) do
+            local current = nil
+            pcall(function()
+                current = manager:call("getCurrStock", row.item_id)
+            end)
+            current = tonumber(current)
+            if current ~= nil then
+                if assignment[row.item_id] ~= nil then
+                    if current < 1 then
+                        local ok = pcall(function()
+                            manager:call("addStock", row.item_id, 1 - current)
+                        end)
+                        if ok then
+                            restored = restored + 1
+                        end
+                    end
+                elseif current > 0 then
+                    -- Nothing left to show here: either every check of this
+                    -- tier is bought, or none has been released yet.
+                    local ok = pcall(function()
+                        manager:call("reduceStock", row.item_id, current)
+                    end)
+                    if ok then
+                        zeroed = zeroed + 1
+                    end
+                end
+            end
+        end
+
+        dress_assigned_rows(assignment)
+        pcall(place_ap_models)
+
+        if zeroed > 0 then
+            info(string.format("%d row(s) emptied - nothing of that tier left to show", zeroed))
+        end
+        if restored > 0 then
+            info(string.format("%d row(s) restocked with the check they now carry", restored))
+        end
+        if merchant.backlog > 0 then
+            info(string.format(
+                "%d released check(s) waiting for a free row", merchant.backlog))
+        end
+    end
+
+    -- The old name stays callable: connect-time and shop-open call sites
+    -- predate the two-way rename.
+    local reconcile_sold_out = reconcile_stock
+
+    -- ------------------------------------------------------------- dev probe
+    -- [Live-test probe] With Developer Tools on, every shop open logs what
+    -- the game itself reports for each AP slot row. The buy tab showed no AP
+    -- rows on 2026-08-14 while the pak demonstrably carried all 22 rows, so
+    -- this reads the shelf from the runtime side to say which layer hides
+    -- them. Best-effort by design: every call is guarded, unanswered calls
+    -- log as "-", and the method that answered is named so the follow-up fix
+    -- can use it directly.
+    local PROBE_STOCK_METHODS = { "getCurrStock", "getCurrentStock", "getStock" }
+    local PROBE_MAX_STOCK_METHODS = { "getMaxStock", "getStockMax" }
+    local PROBE_SOLD_OUT_METHODS = { "checkSoldOut", "isSoldOut" }
+
+    local function probe_call(manager, names, item_id)
+        for _, name in ipairs(names) do
+            local value = nil
+            local ok = pcall(function() value = manager:call(name, item_id) end)
+            if ok and value ~= nil then
+                return tostring(value), name
+            end
+        end
+        return "-", nil
+    end
+
+
+    local function probe_shelf()
+        if bridge.developer_tools_enabled ~= true or merchant.slot_count == 0 then
+            return
+        end
+        local manager = shop_manager()
+        if manager == nil then
+            info("probe: InGameShopManager unavailable")
+            return
+        end
+
+        local difficulty = "?"
+        pcall(function()
+            local campaign = sdk.get_managed_singleton("chainsaw.CampaignManager")
+            if campaign ~= nil then
+                difficulty = tostring(campaign:call("get_CurrentDifficulty"))
+            end
+        end)
+        info(string.format(
+            "probe: shop opened, difficulty=%s, %d check(s) over %d row(s), %d waiting",
+            difficulty, merchant.slot_count, #merchant.rows, merchant.backlog))
+
+        -- Read the shelf ROW by row, and say which check each one is carrying:
+        -- an empty row is expected whenever that tier has nothing released.
+        for _, row in ipairs(merchant.rows) do
+            local stock, stock_via = probe_call(manager, PROBE_STOCK_METHODS, row.item_id)
+            local max_stock = probe_call(manager, PROBE_MAX_STOCK_METHODS, row.item_id)
+            local sold_out = probe_call(manager, PROBE_SOLD_OUT_METHODS, row.item_id)
+            local carrying = merchant.slots_by_item[row.item_id]
+            info(string.format(
+                "probe: row %d (%s) stock=%s max=%s soldout=%s carrying=%s%s",
+                row.item_id, row.classification, stock, max_stock, sold_out,
+                carrying ~= nil and string.format("'%s' %s", carrying.identity, carrying.display_name)
+                    or "nothing",
+                stock_via ~= nil and (" (via " .. stock_via .. ")") or ""))
+        end
+
+        -- Baseline: real catalog rows (the parked pool items) so the slot
+        -- readings have something known-good to compare against.
+        for _, baseline_id in ipairs({ 274995456, 275158656, 275478656, 116004800 }) do
+            local stock = probe_call(manager, PROBE_STOCK_METHODS, baseline_id)
+            local sold_out = probe_call(manager, PROBE_SOLD_OUT_METHODS, baseline_id)
+            info(string.format(
+                "probe: baseline item=%d stock=%s soldout=%s",
+                baseline_id, stock, sold_out))
+        end
+    end
+
+    -- [Staples, Cam 2026-09-06] The merchant keeps healing and crafting stock
+    -- on the shelf: the launcher's MerchantStaples table says how many units
+    -- each one gains at every chapter waypoint, and the fork writes that into
+    -- the stock addition table. Cam read one gunpowder at the first merchant
+    -- where the table asks for 24. Reading the live numbers is the only way to
+    -- tell a bad addition from a correct one, so this reports them whenever the
+    -- shop opens - no Developer Tools needed, one line, once per shop visit.
+    local STAPLE_PROBE = {
+        { id = 114400000, name = "Green Herb", per_chapter = 2 },
+        { id = 114401600, name = "Red Herb", per_chapter = 1 },
+        { id = 114403200, name = "Yellow Herb", per_chapter = 1 },
+        { id = 114416000, name = "First Aid Spray", per_chapter = 1 },
+        { id = 117606400, name = "Resources (S)", per_chapter = 6 },
+        { id = 117601600, name = "Resource (L)", per_chapter = 4 },
+        { id = 117600000, name = "Gunpowder", per_chapter = 24 },
+        { id = 277075456, name = "Hand Grenade", per_chapter = 1 },
+        { id = 277078656, name = "Flash Grenade", per_chapter = 1 },
+    }
+    local staple_report = nil
+    for _, staple in ipairs(STAPLE_PROBE) do
+        staple_icon_ids[staple.id] = staple.id
+    end
+
+    local function probe_staples()
+        local manager = shop_manager()
+        if manager == nil then
+            return
+        end
+        local parts = {}
+        for _, staple in ipairs(STAPLE_PROBE) do
+            local stock = probe_call(manager, PROBE_STOCK_METHODS, staple.id)
+            local max_stock = probe_call(manager, PROBE_MAX_STOCK_METHODS, staple.id)
+            parts[#parts + 1] = string.format("%s %s/%s (wants %d a chapter)",
+                staple.name, stock, max_stock, staple.per_chapter)
+        end
+        local line = table.concat(parts, ", ")
+        if line ~= staple_report then
+            staple_report = line
+            info("staples on the shelf: " .. line)
+        end
+    end
+
+    -- [Staple top-up, Cam 2026-09-06] The shelf is meant to gain PerChapter of
+    -- each staple at every chapter waypoint, and the patcher writes exactly
+    -- that into the game's stock addition table: the ceilings prove it ran
+    -- (gunpowder 1/384, which is 24 x 16). The additions land as 1 all the
+    -- same, so gunpowder sits at one grain where it should hold 24. Root
+    -- cause is in the patched shop data and needs a rebuild; this makes the
+    -- shelf right in the meantime.
+    --
+    -- The game's own waypoint flags say how many chapters have arrived, which
+    -- is the same signal the shop uses to release checks, so this follows the
+    -- campaign rather than the clock. Each staple is topped up by what the
+    -- waypoint SHOULD have added beyond the 1 the game manages on its own,
+    -- once per waypoint, and the count granted is remembered in the session
+    -- file. A player who buys the shelf out does not get it back by walking
+    -- away and reopening, and a reload cannot mint a second helping. Staples
+    -- that only want 1 a chapter already work and are left alone.
+    -- item id -> units still owed to the shelf.
+    --
+    -- Three levers have been tried on this shelf and the log says what each
+    -- did. InGameShopManager.addStock and reduceStock: nothing at all, and
+    -- getCurrStock answers 1 for every item on the shelf. PurchaseItemBase.
+    -- setCurrStock on the row the tab draws: the write TOOK and the tab read
+    -- 24 for one build, then the game handed out a fresh list at 1 again, so
+    -- it was a promise of stock that could not be bought.
+    --
+    -- What is left is the shop's own store, InGameShopManager._CurrStockTable,
+    -- a Dictionary<UInt32, ShopItemStock> whose entries carry CurrStock and a
+    -- setter for it. If its key is the item id then this is the real number
+    -- the shelf and the purchase path both read.
+
+    -- The shop applies its own addition table through checkAddStock, one
+    -- chapter waypoint at a time. That is the call that reads the patched
+    -- +24 and puts it into whichever store the shelf and the purchase path
+    -- really use, so it is the only lever that can be right by construction:
+    -- everything we reached around it either did nothing (addStock,
+    -- reduceStock), read a number the shelf does not use (getCurrStock), or
+    -- lasted one frame (setCurrStock on the drawn row), and the store itself
+    -- is keyed by a hash we cannot derive from an item id (live: "in the
+    -- store=false").
+    --
+    -- Guarded by the same per-waypoint record as before, so a waypoint is
+    -- never applied twice however often the shop is opened.
+    local staple_apply_reported = false
+
+
+    -- [Staple stock, 2026-09-06] The one reading that settles whose fault the
+    -- short shelf is. The shop manager keeps the patched stock addition table
+    -- as _StockAdditionSettingTable: a waypoint (0..15) maps to one setting,
+    -- that holds one entry per difficulty, and each entry lists {item, count}
+    -- pairs to add when the waypoint fires. The patcher writes 24 gunpowder
+    -- into every waypoint at every difficulty; the shelf shows 1. Either the
+    -- table says 24 and the game is not applying it, or the table says 1 and
+    -- the patcher's write never landed. Reading it says which, and nothing
+    -- else can.
+    local stock_additions_reported = false
+
+    local function array_items(value)
+        if value == nil then return {} end
+        local out = nil
+        pcall(function() out = value:get_elements() end)
+        if type(out) == "table" then return out end
+        local size = nil
+        pcall(function() size = value:get_size() end)
+        if type(size) == "number" then
+            local list = {}
+            for i = 0, size - 1 do
+                local item = nil
+                pcall(function() item = value:get_element(i) end)
+                list[#list + 1] = item
+            end
+            return list
+        end
+        return {}
+    end
+
+    local function probe_stock_additions()
+        if stock_additions_reported then return end
+        local manager = shop_manager()
+        if manager == nil then return end
+        local table_obj = nil
+        pcall(function() table_obj = manager:get_field("_StockAdditionSettingTable") end)
+        if table_obj == nil then
+            info("stock additions: _StockAdditionSettingTable unreadable")
+            stock_additions_reported = true
+            return
+        end
+        local wanted = {}
+        for _, staple in ipairs(STAPLE_PROBE) do wanted[staple.id] = staple end
+        -- staple id -> difficulty -> the add counts seen, and how many waypoints carry it
+        local seen, waypoints = {}, {}
+        for flag = 0, 15 do
+            local setting = nil
+            pcall(function() setting = table_obj:call("get_Item", flag) end)
+            if setting ~= nil then
+                local per_difficulty = nil
+                pcall(function() per_difficulty = setting:get_field("_Settings") end)
+                for _, entry in ipairs(array_items(per_difficulty)) do
+                    local difficulty = nil
+                    pcall(function() difficulty = tonumber(entry:get_field("_Difficulty")) end)
+                    local datas = nil
+                    pcall(function() datas = entry:get_field("_Datas") end)
+                    for _, data in ipairs(array_items(datas)) do
+                        local item_id, count = nil, nil
+                        pcall(function()
+                            item_id = tonumber(data:get_field("_AddItemId"))
+                            count = tonumber(data:get_field("_AddCount"))
+                        end)
+                        if item_id ~= nil and wanted[item_id] ~= nil then
+                            seen[item_id] = seen[item_id] or {}
+                            local key = tostring(difficulty)
+                            seen[item_id][key] = seen[item_id][key] or {}
+                            seen[item_id][key][tostring(count)] = true
+                            waypoints[item_id] = waypoints[item_id] or {}
+                            waypoints[item_id][flag] = true
+                        end
+                    end
+                end
+            end
+        end
+        stock_additions_reported = true
+
+        -- The other half of the shelf's stock rules: each row's own stock
+        -- setting. The patcher stamps _Difficulty = 20 on it, which is
+        -- Standard. If the game matches that against the difficulty being
+        -- played, a shelf only stocks on Standard, and nothing in our code
+        -- was ever at fault. Live 2026-09-06: stock ran 18 down to 0 on
+        -- Standard the day before, and reads 1 here on Assisted.
+        local settings = nil
+        pcall(function() settings = manager:get_field("_ShopItemSettingTable") end)
+        local playing = "?"
+        pcall(function()
+            local campaign = sdk.get_managed_singleton("chainsaw.CampaignManager")
+            if campaign ~= nil then playing = tostring(campaign:call("get_CurrentDifficulty")) end
+        end)
+        if settings ~= nil then
+            for _, staple in ipairs({ STAPLE_PROBE[7], STAPLE_PROBE[1] }) do
+                local row = nil
+                pcall(function() row = settings:call("get_Item", staple.id) end)
+                local stock_setting = nil
+                if row ~= nil then
+                    pcall(function() stock_setting = row:call("get_StockSetting") end)
+                end
+                if stock_setting == nil then
+                    info(string.format("stock setting: %s has none (playing difficulty %s)",
+                        staple.name, playing))
+                else
+                    local function field(name)
+                        local value = nil
+                        pcall(function() value = stock_setting:get_field(name) end)
+                        return tostring(value)
+                    end
+                    info(string.format(
+                        "stock setting: %s difficulty=%s enabled=%s max=%s default=%s selectcount=%s (playing %s)",
+                        staple.name, field("_Difficulty"), field("_EnableStockSetting"),
+                        field("_MaxStock"), field("_DefaultStock"), field("_EnableSelectCount"),
+                        playing))
+                end
+            end
+        end
+
+        for _, staple in ipairs(STAPLE_PROBE) do
+            local by_difficulty = seen[staple.id]
+            if by_difficulty == nil then
+                info(string.format("stock additions: %s is in NO waypoint (wants %d a chapter)",
+                    staple.name, staple.per_chapter))
+            else
+                local flags = 0
+                for _ in pairs(waypoints[staple.id] or {}) do flags = flags + 1 end
+                local parts = {}
+                for difficulty, counts in pairs(by_difficulty) do
+                    local values = {}
+                    for value in pairs(counts) do values[#values + 1] = value end
+                    table.sort(values)
+                    parts[#parts + 1] = difficulty .. "=+" .. table.concat(values, "/")
+                end
+                table.sort(parts)
+                info(string.format("stock additions: %s in %d waypoint(s), by difficulty %s (wants %d a chapter)",
+                    staple.name, flags, table.concat(parts, " "), staple.per_chapter))
+            end
+        end
+    end
+
+    -- ---------------------------------------------------------------- saving
+    local function request_game_save()
+        if not merchant.save_armed then
+            return
+        end
+        merchant.save_armed = false
+        local manager = sdk.get_managed_singleton("share.SaveDataManager")
+        if manager == nil then
+            info("save requested but share.SaveDataManager is missing")
+            return
+        end
+        -- The real signature is requestSaveGameData(int slotId,
+        -- GameSaveRequestArgs args). This asked with one argument and then with
+        -- none, and REFramework rejected both without raising, so the old code
+        -- logged "game save requested" every time while saving nothing (found
+        -- live 2026-08-17, after a refund gem was lost to a reload). Writing a
+        -- save needs a slot id, and a wrong slot id overwrites the wrong file,
+        -- so this stays honest rather than guessing. Correctness is meant to
+        -- come from reconciling against the server's checked list, not from
+        -- this save; the refund gem is the one consequence not yet covered
+        -- that way, which is why losing it to a reload is currently possible.
+        local call_verified = ctx.inject_call_verified or _G.inject_call_verified
+        local ok, detail = false, "verified-call helper unavailable"
+        if type(call_verified) == "function" then
+            ok, detail = call_verified(manager, "requestSaveGameData")
+        end
+        if ok then
+            info("shop closed after a purchase - game save requested")
+        else
+            info("shop closed after a purchase; no game save was made ("
+                .. tostring(detail) .. ") - the purchase is reconciled on load instead")
+        end
+    end
+
+    -- ----------------------------------------------------------------- hooks
+    local function install_hooks()
+        if merchant.hooks_installed then
+            return
+        end
+
+        local shop_type = sdk.find_type_definition("chainsaw.InGameShopManager")
+        local notify = shop_type and shop_type:get_method("notifyPurchaseItem")
+        if notify == nil then
+            info("notifyPurchaseItem not found - shop checks cannot fire")
+            return
+        end
+        sdk.hook(
+            notify,
+            function(args)
+                -- (this, kind, itemId, count, ptas) - args[3] is the first
+                -- parameter, matching the notifySellItems hook next door.
+                local ok, e = pcall(function()
+                    local item_id = sdk.to_int64(args[4]) & 0xFFFFFFFF
+                    item_id = math.floor(tonumber(item_id) or 0)
+                    -- [Purchase ledger, Cam 2026-09-02] The shop draws an
+                    -- "x10" badge on the Gunpowder row (its stack size is 10)
+                    -- and it was unclear whether a purchase hands over one
+                    -- grain or a stack of ten, and for how much. The
+                    -- notification carries both answers, so every purchase
+                    -- is logged: item, count delivered, pesetas charged, and
+                    -- the row's stock as the manager sees it at that moment.
+                    local count, ptas = nil, nil
+                    pcall(function() count = sdk.to_int64(args[5]) & 0xFFFFFFFF end)
+                    pcall(function() ptas = sdk.to_int64(args[6]) & 0xFFFFFFFF end)
+                    local stock = nil
+                    pcall(function()
+                        local manager = shop_manager()
+                        if manager ~= nil then
+                            stock = manager:call("getCurrStock", item_id)
+                        end
+                    end)
+                    info(string.format("purchase: item %d x%s for %s ptas (stock now %s)",
+                        item_id, tostring(tonumber(count)), tostring(tonumber(ptas)),
+                        tostring(tonumber(stock))))
+                    on_purchase(item_id)
+                end)
+                if not ok then
+                    info("purchase hook error: " .. tostring(e))
+                end
+                return sdk.PreHookResult.CALL_ORIGINAL
+            end,
+            function(retval) return retval end
+        )
+
+        merchant.hooks_installed = true
+        info("purchase hook installed")
+    end
+
+    -- [Shop open state] The shop's enter/close states, hooked ALWAYS - not
+    -- behind the merchant-checks gate the purchase hooks sit behind, because
+    -- what rides on this has nothing to do with whether the shelf holds
+    -- checks.
+    --
+    -- Why it exists (Cam, live 2026-08-20): take a DeathLink death standing at
+    -- the merchant and the game comes back as a grey wash. The world renders
+    -- fine - brazier, flame and the merchant's own stand are all visible - it
+    -- is still wearing the backdrop the shop puts over the world, because
+    -- InGameShopGuiState_Close never ran to lift it. Exiting to title then
+    -- hangs on black, since the shop state machine is parked in a state
+    -- nothing will leave. Only a full restart clears it.
+    --
+    -- The cause is that nothing in MainFlowManager calls the shop a menu.
+    -- RE4R does not pause for it, so is_playable reads TRUE at the shelf and
+    -- apclient's safe_to_inject waves an incoming death straight through.
+    -- trigger_game_over then goes in via GameOverManager's mediator, which
+    -- deliberately skips the damage pipeline (that is what lets it kill with
+    -- no attacker) and so skips whatever teardown a real death would run.
+    --
+    -- Published on the bridge rather than folded into is_playable on purpose.
+    -- is_playable guards the pickup path too, and making that stricter while
+    -- the lost-check investigation still has it under suspicion would muddy
+    -- two problems at once. Only safe_to_inject reads this.
+    --
+    -- A missed close leaves the flag stuck, which DEFERS an incoming death and
+    -- item delivery rather than dropping either: the death stays queued and
+    -- the delivery watermark does not advance. The loadGameSaveData hook
+    -- clears it, so a stuck flag cannot outlive one load.
+    -- [Empty rows, Cam 2026-09-06] A shelf row with no check on it used to
+    -- sit in the Buy tab wearing the pak's baked "[AP] Archipelago Check",
+    -- a blank icon and a price. It is not buyable (reconcile_stock takes its
+    -- stock to zero), but it looks buyable, and at the start of a room most
+    -- rows are in that state: the shelf has 13 rows and the merchant only
+    -- releases a few checks a chapter, so chapter 1 shows ten of them.
+    --
+    -- The Buy tab builds its list from InGameShopManager.getPurchasableItems,
+    -- and every entry in it answers get_ItemId. So the honest fix is to hand
+    -- the UI a list without those rows: nothing about the shop's own state
+    -- changes, the row comes straight back the moment a check lands on it,
+    -- and every other tab (Sell, Tune Up, Trade) reads a different method and
+    -- is untouched.
+    local hidden_reported = -1
+    local last_shelf_line = nil
+
+    -- Hiding a row that actually carries a check would take a check away from
+    -- the player, so this answers false until an assignment has really been
+    -- derived. Showing a spare row is only ugly; hiding a real one is a bug.
+    local function row_is_empty_ap_row(item_id)
+        if item_id == nil or not merchant.assignment_ready then return false end
+        local assignment = merchant.slots_by_item
+        if type(assignment) ~= "table" then return false end
+        for _, row in ipairs(merchant.rows) do
+            if row.item_id == item_id then
+                return assignment[item_id] == nil
+            end
+        end
+        return false
+    end
+
+    local function filter_purchasable_list(retval)
+        if merchant.slot_count == 0 then
+            return
+        end
+        local list = sdk.to_managed_object(retval)
+        if list == nil then
+            return
+        end
+        local count = nil
+        pcall(function() count = tonumber(list:call("get_Count")) end)
+        if count == nil then
+            return
+        end
+        local hidden = 0
+        local seen = {}
+        for index = count - 1, 0, -1 do
+            local item_id, stock, sold_out = nil, nil, nil
+            pcall(function()
+                local entry = list:call("get_Item", index)
+                if entry ~= nil then
+                    item_id = tonumber(entry:call("get_ItemId"))
+                    -- The number the player actually reads: the shop manager's
+                    -- getCurrStock answered 1 for every item on the shelf,
+                    -- staples included, while the tab plainly showed different
+                    -- counts (2026-09-06). The list entry carries its own.
+                    stock = tonumber(entry:call("get_CurrStock"))
+                    sold_out = entry:call("get_IsSoldOut")
+                end
+            end)
+            if item_id ~= nil then
+                seen[#seen + 1] = string.format("%d=%s%s", item_id,
+                    tostring(stock), sold_out == true and " SOLD OUT" or "")
+            end
+            if row_is_empty_ap_row(item_id) then
+                local removed = pcall(function() list:call("RemoveAt", index) end)
+                if removed then hidden = hidden + 1 end
+            end
+        end
+        -- One line per shop visit naming every row the tab is about to draw
+        -- and the stock it carries, so a wrong count has a number behind it.
+        local shelf_line = table.concat(seen, " ")
+        if shelf_line ~= last_shelf_line then
+            last_shelf_line = shelf_line
+            info("buy tab rows (item=stock): " .. shelf_line)
+        end
+        if hidden ~= hidden_reported then
+            hidden_reported = hidden
+            info(string.format(
+                "%d empty row(s) hidden from the Buy tab (no check of that tier released yet)",
+                hidden))
+        end
+    end
+
+    local function install_purchasable_filter()
+        if merchant.purchasable_filter_installed then
+            return
+        end
+        local type_def = sdk.find_type_definition("chainsaw.InGameShopManager")
+        local method = type_def and type_def:get_method("getPurchasableItems")
+        if method == nil then
+            info("purchasable list method not found - empty rows will still show in the Buy tab")
+            return
+        end
+        sdk.hook(
+            method,
+            function() return sdk.PreHookResult.CALL_ORIGINAL end,
+            function(retval)
+                pcall(filter_purchasable_list, retval)
+                return retval
+            end
+        )
+        merchant.purchasable_filter_installed = true
+    end
+
+    local function install_shop_state_hooks()
+        if merchant.state_hooks_installed then
+            return
+        end
+        install_purchasable_filter()
+
+        local enter_type = sdk.find_type_definition("chainsaw.gui.shop.InGameShopGuiState_Enter")
+            or sdk.find_type_definition("chainsaw.gui.shop.InGameShopGuiState_PurchaseEnter")
+        local enter_method = enter_type and (enter_type:get_method("enter") or enter_type:get_method("onEnter"))
+        if enter_method ~= nil then
+            sdk.hook(
+                enter_method,
+                function()
+                    if bridge ~= nil then bridge.shop_gui_open = true end
+                    -- Reconcile before the player can look at the shelf: this
+                    -- also refreshes slots_by_item, which the purchasable-list
+                    -- filter reads to decide which rows are empty.
+                    if merchant.slot_count > 0 then
+                        pcall(reconcile_sold_out)
+                        pcall(probe_shelf)
+                        pcall(probe_stock_additions)
+                        pcall(probe_staples)
+                    end
+                    return sdk.PreHookResult.CALL_ORIGINAL
+                end,
+                function(retval) return retval end
+            )
+        else
+            info("shop enter state not found - a death at the merchant cannot be deferred")
+        end
+
+        local close_type = sdk.find_type_definition("chainsaw.gui.shop.InGameShopGuiState_Close")
+        local close_method = close_type and (close_type:get_method("enter") or close_type:get_method("onEnter"))
+        if close_method ~= nil then
+            sdk.hook(
+                close_method,
+                function()
+                    if bridge ~= nil then bridge.shop_gui_open = false end
+                    -- Commit the visit if anything was bought.
+                    if merchant.slot_count > 0 then
+                        pcall(request_game_save)
+                    end
+                    return sdk.PreHookResult.CALL_ORIGINAL
+                end,
+                function(retval) return retval end
+            )
+        else
+            info("shop close state not found - purchases will save with the next normal save")
+        end
+
+        merchant.state_hooks_installed = true
+    end
+
+    -- ---------------------------------------------------------------- public
+    -- apclient calls these: load_slots when the room file is read, and
+    -- on_connected once the per-seed ack set is in memory.
+    local function merchant_configure(payload)
+        load_slots(payload)
+        -- Unconditional: a seed with no merchant checks still has a shop, and
+        -- a death taken inside it still bricks the render state.
+        pcall(install_shop_state_hooks)
+        -- [Trade, Phase 0] Log-only claim probe, also unconditional: the
+        -- trade tab exists with or without merchant checks.
+        if merchant.slot_count > 0 then
+            install_hooks()
+        end
+        -- Local check rows wear their real item's icon. Needs the buy list, so
+        -- it hooks separately from the purchase hooks above.
+        if merchant.slot_count > 0 then
+            pcall(install_row_icon_hook)
+        end
+        -- The model swap serves BOTH tabs (parity, 2026-09-02) and returns
+        -- early for any id neither tab owns, so it installs whether or not
+        -- the buy tab has checks - the trade window configures after this
+        -- runs and cannot be asked yet.
+        pcall(install_row_model_hook)
+    end
+
+    local function merchant_on_connected()
+        if merchant.slot_count == 0 then
+            return
+        end
+        pcall(reconcile_sold_out)
+    end
+
+    -- [Purchase delivery] apclient's own-find skip assumes an own-world item
+    -- was already granted by the world pickup. A shop check has no pickup:
+    -- the till hands over the STAND-IN, so the real item must still be
+    -- injected. apclient asks this before skipping (live 2026-08-17: a bought
+    -- Insignia Key was skipped and never arrived).
+    local function merchant_is_shop_location(location_code)
+        local code = tonumber(location_code)
+        if code == nil then
+            return false
+        end
+        return merchant.slots_by_location[math.floor(code)] ~= nil
+    end
+
+    -- [The Checklist] Plain rows for the Insert window: what each shop check
+    -- is, which chapter releases it, and whether it is bought. Release is
+    -- the shop's own waypoint flag, read once per refresh, not per row.
+    local checklist_cache = { at = -1, rows = {} }
+    local function merchant_checklist_rows()
+        local now = (os ~= nil and type(os.clock) == "function") and os.clock() or 0
+        if now - checklist_cache.at < 0.5 then
+            return checklist_cache.rows
+        end
+        local manager = shop_manager()
+        local open = {}
+        for chapter = 1, 16 do
+            local unlocked = false
+            if manager ~= nil then
+                pcall(function()
+                    unlocked = manager:call("isEnableUpdateFlag", math.max(0, math.min(15, chapter - 1))) == true
+                end)
+            end
+            open[chapter] = unlocked
+        end
+        local rows = {}
+        for _, check in ipairs(merchant.checks) do
+            rows[#rows + 1] = {
+                location_code = check.location_code,
+                chapter = check.unlock_chapter,
+                name = check.display_name,
+                player = check.player_name,
+                remote = check.remote,
+                classification = check.classification,
+                checked = slot_is_checked(check),
+                released = open[check.unlock_chapter] == true,
+            }
+        end
+        checklist_cache.at = now
+        checklist_cache.rows = rows
+        return rows
+    end
+    ctx.merchant_checklist_rows = merchant_checklist_rows
+
+    ctx.merchant_configure = merchant_configure
+    ctx.merchant_is_shop_location = merchant_is_shop_location
+    -- The durable ack key of the shop check at a location, or nil when the
+    -- location is not a shop check. apclient folds the server's checked list
+    -- through this, so a check bought on another machine (or before the
+    -- session file was wiped) reads as bought here too instead of going back
+    -- on the shelf.
+    ctx.merchant_ack_key_for_location = function(location_code)
+        local code = tonumber(location_code)
+        if code == nil then
+            return nil
+        end
+        local check = merchant.slots_by_location[math.floor(code)]
+        if check == nil then
+            return nil
+        end
+        return slot_key(check)
+    end
+    ctx.merchant_poll_pending_sweeps = poll_pending_sweeps
+    -- [Trade stand-ins, 2026-09-05] The trade tab's display slots are stand-in
+    -- items too, handed over on a claim exactly like a bought row's trinket.
+    -- trade.lua registers them here so the same three things happen to them:
+    -- the game's blank-square pickup toast is dropped, a leftover copy is
+    -- swept at load, and a claim queues a sweep debt that holds until the
+    -- copy is actually seen and removed.
+    local function register_standin_ids(ids, label)
+        merchant.extra_standin_ids = merchant.extra_standin_ids or {}
+        local added = 0
+        for _, raw in ipairs(ids or {}) do
+            local normalized = math.floor(tonumber(raw) or 0)
+            if normalized > 0 and not merchant.extra_standin_ids[normalized] then
+                merchant.extra_standin_ids[normalized] = true
+                merchant.residue_probes[normalized] = RESIDUE_PROBE_TICKS
+                added = added + 1
+            end
+        end
+        if added > 0 then
+            local suppress_ids = bridge.suppress_item_toast_ids or {}
+            for id in pairs(merchant.extra_standin_ids) do
+                suppress_ids[id] = true
+            end
+            bridge.suppress_item_toast_ids = suppress_ids
+            info(string.format("%d %s stand-in id(s) registered: toast dropped, swept at load and on claim",
+                added, tostring(label or "extra")))
+        end
+        return added
+    end
+    local function queue_standin_sweep(item_id)
+        local normalized = math.floor(tonumber(item_id) or 0)
+        if normalized <= 0 then
+            return false
+        end
+        local ok_sweep, swept = pcall(suppress_standin, normalized, true)
+        if ok_sweep and swept then
+            return true
+        end
+        -- Ticks ELAPSED, not remaining: the debt holds until swept.
+        merchant.pending_sweeps[normalized] = 0
+        return false
+    end
+    ctx.merchant_register_standin_ids = register_standin_ids
+    ctx.merchant_queue_standin_sweep = queue_standin_sweep
+    _G.merchant_register_standin_ids = register_standin_ids
+    _G.merchant_queue_standin_sweep = queue_standin_sweep
+    ctx.merchant_settle_refunds_for_loaded_save = settle_refunds_for_loaded_save
+    -- The save hook asks for this at the instant a version is written, which is
+    -- the only moment we know what that file actually contains.
+    ctx.merchant_granted_gem_keys = function()
+        return merchant.gems_granted
+    end
+    ctx.merchant_on_connected = merchant_on_connected
+    ctx.merchant_reconcile_sold_out = reconcile_sold_out
+    ctx.merchant_probe_shelf = probe_shelf
+    -- The trade window asks for this after every reconcile so its remote and
+    -- empty tiles get the AP model's framing too (parity, 2026-09-02).
+    ctx.merchant_place_ap_models = place_ap_models
+    -- And for the same no-residue icon box handling on its tiles.
+    ctx.merchant_icon_stamp = icon_stamp
+    ctx.merchant_icon_release = icon_release
+    ctx.merchant_wears_square_art = wears_square_art
+    _G.merchant_icon_stamp = icon_stamp
+    _G.merchant_icon_release = icon_release
+    _G.merchant_wears_square_art = wears_square_art
+    -- The operations the hooks trigger, exposed by name: the hooks are only
+    -- the triggers, so a purchase can also be driven from Developer Tools or
+    -- an offline harness without faking a transaction.
+    ctx.merchant_apply_purchase = on_purchase
+    ctx.merchant_commit_save = request_game_save
+    _G.merchant_configure = merchant_configure
+    _G.merchant_on_connected = merchant_on_connected
+end
