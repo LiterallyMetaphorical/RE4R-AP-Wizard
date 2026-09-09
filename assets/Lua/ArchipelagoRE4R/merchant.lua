@@ -1319,6 +1319,26 @@ return function(ctx)
         return nil
     end
 
+    -- [Key item models, 2026-09-03] The fork now mints a model entry for
+    -- every local check item that lacked one (key items). A real id the
+    -- game still cannot model - an older pak, or an item with no mesh to
+    -- mint from - would instantiate nothing and leave the row blank, so the
+    -- swap is refused and the AP logo stays. Logged once per item.
+    local function real_item_has_model(item_id)
+        local manager = shop_manager()
+        if manager == nil then
+            return true
+        end
+        local ok, has = pcall(function()
+            local model_table = manager:get_field("_ItemModelSettingTable")
+            if model_table == nil then
+                return true
+            end
+            return model_table:call("ContainsKey", item_id) == true
+        end)
+        return (not ok) or has == true
+    end
+
     local function install_row_model_hook()
         if merchant.model_hook_installed then
             return
@@ -1362,6 +1382,16 @@ return function(ctx)
                     end
                 end
                 if check == nil or check.remote or check.item_id_real <= 0 then
+                    return
+                end
+                if not real_item_has_model(check.item_id_real) then
+                    merchant.model_missing_logged = merchant.model_missing_logged or {}
+                    if not merchant.model_missing_logged[check.item_id_real] then
+                        merchant.model_missing_logged[check.item_id_real] = true
+                        info(string.format(
+                            "row models: item %d has no shop model entry; row %d keeps the AP model",
+                            check.item_id_real, math.floor(row_item_id)))
+                    end
                     return
                 end
                 local route = swap_model_item_id(param_arg, check.item_id_real)

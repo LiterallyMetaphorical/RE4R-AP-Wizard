@@ -19,7 +19,23 @@ HISTORY SQUASHED 2026-08-10: the fork's branch was flattened to a single commit,
                 .cs/.csv/.json, so the SHA-256 below still describes the code
                 that is on the branch today. Keep the old ids for the reasoning
                 they carry; treat 703e59a as the citable source commit.
-Source commit:  bc6a2a1 (2026-09-02 one shop prefab per stand-in; see the REBUILD entries below)
+Source commit:  1f86519 (2026-09-03 key items show their model on the merchant; see the REBUILD entries below)
+HISTORY REWRITTEN 2026-09-03: the unpushed fork commits (2026-08-24 onward) were
+                squashed by scope and re-worded in plain language before review.
+                Every id cited in the REBUILD entries below is OFF-BRANCH now (still
+                reachable by hash in a local clone); the code is unchanged, the final
+                tree was verified byte-identical. Old id -> new id:
+                78a8a5f..6b2ac16 (23 commits) -> a0c6123  Add a save desk at the spawn, with the welcome note on it
+                c667850 -> bf28fab  Starting attachments go in the case with the starting guns
+                8d0e693..54d8bee (3 commits) -> 64ca726  The welcome note covers the whole mod
+                1d579eb -> 116351e  Bonus weapons in the pool cannot be bought from the Extra Content shop
+                5cb02e2 -> 701452a  The trade tab only draws Leon's treasures
+                53d5ef1 -> 2fd1c33  Every check row carries the [AP] tag
+                af00f80 -> a3abf73  The Trade tab sells multiworld checks
+                1b73404 -> 77ddfd1  A starting rifle starts with its scope
+                aaa67e6 -> 5691e40  Empty trade slots say Nothing to Trade
+                1f01b44..bc6a2a1 (2 commits) -> d9a1062  Trade tiles show a model, and both tabs name items the same way
+                84d18ed -> 1f86519  Key items show their model on the merchant
 Previous:       05f581e (2026-08-06: FORCED EVENTS - BioRand takes its event
                 set from the multiworld. The apworld rolls the Village event
                 set at generation time and the launcher pins it in as
@@ -156,6 +172,26 @@ ProductVersion: 1.0.0+54d1853dcacd403b6c94f1aa55d681fafe870bdc (the launcher
                 writes this into version_stamp.json, and a change here is what
                 triggers the one-time setup cache re-harvest)
 Built with:     .NET SDK 10.0.301
+
+REBUILD 2026-09-03 (84d18ed)
+    Key items show their model on the merchant.
+      * MintShopModelsForLocalItems: a local check holding a key item showed
+        nothing on either tab (vanilla never sells key items, so they have no
+        shop model entry). Every such item now gets a shop prefab minted from
+        the fuel-canister donor with the mesh and material read from the
+        item's valuables-tab prefab, a row in both main model tables, and a
+        framing row cloned from the Level 3 Keycard's. Items with nothing to
+        borrow (bonus weapons, the gold case) stay on the AP logo; the mod
+        (2026.09.03-77) refuses to swap a row to an item the game cannot
+        model.
+      * 17 of the 28 key items needed this; the other 11 already had vanilla
+        entries.
+    Offline verify: library builds clean; harness over the real paks minted
+    all 17 with their own mesh (two use a _UI material, one a _10 mesh
+    variant), left the keycard that had an entry alone and the gold case to
+    the logo; staged and hash-verified by tools/stage_payload.py.
+    exe SHA-256: 95c7e3231ec9d8d6f6597b2bef3e75df92ed071e8cf18594e151f0a9a530e4c6
+    Prior exe SHA-256: 69d32c51882879cf8695c9a1dc1da2898092490703370b874b9c0f6938878b8d
 
 REBUILD 2026-09-02 third (bc6a2a1)
     One shop prefab per stand-in.
