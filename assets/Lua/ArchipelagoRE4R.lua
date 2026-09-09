@@ -29,6 +29,10 @@ dofile("reframework\\autorun\\ArchipelagoRE4R\\merchant.lua")(ctx)
 -- (same room-file channel, same bridge queue) and before apclient, which
 -- drives it from the room file on connect.
 dofile("reframework\\autorun\\ArchipelagoRE4R\\trade.lua")(ctx)
+-- [Server acks] Folds the server's checked list into both merchant tabs' ack
+-- keys. After the two tab modules it asks, before apclient, which calls it on
+-- connect and on every server update. Engine-free, so it runs under a harness.
+dofile("reframework\\autorun\\ArchipelagoRE4R\\server_acks.lua")(ctx)
 -- [EnemyGates] Possession-keyed spawn admission (Dread waits for the
 -- Biosensor Scope). Before apclient, which feeds it from the room file.
 dofile("reframework\\autorun\\ArchipelagoRE4R\\enemy_gate.lua")(ctx)
