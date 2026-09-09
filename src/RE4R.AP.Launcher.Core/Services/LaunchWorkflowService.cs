@@ -550,28 +550,31 @@ public sealed class LaunchWorkflowService
             // of every file, about a second) catches all of it; game versions
             // without a bundled manifest keep the four-scene sentinel check.
             var quickReport = _bioRandProcessRunner.TryQuickVerifyCache(request.GameVersion);
-            if (quickReport is not null)
+            if (quickReport is not null && !quickReport.IsClean)
             {
-                if (quickReport.IsClean)
-                {
-                    Log($"BioRand setup matches the current game fingerprint and BioRand version, and the cache passed the quick manifest check ({quickReport.CheckedFileCount} files). Setup does not need to run again.");
-                    return null;
-                }
+                Log(BioRandProcessRunner.BuildCacheMismatchNote(quickReport));
+            }
 
-                Log($"The BioRand cache does not match the clean-game manifest: {quickReport.MissingFiles.Count} missing, {quickReport.SizeMismatchedFiles.Count} wrong-sized"
-                    + (quickReport.MissingFiles.Count > 0 ? $" (first missing: {quickReport.MissingFiles[0]})" : string.Empty)
-                    + ". Rebuilding it now.");
+            // A file the cache no longer holds is the one difference that
+            // always earns a rebuild: that is the shape Blue and OHMACS were
+            // stuck in, where Steam's verify healed the game but nothing ever
+            // re-harvested. Files that merely DIFFER are the optional-DLC
+            // case (2026-09-09) and must not cost a rebuild on every patch,
+            // so they fall through to the sentinel check like any other cache.
+            if (quickReport is { MissingFiles.Count: > 0 })
+            {
+                Log($"The cache is missing {quickReport.MissingFiles.Count} file(s) it should hold (first: {quickReport.MissingFiles[0]}). Rebuilding it now.");
             }
             else
             {
                 var cachePoisonMessage = _bioRandProcessRunner.VerifyHarvestIsVanilla(request.Re4rInstallPath);
                 if (cachePoisonMessage is null)
                 {
-                    Log("BioRand setup matches the current game fingerprint and BioRand version. Setup does not need to run again.");
+                    Log("BioRand setup matches the current game fingerprint and BioRand version, and the cache passed its scene checks. Setup does not need to run again.");
                     return null;
                 }
 
-                Log("The BioRand cache failed the vanilla check - it was probably harvested while a patch pak was installed. Rebuilding it now.");
+                Log("The BioRand cache failed the vanilla scene check - it was probably harvested while a patch pak was installed. Rebuilding it now.");
                 Log(cachePoisonMessage);
             }
         }

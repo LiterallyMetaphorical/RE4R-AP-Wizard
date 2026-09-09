@@ -2588,10 +2588,13 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
                 return $"clean: all {report.CheckedFileCount} manifest files present with expected sizes";
             }
 
+            // Wording matters here: files that merely differ are usually a
+            // different set of optional RE4R DLC packs, not damage, so this
+            // line reports and leaves the judgement to whoever reads the zip.
             var first = report.MissingFiles.Count > 0
                 ? report.MissingFiles[0]
                 : report.ModifiedFiles[0];
-            return $"NOT CLEAN: {report.MissingFiles.Count} missing, {report.SizeMismatchedFiles.Count} wrong-sized of {report.CheckedFileCount} manifest files (first: {first}). Game data is damaged or modded; see the repair steps in the launcher's error message.";
+            return $"differs from the reference fingerprint: {report.MissingFiles.Count} absent, {report.SizeMismatchedFiles.Count} different size, of {report.CheckedFileCount} files (first: {first}). Absent files point at damaged game data; differing sizes alone usually mean a different optional-DLC set than the reference machine.";
         }
         catch
         {

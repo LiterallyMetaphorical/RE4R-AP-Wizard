@@ -181,21 +181,30 @@ public sealed class BioRandProcessRunner
             };
         }
 
-        // Full integrity pass over the fresh harvest. With a bundled manifest
-        // this covers everything at once: missing files (Blue 08-26, OHMACS
-        // 08-28: the harvest printed "X <path>" per unreadable file, exited 0,
-        // and every generation then died on the first gap) and non-vanilla
-        // content (the 08-02 leftover-pak class). Without a manifest for this
-        // game version, the four-scene sentinel check remains the guard.
+        // Full integrity pass over the fresh harvest, REPORTED not enforced.
+        //
+        // The manifest is a fingerprint of ONE reference install, and installs
+        // differ from it for reasons that are nobody's fault. RE4R's optional
+        // DLC ships as paks in dlc\ that the harvest reads and that override
+        // base-game paths, so a player who owns a different set of packs than
+        // the reference machine harvests different bytes for those paths and
+        // is not damaged in any way (live 2026-09-09, published v0.6.0-beta:
+        // 44 modified files, zero missing, no foreign paks, first hit a DLC
+        // message file; the player was hard-blocked and told to delete mod
+        // paks that did not exist, and reinstalling could not help).
+        //
+        // So the hard stop stays with the two checks that cannot false-positive
+        // this way: the sentinel scenes, which live in the base game and are
+        // DLC-independent, and BioRand's own read failure at generation, which
+        // BioRandFailureClassifier now turns into a message naming the exact
+        // file and the repair. The manifest's job is evidence for a bug report.
         var manifest = _cacheManifestProvider.TryLoadForGameVersion(request.DetectedGameVersion);
-        string? harvestPoisonedMessage;
         if (manifest is not null)
         {
             Log($"Verifying the fresh cache against the clean-game manifest for {manifest.GameVersion} ({manifest.Entries.Count} files).");
             var verifyReport = await manifest.VerifyFullAsync(BioRandCacheDirectoryPath, cancellationToken);
             if (verifyReport.IsClean)
             {
-                harvestPoisonedMessage = null;
                 Log($"Cache verified clean: all {verifyReport.CheckedFileCount} manifest files match"
                     + (verifyReport.ExtraFileCount > 0
                         ? $" ({verifyReport.ExtraFileCount} extra file(s) not in the manifest, harmless)."
@@ -203,13 +212,12 @@ public sealed class BioRandProcessRunner
             }
             else
             {
-                harvestPoisonedMessage = BuildCacheVerdictMessage(verifyReport, request.Re4rInstallPath);
+                Log(BuildCacheMismatchNote(verifyReport));
+                LogCacheMismatchDetail(verifyReport);
             }
         }
-        else
-        {
-            harvestPoisonedMessage = VerifyHarvestIsVanilla(request.Re4rInstallPath);
-        }
+
+        var harvestPoisonedMessage = VerifyHarvestIsVanilla(request.Re4rInstallPath);
 
         if (harvestPoisonedMessage is not null)
         {
@@ -550,50 +558,75 @@ public sealed class BioRandProcessRunner
     }
 
     /// <summary>
-    /// Composes the player-facing verdict for a failed cache verification,
-    /// area-labeled the way <see cref="BioRandFailureClassifier"/> labels
-    /// generation failures. Missing files mean the INSTALL could not provide
-    /// them, so the repair is Steam's verify; modified files mean non-vanilla
-    /// content was harvested, so leftover paks go first. Neither asks the
-    /// player to clear the cache: the per-patch quick check rebuilds it
-    /// automatically once the game files are healthy.
+    /// One log line describing how the cache differs from the reference
+    /// fingerprint. Deliberately NOT a verdict: this text never blocks a
+    /// patch and never accuses the player of anything, because the commonest
+    /// cause of a difference is owning a different set of RE4R's optional DLC
+    /// packs than the machine the fingerprint came from. Real damage is named
+    /// by the sentinel check here or by BioRand's own read failure later.
     /// </summary>
-    public string BuildCacheVerdictMessage(CacheVerifyReport report, string installPath)
+    public static string BuildCacheMismatchNote(CacheVerifyReport report)
     {
         var missing = report.MissingFiles;
         var modified = report.ModifiedFiles;
-        var sb = new System.Text.StringBuilder();
+        var first = modified.Count > 0 ? modified[0] : missing.Count > 0 ? missing[0] : "none";
 
-        if (modified.Count == 0 && missing.Count > 0)
+        var parts = new List<string>();
+        if (modified.Count > 0)
         {
-            sb.Append(BioRandFailureClassifier.AreaCacheIncomplete).Append(": ");
-            sb.Append($"{missing.Count} of the {report.CheckedFileCount} files BioRand needs could not be read from your RE4R install (first: '{missing[0]}'). ");
-            sb.AppendLine("The game data on disk is missing or damaged there. Your seed and settings are fine.");
-            sb.AppendLine("1. Verify your game files in Steam: right click Resident Evil 4, Properties, Installed Files, Verify integrity of game files. Let it download repairs.");
-            sb.AppendLine("2. Patch again. The launcher rebuilds its cache automatically; there is nothing to clear by hand.");
-            sb.Append("3. If this comes back after a clean verify, send a bug report zip (the Generate Bug Report button, bottom right of the launcher).");
-            return sb.ToString();
+            parts.Add($"{modified.Count} differ");
         }
 
-        var firstModified = modified.Count > 0 ? modified[0] : missing[0];
-        var patchPaks = ListPatchPakNames(installPath);
-        sb.Append(BioRandFailureClassifier.AreaCachePoisoned).Append(": ");
-        sb.Append($"{modified.Count} file(s) in the fresh cache do not match a clean RE4R install");
         if (missing.Count > 0)
         {
-            sb.Append($" and {missing.Count} could not be read at all");
+            parts.Add($"{missing.Count} absent");
         }
 
-        sb.AppendLine($" (first: '{firstModified}'). Something other than the clean game was harvested, usually leftover mod paks. Even a mod uninstalled long ago leaves its paks behind: Steam's Verify Integrity does not delete files it did not install.");
-        if (patchPaks.Count > 0)
+        var note = $"Cache fingerprint note: of {report.CheckedFileCount} reference files, {string.Join(" and ", parts)} (first: '{first}'). "
+            + "Owning a different set of RE4R's optional DLC packs than the reference machine produces exactly this, so it is recorded rather than treated as a fault. "
+            + "The vanilla scene checks below decide whether the cache is actually usable.";
+
+        if (missing.Count > 0)
         {
-            sb.AppendLine($"Patch paks currently in the game folder: {string.Join(", ", patchPaks)}.");
+            // Absent files are the shape that later kills generation with
+            // "Unable to read", so say the repair here even though nothing is
+            // blocked yet. The classifier repeats it if it comes to that.
+            note += " Files listed as absent could not be read out of the game at all;"
+                + " if a patch later fails on a missing file, verify the game files in Steam and patch again.";
         }
 
-        sb.AppendLine("1. In your RE4R folder, delete every re_chunk_000.pak.patch_007.pak and higher that the launcher did not install. Leave re_chunk_000.pak and patch_001 through patch_006 alone.");
-        sb.AppendLine("2. Verify your game files in Steam.");
-        sb.Append("3. Patch again. The launcher rebuilds its cache automatically. If this comes back, send a bug report zip (the Generate Bug Report button, bottom right of the launcher).");
-        return sb.ToString();
+        return note;
+    }
+
+    /// <summary>
+    /// The differing paths themselves, capped, so a bug report carries the
+    /// evidence. Before this only the first path was ever recorded, which is
+    /// what made the 2026-09-09 report take a full investigation to explain.
+    /// </summary>
+    private void LogCacheMismatchDetail(CacheVerifyReport report)
+    {
+        const int cap = 25;
+        foreach (var (label, paths) in new[]
+                 {
+                     ("differs", report.ModifiedFiles),
+                     ("absent", report.MissingFiles),
+                 })
+        {
+            if (paths.Count == 0)
+            {
+                continue;
+            }
+
+            foreach (var path in paths.Take(cap))
+            {
+                Log($"  cache {label}: {path}");
+            }
+
+            if (paths.Count > cap)
+            {
+                Log($"  ... and {paths.Count - cap} more {label}.");
+            }
+        }
     }
 
     private static List<string> ListPatchPakNames(string installPath)
