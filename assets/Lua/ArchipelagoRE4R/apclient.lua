@@ -316,6 +316,51 @@ return function(ctx)
         return lid ~= nil and merc_location_ids ~= nil and merc_location_ids[math.floor(lid)] == true
     end
 
+    -- [Merchant, both tabs] Bought checks are hidden from the shelf and the
+    -- trade tiles by the per-seed ack set, which is marked on send and lives
+    -- on this machine. The server's own checked list only ever fed the
+    -- Mercenaries goal, so on a fresh machine, or after the session file was
+    -- wiped, every bought check went back on sale: the server refused the
+    -- duplicate and the money was gone (found 2026-09-02). Fold the server's
+    -- list into the ack set for the shop and trade identities; world checks
+    -- keep their own path (their markers roll back with the save on
+    -- purpose). Returns true when something new was marked.
+    local function fold_server_checked_merchant_acks(location_ids, source)
+        local bridge = ctx.bridge
+        if bridge == nil or type(location_ids) ~= "table" then return false end
+        if type(bridge.acknowledged_guid_keys) ~= "table" then return false end
+        local shop_key = ctx.merchant_ack_key_for_location or _G.merchant_ack_key_for_location
+        local trade_key = ctx.trade_ack_key_for_location or _G.trade_ack_key_for_location
+        local marked = 0
+        for _, raw in ipairs(location_ids) do
+            local lid = tonumber(raw)
+            if lid ~= nil then
+                lid = math.floor(lid)
+                local key = nil
+                if type(shop_key) == "function" then
+                    local ok, value = pcall(shop_key, lid)
+                    if ok and type(value) == "string" then key = value end
+                end
+                if key == nil and type(trade_key) == "function" then
+                    local ok, value = pcall(trade_key, lid)
+                    if ok and type(value) == "string" then key = value end
+                end
+                if key ~= nil and not bridge.acknowledged_guid_keys[key] then
+                    bridge.acknowledged_guid_keys[key] = true
+                    marked = marked + 1
+                end
+            end
+        end
+        if marked > 0 then
+            bridge.state_dirty = true
+            if type(ctx.save_session_state) == "function" then ctx.save_session_state() end
+            info(string.format(
+                "%d merchant check(s) the server already holds were marked bought locally (%s); they stay off both tabs",
+                marked, tostring(source)))
+        end
+        return marked > 0
+    end
+
     local function mercenaries_enabled(slot_data)
         if type(slot_data) ~= "table" then return false end
         local mode = slot_data.game_mode
@@ -2081,6 +2126,12 @@ return function(ctx)
                 end
             end
             ctx.bridge.checked_locations = checked
+            -- The room file (shop and trade checks) is already loaded above,
+            -- and the merchant's own connect reconcile runs below, so the
+            -- shelf and the tiles derive from the folded set.
+            if ok_checked and type(result) == "table" then
+                fold_server_checked_merchant_acks(result, "connect")
+            end
         end
         local set_ap_session_identity = ctx.set_ap_session_identity
         if type(set_ap_session_identity) == "function" then
@@ -2266,6 +2317,15 @@ return function(ctx)
                     changed = true
                 end
             end
+        end
+        -- A merchant check the server confirms mid-session (another client on
+        -- this slot, or a collect) leaves both tabs right away.
+        if fold_server_checked_merchant_acks(locations, "server update") then
+            changed = true
+            local reconcile_shelf = ctx.merchant_reconcile_sold_out or _G.merchant_reconcile_sold_out
+            if type(reconcile_shelf) == "function" then pcall(reconcile_shelf) end
+            local reconcile_tiles = ctx.trade_reconcile_slots or _G.trade_reconcile_slots
+            if type(reconcile_tiles) == "function" then pcall(reconcile_tiles) end
         end
         if changed then
             bridge.state_dirty = true

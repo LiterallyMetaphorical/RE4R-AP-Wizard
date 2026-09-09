@@ -1989,6 +1989,22 @@ return function(ctx)
 
     ctx.merchant_configure = merchant_configure
     ctx.merchant_is_shop_location = merchant_is_shop_location
+    -- The durable ack key of the shop check at a location, or nil when the
+    -- location is not a shop check. apclient folds the server's checked list
+    -- through this, so a check bought on another machine (or before the
+    -- session file was wiped) reads as bought here too instead of going back
+    -- on the shelf.
+    ctx.merchant_ack_key_for_location = function(location_code)
+        local code = tonumber(location_code)
+        if code == nil then
+            return nil
+        end
+        local check = merchant.slots_by_location[math.floor(code)]
+        if check == nil then
+            return nil
+        end
+        return slot_key(check)
+    end
     ctx.merchant_poll_pending_sweeps = poll_pending_sweeps
     ctx.merchant_settle_refunds_for_loaded_save = settle_refunds_for_loaded_save
     -- The save hook asks for this at the instant a version is written, which is

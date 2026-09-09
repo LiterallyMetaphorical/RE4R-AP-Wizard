@@ -1651,12 +1651,16 @@ public sealed class LaunchWorkflowService
                             .ToArray(),
                         merchant_shop = merchantShop,
                         // [Trade takeover, Phase 2] The Trade tab's checks and
-                        // exchange economy for the in-game mod. Additive: the
-                        // current mod ignores the key; the trade layer reads
-                        // it when it lands. Null when the room has no trade
-                        // block, which leaves the tab exactly as BioRand made
-                        // it.
-                        trade_shop = !plannedTradeChecks.Any()
+                        // exchange economy for the in-game mod. Written
+                        // whenever the room's trade data is enabled, even with
+                        // no check slots: at trade checks 0 the fork still
+                        // bakes the three gem rows one-shot, and the mod can
+                        // only restock them each chapter if it knows they are
+                        // there (until 2026-09-04 the block was left out and
+                        // the gems sold once for the whole run). Null only when
+                        // the room has no trade block at all (gear shuffle
+                        // off), which leaves the tab exactly as BioRand made it.
+                        trade_shop = !scoutResult.TradeShop.Enabled
                             ? null
                             : (object)new
                             {
@@ -1718,6 +1722,12 @@ public sealed class LaunchWorkflowService
                     if (merchantShop is not null)
                     {
                         Log($"Merchant shop: {plannedShopSlots.Count} check slot(s) written for the in-game mod.");
+                    }
+                    if (scoutResult.TradeShop.Enabled)
+                    {
+                        Log(
+                            $"Trade tab: {plannedTradeShop.Slots.Count} check slot(s) and "
+                                + $"{scoutResult.TradeShop.Gems.Count} restocking gem row(s) written for the in-game mod.");
                     }
                 }
             }

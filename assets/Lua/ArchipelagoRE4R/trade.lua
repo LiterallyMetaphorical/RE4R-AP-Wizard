@@ -341,12 +341,26 @@ return function(ctx)
             end
         end
 
-        return bound == trade.slot_count,
+        -- With check slots in the room the slots decide: the gems live in the
+        -- same table, so they bind with them, and a room where they did not
+        -- has a layout problem worth a line, not a retry (a retry re-seeds
+        -- the claim baselines every time, which could swallow a claim).
+        -- Without check slots (trade checks at 0) the gems are the whole
+        -- point of binding, so they decide instead.
+        local gems_expected = #(trade.gem_item_ids or {})
+        local slots_ok = bound == trade.slot_count
+        local gems_ok = #trade.gem_reward_ids == gems_expected
+        local ok = (trade.slot_count > 0 and slots_ok) or (trade.slot_count == 0 and gems_ok)
+        local slots_text = trade.slot_count > 0
+            and string.format("bound %d/%d check slot(s) at reward ids 0-%d",
+                bound, trade.slot_count, trade.slot_count - 1)
+            or "no check slots in this room (trade checks at 0)"
+        return ok,
             string.format(
-                "bound %d/%d check slot(s) at reward ids 0-%d and %d gem slot(s), "
-                    .. "each confirmed against the live tab; progress by slot: %s",
-                bound, trade.slot_count, math.max(0, trade.slot_count - 1),
-                #trade.gem_reward_ids,
+                "%s and %d/%d gem slot(s)%s, each confirmed against the live tab; "
+                    .. "progress by slot: %s",
+                slots_text, #trade.gem_reward_ids, gems_expected,
+                (slots_ok and not gems_ok and trade.slot_count > 0) and " (gem slots missing)" or "",
                 #sweep > 0 and table.concat(sweep, " ") or "none")
     end
 
@@ -771,7 +785,10 @@ return function(ctx)
     local rebind_countdown = 0
 
     local function retry_binding_if_needed()
-        if trade.slot_count == 0 or trade.bound_ok then
+        -- A room with no check slots still has gems to bind (trade checks at
+        -- 0 bakes the three exchange rows one-shot), so only a room with
+        -- neither has nothing to wait for.
+        if trade.bound_ok or (trade.slot_count == 0 and #(trade.gem_item_ids or {}) == 0) then
             return
         end
         if rebind_countdown > 0 then
@@ -800,8 +817,10 @@ return function(ctx)
     end
 
     local function poll_chapter_waypoint()
-        if trade.slot_count == 0 and
-            (type(trade.gem_reward_ids) ~= "table" or #trade.gem_reward_ids == 0) then
+        -- Judged on what the room CONFIGURED, not on what has bound so far:
+        -- the gems bind late on a new game like everything else, and this
+        -- poll is what drives that retry.
+        if trade.slot_count == 0 and #(trade.gem_item_ids or {}) == 0 then
             return
         end
         retry_binding_if_needed()
@@ -1421,7 +1440,10 @@ return function(ctx)
     -- ---------------------------------------------------------------- public
     local function trade_configure(payload)
         load_trade(payload)
-        if trade.slot_count > 0 then
+        -- Bind whenever the room gave the tab something of ours: check slots,
+        -- or (trade checks at 0) just the three gem rows the fork baked
+        -- one-shot, which restock only once they are bound.
+        if trade.slot_count > 0 or #(trade.gem_item_ids or {}) > 0 then
             enqueue("bind reward ids", function()
                 trade.bind_attempts = trade.bind_attempts + 1
                 local ok, detail = bind_reward_ids()
@@ -1434,6 +1456,8 @@ return function(ctx)
                 end
                 reconcile_slots()
             end)
+        end
+        if trade.slot_count > 0 then
             enqueue("install slot icon hook", install_slot_icon_hook)
         end
     end
@@ -1481,6 +1505,20 @@ return function(ctx)
 
     ctx.trade_configure = trade_configure
     ctx.trade_is_trade_location = trade_is_trade_location
+    -- The durable ack key of the trade check at a location, or nil when the
+    -- location is not a trade check. apclient folds the server's checked
+    -- list through this, so a check bought elsewhere never returns to a tile.
+    ctx.trade_ack_key_for_location = function(location_code)
+        local code = tonumber(location_code)
+        if code == nil then
+            return nil
+        end
+        local check = trade.checks_by_location[math.floor(code)]
+        if check == nil then
+            return nil
+        end
+        return "trade:" .. tostring(check.identity)
+    end
     ctx.trade_poll_claims = poll_claims
     ctx.trade_reconcile_slots = reconcile_slots
     ctx.trade_poll_chapter_waypoint = poll_chapter_waypoint
