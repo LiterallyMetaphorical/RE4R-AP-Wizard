@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows;
 using RE4R.AP.Launcher.ViewModels;
@@ -99,6 +99,12 @@ public partial class MainWindow : Window
         LauncherFileLog.Append("[lifecycle] main window closed; shutting down");
         LauncherFileLog.Flush();
         base.OnClosed(e);
+
+        // Armed BEFORE the shutdown request, not after it: a shutdown that
+        // never completes leaves the process alive with no window, and
+        // App.OnExit - where this used to be armed - never runs to catch it
+        // (live twice on 2026-09-07, the second blocking a deploy).
+        App.StartExitWatchdog(0, "the window closed");
 
         var app = Application.Current;
         if (app is not null && !app.Dispatcher.HasShutdownStarted)

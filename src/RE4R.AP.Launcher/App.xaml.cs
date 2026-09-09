@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Threading;
 using RE4R.AP.Launcher.Core.Utilities;
 using RE4R.AP.Launcher.Core.Services;
@@ -86,27 +86,43 @@ public partial class App : Application
         // is never lost on a normal close.
         LauncherFileLog.Append($"[lifecycle] exiting with code {e.ApplicationExitCode}");
         LauncherFileLog.Close();
-        StartExitWatchdog(e.ApplicationExitCode);
+        StartExitWatchdog(e.ApplicationExitCode, "exit");
         base.OnExit(e);
     }
+
+    private static int _exitWatchdogArmed;
 
     /// <summary>
     /// The process once outlived its window with nothing left to do (09-02,
     /// twice in one afternoon) and no log line said where it stuck. Nothing
-    /// legitimate runs after OnExit, so anything still holding the process
-    /// open a few seconds later is a straggler: record it and end the
+    /// legitimate runs after the window closes, so anything still holding the
+    /// process open a few seconds later is a straggler: record it and end the
     /// process. The thread is a background thread, so it never holds the
     /// process open itself.
+    ///
+    /// [2026-09-07] Armed from the window's OnClosed as well, and that is the
+    /// case that matters. It used to be armed only from OnExit, which runs
+    /// AFTER the dispatcher has processed Shutdown - so the one failure it
+    /// exists for, a shutdown that never completes, was the one it could not
+    /// see. It happened twice that day: the log ended at "main window closed;
+    /// shutting down" with no exit line and the process alive for hours, and
+    /// the second one blocked a deploy. Idempotent, since both gates fire on
+    /// an ordinary close.
     /// </summary>
-    private static void StartExitWatchdog(int exitCode)
+    internal static void StartExitWatchdog(int exitCode, string armedBy)
     {
+        if (Interlocked.Exchange(ref _exitWatchdogArmed, 1) != 0)
+        {
+            return;
+        }
+
         try
         {
             var watchdog = new Thread(() =>
             {
                 Thread.Sleep(TimeSpan.FromSeconds(5));
                 LauncherFileLog.Append(
-                    "[lifecycle] the process was still alive 5 s after exit; ending it");
+                    $"[lifecycle] the process was still alive 5 s after {armedBy}; ending it");
                 LauncherFileLog.Close();
                 Environment.Exit(exitCode);
             })
