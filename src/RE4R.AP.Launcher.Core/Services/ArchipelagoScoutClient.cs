@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
@@ -200,9 +200,13 @@ public sealed class ArchipelagoScoutClient
                 }
             }
 
-            // [Bonus Weapons] The YAML's consent to the permanent profile
-            // unlock the Extra Content trio needs. False when absent (older
-            // rooms, or no consent) - the mod then leaves the profile alone.
+            // [Bonus Weapons] Whether the room holds the Extra Content trio as
+            // pool items. Since 2026-09-08 the apworld sets it for every room
+            // with a campaign, because the three scatter whether or not the
+            // gear shuffle is on: the mod vetoes the game's grant of them into
+            // Storage in any AP room and the fork strips their Extra Content
+            // rows, so riding the shuffle left them unobtainable when it was
+            // off. False when absent, which is an older room.
             var bonusWeaponsConsented = false;
             if (TryGetProperty(connectedPacket, "slot_data", out var bonusSlotData)
                 && bonusSlotData.ValueKind == JsonValueKind.Object
