@@ -10,6 +10,14 @@ public sealed class ArchipelagoScoutSessionResult
 
     public int ConnectedPlayerSlot { get; init; }
 
+    /// <summary>
+    /// The slot name this session connected as. Forced into the BioRand
+    /// config as "username", which is how the patch addresses its player
+    /// (the welcome note's salutation, ${user.name} in randomized
+    /// messages); without it the fork falls back to "player".
+    /// </summary>
+    public string SlotName { get; init; } = string.Empty;
+
     public IReadOnlyList<ScoutLocationResult> Locations { get; init; } = Array.Empty<ScoutLocationResult>();
 
     /// <summary>

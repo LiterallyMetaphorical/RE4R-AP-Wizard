@@ -257,6 +257,7 @@ public sealed class ArchipelagoScoutClient
                 SeedName = seedName,
                 Team = team,
                 ConnectedPlayerSlot = connectedSlot,
+                SlotName = request.SlotName,
                 Locations = locations,
                 RoomLocationIds = roomLocationIds,
                 RandomEvents = randomEvents,

@@ -190,7 +190,7 @@ public sealed class ManifestBuilder
         }
 
         var configJson = BuildConfigJson(
-            placements, normalizedOptions, gameVersion, scoutSession.RandomEvents, plannedShopSlots,
+            placements, normalizedOptions, gameVersion, scoutSession.SlotName, scoutSession.RandomEvents, plannedShopSlots,
             scoutSession.MerchantShop.ScatteredItemIds, scoutSession.MerchantShop.StartingWeaponIds,
             scoutSession.RandomWeaponStats, scoutSession.RandomWeaponUpgrades);
         if (scoutSession.RandomWeaponStats is bool yamlWeaponStats)
@@ -248,6 +248,7 @@ public sealed class ManifestBuilder
         IReadOnlyDictionary<string, ManifestPlacement> placements,
         BioRandOptions options,
         string gameVersion,
+        string slotName,
         RandomEventsSlotData randomEvents,
         MerchantShopPlan shopPlan,
         IReadOnlyList<int> scatteredItemIds,
@@ -285,6 +286,18 @@ public sealed class ManifestBuilder
         //    AP-breakers. Note BioRand defaults skip-ashley-section to TRUE, which would delete a
         //    whole segment and its checks.)
         root["game-version"] = gameVersion;
+        // The fork addresses its player by config "username" (the welcome
+        // note's salutation, ${user.name} in randomized messages), falling
+        // back to "player" when the key is absent. Upstream's server worker
+        // injects it at generation time; this builder is our equivalent, and
+        // the connected slot name is the identity. Sanitize drops any
+        // preset-carried value (not a catalog key), so this is the only
+        // source.
+        if (!string.IsNullOrWhiteSpace(slotName))
+        {
+            root["username"] = slotName;
+        }
+
         root["campaign"] = "Main Story";
         root["start-chapter"] = 1;
         root["skip-ashley-section"] = false;

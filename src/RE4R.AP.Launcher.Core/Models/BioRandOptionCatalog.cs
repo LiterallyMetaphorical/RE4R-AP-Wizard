@@ -38,6 +38,7 @@ public static class BioRandOptionCatalog
     /// - random-events: the multiworld authors the event set at generation time (the YAML option);
     ///   the roll arrives via slot_data and is pinned in as ap-forced-events. A local toggle here
     ///   would let a patch fire events the room's logic never modeled.
+    /// - username: the connected slot name; identity comes from the room, never from a preset.
     /// </summary>
     public static readonly string[] ApLockedKeys =
     [
@@ -48,6 +49,7 @@ public static class BioRandOptionCatalog
         "ap-mode",
         "ap-placements",
         "random-events",
+        "username",
     ];
 
     public const string RandomItemsKey = "random-items";
