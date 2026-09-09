@@ -29,6 +29,9 @@ ASSETS = LAUNCHER / "assets"
 APWORLD_REPO = LAUNCHER.parent / "ArchipelagoRE4R"
 FORK_REPO = LAUNCHER.parent / "biorand-re4r-ap"
 DOTNET = r"C:\Program Files\dotnet\dotnet.exe"
+# Build artifacts that must never reach a player, matching the set
+# package_linux_release.py already refuses to put in the tarball.
+EXCLUDED_ASSET_SUFFIXES = {".pdb"}
 
 # (source, staged) relative to their repos. autorun/ is flattened into Lua/.
 LUA_PAIRS = [
@@ -107,11 +110,25 @@ def build_exe() -> None:
     dest = ASSETS / "BioRand"
     dest.mkdir(parents=True, exist_ok=True)
     staged = 0
+    skipped = 0
     for src in sorted(out.iterdir()):
-        if src.is_file():
-            shutil.copy2(src, dest / src.name)
-            staged += 1
-    ok(f"staged {staged} file(s) into assets/BioRand")
+        if not src.is_file():
+            continue
+        # Debug symbols are never needed to run the patcher, and this copy is
+        # what the Windows release zip is built from: two .pdb files (286 KB)
+        # reached the v0.6.0-beta package before the shipped-zip smoke caught
+        # them on 2026-09-09. package_linux_release.py has excluded them all
+        # along; the Windows path had no filter because it had no packager.
+        if src.suffix.lower() in EXCLUDED_ASSET_SUFFIXES:
+            skipped += 1
+            stale = dest / src.name
+            if stale.exists():
+                stale.unlink()
+            continue
+        shutil.copy2(src, dest / src.name)
+        staged += 1
+    ok(f"staged {staged} file(s) into assets/BioRand"
+       + (f", skipped {skipped} build artifact(s)" if skipped else ""))
 
 
 def build_apworld() -> None:
