@@ -3,7 +3,7 @@ local function install(ctx)
         -- Logged at boot next to the launcher's install stamp so a player's
         -- re2_framework_log.txt identifies the exact deployed build. Bump on
         -- every Lua change that ships (date.rev).
-        MOD_VERSION = "2026.09.05-92",
+        MOD_VERSION = "2026.09.06-113",
         DATA_DIR = "ArchipelagoRE4R",
         WRITE_INTERVAL_SECONDS = 0.25,
         SCAN_INTERVAL_SECONDS = 1 / 30,
@@ -75,6 +75,12 @@ local function install(ctx)
         -- line instead ("Collected X from Y in Z"), which also names the vanilla
         -- item and the area. Only AP-tracked own pickups are touched; foreign
         -- placements never reached the organic toast anyway (intercepted).
+        -- [Buy tab icons] Whether the merchant's rows wear our art at all
+        -- (a local check showing its real item, the AP logo elsewhere). The
+        -- Debug tab flips it live; turning it off hands every widget back and
+        -- lets the game draw the tab itself, which is how a wrong icon on a
+        -- staple row gets pinned on us or ruled out (Cam, 2026-09-06).
+        MERCHANT_ROW_ICON_DRESSING = true,
         SUPPRESS_ORGANIC_AP_ITEM_TOAST = true,
         -- How long an armed suppression stays valid. Armed at the ACCEPT hook,
         -- which fires before the item lands, so this only spans accept -> the

@@ -1994,8 +1994,16 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         // an old session, the player launches, and every fix since the last
         // patch silently isn't in their game. The install stamp knows exactly
         // which payload built the world; disagree loudly, never silently.
+        // A room that never ran BioRand records "N/A" rather than a version:
+        // a Mercenaries-only room installs Lua and nothing else. Comparing
+        // that against the real version told the player their room was
+        // patched with an older build every single time they opened the
+        // launcher, which is both false and unfixable by re-patching (Cam,
+        // live 2026-09-06). No BioRand version means nothing to compare.
         var currentBioRandVersion = _cacheManager.GetBioRandVersionDescriptor();
-        if (!string.IsNullOrWhiteSpace(currentRecord.BioRandVersionAtPatch)
+        var roomRanBioRand = !string.IsNullOrWhiteSpace(currentRecord.BioRandVersionAtPatch)
+            && !string.Equals(currentRecord.BioRandVersionAtPatch, "N/A", StringComparison.OrdinalIgnoreCase);
+        if (roomRanBioRand
             && !string.IsNullOrWhiteSpace(currentBioRandVersion)
             && !string.Equals(currentRecord.BioRandVersionAtPatch, currentBioRandVersion, StringComparison.Ordinal))
         {

@@ -1751,7 +1751,12 @@ public sealed class LaunchWorkflowService
 
     private static string GetLauncherVersion()
     {
-        var assembly = typeof(LaunchWorkflowService).Assembly;
+        // The application's own assembly, not this library's. Reading the
+        // library gave every install stamp "1.0.0", so the mod's boot banner
+        // reported the launcher as 1.0.0 instead of the version the player is
+        // running (live 2026-09-06).
+        var assembly = System.Reflection.Assembly.GetEntryAssembly()
+            ?? typeof(LaunchWorkflowService).Assembly;
         var informational = System.Reflection.CustomAttributeExtensions
             .GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>(assembly)?
             .InformationalVersion;

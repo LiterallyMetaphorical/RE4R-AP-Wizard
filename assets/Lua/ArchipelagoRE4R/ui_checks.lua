@@ -328,10 +328,6 @@ local function install(ctx)
         )
         if imgui.tree_node(label) then
             for _, char in ipairs(stage.characters or {}) do
-                local rank_parts = {}
-                for _, rank in ipairs(char.ranks or {}) do
-                    rank_parts[#rank_parts + 1] = rank.checked and ("[" .. rank.name .. " ok]") or ("[" .. rank.name .. "]")
-                end
                 local color = WHITE
                 if (char.found or 0) >= (char.total or 0) and (char.total or 0) > 0 then
                     color = DONE
@@ -339,13 +335,33 @@ local function install(ctx)
                     color = MUTED
                 end
                 colored(string.format(
-                    "    %-10s %d/%d%s  %s",
+                    "    %-10s %d/%d%s ",
                     tostring(char.char_name),
                     char.found or 0,
                     char.total or 0,
-                    char.unlocked and "" or " (locked)",
-                    table.concat(rank_parts, " ")
+                    char.unlocked and "" or " (locked)"
                 ), color)
+                -- Each rank on the same line: "[x] A" in green once its check
+                -- went, "[ ] A" dimmed until then (Cam, 2026-09-06: the old
+                -- "[A ok]" read as noise). The imgui font is ASCII only, so
+                -- the mark is the merchant rows' "[x]", never a glyph.
+                if has("same_line") then
+                    for _, rank in ipairs(char.ranks or {}) do
+                        imgui.same_line()
+                        if rank.checked then
+                            colored("[x] " .. tostring(rank.name), DONE)
+                        else
+                            colored("[ ] " .. tostring(rank.name), MUTED)
+                        end
+                    end
+                else
+                    local rank_parts = {}
+                    for _, rank in ipairs(char.ranks or {}) do
+                        rank_parts[#rank_parts + 1] = (rank.checked and "[x] " or "[ ] ") .. tostring(rank.name)
+                    end
+                    imgui.same_line()
+                    colored(table.concat(rank_parts, "  "), color)
+                end
             end
             imgui.tree_pop()
         end
@@ -354,7 +370,7 @@ local function install(ctx)
     local function draw_mercenaries_section(merc_data)
         progress(merc_data.found or 0, merc_data.total or 0,
             string.format("%d / %d ranks reached", merc_data.found or 0, merc_data.total or 0))
-        colored("Characters and stages unlock as their items arrive. Only Rank A can hold progression.", MUTED)
+        colored("Characters and stages unlock as their items arrive. Ranks up to A can hold progression.", MUTED)
         imgui.text("")
 
         local columns = begin_columns("##ap_ck_merc_cols", 2)

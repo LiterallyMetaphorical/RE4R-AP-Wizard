@@ -72,6 +72,10 @@ local function install(ctx)
         result_payload = nil,
         last_valid_run_identity = nil,
         expected_result_identity = nil,
+        -- [Result screen] What this run sent and received, shown through
+        -- the screen's own unlock notice list (Cam, 2026-09-06). nil when no
+        -- result screen is open.
+        result_summary = nil,
     }
 
     local ownership = {
@@ -475,21 +479,62 @@ local function install(ctx)
         return ownership.stages[index] == true
     end
 
-    local function get_score_checks_mode(slot_data)
+    -- [0.7.5] Two settings shape the rank list: the highest rank that counts
+    -- (a / s / s_plus / s_plus_plus, every rank up to it) and whether the two
+    -- ranks under A (C and B) count too. A 0.7.4 room still says
+    -- score_checks (a_only / standard / full) and has no ranks under A; it
+    -- reads the same as before.
+    local RANK_LADDER = { "C", "B", "A", "S", "S+", "S++" }
+    local RANK_ORDER = { C = 0, B = 1, A = 2, S = 3, ["S+"] = 4, ["S++"] = 5 }
+    local RANK_KEY_INDEX = { c = 0, b = 1, a = 2, s = 3, s_plus = 4, s_plus_plus = 5 }
+    -- 0.7.5 said "every rank up to X", 0.7.4 and earlier said a_only /
+    -- standard / full. Both become a range so a room made on either still
+    -- reads right in a newer mod.
+    local LEGACY_TOP_INDEX = { a = 2, s = 3, s_plus = 4, s_plus_plus = 5 }
+    local LEGACY_SCORE_CHECKS = { a_only = "a", standard = "s", full = "s_plus_plus" }
+
+    -- [0.7.6] Ranks as Checks is a range: the lowest and the highest rank that
+    -- counts, everything between them included.
+    local function get_rank_range(slot_data)
         local merc_data = type(slot_data) == "table" and slot_data.mercenaries or nil
-        return (type(merc_data) == "table" and merc_data.score_checks)
-            or (type(slot_data) == "table" and slot_data.mercenaries_score_checks)
-            or "standard"
+        local floor_key = (type(merc_data) == "table" and merc_data.rank_floor)
+            or (type(slot_data) == "table" and slot_data.mercenaries_rank_floor)
+        local ceiling_key = (type(merc_data) == "table" and merc_data.rank_ceiling)
+            or (type(slot_data) == "table" and slot_data.mercenaries_rank_ceiling)
+        local low = RANK_KEY_INDEX[floor_key]
+        local high = RANK_KEY_INDEX[ceiling_key]
+        if low ~= nil and high ~= nil then
+            if high < low then low, high = high, low end
+            return low, high
+        end
+
+        -- 0.7.5: a top rank plus a switch for the two below A.
+        local top_key = (type(merc_data) == "table" and merc_data.ranks_that_count)
+            or (type(slot_data) == "table" and slot_data.mercenaries_ranks_that_count)
+        local below = (type(merc_data) == "table" and merc_data.ranks_below_a)
+        if below == nil and type(slot_data) == "table" then below = slot_data.mercenaries_ranks_below_a end
+        if LEGACY_TOP_INDEX[top_key] == nil then
+            -- 0.7.4 and earlier: a_only / standard / full, never any rank below A.
+            local legacy = (type(merc_data) == "table" and merc_data.score_checks)
+                or (type(slot_data) == "table" and slot_data.mercenaries_score_checks)
+            top_key = LEGACY_SCORE_CHECKS[legacy] or "s"
+            if below == nil then below = false end
+        end
+        return (below == true) and 0 or 2, LEGACY_TOP_INDEX[top_key] or 3
     end
 
-    local function get_active_rank_names(score_checks_mode)
-        local ranks = { "A" }
-        if score_checks_mode == "standard" or score_checks_mode == "full" then ranks[#ranks + 1] = "S" end
-        if score_checks_mode == "full" then
-            ranks[#ranks + 1] = "S+"
-            ranks[#ranks + 1] = "S++"
+    -- Ascending, lowest rank first.
+    local function get_active_rank_names(low, high)
+        local ranks = {}
+        for index = low, high do
+            local name = RANK_LADDER[index + 1]
+            if name ~= nil then ranks[#ranks + 1] = name end
         end
         return ranks
+    end
+
+    local function get_active_rank_names_for(slot_data)
+        return get_active_rank_names(get_rank_range(slot_data))
     end
 
     local function get_merc_location_id(char_name, stage_name, rank_name, slot_data)
@@ -545,8 +590,7 @@ local function install(ctx)
     local function get_mercenaries_checklist()
         local slot_data = ctx.slot_data or bridge.slot_data
         local merc_data = type(slot_data) == "table" and slot_data.mercenaries or nil
-        local score_checks_mode = get_score_checks_mode(slot_data)
-        local rank_names = get_active_rank_names(score_checks_mode)
+        local rank_names = get_active_rank_names_for(slot_data)
         local stages = {}
         local grand_found, grand_total = 0, 0
 
@@ -595,7 +639,7 @@ local function install(ctx)
         return {
             enabled = enabled,
             mode = type(slot_data) == "table" and slot_data.game_mode or "campaign",
-            score_checks_mode = score_checks_mode,
+            rank_names = table.concat(get_active_rank_names_for(slot_data), ", "),
             found = grand_found,
             total = grand_total,
             stages = stages,
@@ -656,8 +700,8 @@ local function install(ctx)
             local stage_name = STAGE_KIND_NAMES[stage_index] or "Unknown Stage"
             local char_name = roster and roster.name or "Unknown"
             local slot_data = ctx.slot_data or bridge.slot_data
-            local rank_names = get_active_rank_names(get_score_checks_mode(slot_data))
-            local done, rank_summary = 0, {}
+            local rank_names = get_active_rank_names_for(slot_data)
+            local done, rank_summary, ranks = 0, {}, {}
 
             for _, rank_name in ipairs(rank_names) do
                 local location_id = nil
@@ -665,12 +709,11 @@ local function install(ctx)
                     location_id = get_merc_location_id(char_name, stage_name, rank_name, slot_data)
                 end
                 local checked = is_merc_location_completed(location_id)
-                if checked then
-                    done = done + 1
-                    rank_summary[#rank_summary + 1] = "[" .. rank_name .. ": OK]"
-                else
-                    rank_summary[#rank_summary + 1] = "[" .. rank_name .. "]"
-                end
+                if checked then done = done + 1 end
+                -- "[x] A" once the check went, "[ ] A" until then; the header
+                -- colours each one (Cam, 2026-09-06).
+                rank_summary[#rank_summary + 1] = (checked and "[x] " or "[ ] ") .. rank_name
+                ranks[#ranks + 1] = { name = rank_name, checked = checked }
             end
             return {
                 stage_name = stage_name,
@@ -679,7 +722,8 @@ local function install(ctx)
                 char_idx = char_index,
                 done = done,
                 total = #rank_names,
-                ranks_str = table.concat(rank_summary, " "),
+                ranks = ranks,
+                ranks_str = table.concat(rank_summary, "  "),
             }
         end)
         return ok and result or nil
@@ -1088,13 +1132,10 @@ local function install(ctx)
         }
     end
 
-    -- One toast per rank check the result screen just earned, on the mod's
-    -- rail (and the game's, through native_log): the vanilla screen only
-    -- knows its own unlock rules, which are a lie under AP. Names come from
-    -- the connect-time scouts; without them the line still says a check went.
-    local function announce_rank_check(rank_name, location_id, payload)
-        local enqueue = ctx.enqueue_toast or _G.enqueue_toast
-        if type(enqueue) ~= "function" then return end
+    -- What sits on a location, from the connect-time scouts: the item's name,
+    -- its owner's name, whether it is ours, and its classification. Names
+    -- may be missing (no scout yet); callers cope.
+    local function describe_location_item(location_id)
         local key = tostring(location_id)
         local item_id = type(bridge.location_scout_item) == "table" and bridge.location_scout_item[key] or nil
         local player = type(bridge.location_scout_player) == "table" and bridge.location_scout_player[key] or nil
@@ -1105,36 +1146,302 @@ local function install(ctx)
             local ok_name, name = pcall(item_name_fn, item_id, player)
             if ok_name and type(name) == "string" and name ~= "" then item_name = name end
         end
-        local detail = "check sent"
-        if item_name ~= nil then
-            local who = nil
-            if type(player_name_fn) == "function" and player ~= nil then
-                local ok_who, name = pcall(player_name_fn, player)
-                if ok_who and type(name) == "string" and name ~= "" then who = name end
-            end
-            if who ~= nil and player ~= bridge.ap_numeric_slot then
-                detail = item_name .. " for " .. who
-            else
-                detail = item_name .. " (yours)"
-            end
+        local who = nil
+        if type(player_name_fn) == "function" and player ~= nil then
+            local ok_who, name = pcall(player_name_fn, player)
+            if ok_who and type(name) == "string" and name ~= "" then who = name end
         end
+        local mine = player == nil or player == bridge.ap_numeric_slot
         local classification = type(bridge.location_classifications) == "table"
             and bridge.location_classifications[key] or "FILLER"
+        return { item_name = item_name, who = who, mine = mine, classification = classification }
+    end
+
+    -- One toast per rank check the result screen just earned. On the result
+    -- screen itself the same words go through the screen's own notice list
+    -- (below), and native_log leaves these records to the Message Log.
+    local function announce_rank_check(rank_name, location_id, payload)
+        local enqueue = ctx.enqueue_toast or _G.enqueue_toast
+        if type(enqueue) ~= "function" then return end
+        local desc = describe_location_item(location_id)
+        local detail = "check sent"
+        if desc.item_name ~= nil then
+            if desc.who ~= nil and not desc.mine then
+                detail = desc.item_name .. " for " .. desc.who
+            else
+                detail = desc.item_name .. " (yours)"
+            end
+        end
         pcall(enqueue,
             string.format("Rank %s: %s, %s", rank_name, payload.char_name, payload.stage_name),
-            detail, classification, "sent")
+            detail, desc.classification, "sent")
     end
+
+    -- ------------------------------------------------------------------
+    -- [Result screen] The screen's own unlock notice list carries what this
+    -- run did for the multiworld (Cam, 2026-09-06: "use the game's native
+    -- unlocked list"). The screen walks fixed steps (WaitOpen 0,
+    -- ResultShowing 1, DrumRollWait 2, Next 3, NextWait 4, UnlockNoticePre 5,
+    -- UnlockNotice 6, UnlockNoticeWait 7, RankingSend 8/9, End 10); its own
+    -- unlock rules fill _UnlockNoticeList at UnlockNoticePre and the screen
+    -- shows the list at UnlockNotice. Our lines go in as soon as the result
+    -- is read and stay in; the vanilla lines (a lie under AP: those unlocks
+    -- are items elsewhere) are taken out whenever they appear, and logged
+    -- once so their format is on record.
+    local STEP_UNLOCK_NOTICE = 6
+    local STEP_NAMES = {
+        [0] = "WaitOpen", [1] = "ResultShowing", [2] = "DrumRollWait", [3] = "Next",
+        [4] = "NextWait", [5] = "UnlockNoticePre", [6] = "UnlockNotice", [7] = "UnlockNoticeWait",
+        [8] = "RankingSend", [9] = "RankingSendWait", [10] = "End",
+    }
+    local RESULT_SUMMARY_MAX_REINJECTIONS = 3
+    local unlock_notice_suppressed_logged = false
+
+    local function open_result_summary(payload, epoch)
+        merc_state.result_summary = {
+            epoch = epoch,
+            char_name = payload.char_name,
+            stage_name = payload.stage_name,
+            rank_name = payload.rank_name,
+            lines = {},             -- what the list should carry, in order
+            injected = {},          -- line -> true once it went into the list
+            reinjections = 0,
+            display_passed = false, -- the screen reached UnlockNotice
+            consumed_logged = false,
+            last_step = nil,
+            vanilla_logged = false,
+            gui_misses = 0,
+            last_gui_poll_clock = os.clock(),
+        }
+        return merc_state.result_summary
+    end
+
+    local function summary_add_line(text)
+        local summary = merc_state.result_summary
+        if summary == nil or type(text) ~= "string" or text == "" then return false end
+        for _, existing in ipairs(summary.lines) do
+            if existing == text then return false end
+        end
+        summary.lines[#summary.lines + 1] = text
+        return true
+    end
+
+    local function format_sent_line(rank_name, desc)
+        if desc.item_name == nil then
+            return string.format("Rank %s check sent", rank_name)
+        end
+        if desc.who ~= nil and not desc.mine then
+            return string.format("Rank %s sent: %s for %s", rank_name, desc.item_name, desc.who)
+        end
+        return string.format("Rank %s sent: %s (yours)", rank_name, desc.item_name)
+    end
+
+    local function strip_merc_item_prefix(name)
+        local text = tostring(name or "")
+        local character = text:match("^Mercenaries Character: (.+)$")
+        if character then return character, "character" end
+        local stage = text:match("^Mercenaries Stage: (.+)$")
+        if stage then return stage, "stage" end
+        return text, nil
+    end
+
+    -- apclient calls this for every Mercenaries item it delivers; only a
+    -- result screen that is open takes note.
+    local function merc_result_note_received(kind, name, from)
+        if merc_state.result_summary == nil then return false end
+        if kind == "merc_filler" then
+            return summary_add_line("Nothing this time: that rank held no item for you")
+        end
+        local short, what = strip_merc_item_prefix(name)
+        local line
+        if what == "stage" then
+            line = short .. " stage unlocked for The Mercenaries"
+        else
+            line = short .. " unlocked for The Mercenaries"
+        end
+        if type(from) == "string" and from ~= "" then
+            line = line .. " (from " .. from .. ")"
+        end
+        return summary_add_line(line)
+    end
+    export("merc_result_note_received", merc_result_note_received)
+
+    local function close_result_summary(reason)
+        if merc_state.result_summary == nil then return end
+        log.info(string.format("[Merc AP] result screen summary closed (%s): %d line(s)",
+            tostring(reason), #merc_state.result_summary.lines))
+        merc_state.result_summary = nil
+    end
+
+    -- Polled from the state tracker: the summary lives as long as the result
+    -- screen does (two consecutive misses half a second apart close it).
+    local function refresh_result_summary()
+        local summary = merc_state.result_summary
+        if summary == nil then return end
+        if get_runtime_domain() ~= "MERCENARIES" then
+            close_result_summary("left the mode")
+            return
+        end
+        local now = os.clock()
+        if now - summary.last_gui_poll_clock < 0.5 then return end
+        summary.last_gui_poll_clock = now
+        if get_result_gui_behavior() == nil then
+            summary.gui_misses = summary.gui_misses + 1
+            if summary.gui_misses >= 2 then close_result_summary("result screen gone") end
+        else
+            summary.gui_misses = 0
+        end
+    end
+
+    local function get_merc_result_summary()
+        return merc_state.result_summary
+    end
+    export("get_merc_result_summary", get_merc_result_summary)
+
+    -- Where a toast can be seen right now inside the mode (native_log asks):
+    --   "result" - the result screen is open and has not shown its notice
+    --              list yet: the list carries the words, no rail, no overlay
+    --   "run"    - a run is going: the game's own rail shows (DeathLink
+    --              proved it, Cam 2026-09-06)
+    --   "menu"   - the mode's menus, or a result screen past its notice:
+    --              the imgui overlay, the rail is not on screen there
+    --   nil      - not in the mode
+    local function merc_presentation()
+        if get_runtime_domain() ~= "MERCENARIES" then return nil end
+        local summary = merc_state.result_summary
+        if summary ~= nil then
+            if summary.display_passed then return "menu" end
+            return "result"
+        end
+        if get_current_merc_play_info() ~= nil then return "run" end
+        return "menu"
+    end
+    export("merc_presentation", merc_presentation)
+
+    local function list_count(list)
+        local ok, n = pcall(function() return list:call("get_Count") end)
+        return ok and tonumber(n) or 0
+    end
+
+    local function list_item_text(list, index)
+        local ok, value = pcall(function() return list:call("get_Item", index) end)
+        if not ok or value == nil then return nil end
+        if type(value) == "string" then return value end
+        local ok_str, text = pcall(function() return value:call("ToString") end)
+        if ok_str and type(text) == "string" then return text end
+        return tostring(value)
+    end
+
+    local function list_add(list, text)
+        local value = text
+        if type(sdk) == "table" and type(sdk.create_managed_string) == "function" then
+            local ok_ms, managed = pcall(sdk.create_managed_string, text)
+            if ok_ms and managed ~= nil then value = managed end
+        end
+        return pcall(function() list:call("Add", value) end)
+    end
+
+    -- The per-frame body of the result screen hook. `step` is the screen's
+    -- current step (a number) or nil when it could not be read.
+    local function maintain_result_notice_list(list, step)
+        local summary = merc_state.result_summary
+        if list == nil then return end
+        if summary ~= nil and step ~= nil and step ~= summary.last_step then
+            log.info(string.format("[Merc AP] result screen step: %s -> %s (notice list: %d)",
+                tostring(STEP_NAMES[summary.last_step] or summary.last_step or "start"),
+                tostring(STEP_NAMES[step] or step), list_count(list)))
+            summary.last_step = step
+            if step >= STEP_UNLOCK_NOTICE and not summary.display_passed then
+                summary.display_passed = true
+            end
+        end
+
+        -- 1. The game's own lines out, logged once per result.
+        local ours = {}
+        if summary ~= nil then
+            for _, line in ipairs(summary.lines) do ours[line] = true end
+        end
+        local count = list_count(list)
+        local vanilla = {}
+        local present = {}
+        for index = count - 1, 0, -1 do
+            local text = list_item_text(list, index)
+            if text ~= nil and ours[text] then
+                present[text] = true
+            else
+                vanilla[#vanilla + 1] = tostring(text)
+                pcall(function() list:call("RemoveAt", index) end)
+            end
+        end
+        if #vanilla > 0 then
+            if summary == nil then
+                if not unlock_notice_suppressed_logged then
+                    unlock_notice_suppressed_logged = true
+                    log.info(string.format(
+                        "[Merc AP] vanilla unlock notice suppressed (%d line(s)): the unlocks are multiworld items",
+                        #vanilla))
+                end
+            elseif not summary.vanilla_logged then
+                summary.vanilla_logged = true
+                local shown = {}
+                for i = 1, math.min(#vanilla, 4) do shown[#shown + 1] = "'" .. vanilla[i] .. "'" end
+                log.info(string.format(
+                    "[Merc AP] vanilla unlock notice line(s) replaced (%d): %s",
+                    #vanilla, table.concat(shown, ", ")))
+            end
+        end
+        if summary == nil then return end
+
+        -- 2. Our lines in. Each goes in once; a line that was in the list and
+        -- is gone while the screen is at or past its notice step was shown
+        -- and consumed, and stays out. Before that step a wipe by the game
+        -- (its UnlockNoticePre clearing the list) is undone, a few times.
+        local missing_after_injection = false
+        for _, line in ipairs(summary.lines) do
+            if summary.injected[line] and not present[line] then
+                missing_after_injection = true
+            end
+        end
+        if missing_after_injection then
+            if summary.display_passed or summary.reinjections >= RESULT_SUMMARY_MAX_REINJECTIONS then
+                if not summary.consumed_logged then
+                    summary.consumed_logged = true
+                    log.info("[Merc AP] result notice list consumed by the screen; later lines go to the overlay")
+                end
+                summary.display_passed = true
+                return
+            end
+            summary.reinjections = summary.reinjections + 1
+            for _, line in ipairs(summary.lines) do summary.injected[line] = nil end
+            log.info(string.format("[Merc AP] result notice lines wiped by the screen; put back (%d)",
+                summary.reinjections))
+        end
+        local added = 0
+        for _, line in ipairs(summary.lines) do
+            if not summary.injected[line] and not summary.display_passed then
+                if list_add(list, line) then
+                    summary.injected[line] = true
+                    added = added + 1
+                end
+            end
+        end
+        if added > 0 then
+            log.info(string.format("[Merc AP] result notice list: %d line(s) set (%d in the list): %s",
+                added, list_count(list), table.concat(summary.lines, " | ")))
+        end
+    end
+    export("merc_maintain_result_notice_list", maintain_result_notice_list)
 
     local result_mapping_warned = {}
     local function evaluate_result_locations(payload, slot_data, epoch)
-        local score_checks_mode = get_score_checks_mode(slot_data)
+        -- Every rank that counts in this slot and that this result reached
+        -- (C for any finished run when the ranks below A count).
         local rank_names = {}
-        if payload.rank >= 2 then rank_names[#rank_names + 1] = "A" end
-        if payload.rank >= 3 and (score_checks_mode == "standard" or score_checks_mode == "full") then
-            rank_names[#rank_names + 1] = "S"
+        for _, rank_name in ipairs(get_active_rank_names_for(slot_data)) do
+            if RANK_ORDER[rank_name] <= (tonumber(payload.rank) or -1) then
+                rank_names[#rank_names + 1] = rank_name
+            end
         end
-        if payload.rank >= 4 and score_checks_mode == "full" then rank_names[#rank_names + 1] = "S+" end
-        if payload.rank >= 5 and score_checks_mode == "full" then rank_names[#rank_names + 1] = "S++" end
 
         bridge.pending_checks = bridge.pending_checks or {}
         bridge.pending_check_keys = bridge.pending_check_keys or {}
@@ -1144,6 +1451,11 @@ local function install(ctx)
         local room_set = get_room_location_set()
         local to_queue = {}
         local problems = {}
+        local already_sent = {}
+        open_result_summary(payload, epoch or 0)
+        if #rank_names == 0 then
+            summary_add_line("No check this time: Rank A or better sends one")
+        end
 
         -- Each rank stands on its own: a rank whose mapping is missing is
         -- reported and skipped, the others still go (until 2026-09-05 one
@@ -1168,8 +1480,13 @@ local function install(ctx)
                     and not get_location_checked(completed_set, location_id)
                     and bridge.pending_check_keys[key] ~= true then
                     to_queue[#to_queue + 1] = { id = location_id, key = key, rank = rank_name }
+                else
+                    already_sent[#already_sent + 1] = rank_name
                 end
             end
+        end
+        if #already_sent > 0 then
+            summary_add_line(string.format("Rank %s: sent on an earlier run", table.concat(already_sent, "/")))
         end
         if #problems > 0 then
             local warn_key = tostring(epoch or 0)
@@ -1205,6 +1522,7 @@ local function install(ctx)
                 "[Merc AP] score location queued: location_id=%d rank=%s",
                 item.id, item.rank
             ))
+            summary_add_line(format_sent_line(item.rank, describe_location_item(item.id)))
             announce_rank_check(item.rank, item.id, payload)
         end
         if #to_queue > 0 then
@@ -1283,6 +1601,7 @@ local function install(ctx)
     end
 
     local function update_mercenaries_state()
+        refresh_result_summary()
         local merc_manager = get_merc_manager()
         if merc_manager == nil then
             merc_state.last_is_result = false
@@ -1339,7 +1658,6 @@ local function install(ctx)
     end
 
     local hooks_installed = false
-    local unlock_notice_suppressed_logged = false
     local hooked_functions = {}
     local decision_delegates = {}
     local decision_hooked_function_keys = {}
@@ -1716,14 +2034,12 @@ local function install(ctx)
             end
         end
 
-        -- [Result screen, 2026-09-05] The vanilla "unlocked <character> /
-        -- <stage>" lines come from the result screen's _UnlockNoticeList,
-        -- filled by its own unlock rules. Under AP those unlocks are items
-        -- elsewhere in the multiworld, so the lines lie (live 2026-09-05:
-        -- "unlocked Wesker and Island", neither owned). While the gate is
-        -- armed the list is emptied on every active frame, before the step
-        -- that would show it; the profile's own unlock records are left
-        -- alone, only the notice goes. Our own toasts say what really went.
+        -- [Result screen] The screen's _UnlockNoticeList is ours while the
+        -- gate is armed: the vanilla "unlocked <character> / <stage>" lines
+        -- (a lie under AP, live 2026-09-05) come out and this run's own
+        -- lines go in, before each step of the screen runs. See
+        -- maintain_result_notice_list. The profile's unlock records
+        -- (unlockCharacter / unlockStage) are left alone.
         local result_type = sdk.find_type_definition("chainsaw.Cp1021GameClearResultGuiBehavior")
         if result_type ~= nil then
             local late_update = nil
@@ -1736,16 +2052,9 @@ local function install(ctx)
                         if gui == nil then return end
                         local notices = gui:get_field("_UnlockNoticeList")
                         if notices == nil then return end
-                        local count = tonumber(notices:call("get_Count")) or 0
-                        if count > 0 then
-                            notices:call("Clear")
-                            if not unlock_notice_suppressed_logged then
-                                unlock_notice_suppressed_logged = true
-                                log.info(string.format(
-                                    "[Merc AP] vanilla unlock notice suppressed (%d line(s)): the unlocks are multiworld items",
-                                    count))
-                            end
-                        end
+                        local step = nil
+                        pcall(function() step = tonumber(gui:call("get_CurrStep")) end)
+                        maintain_result_notice_list(notices, step)
                     end)
                     return sdk.PreHookResult.CALL_ORIGINAL
                 end, function(retval) return retval end)

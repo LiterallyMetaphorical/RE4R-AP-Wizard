@@ -714,6 +714,19 @@ local function install(ctx)
             return
         end
         local now = ctx.now_unix_ms and ctx.now_unix_ms() or (os.time() * 1000)
+        -- [The Mercenaries, 2026-09-06] The game's rail belongs to the
+        -- campaign HUD and a run's HUD; the mode's menus and its result
+        -- screen never show it, so every toast pushed there was lost (Cam
+        -- saw none of an S+ run's). mercenaries.lua says where a toast can
+        -- be seen right now: "run" keeps the rail, "menu" leaves the record
+        -- to the imgui overlay, "result" hands the words to the result
+        -- screen's own notice list and only the Message Log keeps the toast.
+        local presentation = nil
+        local presentation_fn = ctx.merc_presentation or _G.merc_presentation
+        if type(presentation_fn) == "function" then
+            local ok_p, p = pcall(presentation_fn)
+            if ok_p then presentation = p end
+        end
         for _, rec in ipairs(bridge.check_notifications) do
             if not rec.native_dispatched then
                 rec.native_dispatched = true
@@ -721,6 +734,11 @@ local function install(ctx)
                 local route = rec.native_route or "text"
                 if age > DISPATCH_MAX_AGE_MS or route == "overlay_only" then
                     -- stale (mode was flipped after it queued) or opted out
+                elseif presentation == "menu" then
+                    -- no rail on screen: the overlay draws it
+                elseif presentation == "result" then
+                    -- the result screen's notice list carries the words
+                    rec.rendered_natively = true
                 elseif route == "suppress" then
                     if mode == "native" then
                         if is_ap_connected() then

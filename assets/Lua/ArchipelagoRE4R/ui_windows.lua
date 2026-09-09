@@ -157,6 +157,19 @@ local function install(ctx)
         if changed then
             bridge.show_debug_probe_overlay = new_value
         end
+
+        -- [Buy tab icons] Off hands every shop widget back to the game, so the
+        -- Buy tab draws its own art. Open the merchant with this off and the
+        -- staple icons either come right (the fault is ours) or do not (it
+        -- never was). Live, no reload.
+        if bridge.merchant_row_icons_enabled == nil then
+            bridge.merchant_row_icons_enabled = (MERCHANT_ROW_ICON_DRESSING ~= false)
+        end
+        local changed_icons, icons_on = imgui.checkbox(
+            "Dress the merchant's row icons", bridge.merchant_row_icons_enabled == true)
+        if changed_icons then
+            bridge.merchant_row_icons_enabled = icons_on
+        end
     end
 
     -- Connection summary (Overview tab).

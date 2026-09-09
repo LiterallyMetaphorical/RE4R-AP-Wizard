@@ -963,16 +963,21 @@ return function(ctx)
                 pending_by_index[idx] = nil
                 info(string.format("Mercenaries unlock received idx=%d ap=%s [%s]",
                     idx, tostring(entry.item), tostring(mapping.name)))
+                -- The result screen, when open, carries the same words in
+                -- its own unlock notice list (mercenaries.lua).
+                local note_result = ctx.merc_result_note_received or _G.merc_result_note_received
                 if mapping.kind ~= "merc_filler" then
                     local from = (entry.player ~= st.numeric_slot) and ap_player_name(entry.player) or nil
                     local title = (from ~= nil and (from .. " sent you " .. tostring(mapping.name)))
                         or ("Received " .. tostring(mapping.name))
+                    if type(note_result) == "function" then pcall(note_result, mapping.kind, mapping.name, from) end
                     if st.in_sync_burst then
                         bump_sync_summary(1, false)
                     else
                         enqueue_toast(title, "unlocked for The Mercenaries", classify_flags(entry.flags), "received")
                     end
                 elseif not st.in_sync_burst then
+                    if type(note_result) == "function" then pcall(note_result, "merc_filler", mapping.name, nil) end
                     -- A Mercenaries-only slot's rank checks mostly pay out
                     -- Nothing by construction (there is nothing to hand out
                     -- inside the mode). Say so, rather than leaving a sent

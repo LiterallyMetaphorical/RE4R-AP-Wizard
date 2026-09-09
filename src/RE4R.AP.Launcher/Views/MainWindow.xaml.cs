@@ -82,9 +82,14 @@ public partial class MainWindow : Window
         // failure here cannot stop the shutdown or raise a dialog with no
         // window behind it, and the shutdown is asked for explicitly rather
         // than left to the window count.
+        // The view model is null when the constructor itself threw, which is
+        // exactly when this runs: the startup failure raised its own dialog,
+        // then closing the half-built window raised a second one about a null
+        // reference (live 2026-09-06, after a stale asset file stopped the
+        // launcher starting). One honest dialog is enough.
         try
         {
-            _viewModel.Dispose();
+            _viewModel?.Dispose();
         }
         catch (Exception ex)
         {
@@ -111,9 +116,12 @@ public partial class MainWindow : Window
 
     protected override void OnClosing(CancelEventArgs e)
     {
+        // Null when the constructor threw; see OnClosed. A window with no view
+        // model has nothing running, so it closes without a word.
+        var busy = _viewModel?.HasBusyOperation == true;
         LauncherFileLog.Append(
-            $"[lifecycle] main window closing (busy: {(_viewModel.HasBusyOperation ? "yes" : "no")})");
-        if (_viewModel.HasBusyOperation)
+            $"[lifecycle] main window closing (busy: {(busy ? "yes" : "no")})");
+        if (busy)
         {
             var proceed = ChoiceDialog.Show(
                 this,

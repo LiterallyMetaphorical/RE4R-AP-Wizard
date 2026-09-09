@@ -1287,16 +1287,17 @@ return function(ctx)
         -- widget shows anything else (see icon_stamp / icon_release there).
         local stamp = ctx.merchant_icon_stamp or _G.merchant_icon_stamp
         if type(stamp) == "function" then
-            -- Square for the logo and for treasure art (a local check
-            -- holding a gem), wide for everything else - the merchant
-            -- module owns the rule.
-            local square = icon_item_id == ap_placeholder_item_id()
-            local rule = ctx.merchant_wears_square_art or _G.merchant_wears_square_art
-            if not square and type(rule) == "function" then
-                local ok_rule, verdict = pcall(rule, icon_item_id)
-                square = ok_rule and verdict == true
-            end
-            pcall(stamp, entry, tex, square)
+            -- EVERY icon on this tab gets the square box. A Trade tile is a
+            -- square cell, so the shop's wide 226x150 box is wrong here
+            -- whatever the item is: the art is scaled to fill and comes out
+            -- stretched. Until 2026-09-06 only the logo and treasure art
+            -- were squared, which is why the gems read right while Crystal
+            -- Marble (kind "key"), Silver Token ("token") and Handgun Ammo
+            -- ("ammo") read stretched in Cam's tab. The gem exchange rows
+            -- above have always passed true for the same reason. The BUY
+            -- tab keeps the wide box for its wide rows, treasures squared,
+            -- and the merchant module still owns that rule.
+            pcall(stamp, entry, tex, true)
         end
         return ok
     end

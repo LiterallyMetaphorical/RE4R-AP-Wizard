@@ -885,6 +885,7 @@ return function(ctx)
             end
             merchant.backlog = 0
             merchant.slots_by_item = assignment
+            merchant.assignment_ready = true
             if bridge ~= nil then
                 bridge.merchant_backlog = 0
             end
@@ -926,6 +927,7 @@ return function(ctx)
         end
         merchant.backlog = math.max(0, waiting - shown)
         merchant.slots_by_item = assignment
+        merchant.assignment_ready = true
         if bridge ~= nil then
             bridge.merchant_backlog = merchant.backlog
             bridge.merchant_shown = shown
@@ -1314,9 +1316,72 @@ return function(ctx)
         end
     end
 
+    -- [Buy tab icons, Cam 2026-09-06] Green Herb and Red Herb wore the wrong
+    -- art after the empty rows left the tab, and the log shows why our code is
+    -- the first suspect: it recycled widgets onto Green Herb and First Aid
+    -- Spray in that very session. Every row the game draws shares one widget
+    -- pool, so a widget that carried an AP icon can be handed to a staple; the
+    -- release path is supposed to give the game's own icon back and the dump
+    -- says the call it makes (PurchaseSelectItem.setIconTex) is real, so
+    -- reading the code further cannot settle it.
+    --
+    -- This switch does. Turn the dressing off from the Debug tab and the whole
+    -- pass stops: every widget we hold is handed back once and nothing of ours
+    -- is written again, so the Buy tab renders exactly as the game intends. If
+    -- the herb icons come back, the fault is ours and this narrows it to this
+    -- pass; if they stay wrong, it never was.
+    local icon_dressing_off_reported = false
+    -- The staple rows, so the icon pass can recognise them without walking
+    -- the table on every row of every frame. Filled once the table exists.
+    local staple_icon_ids = {}
+    local staple_icon_reported = {}
+
+    local function row_icon_dressing_enabled()
+        if bridge ~= nil and bridge.merchant_row_icons_enabled ~= nil then
+            return bridge.merchant_row_icons_enabled == true
+        end
+        return MERCHANT_ROW_ICON_DRESSING ~= false
+    end
+
+    local function release_every_stamped_widget(list_gui)
+        local rows = nil
+        pcall(function() rows = list_gui:get_field("_AppSelectItems") end)
+        if rows == nil then return end
+        local count = nil
+        pcall(function() count = rows:call("get_Count") end)
+        count = tonumber(count) or 0
+        for i = 0, count - 1 do
+            pcall(function()
+                local row = rows:call("get_Item", i)
+                if row == nil then return end
+                local row_item_id = row:call("get_ItemId")
+                local tex = row:get_field("_ItemIconTex")
+                icon_release(row, tex, row_item_id and math.floor(row_item_id) or nil)
+            end)
+        end
+    end
+
     local function dress_row_icons(list_gui)
         if merchant.slot_count == 0 then
             return
+        end
+        if not row_icon_dressing_enabled() then
+            -- Hand back what we hold ONCE, then never touch the tab again.
+            -- The first build of this switch ran the release every frame,
+            -- which still called setIconTex on every row: "off" was our code
+            -- painting vanilla art rather than our code standing aside, so
+            -- the test it was built for could not tell the two apart (my
+            -- error, Cam 2026-09-06). Now off means untouched.
+            if not icon_dressing_off_reported then
+                icon_dressing_off_reported = true
+                pcall(release_every_stamped_widget, list_gui)
+                info("row icons: dressing OFF - handed back once, the tab is untouched from here")
+            end
+            return
+        end
+        if icon_dressing_off_reported then
+            icon_dressing_off_reported = false
+            info("row icons: dressing back ON")
         end
         local setter = resolve_set_item_icon()
         if setter == nil then
@@ -1344,9 +1409,55 @@ return function(ctx)
                 end
                 local check = merchant.slots_by_item[math.floor(row_item_id)]
                 if check == nil then
-                    -- Not one of our rows. If this widget wore our icon a
-                    -- moment ago (the list recycles them), give it back to
-                    -- the game; otherwise leave it exactly as it is.
+                    -- Not one of our rows.
+                    --
+                    -- [Staple icons, Cam 2026-09-06] Some of them draw wrong
+                    -- on their own: Green Herb and Red Herb wear the First Aid
+                    -- Spray's art and the two grenades have none, while Yellow
+                    -- Herb and Gunpowder are right. The split is which rows
+                    -- vanilla already sold - the patcher mints a purchasable
+                    -- row for the rest, and a minted row has no icon of its
+                    -- own to draw. Proven not ours: with the dressing switched
+                    -- off the wrong icons stayed exactly as they were, while
+                    -- the Matilda Stock icon (which IS ours) disappeared.
+                    --
+                    -- The same call that gives an Archipelago row its real
+                    -- item's art works for any item id, so the staples get it
+                    -- too. A row the game already draws correctly is handed
+                    -- the same icon it already has.
+                    local staple_id = staple_icon_ids[math.floor(row_item_id)]
+                    if staple_id ~= nil then
+                        local tex = nil
+                        pcall(function() tex = row:get_field("_ItemIconTex") end)
+                        if tex ~= nil then
+                            local ok_icon = pcall(function()
+                                setter:call(nil, tex, staple_id)
+                            end)
+                            if ok_icon then
+                                -- Square box. The art this call hands over is
+                                -- the item's inventory picture, which is
+                                -- square, so the shop's wide 226x150 box
+                                -- stretches every one of them (Cam, live: the
+                                -- herbs, the sprays, the resources and the
+                                -- grenades all came out wide the moment we
+                                -- started drawing them). Gunpowder is the odd
+                                -- one out and reads well stretched, because
+                                -- the wide box crops the x10 baked into its
+                                -- art, so that row keeps the vanilla box.
+                                icon_stamp(row, tex, staple_id ~= GUNPOWDER_ITEM_ID)
+                                if not staple_icon_reported[staple_id] then
+                                    staple_icon_reported[staple_id] = true
+                                    info(string.format(
+                                        "staple icon: row %d given its own art", staple_id))
+                                end
+                            end
+                        end
+                        silence_stack_badge(row, math.floor(row_item_id))
+                        return
+                    end
+                    -- If this widget wore our icon a moment ago (the list
+                    -- recycles them), give it back to the game; otherwise
+                    -- leave it exactly as it is.
                     local vanilla_tex = nil
                     pcall(function() vanilla_tex = row:get_field("_ItemIconTex") end)
                     icon_release(row, vanilla_tex, math.floor(row_item_id))
@@ -1844,6 +1955,230 @@ return function(ctx)
         end
     end
 
+    -- [Staples, Cam 2026-09-06] The merchant keeps healing and crafting stock
+    -- on the shelf: the launcher's MerchantStaples table says how many units
+    -- each one gains at every chapter waypoint, and the fork writes that into
+    -- the stock addition table. Cam read one gunpowder at the first merchant
+    -- where the table asks for 24. Reading the live numbers is the only way to
+    -- tell a bad addition from a correct one, so this reports them whenever the
+    -- shop opens - no Developer Tools needed, one line, once per shop visit.
+    local STAPLE_PROBE = {
+        { id = 114400000, name = "Green Herb", per_chapter = 2 },
+        { id = 114401600, name = "Red Herb", per_chapter = 1 },
+        { id = 114403200, name = "Yellow Herb", per_chapter = 1 },
+        { id = 114416000, name = "First Aid Spray", per_chapter = 1 },
+        { id = 117606400, name = "Resources (S)", per_chapter = 6 },
+        { id = 117601600, name = "Resource (L)", per_chapter = 4 },
+        { id = 117600000, name = "Gunpowder", per_chapter = 24 },
+        { id = 277075456, name = "Hand Grenade", per_chapter = 1 },
+        { id = 277078656, name = "Flash Grenade", per_chapter = 1 },
+    }
+    local staple_report = nil
+    for _, staple in ipairs(STAPLE_PROBE) do
+        staple_icon_ids[staple.id] = staple.id
+    end
+
+    local function probe_staples()
+        local manager = shop_manager()
+        if manager == nil then
+            return
+        end
+        local parts = {}
+        for _, staple in ipairs(STAPLE_PROBE) do
+            local stock = probe_call(manager, PROBE_STOCK_METHODS, staple.id)
+            local max_stock = probe_call(manager, PROBE_MAX_STOCK_METHODS, staple.id)
+            parts[#parts + 1] = string.format("%s %s/%s (wants %d a chapter)",
+                staple.name, stock, max_stock, staple.per_chapter)
+        end
+        local line = table.concat(parts, ", ")
+        if line ~= staple_report then
+            staple_report = line
+            info("staples on the shelf: " .. line)
+        end
+    end
+
+    -- [Staple top-up, Cam 2026-09-06] The shelf is meant to gain PerChapter of
+    -- each staple at every chapter waypoint, and the patcher writes exactly
+    -- that into the game's stock addition table: the ceilings prove it ran
+    -- (gunpowder 1/384, which is 24 x 16). The additions land as 1 all the
+    -- same, so gunpowder sits at one grain where it should hold 24. Root
+    -- cause is in the patched shop data and needs a rebuild; this makes the
+    -- shelf right in the meantime.
+    --
+    -- The game's own waypoint flags say how many chapters have arrived, which
+    -- is the same signal the shop uses to release checks, so this follows the
+    -- campaign rather than the clock. Each staple is topped up by what the
+    -- waypoint SHOULD have added beyond the 1 the game manages on its own,
+    -- once per waypoint, and the count granted is remembered in the session
+    -- file. A player who buys the shelf out does not get it back by walking
+    -- away and reopening, and a reload cannot mint a second helping. Staples
+    -- that only want 1 a chapter already work and are left alone.
+    -- item id -> units still owed to the shelf.
+    --
+    -- Three levers have been tried on this shelf and the log says what each
+    -- did. InGameShopManager.addStock and reduceStock: nothing at all, and
+    -- getCurrStock answers 1 for every item on the shelf. PurchaseItemBase.
+    -- setCurrStock on the row the tab draws: the write TOOK and the tab read
+    -- 24 for one build, then the game handed out a fresh list at 1 again, so
+    -- it was a promise of stock that could not be bought.
+    --
+    -- What is left is the shop's own store, InGameShopManager._CurrStockTable,
+    -- a Dictionary<UInt32, ShopItemStock> whose entries carry CurrStock and a
+    -- setter for it. If its key is the item id then this is the real number
+    -- the shelf and the purchase path both read.
+
+    -- The shop applies its own addition table through checkAddStock, one
+    -- chapter waypoint at a time. That is the call that reads the patched
+    -- +24 and puts it into whichever store the shelf and the purchase path
+    -- really use, so it is the only lever that can be right by construction:
+    -- everything we reached around it either did nothing (addStock,
+    -- reduceStock), read a number the shelf does not use (getCurrStock), or
+    -- lasted one frame (setCurrStock on the drawn row), and the store itself
+    -- is keyed by a hash we cannot derive from an item id (live: "in the
+    -- store=false").
+    --
+    -- Guarded by the same per-waypoint record as before, so a waypoint is
+    -- never applied twice however often the shop is opened.
+    local staple_apply_reported = false
+
+
+    -- [Staple stock, 2026-09-06] The one reading that settles whose fault the
+    -- short shelf is. The shop manager keeps the patched stock addition table
+    -- as _StockAdditionSettingTable: a waypoint (0..15) maps to one setting,
+    -- that holds one entry per difficulty, and each entry lists {item, count}
+    -- pairs to add when the waypoint fires. The patcher writes 24 gunpowder
+    -- into every waypoint at every difficulty; the shelf shows 1. Either the
+    -- table says 24 and the game is not applying it, or the table says 1 and
+    -- the patcher's write never landed. Reading it says which, and nothing
+    -- else can.
+    local stock_additions_reported = false
+
+    local function array_items(value)
+        if value == nil then return {} end
+        local out = nil
+        pcall(function() out = value:get_elements() end)
+        if type(out) == "table" then return out end
+        local size = nil
+        pcall(function() size = value:get_size() end)
+        if type(size) == "number" then
+            local list = {}
+            for i = 0, size - 1 do
+                local item = nil
+                pcall(function() item = value:get_element(i) end)
+                list[#list + 1] = item
+            end
+            return list
+        end
+        return {}
+    end
+
+    local function probe_stock_additions()
+        if stock_additions_reported then return end
+        local manager = shop_manager()
+        if manager == nil then return end
+        local table_obj = nil
+        pcall(function() table_obj = manager:get_field("_StockAdditionSettingTable") end)
+        if table_obj == nil then
+            info("stock additions: _StockAdditionSettingTable unreadable")
+            stock_additions_reported = true
+            return
+        end
+        local wanted = {}
+        for _, staple in ipairs(STAPLE_PROBE) do wanted[staple.id] = staple end
+        -- staple id -> difficulty -> the add counts seen, and how many waypoints carry it
+        local seen, waypoints = {}, {}
+        for flag = 0, 15 do
+            local setting = nil
+            pcall(function() setting = table_obj:call("get_Item", flag) end)
+            if setting ~= nil then
+                local per_difficulty = nil
+                pcall(function() per_difficulty = setting:get_field("_Settings") end)
+                for _, entry in ipairs(array_items(per_difficulty)) do
+                    local difficulty = nil
+                    pcall(function() difficulty = tonumber(entry:get_field("_Difficulty")) end)
+                    local datas = nil
+                    pcall(function() datas = entry:get_field("_Datas") end)
+                    for _, data in ipairs(array_items(datas)) do
+                        local item_id, count = nil, nil
+                        pcall(function()
+                            item_id = tonumber(data:get_field("_AddItemId"))
+                            count = tonumber(data:get_field("_AddCount"))
+                        end)
+                        if item_id ~= nil and wanted[item_id] ~= nil then
+                            seen[item_id] = seen[item_id] or {}
+                            local key = tostring(difficulty)
+                            seen[item_id][key] = seen[item_id][key] or {}
+                            seen[item_id][key][tostring(count)] = true
+                            waypoints[item_id] = waypoints[item_id] or {}
+                            waypoints[item_id][flag] = true
+                        end
+                    end
+                end
+            end
+        end
+        stock_additions_reported = true
+
+        -- The other half of the shelf's stock rules: each row's own stock
+        -- setting. The patcher stamps _Difficulty = 20 on it, which is
+        -- Standard. If the game matches that against the difficulty being
+        -- played, a shelf only stocks on Standard, and nothing in our code
+        -- was ever at fault. Live 2026-09-06: stock ran 18 down to 0 on
+        -- Standard the day before, and reads 1 here on Assisted.
+        local settings = nil
+        pcall(function() settings = manager:get_field("_ShopItemSettingTable") end)
+        local playing = "?"
+        pcall(function()
+            local campaign = sdk.get_managed_singleton("chainsaw.CampaignManager")
+            if campaign ~= nil then playing = tostring(campaign:call("get_CurrentDifficulty")) end
+        end)
+        if settings ~= nil then
+            for _, staple in ipairs({ STAPLE_PROBE[7], STAPLE_PROBE[1] }) do
+                local row = nil
+                pcall(function() row = settings:call("get_Item", staple.id) end)
+                local stock_setting = nil
+                if row ~= nil then
+                    pcall(function() stock_setting = row:call("get_StockSetting") end)
+                end
+                if stock_setting == nil then
+                    info(string.format("stock setting: %s has none (playing difficulty %s)",
+                        staple.name, playing))
+                else
+                    local function field(name)
+                        local value = nil
+                        pcall(function() value = stock_setting:get_field(name) end)
+                        return tostring(value)
+                    end
+                    info(string.format(
+                        "stock setting: %s difficulty=%s enabled=%s max=%s default=%s selectcount=%s (playing %s)",
+                        staple.name, field("_Difficulty"), field("_EnableStockSetting"),
+                        field("_MaxStock"), field("_DefaultStock"), field("_EnableSelectCount"),
+                        playing))
+                end
+            end
+        end
+
+        for _, staple in ipairs(STAPLE_PROBE) do
+            local by_difficulty = seen[staple.id]
+            if by_difficulty == nil then
+                info(string.format("stock additions: %s is in NO waypoint (wants %d a chapter)",
+                    staple.name, staple.per_chapter))
+            else
+                local flags = 0
+                for _ in pairs(waypoints[staple.id] or {}) do flags = flags + 1 end
+                local parts = {}
+                for difficulty, counts in pairs(by_difficulty) do
+                    local values = {}
+                    for value in pairs(counts) do values[#values + 1] = value end
+                    table.sort(values)
+                    parts[#parts + 1] = difficulty .. "=+" .. table.concat(values, "/")
+                end
+                table.sort(parts)
+                info(string.format("stock additions: %s in %d waypoint(s), by difficulty %s (wants %d a chapter)",
+                    staple.name, flags, table.concat(parts, " "), staple.per_chapter))
+            end
+        end
+    end
+
     -- ---------------------------------------------------------------- saving
     local function request_game_save()
         if not merchant.save_armed then
@@ -1961,10 +2296,116 @@ return function(ctx)
     -- item delivery rather than dropping either: the death stays queued and
     -- the delivery watermark does not advance. The loadGameSaveData hook
     -- clears it, so a stuck flag cannot outlive one load.
+    -- [Empty rows, Cam 2026-09-06] A shelf row with no check on it used to
+    -- sit in the Buy tab wearing the pak's baked "[AP] Archipelago Check",
+    -- a blank icon and a price. It is not buyable (reconcile_stock takes its
+    -- stock to zero), but it looks buyable, and at the start of a room most
+    -- rows are in that state: the shelf has 13 rows and the merchant only
+    -- releases a few checks a chapter, so chapter 1 shows ten of them.
+    --
+    -- The Buy tab builds its list from InGameShopManager.getPurchasableItems,
+    -- and every entry in it answers get_ItemId. So the honest fix is to hand
+    -- the UI a list without those rows: nothing about the shop's own state
+    -- changes, the row comes straight back the moment a check lands on it,
+    -- and every other tab (Sell, Tune Up, Trade) reads a different method and
+    -- is untouched.
+    local hidden_reported = -1
+    local last_shelf_line = nil
+
+    -- Hiding a row that actually carries a check would take a check away from
+    -- the player, so this answers false until an assignment has really been
+    -- derived. Showing a spare row is only ugly; hiding a real one is a bug.
+    local function row_is_empty_ap_row(item_id)
+        if item_id == nil or not merchant.assignment_ready then return false end
+        local assignment = merchant.slots_by_item
+        if type(assignment) ~= "table" then return false end
+        for _, row in ipairs(merchant.rows) do
+            if row.item_id == item_id then
+                return assignment[item_id] == nil
+            end
+        end
+        return false
+    end
+
+    local function filter_purchasable_list(retval)
+        if merchant.slot_count == 0 then
+            return
+        end
+        local list = sdk.to_managed_object(retval)
+        if list == nil then
+            return
+        end
+        local count = nil
+        pcall(function() count = tonumber(list:call("get_Count")) end)
+        if count == nil then
+            return
+        end
+        local hidden = 0
+        local seen = {}
+        for index = count - 1, 0, -1 do
+            local item_id, stock, sold_out = nil, nil, nil
+            pcall(function()
+                local entry = list:call("get_Item", index)
+                if entry ~= nil then
+                    item_id = tonumber(entry:call("get_ItemId"))
+                    -- The number the player actually reads: the shop manager's
+                    -- getCurrStock answered 1 for every item on the shelf,
+                    -- staples included, while the tab plainly showed different
+                    -- counts (2026-09-06). The list entry carries its own.
+                    stock = tonumber(entry:call("get_CurrStock"))
+                    sold_out = entry:call("get_IsSoldOut")
+                end
+            end)
+            if item_id ~= nil then
+                seen[#seen + 1] = string.format("%d=%s%s", item_id,
+                    tostring(stock), sold_out == true and " SOLD OUT" or "")
+            end
+            if row_is_empty_ap_row(item_id) then
+                local removed = pcall(function() list:call("RemoveAt", index) end)
+                if removed then hidden = hidden + 1 end
+            end
+        end
+        -- One line per shop visit naming every row the tab is about to draw
+        -- and the stock it carries, so a wrong count has a number behind it.
+        local shelf_line = table.concat(seen, " ")
+        if shelf_line ~= last_shelf_line then
+            last_shelf_line = shelf_line
+            info("buy tab rows (item=stock): " .. shelf_line)
+        end
+        if hidden ~= hidden_reported then
+            hidden_reported = hidden
+            info(string.format(
+                "%d empty row(s) hidden from the Buy tab (no check of that tier released yet)",
+                hidden))
+        end
+    end
+
+    local function install_purchasable_filter()
+        if merchant.purchasable_filter_installed then
+            return
+        end
+        local type_def = sdk.find_type_definition("chainsaw.InGameShopManager")
+        local method = type_def and type_def:get_method("getPurchasableItems")
+        if method == nil then
+            info("purchasable list method not found - empty rows will still show in the Buy tab")
+            return
+        end
+        sdk.hook(
+            method,
+            function() return sdk.PreHookResult.CALL_ORIGINAL end,
+            function(retval)
+                pcall(filter_purchasable_list, retval)
+                return retval
+            end
+        )
+        merchant.purchasable_filter_installed = true
+    end
+
     local function install_shop_state_hooks()
         if merchant.state_hooks_installed then
             return
         end
+        install_purchasable_filter()
 
         local enter_type = sdk.find_type_definition("chainsaw.gui.shop.InGameShopGuiState_Enter")
             or sdk.find_type_definition("chainsaw.gui.shop.InGameShopGuiState_PurchaseEnter")
@@ -1974,10 +2415,14 @@ return function(ctx)
                 enter_method,
                 function()
                     if bridge ~= nil then bridge.shop_gui_open = true end
-                    -- Reconcile before the player can look at the shelf.
+                    -- Reconcile before the player can look at the shelf: this
+                    -- also refreshes slots_by_item, which the purchasable-list
+                    -- filter reads to decide which rows are empty.
                     if merchant.slot_count > 0 then
                         pcall(reconcile_sold_out)
                         pcall(probe_shelf)
+                        pcall(probe_stock_additions)
+                        pcall(probe_staples)
                     end
                     return sdk.PreHookResult.CALL_ORIGINAL
                 end,

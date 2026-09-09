@@ -636,12 +636,23 @@ local function install(ctx)
             )
 
             if ranks_text ~= nil then
-                draw_centered_overlay_segments(
-                    {
-                        { text = ranks_text, color = CHECK_OVERLAY_TEXT_COLOR_PROGRESS },
-                    },
-                    header_window_width
-                )
+                -- One segment per rank: "[x] A" green once its check went,
+                -- "[ ] S" dimmed until then (Cam, 2026-09-06). ranks_str is
+                -- the same words in one string, kept for the width above.
+                local rank_segments = {}
+                local ranks = merc_header.kind == "pair" and merc_header.info.ranks or nil
+                if type(ranks) == "table" and #ranks > 0 then
+                    for _, rank in ipairs(ranks) do
+                        rank_segments[#rank_segments + 1] = {
+                            text = (rank.checked and "[x] " or "[ ] ") .. tostring(rank.name),
+                            color = rank.checked and CHECK_OVERLAY_TEXT_COLOR_CONNECTED
+                                or CHECK_OVERLAY_TEXT_COLOR_PROBE_DETAIL,
+                        }
+                    end
+                else
+                    rank_segments[1] = { text = ranks_text, color = CHECK_OVERLAY_TEXT_COLOR_PROGRESS }
+                end
+                draw_centered_overlay_segments(rank_segments, header_window_width)
             end
 
             if ap_client_text ~= nil then

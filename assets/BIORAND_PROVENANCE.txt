@@ -173,6 +173,23 @@ ProductVersion: 1.0.0+b2cdd94 (the launcher writes this into version_stamp.json,
                 re-harvest)
 Built with:     .NET SDK 10.0.301
 
+REBUILD 2026-09-06 (second)
+  Source commit: a13083f  (biorand-re4r-ap, ap-manifest-input)
+  exe SHA-256:   55989ddf81937cd3
+  Why:           the first attempt wrote the difficulty onto one catalog row
+                 per item, and the catalog holds more than one; the game read
+                 an untouched row and the shelf stayed Standard. Every row for
+                 an item now gets the stock rule.
+
+REBUILD 2026-09-06
+  Source commit: e274bf4  (biorand-re4r-ap, ap-manifest-input)
+  exe SHA-256:   3ee924a124e785c7323f3b87d49bd85243919b3bc615da4f40f97c56ac49ceba
+  Why:           the merchant's shelf is written for the difficulty the room
+                 is played on. A shop row carries one stock setting and the
+                 game only honours it on a matching difficulty, so every
+                 shelf held a single unit of everything on anything but
+                 Standard. Price settings now cover all four difficulties too.
+
 REBUILD 2026-09-05 fourth (b2cdd94)
     The welcome note, third edition.
       * PlaceWelcomeDocument's Content regenerated from the apworld's
