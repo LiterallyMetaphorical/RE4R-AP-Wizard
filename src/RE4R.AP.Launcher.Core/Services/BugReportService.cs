@@ -275,6 +275,61 @@ public sealed class BugReportService
             // Freshness check is a nicety; skip on any error.
         }
 
+        // REFramework stability triage (Amondo's freeze class, 2026-08-28):
+        // display-mode transitions fail Present and reset the D3D device, and
+        // enough churn eventually wedges REFramework's rehook path - the game
+        // froze at the merchant with audio still playing, twice. Counting the
+        // markers here lets a zip sort itself into that bucket before anyone
+        // opens a nine-megabyte log. Borderless window mode plus the latest
+        // REFramework nightly are the fixes.
+        try
+        {
+            var frameworkLog = Path.Combine(installPath, "re2_framework_log.txt");
+            if (File.Exists(frameworkLog))
+            {
+                string? refTag = null;
+                string? refCommit = null;
+                var resetCount = 0;
+                var presentFailures = 0;
+                foreach (var line in File.ReadLines(frameworkLog))
+                {
+                    if (refCommit == null && line.Contains("Commit hash: ", StringComparison.Ordinal))
+                    {
+                        refCommit = line[(line.IndexOf("Commit hash: ", StringComparison.Ordinal) + 13)..].Trim();
+                    }
+                    else if (refTag == null && line.Contains("] Tag: ", StringComparison.Ordinal))
+                    {
+                        refTag = line[(line.IndexOf("] Tag: ", StringComparison.Ordinal) + 7)..].Trim();
+                    }
+
+                    if (line.Contains("] Reset!", StringComparison.Ordinal))
+                    {
+                        resetCount++;
+                    }
+                    else if (line.Contains("Present failed", StringComparison.Ordinal))
+                    {
+                        presentFailures++;
+                    }
+                }
+
+                var shortCommit = refCommit is { Length: >= 8 } ? refCommit[..8] : refCommit ?? "unknown";
+                sb.AppendLine("Framework stability (current session log):");
+                sb.AppendLine($"  REFramework build     {refTag ?? "unknown"} ({shortCommit})");
+                sb.AppendLine($"  Device resets         {resetCount}");
+                sb.AppendLine($"  Present failures      {presentFailures}");
+                if (resetCount >= 10)
+                {
+                    sb.AppendLine("  WARNING: heavy device-reset churn - the display-mode class. "
+                        + "Borderless window mode and the latest REFramework are the fixes.");
+                }
+                sb.AppendLine();
+            }
+        }
+        catch
+        {
+            // Triage is a nicety; skip on any error.
+        }
+
         sb.AppendLine("Included:");
         foreach (var entry in included)
         {
