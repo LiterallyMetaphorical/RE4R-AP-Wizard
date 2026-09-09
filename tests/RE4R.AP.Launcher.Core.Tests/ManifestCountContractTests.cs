@@ -427,4 +427,25 @@ public sealed class ManifestCountContractTests
 
         Assert.Contains($"\"campaign\": \"{expected}\"", result.ConfigJson, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task TheShopSlotsCoverFifteenChapters()
+    {
+        // The content page's Main Campaign tile reads "456 checks, plus up to
+        // N from the merchant", where N is this chapter count times the two
+        // per-chapter ceilings the sliders clamp to (6 shop + 3 trade = 9), so
+        // 135. The multiplier lives in the WPF viewmodel, which this project
+        // cannot reference, but the base is bundled data and is the half that
+        // moves: the campaign's own count went 456 -> 646 in a day when Ada's
+        // locations landed. If this ever fails, the tile is quietly wrong.
+        var data = await LoadStaticAsync();
+
+        var chapters = data.ShopSlots.Values
+            .Select(slot => slot.PhysicalChapter)
+            .Distinct()
+            .ToList();
+
+        Assert.Equal(15, chapters.Count);
+        Assert.Equal(Enumerable.Range(1, 15), chapters.OrderBy(chapter => chapter));
+    }
 }

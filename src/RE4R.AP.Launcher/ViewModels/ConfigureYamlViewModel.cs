@@ -79,6 +79,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     private readonly int _campaignLocationCount;
     private readonly int _separateWaysLocationCount;
     private readonly int _mercenariesCheckCount;
+    private readonly int _merchantCheckCeiling;
     private bool _includeMainCampaign = true;
     private bool _includeMercenaries;
     private bool _includeSeparateWays;
@@ -144,6 +145,18 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         _separateWaysLocationCount =
             staticData?.Locations.Values.Count(location => location.IsSeparateWays) ?? 0;
         _mercenariesCheckCount = staticData?.Counts.Mercenaries ?? 0;
+        // The merchant's checks are NOT part of the campaign's location count:
+        // the shop slots and the trade checks are their own id ranges, so the
+        // tile read 456 while a default campaign room holds 546 and a maxed one
+        // 591. Counted the same way as the rest - the chapter count comes from
+        // the bundled shop slots, and the two per-chapter ceilings are the same
+        // constants the sliders on the next page clamp to.
+        var shopChapterCount = staticData?.ShopSlots.Values
+            .Select(slot => slot.PhysicalChapter)
+            .Distinct()
+            .Count() ?? 0;
+        _merchantCheckCeiling =
+            shopChapterCount * (MerchantChecksPerChapterMax + TradeChecksPerChapterMax);
         ItemSelection = new YamlSelectionListViewModel(
             "Items",
             "Anywhere",
@@ -798,7 +811,10 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     /// away from the world the launcher actually ships.
     /// </summary>
     public string MainCampaignCheckCount => _campaignLocationCount > 0
-        ? $"{_campaignLocationCount} checks" : "the campaign's checks";
+        ? _merchantCheckCeiling > 0
+            ? $"{_campaignLocationCount} checks, plus up to {_merchantCheckCeiling} from the merchant"
+            : $"{_campaignLocationCount} checks"
+        : "the campaign's checks";
 
     public string SeparateWaysCheckCount => _separateWaysLocationCount > 0
         ? $"{_separateWaysLocationCount} checks" : "Ada's checks";
@@ -816,7 +832,10 @@ public sealed class ConfigureYamlViewModel : ObservableObject
                 return "Pick at least one to carry on.";
             }
             var total = 0;
-            if (_includeMainCampaign) total += _campaignLocationCount;
+            // The merchant rides Main Campaign alone: his shop and trade tabs
+            // are Leon's, which is one of the reasons Ada's campaign is held
+            // back. Counted once even if both campaigns are ticked.
+            if (_includeMainCampaign) total += _campaignLocationCount + _merchantCheckCeiling;
             if (_includeSeparateWays) total += _separateWaysLocationCount;
             if (_includeMercenaries) total += _mercenariesCheckCount;
             return total > 0
