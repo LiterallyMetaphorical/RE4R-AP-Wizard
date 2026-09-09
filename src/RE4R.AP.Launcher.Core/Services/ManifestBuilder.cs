@@ -192,6 +192,7 @@ public sealed class ManifestBuilder
         var configJson = BuildConfigJson(
             placements, normalizedOptions, gameVersion, scoutSession.SlotName, scoutSession.RandomEvents, plannedShopSlots,
             scoutSession.MerchantShop.ScatteredItemIds, scoutSession.MerchantShop.StartingWeaponIds,
+            scoutSession.MerchantShop.StartingAttachmentIds,
             scoutSession.RandomWeaponStats, scoutSession.RandomWeaponUpgrades);
         if (scoutSession.RandomWeaponStats is bool yamlWeaponStats)
         {
@@ -253,6 +254,7 @@ public sealed class ManifestBuilder
         MerchantShopPlan shopPlan,
         IReadOnlyList<int> scatteredItemIds,
         IReadOnlyList<int> startingWeaponIds,
+        IReadOnlyList<int>? startingAttachmentIds,
         bool? randomWeaponStats,
         bool? randomWeaponUpgrades)
     {
@@ -494,6 +496,26 @@ public sealed class ManifestBuilder
 
             root["ap-start-weapons"] = startingArray;
             Log($"Starting arsenal: {startingWeaponIds.Count} weapon(s) begin in the player's hands; ammo paces from chapter zero.");
+        }
+
+        // 4b3. [Starting attachments] Emitted whenever the room's apworld
+        //      owns the roll - even empty, because presence is what retires
+        //      the fork's legacy arsenal-aimed attachment roll. A separate
+        //      key from ap-start-weapons: the weapon list feeds ammo pacing
+        //      and an attachment id in it would pollute that.
+        if (startingAttachmentIds != null)
+        {
+            var attachmentArray = new JsonArray();
+            foreach (var itemId in startingAttachmentIds)
+            {
+                attachmentArray.Add(JsonValue.Create(itemId));
+            }
+
+            root["ap-start-attachments"] = attachmentArray;
+            if (startingAttachmentIds.Count > 0)
+            {
+                Log($"Starting attachments: {startingAttachmentIds.Count} piece(s) begin in the case beside the arsenal.");
+            }
         }
 
         // 4c. Possession-keyed spawn gates (ENEMY_CLASS_DESIGN.md). The fork

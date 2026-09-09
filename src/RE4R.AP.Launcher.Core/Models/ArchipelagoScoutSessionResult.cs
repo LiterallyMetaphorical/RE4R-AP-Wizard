@@ -56,4 +56,13 @@ public sealed class ArchipelagoScoutSessionResult
     /// is off, which is the pair's only invalid shape.
     /// </summary>
     public bool? RandomWeaponUpgrades { get; init; }
+
+    /// <summary>
+    /// [Bonus Weapons] The YAML's consent to the permanent profile unlock
+    /// the Extra Content trio (Handcannon, Chicago Sweeper, Primal Knife)
+    /// needs while scattered. Carried into the room file to arm the mod's
+    /// force-unlock for exactly those three; false for older rooms and
+    /// non-consenting slots.
+    /// </summary>
+    public bool BonusWeaponsConsented { get; init; }
 }

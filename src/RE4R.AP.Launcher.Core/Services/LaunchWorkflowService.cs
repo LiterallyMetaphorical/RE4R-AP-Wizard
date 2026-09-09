@@ -1356,6 +1356,11 @@ public sealed class LaunchWorkflowService
                         slot_name = request.SlotName,
                         location_ids = sortedIds,
                         allow_bonus_items = AllowsBonusItems(recordedOptions),
+                        // [Bonus Weapons] The YAML's consent from slot_data:
+                        // arms the mod's force-unlock for exactly the
+                        // scattered Extra Content trio, independent of the
+                        // launcher's own allow-bonus-items lane.
+                        bonus_weapons_unlock = scoutResult.BonusWeaponsConsented,
                         // While gear is scattered, bonus guns are multiworld
                         // items, not free Storage grants: the mod's
                         // force-unlock keeps only the Primal Knife, and the
@@ -1366,8 +1371,13 @@ public sealed class LaunchWorkflowService
                         // [Starting Arsenal] Engine ids the generator placed
                         // in the starting case; the mod skips their precollect
                         // delivery once each (the in-case copy is the real
-                        // one). Empty for rooms without the option.
-                        starting_arsenal_ids = scoutResult.MerchantShop.StartingWeaponIds,
+                        // one). Empty for rooms without the option. Rolled
+                        // starting attachments ride the same list - the mod's
+                        // skip is a generic engine-id set, so guns and
+                        // attachments need no distinction here.
+                        starting_arsenal_ids = scoutResult.MerchantShop.StartingWeaponIds
+                            .Concat(scoutResult.MerchantShop.StartingAttachmentIds ?? Array.Empty<int>())
+                            .ToArray(),
                         merchant_shop = merchantShop,
                         enemy_gates = enemyGates,
                     }, new JsonSerializerOptions { WriteIndented = true });

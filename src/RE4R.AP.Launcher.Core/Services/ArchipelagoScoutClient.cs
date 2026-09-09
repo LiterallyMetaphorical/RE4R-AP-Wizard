@@ -200,6 +200,18 @@ public sealed class ArchipelagoScoutClient
                 }
             }
 
+            // [Bonus Weapons] The YAML's consent to the permanent profile
+            // unlock the Extra Content trio needs. False when absent (older
+            // rooms, or no consent) - the mod then leaves the profile alone.
+            var bonusWeaponsConsented = false;
+            if (TryGetProperty(connectedPacket, "slot_data", out var bonusSlotData)
+                && bonusSlotData.ValueKind == JsonValueKind.Object
+                && bonusSlotData.TryGetProperty("bonus_weapons", out var bonusElement)
+                && bonusElement.ValueKind is JsonValueKind.True or JsonValueKind.False)
+            {
+                bonusWeaponsConsented = bonusElement.ValueKind == JsonValueKind.True;
+            }
+
             var merchantShop = ParseMerchantShopSlotData(connectedPacket);
             if (merchantShop.Enabled)
             {
@@ -264,6 +276,7 @@ public sealed class ArchipelagoScoutClient
                 MerchantShop = merchantShop,
                 RandomWeaponStats = randomWeaponStats,
                 RandomWeaponUpgrades = randomWeaponUpgrades,
+                BonusWeaponsConsented = bonusWeaponsConsented,
             };
         }
         catch (ArchipelagoScoutException)
@@ -932,6 +945,26 @@ public sealed class ArchipelagoScoutClient
             }
         }
 
+        // [Starting attachments] Null when the key is absent (an apworld
+        // that predates the roll); present-but-empty means the generator
+        // rolled and granted nothing. The distinction reaches the fork,
+        // which keeps its legacy arsenal-aimed roll only for null.
+        List<int>? startingAttachmentIds = null;
+        if (block.TryGetProperty("starting_attachment_ids", out var attachmentElement)
+            && attachmentElement.ValueKind == JsonValueKind.Array)
+        {
+            startingAttachmentIds = new List<int>();
+            foreach (var element in attachmentElement.EnumerateArray())
+            {
+                if (element.ValueKind == JsonValueKind.Number
+                    && element.TryGetInt32(out var attachmentId)
+                    && attachmentId > 0)
+                {
+                    startingAttachmentIds.Add(attachmentId);
+                }
+            }
+        }
+
         if (slots.Count == 0 && scatteredItemIds.Count == 0)
         {
             return MerchantShopSlotData.Disabled;
@@ -944,6 +977,7 @@ public sealed class ArchipelagoScoutClient
             Tiers = tiers,
             ScatteredItemIds = scatteredItemIds,
             StartingWeaponIds = startingWeaponIds,
+            StartingAttachmentIds = startingAttachmentIds,
         };
     }
 

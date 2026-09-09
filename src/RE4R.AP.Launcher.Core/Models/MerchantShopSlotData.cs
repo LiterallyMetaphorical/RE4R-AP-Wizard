@@ -43,6 +43,16 @@ public sealed class MerchantShopSlotData
     public IReadOnlyList<int> StartingWeaponIds { get; init; } = Array.Empty<int>();
 
     /// <summary>
+    /// [Starting attachments] Engine ids of the attachments the generator
+    /// rolled into the starting case beside the arsenal guns. Null when the
+    /// room's apworld predates the roll (the fork then keeps its legacy
+    /// arsenal-aimed attachment roll); present-but-empty means the generator
+    /// owns the roll and granted nothing. Kept apart from StartingWeaponIds
+    /// because that list feeds ammo pacing.
+    /// </summary>
+    public IReadOnlyList<int>? StartingAttachmentIds { get; init; }
+
+    /// <summary>
     /// Credit-check economy per AP classification: the peseta price of a slot
     /// and the gemstone handed back when the purchase is refundable. The
     /// apworld owns these values (shop.SHOP_TIERS); the launcher passes them
