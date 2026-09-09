@@ -36,6 +36,10 @@ dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_boat_spike.lua")(ctx)
 -- [Model placement] Dev-only tuner for the AP shop model. Delete with the
 -- module once the numbers are baked into the fork.
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_model_tuner.lua")(ctx)
+-- [Gimmick placement] Dev-only nudger for fork-placed gimmicks (the spawn
+-- save desk and the welcome note). Stays: every future desk gets tuned
+-- with it.
+dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_gimmick_nudger.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_warning.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_windows.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_checks.lua")(ctx)
@@ -101,6 +105,7 @@ local draw_world_check_markers = ctx.draw_world_check_markers
 local draw_marker_position_editor = ctx.draw_marker_position_editor
 local draw_boat_spike = ctx.draw_boat_spike
 local draw_model_tuner = ctx.draw_model_tuner
+local draw_gimmick_nudger = ctx.draw_gimmick_nudger
 local poll_door_recovery = ctx.poll_door_recovery
 local merchant_poll_pending_sweeps = ctx.merchant_poll_pending_sweeps
 local draw_main_window = ctx.draw_main_window
@@ -632,6 +637,9 @@ re.on_frame(function()
     if type(draw_boat_spike) == "function" then
         draw_boat_spike()
     end
+    if type(draw_gimmick_nudger) == "function" then
+        draw_gimmick_nudger()
+    end
     draw_check_progress_overlay()
     -- Pinned under the header: hints bought for the player's OWN items that
     -- turned out to live in someone else's world, where no marker can help.
@@ -697,6 +705,11 @@ re.on_draw_ui(function()
             "AP Shop Model Tuner", bridge.model_tuner_window_enabled)
         if changed_tuner then
             bridge.model_tuner_window_enabled = tuner_value
+        end
+        local changed_nudger, nudger_value = imgui.checkbox(
+            "AP Gimmick Nudger", bridge.gimmick_nudger_window_enabled)
+        if changed_nudger then
+            bridge.gimmick_nudger_window_enabled = nudger_value
         end
     end
 

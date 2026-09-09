@@ -791,6 +791,58 @@ return function(ctx)
             st.item_delivery_stability_logged = false
             return -- busy state: defer the whole drain, do not advance
         end
+        -- [Ashley unblock] Her section's own gates need the Bunch of Keys and
+        -- the Salazar Family Insignia, and with the queue held she could
+        -- stand at her own door while the key waits in the mail. Generation
+        -- logic cannot see the character gate below, so a seed that is
+        -- logically fine can still deadlock her at runtime (Cam, 2026-08-24).
+        -- These two side-deliver immediately: injected into HER inventory
+        -- through the normal route (the class lookup targets whoever is
+        -- active), while the queue entry STAYS PUT and the watermark never
+        -- moves. Contiguity survives, and the lead still receives the real
+        -- copy on return - one line of key-tab clutter, the accepted cost.
+        -- Success-gated retry, mirror-style; the delivered set clears when
+        -- the lead returns, and a relaunch starts empty, which re-delivers
+        -- into a rolled-back save exactly when that is wanted.
+        local SECTION_KEY_ENGINE_IDS = {
+            [119275200] = true, -- Bunch of Keys
+            [119220800] = true, -- Salazar Family Insignia
+        }
+        local function side_deliver_section_keys()
+            st.section_keys_delivered = st.section_keys_delivered or {}
+            for _, entry in ipairs(pending) do
+                local mapping = ap_item_map[entry.item]
+                local engine_id = mapping ~= nil and mapping.re4r_item_id or nil
+                if engine_id ~= nil
+                    and SECTION_KEY_ENGINE_IDS[engine_id] == true
+                    and type(entry.index) == "number"
+                    and entry.index > bridge.last_received_index
+                    and st.section_keys_delivered[entry.index] ~= true then
+                    local status = tostring(inject_item_to_inventory(engine_id, mapping.count or 1))
+                    if inject_command_succeeded(status) then
+                        st.section_keys_delivered[entry.index] = true
+                        info(string.format(
+                            "section key side-delivered while the lead is away: idx=%d ap=%s engine=%d [%s]",
+                            entry.index, tostring(entry.item), engine_id, status))
+                        local push = ctx.push_info_toast or _G.push_info_toast
+                        if type(push) == "function" then
+                            local nm = (type(mapping.name) == "string" and mapping.name ~= "")
+                                and mapping.name or ("item " .. engine_id)
+                            push("Delivered to this section", nm .. " came through for the doors here")
+                        end
+                    else
+                        local now = os.clock()
+                        if now - (st.section_keys_warn_clock or -1e9) >= 10.0 then
+                            st.section_keys_warn_clock = now
+                            info(string.format(
+                                "section key idx=%d not deliverable yet (%s); retrying",
+                                entry.index, tostring(status)))
+                        end
+                    end
+                end
+            end
+        end
+
         -- [Character gate] The Ashley section runs its own inventories and
         -- DISCARDS them when it ends - live 2026-07-30, items put in her main
         -- grid and even in Storage were gone once Leon returned. Delivering
@@ -806,10 +858,12 @@ return function(ctx)
                     st.item_delivery_character_logged = true
                     info("another character is playing (their inventory is discarded at section end) - holding received items until the campaign lead returns")
                 end
+                side_deliver_section_keys()
                 return -- do not advance
             end
             if ok_character and default_active and st.item_delivery_character_logged then
                 st.item_delivery_character_logged = false
+                st.section_keys_delivered = {}
                 info("campaign lead is back - resuming received-item delivery")
             end
         end

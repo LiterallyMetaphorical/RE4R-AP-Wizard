@@ -415,12 +415,22 @@
                                        TextWrapping="Wrap"
                                        Text="{Binding ArchipelagoLuaModStatusText}" />
                         </StackPanel>
-                        <Button Grid.Column="1"
-                                Margin="12,0,0,0"
-                                Padding="16,6"
-                                Command="{Binding InstallArchipelagoLuaModCommand}"
-                                Content="Install Archipelago Lua Mod"
-                                Visibility="{Binding ShowInstallArchipelagoLuaModButton, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                        <StackPanel Grid.Column="1"
+                                    Margin="12,0,0,0"
+                                    VerticalAlignment="Top">
+                            <Button Padding="16,6"
+                                    Command="{Binding InstallArchipelagoLuaModCommand}"
+                                    Content="Install Archipelago Lua Mod"
+                                    Visibility="{Binding ShowInstallArchipelagoLuaModButton, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <!-- The offline half of mod updates: a payload zip
+                                 shared by hand goes through the same validation,
+                                 store and verified install as the one-click
+                                 banner - never hand-copied files. -->
+                            <Button Margin="0,8,0,0"
+                                    Padding="16,6"
+                                    Command="{Binding InstallPayloadFromFileCommand}"
+                                    Content="Install Mod Update From File..." />
+                        </StackPanel>
                     </Grid>
 
                     <TextBlock Grid.Row="12"
@@ -2362,7 +2372,7 @@
                             Padding="10,2"
                             VerticalAlignment="Center"
                             Command="{Binding OpenUpdateReleaseCommand}"
-                            Content="Get the Update" />
+                            Content="{Binding UpdatePrimaryButtonText}" />
                     <Button Grid.Column="2"
                             Margin="8,0,0,0"
                             Padding="10,2"
@@ -2474,7 +2484,7 @@
             <TextBlock VerticalAlignment="Center"
                        HorizontalAlignment="Left"
                        Foreground="{DynamicResource SubtleTextBrush}"
-                       TextTrimming="CharacterEllipsis"><Run Text="{Binding Session.CurrentSessionText, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding Session.LastPatchedText, Mode=OneWay}" /></TextBlock>
+                       TextTrimming="CharacterEllipsis"><Run Text="{Binding Session.CurrentSessionText, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding Session.LastPatchedText, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding PayloadVersionText, Mode=OneWay}" /></TextBlock>
             <TextBlock Grid.Column="1"
                        HorizontalAlignment="Center"
                        VerticalAlignment="Center"

@@ -7,21 +7,35 @@ namespace RE4R.AP.Launcher.Core.Services;
 
 public sealed class LuaInstallService
 {
+    private readonly string _bundledLuaDirectoryPath;
+    private readonly PayloadStore? _payloadStore;
+
     public LuaInstallService(
         string? assetsLuaDirectoryPath = null,
-        string? assetsNativeDirectoryPath = null)
+        string? assetsNativeDirectoryPath = null,
+        PayloadStore? payloadStore = null)
     {
-        AssetsLuaDirectoryPath = assetsLuaDirectoryPath
+        _bundledLuaDirectoryPath = assetsLuaDirectoryPath
             ?? ResolveAssetsDirectory("Lua");
+        // An explicit source path is a caller pinning the source (tests,
+        // harnesses) - the store never overrides it.
+        _payloadStore = assetsLuaDirectoryPath is null ? payloadStore : null;
         AssetsNativeDirectoryPath = assetsNativeDirectoryPath
             ?? ResolveAssetsDirectory("native");
     }
 
-    public string AssetsLuaDirectoryPath { get; }
+    /// <summary>
+    /// The Lua source of the moment: the app-data payload store while it
+    /// holds something newer for this world data, the bundled assets
+    /// otherwise. Resolved per call so a mod update applies to the very
+    /// next install without a restart.
+    /// </summary>
+    public string AssetsLuaDirectoryPath =>
+        _payloadStore?.GetEffectivePayload().LuaDirectoryPath ?? _bundledLuaDirectoryPath;
 
     public string AssetsNativeDirectoryPath { get; }
 
-    private static string ResolveAssetsDirectory(string subPath)
+    internal static string ResolveAssetsDirectory(string subPath)
     {
         var localPath = Path.Combine(AppContext.BaseDirectory, "assets", subPath);
         var currentDir = new DirectoryInfo(AppContext.BaseDirectory);

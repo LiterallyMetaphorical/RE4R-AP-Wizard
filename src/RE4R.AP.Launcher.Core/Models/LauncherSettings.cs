@@ -33,6 +33,19 @@ public sealed class LauncherSettings
     [JsonPropertyName("setup_biorand_version")]
     public string SetupBioRandVersion { get; set; } = string.Empty;
 
+    // Startup update check against the project's GitHub releases. On by
+    // default; false is the opt-out for people who want their tools silent.
+    [JsonPropertyName("check_for_updates")]
+    public bool CheckForUpdates { get; set; } = true;
+
+    // "Not now" on the update banner remembers the version it dismissed, so
+    // the same release never nags twice but the next one still shows.
+    [JsonPropertyName("dismissed_payload_update")]
+    public string DismissedPayloadUpdate { get; set; } = string.Empty;
+
+    [JsonPropertyName("dismissed_launcher_update")]
+    public string DismissedLauncherUpdate { get; set; } = string.Empty;
+
     public static LauncherSettings CreateDefault()
     {
         return new LauncherSettings();
@@ -48,6 +61,8 @@ public sealed class LauncherSettings
         settings.LastSlotName ??= string.Empty;
         settings.SetupGameFingerprint ??= string.Empty;
         settings.SetupBioRandVersion ??= string.Empty;
+        settings.DismissedPayloadUpdate ??= string.Empty;
+        settings.DismissedLauncherUpdate ??= string.Empty;
         // Anything that is not an explicit "light" is dark, so a hand-edited or
         // truncated settings file cannot leave the launcher themeless.
         settings.Theme = string.Equals(settings.Theme?.Trim(), "light", StringComparison.OrdinalIgnoreCase)

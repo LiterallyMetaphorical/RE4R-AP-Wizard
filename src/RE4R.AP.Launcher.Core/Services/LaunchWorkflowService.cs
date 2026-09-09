@@ -26,14 +26,20 @@ public sealed class LaunchWorkflowService
         BioRandProcessRunner? bioRandProcessRunner = null,
         LuaInstallService? luaInstallService = null,
         SessionRecordStore? sessionRecordStore = null,
-        Func<DateTimeOffset>? utcNow = null)
+        Func<DateTimeOffset>? utcNow = null,
+        PayloadStore? payloadStore = null)
     {
         _settingsStore = settingsStore ?? new SettingsStore();
         _staticGameDataProvider = staticGameDataProvider ?? new StaticGameDataProvider();
         _archipelagoScoutClient = archipelagoScoutClient ?? new ArchipelagoScoutClient();
         _manifestBuilder = manifestBuilder ?? new ManifestBuilder(_staticGameDataProvider);
         _bioRandProcessRunner = bioRandProcessRunner ?? new BioRandProcessRunner(_settingsStore);
-        _luaInstallService = luaInstallService ?? new LuaInstallService();
+        // The workflow's Lua step reads from the payload store when it holds
+        // a newer Lua-only update, so a patched game always gets the newest
+        // compatible mod without waiting for a launcher release.
+        _luaInstallService = luaInstallService
+            ?? new LuaInstallService(
+                payloadStore: payloadStore ?? new PayloadStore(_settingsStore.AppDataRootPath));
         _sessionRecordStore = sessionRecordStore ?? new SessionRecordStore(_settingsStore.AppDataRootPath);
         _utcNow = utcNow ?? (() => DateTimeOffset.UtcNow);
 

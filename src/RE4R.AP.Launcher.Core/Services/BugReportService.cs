@@ -111,7 +111,7 @@ public sealed class BugReportService
     /// even the archive could not be written. Individual missing pieces are
     /// noted in the manifest rather than failing the whole report.
     /// </summary>
-    public string? CreateBugReport(string installPath, string slotName, string launcherVersion)
+    public string? CreateBugReport(string installPath, string slotName, string launcherVersion, string? payloadVersion = null)
     {
         try
         {
@@ -202,7 +202,7 @@ public sealed class BugReportService
                 }
 
                 // Manifest last, so it can report what landed.
-                var manifest = BuildManifest(installPath, slotName, launcherVersion, included, missing);
+                var manifest = BuildManifest(installPath, slotName, launcherVersion, payloadVersion, included, missing);
                 var manifestEntry = archive.CreateEntry("manifest.txt", CompressionLevel.Optimal);
                 using var manifestStream = manifestEntry.Open();
                 using var writer = new StreamWriter(manifestStream, new UTF8Encoding(false));
@@ -223,6 +223,7 @@ public sealed class BugReportService
         string installPath,
         string slotName,
         string launcherVersion,
+        string? payloadVersion,
         IReadOnlyList<string> included,
         IReadOnlyList<string> missing)
     {
@@ -231,6 +232,14 @@ public sealed class BugReportService
         sb.AppendLine("==================");
         sb.AppendLine($"Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
         sb.AppendLine($"Launcher version: {launcherVersion}");
+        if (!string.IsNullOrWhiteSpace(payloadVersion))
+        {
+            // Which Lua payload the LAUNCHER holds right now (bundled or
+            // updated). The one actually running in the game is stamped in
+            // the framework log's boot banner; a mismatch between the two
+            // usually means "updated but has not re-installed yet".
+            sb.AppendLine($"Mod payload: {payloadVersion}");
+        }
         sb.AppendLine($"Slot name: {slotName}");
         sb.AppendLine($"Install path: {installPath}");
         sb.AppendLine();

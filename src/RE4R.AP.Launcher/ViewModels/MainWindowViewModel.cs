@@ -25,6 +25,8 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     private readonly ReFrameworkInstallationService _reFrameworkInstallationService;
     private readonly LuaInstallService _luaInstallService;
     private readonly LauncherUpdateService _updateService = new();
+    private readonly UpdateCheckService _payloadUpdateService = new();
+    private readonly PayloadStore _payloadStore;
     private readonly AsyncRelayCommand _browseCommand;
     private readonly AsyncRelayCommand _installReFrameworkCommand;
     private readonly AsyncRelayCommand _installArchipelagoLuaModCommand;
@@ -39,8 +41,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     private readonly AsyncRelayCommand _generateBugReportCommand;
     private readonly RelayCommand _openSetupCommand;
     private readonly RelayCommand _openRoomPageCommand;
-    private readonly RelayCommand _openUpdateReleaseCommand;
+    private readonly AsyncRelayCommand _openUpdateReleaseCommand;
     private readonly RelayCommand _dismissUpdateCommand;
+    private readonly AsyncRelayCommand _installPayloadFromFileCommand;
     private readonly RelayCommand _reconnectPrefillCommand;
     private readonly RelayCommand _repatchPrefillCommand;
     private readonly AsyncRelayCommand _retireSessionCommand;
@@ -64,8 +67,11 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? _installInspectionCancellationSource;
     private CancellationTokenSource? _sessionRefreshCancellationSource;
     private LauncherUpdateInfo? _updateInfo;
+    private UpdateManifestPayload? _payloadUpdateInfo;
     private bool _hasUpdate;
     private string _updateBannerText = string.Empty;
+    private string _updatePrimaryButtonText = "Get the Update";
+    private string _payloadVersionText = string.Empty;
     private bool _isInitializing;
     private bool _initialSetupRedirectDecided;
     private string _lastAutoDetectedGameVersion = string.Empty;
@@ -86,14 +92,21 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         _sessionRecordStore = sessionRecordStore ?? new SessionRecordStore(_settingsStore.AppDataRootPath);
         _bugReportService = new BugReportService(_settingsStore.AppDataRootPath);
         _staticGameDataProvider = staticGameDataProvider ?? new StaticGameDataProvider();
+        // The live Lua payload: the app-data store while it holds a newer
+        // Lua-only update, the bundled assets otherwise. Shared with both
+        // install paths so a mod update reaches the very next install.
+        _payloadStore = new PayloadStore(_settingsStore.AppDataRootPath);
+        _payloadStore.LogMessage += OnWorkflowLogMessage;
+        _payloadUpdateService.LogMessage += OnWorkflowLogMessage;
         _workflowService = workflowService
             ?? new LaunchWorkflowService(
                 settingsStore: _settingsStore,
                 staticGameDataProvider: _staticGameDataProvider,
-                sessionRecordStore: _sessionRecordStore);
+                sessionRecordStore: _sessionRecordStore,
+                payloadStore: _payloadStore);
         _gameInstallationInspector = gameInstallationInspector ?? new GameInstallationInspector();
         _reFrameworkInstallationService = reFrameworkInstallationService ?? new ReFrameworkInstallationService();
-        _luaInstallService = luaInstallService ?? new LuaInstallService();
+        _luaInstallService = luaInstallService ?? new LuaInstallService(payloadStore: _payloadStore);
         // Dedicated runner instance purely for cache size/clear from the Setup
         // panel. Its cache methods are pure path operations (no process launch),
         // and sharing _settingsStore makes it resolve the exact same cache paths
@@ -238,8 +251,11 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         _openSetupCommand = new RelayCommand(OpenSetupScreen);
         _openRoomPageCommand = new RelayCommand(OpenRoomPage);
         _updateService.LogMessage += OnWorkflowLogMessage;
-        _openUpdateReleaseCommand = new RelayCommand(OpenUpdateRelease);
-        _dismissUpdateCommand = new RelayCommand(() => HasUpdate = false);
+        // One primary button, two meanings: a launcher update opens the
+        // release page, a mod update downloads and installs in place.
+        _openUpdateReleaseCommand = new AsyncRelayCommand(RunUpdatePrimaryAsync, () => !Action.IsBusy);
+        _dismissUpdateCommand = new RelayCommand(DismissUpdate);
+        _installPayloadFromFileCommand = new AsyncRelayCommand(InstallPayloadFromFileAsync, () => !Action.IsBusy);
         _reconnectPrefillCommand = new RelayCommand(StartJoinPrefilledFromBanner);
         _repatchPrefillCommand = new RelayCommand(StartRepatchFromBanner);
         _retireSessionCommand = new AsyncRelayCommand(RetireBannerSessionAsync, () => !Action.IsBusy);
@@ -387,9 +403,29 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         private set => SetProperty(ref _updateBannerText, value);
     }
 
-    public RelayCommand OpenUpdateReleaseCommand => _openUpdateReleaseCommand;
+    public AsyncRelayCommand OpenUpdateReleaseCommand => _openUpdateReleaseCommand;
 
     public RelayCommand DismissUpdateCommand => _dismissUpdateCommand;
+
+    public AsyncRelayCommand InstallPayloadFromFileCommand => _installPayloadFromFileCommand;
+
+    /// <summary>"Get the Update" for a launcher release, "Update Now" for a mod payload.</summary>
+    public string UpdatePrimaryButtonText
+    {
+        get => _updatePrimaryButtonText;
+        private set => SetProperty(ref _updatePrimaryButtonText, value);
+    }
+
+    /// <summary>
+    /// Footer line naming the Lua payload the launcher holds, read from the
+    /// effective stamp - the store's when an update is live, the bundle's
+    /// otherwise. Versions here come from stamps, never from filenames.
+    /// </summary>
+    public string PayloadVersionText
+    {
+        get => _payloadVersionText;
+        private set => SetProperty(ref _payloadVersionText, value);
+    }
 
     public async Task InitializeAsync()
     {
@@ -449,9 +485,19 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             // ready state. The Setup panel shows "checking size…" until it lands.
             _ = RefreshBioRandCacheSizeAsync();
 
+            RefreshPayloadVersionText();
+
             // Same deal for the update check - it touches the network, so it can
-            // never sit between the player and a usable window.
-            _ = CheckForUpdateAsync();
+            // never sit between the player and a usable window. check_for_updates:
+            // false in settings.json is the opt-out for silent tools.
+            if (_settings.CheckForUpdates)
+            {
+                _ = CheckForUpdateAsync();
+            }
+            else
+            {
+                Action.AppendLog("Update check disabled in settings.");
+            }
 
             Action.StatusText = "Ready.";
             Action.AppendLog("Launcher UI is ready.");
@@ -741,23 +787,232 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         try
         {
             var info = await _updateService.CheckAsync();
-            if (info is null || !info.IsNewer)
+            if (info is not null && info.IsNewer
+                && !string.Equals(_settings.DismissedLauncherUpdate, info.TagName, StringComparison.Ordinal))
+            {
+                // A launcher release carries everything, mod included, so it
+                // always outranks a payload offer.
+                await DispatchToUiAsync(() =>
+                {
+                    _updateInfo = info;
+                    _payloadUpdateInfo = null;
+                    UpdatePrimaryButtonText = "Get the Update";
+                    UpdateBannerText =
+                        $"{info.DisplayName} is available. You are running {info.RunningVersion}.";
+                    HasUpdate = !string.IsNullOrWhiteSpace(info.ReleaseUrl);
+                });
+                return;
+            }
+
+            // No launcher offer: is there a Lua-only payload for the world
+            // data this launcher already bundles?
+            var effective = _payloadStore.GetEffectivePayload();
+            var payload = await _payloadUpdateService.CheckAsync(
+                effective.Stamp?.Payload.WorldVersion,
+                effective.Stamp?.Payload.ModVersion);
+            if (payload is null
+                || string.Equals(_settings.DismissedPayloadUpdate, payload.ModVersion, StringComparison.Ordinal))
             {
                 return;
             }
 
             await DispatchToUiAsync(() =>
             {
-                _updateInfo = info;
+                _payloadUpdateInfo = payload;
+                _updateInfo = null;
+                UpdatePrimaryButtonText = "Update Now";
+                var notes = string.IsNullOrWhiteSpace(payload.Notes) ? string.Empty : $" {payload.Notes}";
                 UpdateBannerText =
-                    $"{info.DisplayName} is available. You are running {info.RunningVersion}.";
-                HasUpdate = !string.IsNullOrWhiteSpace(info.ReleaseUrl);
+                    $"Mod update {payload.ModVersion} is available - no new launcher needed.{notes}";
+                HasUpdate = true;
             });
         }
         catch (Exception ex)
         {
             Action.AppendLog($"Update check skipped: {ex.Message}");
         }
+    }
+
+    private async Task RunUpdatePrimaryAsync()
+    {
+        if (_payloadUpdateInfo is { } payload)
+        {
+            await ApplyPayloadUpdateAsync(payload);
+            return;
+        }
+
+        OpenUpdateRelease();
+    }
+
+    private void DismissUpdate()
+    {
+        HasUpdate = false;
+        // Remember WHICH offer was waved away, so this release stays quiet
+        // and the next one still gets its banner.
+        if (_payloadUpdateInfo is { } payload)
+        {
+            _settings.DismissedPayloadUpdate = payload.ModVersion;
+        }
+        else if (_updateInfo is { } launcher)
+        {
+            _settings.DismissedLauncherUpdate = launcher.TagName;
+        }
+        else
+        {
+            return;
+        }
+
+        _ = SaveSettingsQuietlyAsync();
+    }
+
+    private async Task SaveSettingsQuietlyAsync()
+    {
+        try
+        {
+            await _settingsStore.SaveAsync(_settings);
+        }
+        catch (Exception ex)
+        {
+            Action.AppendLog($"Could not save the dismissed-update preference: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// The one-click path: download the payload zip, verify it against the
+    /// manifest hash, land it in the payload store, and offer the in-game
+    /// install right away. Every failure leaves the previous payload (and
+    /// the banner's offer) exactly where it was.
+    /// </summary>
+    private async Task ApplyPayloadUpdateAsync(UpdateManifestPayload payload)
+    {
+        if (Action.IsBusy)
+        {
+            return;
+        }
+
+        Action.ClearError();
+        Action.IsBusy = true;
+        RefreshCommandStates();
+        var offerText = UpdateBannerText;
+        try
+        {
+            UpdateBannerText = $"Downloading mod update {payload.ModVersion}...";
+            Action.StatusText = $"Downloading mod update {payload.ModVersion}...";
+            var zipPath = Path.Combine(
+                _settingsStore.AppDataRootPath, "updates", $"re4r-ap-payload-{payload.ModVersion}.zip");
+            await _payloadUpdateService.DownloadPayloadAsync(payload, zipPath);
+            Action.AppendLog($"Mod update {payload.ModVersion} downloaded and hash-verified.");
+
+            await InstallPayloadZipCoreAsync(zipPath);
+            try { File.Delete(zipPath); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+
+            _payloadUpdateInfo = null;
+            HasUpdate = false;
+        }
+        catch (Exception ex)
+        {
+            SetError($"Mod update failed - nothing was changed: {ex.Message}");
+            Action.StatusText = "Mod update failed.";
+            UpdateBannerText = offerText;
+        }
+        finally
+        {
+            Action.IsBusy = false;
+            RefreshCommandStates();
+        }
+    }
+
+    /// <summary>
+    /// Shared tail of the one-click and from-file paths. Assumes the caller
+    /// holds the busy flag. The store validates and swaps; then, when a game
+    /// install is configured, the standard verified Lua install runs so the
+    /// update reaches the game immediately instead of waiting for a patch.
+    /// </summary>
+    private async Task InstallPayloadZipCoreAsync(string zipPath)
+    {
+        var stamp = await _payloadStore.InstallFromZipAsync(zipPath);
+        Action.AppendLog($"Mod payload {stamp.Payload.ModVersion} is now in the launcher's payload store.");
+        RefreshPayloadVersionText();
+
+        if (!_inspection.InstallPathExists || string.IsNullOrWhiteSpace(Setup.InstallPath))
+        {
+            Action.StatusText = $"Mod update {stamp.Payload.ModVersion} stored. It rides your next patch.";
+            Action.AppendLog("No RE4R install is configured, so the update waits in the store and rides the next patch.");
+            return;
+        }
+
+        Action.StatusText = $"Installing mod update {stamp.Payload.ModVersion} into the game...";
+        var result = await _luaInstallService.InstallLuaModFilesAsync(
+            Setup.InstallPath.Trim(),
+            confirmation => _dialogService.ConfirmInstallAsync(confirmation));
+        if (result.Cancelled)
+        {
+            Action.StatusText = $"Mod update {stamp.Payload.ModVersion} stored; the in-game install was cancelled. It rides your next patch.";
+            Action.AppendLog("In-game install cancelled; the stored update still applies at the next patch.");
+            return;
+        }
+
+        if (!result.Success)
+        {
+            throw new InstallException(
+                result.VerificationFailures.Count > 0
+                    ? $"the in-game install finished with {result.VerificationFailures.Count} verification failure(s)."
+                    : "the in-game install did not complete.");
+        }
+
+        Action.StatusText = $"Mod update {stamp.Payload.ModVersion} installed - restart the game to pick it up.";
+        Action.AppendLog($"Mod update {stamp.Payload.ModVersion} installed into the game ({result.FilesCopiedCount} files, verified).");
+        await RefreshInstallInspectionAsync();
+    }
+
+    /// <summary>
+    /// The offline path for the same machinery: a payload zip shared by hand
+    /// (Discord hotfix, air-gapped machine) goes through identical
+    /// validation, storage and install - never hand-copied files.
+    /// </summary>
+    private async Task InstallPayloadFromFileAsync()
+    {
+        if (Action.IsBusy)
+        {
+            return;
+        }
+
+        var files = await _dialogService.BrowseForFilesAsync(
+            "Choose a RE4R AP mod payload zip",
+            "Mod payload zip (*.zip)|*.zip",
+            multiSelect: false);
+        var zipPath = files.FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(zipPath))
+        {
+            return;
+        }
+
+        Action.ClearError();
+        Action.IsBusy = true;
+        RefreshCommandStates();
+        try
+        {
+            await InstallPayloadZipCoreAsync(zipPath);
+        }
+        catch (Exception ex)
+        {
+            SetError($"Mod update from file failed - nothing was changed: {ex.Message}");
+            Action.StatusText = "Mod update failed.";
+        }
+        finally
+        {
+            Action.IsBusy = false;
+            RefreshCommandStates();
+        }
+    }
+
+    private void RefreshPayloadVersionText()
+    {
+        var effective = _payloadStore.GetEffectivePayload();
+        PayloadVersionText = effective.Stamp is null
+            ? string.Empty
+            : $"mod {effective.Stamp.Payload.ModVersion}"
+              + (effective.Origin == PayloadOrigin.Store ? " (updated)" : string.Empty);
     }
 
     private void OpenUpdateRelease()
@@ -1552,8 +1807,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
                 : ConfigureYaml.SlotName?.Trim() ?? string.Empty;
             var version = LauncherUpdateService.GetRunningVersion();
 
+            var payloadVersion = _payloadStore.GetEffectivePayload().Stamp?.Payload.ModVersion;
             var zipPath = await Task.Run(
-                () => _bugReportService.CreateBugReport(installPath, slotName, version));
+                () => _bugReportService.CreateBugReport(installPath, slotName, version, payloadVersion));
 
             if (zipPath == null)
             {
@@ -2183,6 +2439,8 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         _dismissErrorCommand.NotifyCanExecuteChanged();
         _retireSessionCommand.NotifyCanExecuteChanged();
         _clearBioRandCacheCommand.NotifyCanExecuteChanged();
+        _openUpdateReleaseCommand.NotifyCanExecuteChanged();
+        _installPayloadFromFileCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>
