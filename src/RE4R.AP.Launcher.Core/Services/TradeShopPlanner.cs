@@ -41,6 +41,20 @@ public static class TradeShopPlanner
             ["PROGRESSION"] = 6,
         };
 
+    /// <summary>
+    /// The text an EMPTY slot wears, baked once by the fork at these GUIDs and
+    /// pointed at by the mod whenever a slot has nothing to show.
+    ///
+    /// The pak bakes every slot open and readable because at patch time nothing
+    /// knows which slots will hold a check on a given day; the mod closes the
+    /// empty ones at runtime. Without a carried GUID for the empty text, an
+    /// emptied slot kept advertising the check it had just sold. Fixed
+    /// per-room-independent, so a room file and a pak from different launcher
+    /// builds still agree on it.
+    /// </summary>
+    public static readonly Guid EmptySlotNameMsgGuid = DeriveMessageGuid("name", "slot-empty");
+    public static readonly Guid EmptySlotCaptionMsgGuid = DeriveMessageGuid("caption", "slot-empty");
+
     public static TradeShopPlan Plan(TradeShopSlotData trade)
     {
         ArgumentNullException.ThrowIfNull(trade);

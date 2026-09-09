@@ -566,6 +566,11 @@ public sealed class ManifestBuilder
                 // reward slots for, disjoint from the shelf's rows.
                 ["slots"] = tradeSlots,
                 ["checks"] = tradeChecks,
+                // The empty-slot text, baked once at these GUIDs. The mod
+                // points a slot at it when the slot has nothing to show, so
+                // a slot that just sold its check stops advertising it.
+                ["empty-name-msg-guid"] = TradeShopPlanner.EmptySlotNameMsgGuid.ToString(),
+                ["empty-caption-msg-guid"] = TradeShopPlanner.EmptySlotCaptionMsgGuid.ToString(),
             };
 
             Log($"Merchant trades {tradePlan.Count} AP check(s) across "

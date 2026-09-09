@@ -1466,6 +1466,11 @@ public sealed class LaunchWorkflowService
                                     name_msg_guid = planned.NameMsgGuid.ToString(),
                                     caption_msg_guid = planned.CaptionMsgGuid.ToString(),
                                 }).ToArray(),
+                                // The empty-slot text the fork baked once; the
+                                // mod points any slot with nothing to show at
+                                // it. Same GUIDs the manifest carries.
+                                empty_name_msg_guid = TradeShopPlanner.EmptySlotNameMsgGuid.ToString(),
+                                empty_caption_msg_guid = TradeShopPlanner.EmptySlotCaptionMsgGuid.ToString(),
                             },
                         enemy_gates = enemyGates,
                     }, new JsonSerializerOptions { WriteIndented = true });
