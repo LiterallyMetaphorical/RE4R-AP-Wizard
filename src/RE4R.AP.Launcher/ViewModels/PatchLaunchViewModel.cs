@@ -298,8 +298,12 @@ public sealed class PatchLaunchViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            var message = $"Patch + launch failed unexpectedly: {ex.Message}";
-            LastFailedStep = WorkflowStep.ValidateSettings;
+            var message = $"Patch + launch failed unexpectedly: {ex.GetType().Name}: {ex.Message}";
+            // Unknown, not ValidateSettings: the real step is unknowable here,
+            // and mislabeling it pre-commit used to bounce the player back to
+            // Session Info even when game files might already have been
+            // touched (2026-08-29 audit).
+            LastFailedStep = WorkflowStep.Unknown;
             LastErrorMessage = message;
             MarkRunningStageFailed();
             Action.ErrorMessage = message;

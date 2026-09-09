@@ -35,6 +35,19 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </Content>
+    <!-- Clean-game cache manifests: path, size and SHA-256 of every file a
+         correct harvest of a clean install produces, one per supported game
+         version. BioRandCacheManifestProvider verifies the cache against
+         these after every setup and (quick pass) before every patch, so
+         missing or modded game data is named at patch time instead of dying
+         later as a bare BioRand exit code. Regenerate with
+         tools/cache_manifest_tool whenever the bundled BioRand's pak list
+         changes or a game title update lands. -->
+    <Content Include="..\..\assets\Data\biorand-cache-manifest-*.txt.gz">
+      <Link>assets\Data\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </Content>
     <!-- Enemy preset curves (Crowd x Roster axes, class multipliers, HP positions,
          possession gates). EnemyConfigurationPresets loads this; retunes are a data
          edit + restage, no rebuild. Design doc: ENEMY_CLASS_DESIGN.md (untracked). -->

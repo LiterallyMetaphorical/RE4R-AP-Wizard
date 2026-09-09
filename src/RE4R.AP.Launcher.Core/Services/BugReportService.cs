@@ -111,7 +111,13 @@ public sealed class BugReportService
     /// even the archive could not be written. Individual missing pieces are
     /// noted in the manifest rather than failing the whole report.
     /// </summary>
-    public string? CreateBugReport(string installPath, string slotName, string launcherVersion, string? payloadVersion = null)
+    public string? CreateBugReport(
+        string installPath,
+        string slotName,
+        string launcherVersion,
+        string? payloadVersion = null,
+        string? gameVersion = null,
+        string? cacheDiagnosis = null)
     {
         try
         {
@@ -202,7 +208,9 @@ public sealed class BugReportService
                 }
 
                 // Manifest last, so it can report what landed.
-                var manifest = BuildManifest(installPath, slotName, launcherVersion, payloadVersion, included, missing);
+                var manifest = BuildManifest(
+                    installPath, slotName, launcherVersion, payloadVersion,
+                    gameVersion, cacheDiagnosis, included, missing);
                 var manifestEntry = archive.CreateEntry("manifest.txt", CompressionLevel.Optimal);
                 using var manifestStream = manifestEntry.Open();
                 using var writer = new StreamWriter(manifestStream, new UTF8Encoding(false));
@@ -224,6 +232,8 @@ public sealed class BugReportService
         string slotName,
         string launcherVersion,
         string? payloadVersion,
+        string? gameVersion,
+        string? cacheDiagnosis,
         IReadOnlyList<string> included,
         IReadOnlyList<string> missing)
     {
@@ -242,7 +252,106 @@ public sealed class BugReportService
         }
         sb.AppendLine($"Slot name: {slotName}");
         sb.AppendLine($"Install path: {installPath}");
+        if (!string.IsNullOrWhiteSpace(gameVersion))
+        {
+            sb.AppendLine($"Game version: {gameVersion}");
+        }
         sb.AppendLine();
+
+        // Pak inventory: the single highest-information support artifact
+        // (three of three 08-2026 cases were called from it). Vanilla ends at
+        // patch_006 for every supported game version; anything above is a mod
+        // or the launcher's own patch, and a GAP in 001-006 means Steam must
+        // re-verify the install.
+        try
+        {
+            var paks = Directory.EnumerateFiles(installPath, "re_chunk_000.pak*", SearchOption.TopDirectoryOnly)
+                .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (paks.Count > 0)
+            {
+                sb.AppendLine("Game pak inventory:");
+                var seenIndexes = new HashSet<int>();
+                foreach (var pak in paks)
+                {
+                    var name = Path.GetFileName(pak);
+                    var size = new FileInfo(pak).Length;
+                    var note = string.Empty;
+                    var match = System.Text.RegularExpressions.Regex.Match(name, @"patch_(\d+)\.pak$");
+                    if (match.Success && int.TryParse(match.Groups[1].Value, out var index))
+                    {
+                        seenIndexes.Add(index);
+                        if (index > 6)
+                        {
+                            note = "  <- beyond patch_006: a mod or the launcher's AP patch, not vanilla";
+                        }
+                    }
+
+                    sb.AppendLine($"  {name,-42} {size,15:N0} bytes{note}");
+                }
+
+                var vanillaGaps = Enumerable.Range(1, 6).Where(i => !seenIndexes.Contains(i)).ToList();
+                if (vanillaGaps.Count > 0)
+                {
+                    sb.AppendLine($"  WARNING: vanilla patch pak(s) missing: {string.Join(", ", vanillaGaps.Select(i => $"patch_{i:000}"))}. "
+                        + "Verify game files in Steam.");
+                }
+
+                sb.AppendLine();
+            }
+        }
+        catch
+        {
+            // Inventory is a nicety; skip on any error.
+        }
+
+        // Cache verdict from the clean-game manifest, when the caller could
+        // compute one. "not checked" is itself information: no manifest for
+        // this game version, or the probe failed.
+        sb.AppendLine("BioRand cache check:");
+        sb.AppendLine($"  {(string.IsNullOrWhiteSpace(cacheDiagnosis) ? "not checked (no bundled manifest for this game version, or the probe failed)" : cacheDiagnosis)}");
+        sb.AppendLine();
+
+        // The last captured BioRand failure, quoted so the zip opens with the
+        // diagnosis instead of a 10 MB scroll to find it.
+        try
+        {
+            var launcherLog = NewestFile(LauncherFileLog.LogDirectoryPath, "launcher-*.log");
+            if (launcherLog != null)
+            {
+                string? lastException = null;
+                string? lastError = null;
+                foreach (var line in File.ReadLines(launcherLog))
+                {
+                    if (line.Contains("[BioRand][stderr] Unhandled exception", StringComparison.Ordinal))
+                    {
+                        lastException = line;
+                    }
+                    else if (line.Contains("[error]", StringComparison.Ordinal))
+                    {
+                        lastError = line;
+                    }
+                }
+
+                if (lastException != null || lastError != null)
+                {
+                    sb.AppendLine("Most recent failure in the launcher log:");
+                    if (lastException != null)
+                    {
+                        sb.AppendLine($"  {lastException.Trim()}");
+                    }
+                    if (lastError != null)
+                    {
+                        sb.AppendLine($"  {lastError.Trim()}");
+                    }
+                    sb.AppendLine();
+                }
+            }
+        }
+        catch
+        {
+            // Triage is a nicety; skip on any error.
+        }
 
         // The stale-patch check that was diagnostic gold for Dizzy: a BioRand
         // patch built against game files Steam later refreshed crashes on

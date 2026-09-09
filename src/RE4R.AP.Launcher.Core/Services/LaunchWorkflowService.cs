@@ -321,9 +321,12 @@ public sealed class LaunchWorkflowService
         }
         catch (Exception ex)
         {
+            // Keep the actual error in the banner: "failed unexpectedly" with
+            // the cause hidden in the log is exactly the generic-message class
+            // that cost three support threads in one week (2026-08-29 audit).
             throw new WorkflowException(
                 WorkflowStep.Unknown,
-                "The launcher workflow failed unexpectedly. Check the log for the last completed step and try again.",
+                $"The launcher workflow failed unexpectedly: {ex.GetType().Name}: {ex.Message} Check the log for the last completed step and try again.",
                 ex);
         }
     }
@@ -420,19 +423,40 @@ public sealed class LaunchWorkflowService
 
         if (setupIsCurrent)
         {
-            // A cache harvested by a pre-shield launcher while a patch pak was
-            // installed passes the settings checks but carries patched files -
-            // generation then crashes on already-patched scenes. Re-verify and
-            // rebuild instead of trusting the bookkeeping.
-            var cachePoisonMessage = _bioRandProcessRunner.VerifyHarvestIsVanilla(request.Re4rInstallPath);
-            if (cachePoisonMessage is null)
+            // Never trust the bookkeeping alone: a cache can be wrong while
+            // its settings flags say current. Proven three ways: harvested
+            // through a patch pak by a pre-shield launcher (2026-07-21),
+            // harvested from an install missing vanilla data (Blue 2026-08-26,
+            // OHMACS 2026-08-28: Steam's verify heals the game but never
+            // re-triggers setup, so the broken cache was reused for an hour of
+            // identical failures). The quick manifest sweep (existence + size
+            // of every file, about a second) catches all of it; game versions
+            // without a bundled manifest keep the four-scene sentinel check.
+            var quickReport = _bioRandProcessRunner.TryQuickVerifyCache(request.GameVersion);
+            if (quickReport is not null)
             {
-                Log("BioRand setup matches the current game fingerprint and BioRand version. Setup does not need to run again.");
-                return null;
-            }
+                if (quickReport.IsClean)
+                {
+                    Log($"BioRand setup matches the current game fingerprint and BioRand version, and the cache passed the quick manifest check ({quickReport.CheckedFileCount} files). Setup does not need to run again.");
+                    return null;
+                }
 
-            Log("The BioRand cache failed the vanilla check - it was probably harvested while a patch pak was installed. Rebuilding it now.");
-            Log(cachePoisonMessage);
+                Log($"The BioRand cache does not match the clean-game manifest: {quickReport.MissingFiles.Count} missing, {quickReport.SizeMismatchedFiles.Count} wrong-sized"
+                    + (quickReport.MissingFiles.Count > 0 ? $" (first missing: {quickReport.MissingFiles[0]})" : string.Empty)
+                    + ". Rebuilding it now.");
+            }
+            else
+            {
+                var cachePoisonMessage = _bioRandProcessRunner.VerifyHarvestIsVanilla(request.Re4rInstallPath);
+                if (cachePoisonMessage is null)
+                {
+                    Log("BioRand setup matches the current game fingerprint and BioRand version. Setup does not need to run again.");
+                    return null;
+                }
+
+                Log("The BioRand cache failed the vanilla check - it was probably harvested while a patch pak was installed. Rebuilding it now.");
+                Log(cachePoisonMessage);
+            }
         }
 
         Log(string.IsNullOrWhiteSpace(settings.SetupGameFingerprint)
@@ -476,6 +500,7 @@ public sealed class LaunchWorkflowService
                     Re4rInstallPath = request.Re4rInstallPath,
                     GameFingerprint = normalizedFingerprint,
                     ApPatchFileNames = ourPatchFileNames,
+                    DetectedGameVersion = request.GameVersion,
                 },
                 cancellationToken);
 

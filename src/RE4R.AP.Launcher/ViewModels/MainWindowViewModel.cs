@@ -1410,7 +1410,9 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
 
         if (!succeeded && PatchLaunch.LastFailedStep is { } failedStep)
         {
-            var friendly = TranslateWorkflowError(failedStep, PatchLaunch.LastErrorMessage);
+            var friendly = PrefixWithFailedArea(
+                failedStep,
+                TranslateWorkflowError(failedStep, PatchLaunch.LastErrorMessage));
             if (IsPreCommitStep(failedStep))
             {
                 // Nothing touched the game yet, so don't strand the player on
@@ -1808,8 +1810,13 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             var version = LauncherUpdateService.GetRunningVersion();
 
             var payloadVersion = _payloadStore.GetEffectivePayload().Stamp?.Payload.ModVersion;
+            var gameVersion = Setup.SelectedGameVersion;
+            // The quick manifest sweep (about a second) sorts the zip into
+            // "game files broken" vs "cache fine" before anyone opens the log.
+            var cacheDiagnosis = await Task.Run(() => DescribeCacheForBugReport(gameVersion));
             var zipPath = await Task.Run(
-                () => _bugReportService.CreateBugReport(installPath, slotName, version, payloadVersion));
+                () => _bugReportService.CreateBugReport(
+                    installPath, slotName, version, payloadVersion, gameVersion, cacheDiagnosis));
 
             if (zipPath == null)
             {
@@ -2505,6 +2512,69 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             });
     }
 
+
+    /// <summary>
+    /// One line for the bug report's "BioRand cache check" section, or null
+    /// when no manifest ships for the game version (the report then says "not
+    /// checked"). Never throws: a diagnostic aid must not break the report.
+    /// </summary>
+    private string? DescribeCacheForBugReport(string? gameVersion)
+    {
+        try
+        {
+            var report = _cacheManager.TryQuickVerifyCache(gameVersion);
+            if (report is null)
+            {
+                return null;
+            }
+
+            if (report.IsClean)
+            {
+                return $"clean: all {report.CheckedFileCount} manifest files present with expected sizes";
+            }
+
+            var first = report.MissingFiles.Count > 0
+                ? report.MissingFiles[0]
+                : report.ModifiedFiles[0];
+            return $"NOT CLEAN: {report.MissingFiles.Count} missing, {report.SizeMismatchedFiles.Count} wrong-sized of {report.CheckedFileCount} manifest files (first: {first}). Game data is damaged or modded; see the repair steps in the launcher's error message.";
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Leads the banner with WHERE the workflow failed ("AP scouting failed.
+    /// ..."), unless the message already names its own area. The classifier
+    /// and the cache verdicts label themselves ("BioRand cache incomplete:
+    /// ..."), so those pass through; everything else gains the step label that
+    /// FormatWorkflowStep always provided but nothing ever displayed.
+    /// </summary>
+    private static string PrefixWithFailedArea(WorkflowStep step, string message)
+    {
+        if (step == WorkflowStep.Unknown || string.IsNullOrWhiteSpace(message))
+        {
+            return message;
+        }
+
+        var selfLabeledPrefixes = new[]
+        {
+            BioRandFailureClassifier.AreaCacheIncomplete,
+            BioRandFailureClassifier.AreaCachePoisoned,
+            BioRandFailureClassifier.AreaOptions,
+            BioRandFailureClassifier.AreaGameFiles,
+            BioRandFailureClassifier.AreaCrash,
+            BioRandFailureClassifier.AreaFailure,
+        };
+        if (selfLabeledPrefixes.Any(prefix => message.StartsWith(prefix + ":", StringComparison.OrdinalIgnoreCase)))
+        {
+            return message;
+        }
+
+        var area = FormatWorkflowStep(step);
+        return $"{char.ToUpperInvariant(area[0])}{area[1..]} failed. {message}";
+    }
 
     private static string FormatWorkflowStep(WorkflowStep step)
     {
