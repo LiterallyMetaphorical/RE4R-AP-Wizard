@@ -1,4 +1,4 @@
-using RE4R.AP.Launcher.Core.Models;
+﻿using RE4R.AP.Launcher.Core.Models;
 using YamlDotNet.Core;
 using YamlDotNet.RepresentationModel;
 
@@ -95,6 +95,17 @@ public sealed class Re4rYamlBuilder
         // Last, so it overwrites whatever the screen put in those rows. Each
         // key keeps the position it already had, so the file's shape does not
         // move about between a campaign slot and an Ada one.
+        // [Content gate, 2026-09-07] A slot with no campaign is not shown the
+        // campaign's settings, so it must not carry them either. The apworld
+        // ignores them for such a slot, but a file listing merchant checks,
+        // typewriters and guidance for a room that has no campaign reads as
+        // though it has them, and the preview panel would show a player
+        // fourteen keys they were never asked about.
+        if (IsMercenariesOnly(request))
+        {
+            RemoveTheOptionsWithoutACampaign(gameOptions);
+        }
+
         if (request.IncludeSeparateWays)
         {
             WriteOffTheOptionsSeparateWaysLacks(gameOptions);
@@ -145,6 +156,41 @@ public sealed class Re4rYamlBuilder
             names.Add("Mercenaries");
         }
         return names;
+    }
+
+    /// <summary>
+    /// Everything that only means something with a campaign in the slot. A
+    /// Mercenaries-only slot has no world to place them in: no merchant, no
+    /// typewriters, no world markers, no chapters to gate, and no campaign to
+    /// patch at a difficulty. Removed rather than written off, because absent
+    /// is what "this slot does not have one" actually looks like, and the
+    /// apworld's own defaults then apply.
+    /// </summary>
+    private static readonly string[] CampaignOnlyOptionKeys =
+    [
+        "difficulty",
+        "check_guidance",
+        "marker_detail",
+        "allow_missable_locations",
+        "shuffle_keycards",
+        "shuffle_merchant_gear",
+        "starting_arsenal",
+        "starting_arsenal_types",
+        "random_weapon_stats",
+        "minimize_backtracking",
+        "random_events",
+        "merchant_checks_per_chapter",
+        "merchant_checks",
+        "trade_checks_per_chapter",
+        "unlocked_typewriters",
+    ];
+
+    private static void RemoveTheOptionsWithoutACampaign(YamlMappingNode gameOptions)
+    {
+        foreach (var key in CampaignOnlyOptionKeys)
+        {
+            gameOptions.Children.Remove(new YamlScalarNode(key));
+        }
     }
 
     private static bool IsMercenariesOnly(Re4rYamlRequest request) =>

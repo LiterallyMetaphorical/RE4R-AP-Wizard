@@ -17,6 +17,16 @@ namespace RE4R.AP.Launcher.ViewModels;
 /// without touching any hosting machinery. Works standalone: it needs no
 /// game install, no room, and no network.
 /// </summary>
+/// <summary>Which half of the settings editor is on screen.</summary>
+public enum YamlEditorPage
+{
+    /// <summary>What are you playing: slot name, content, and difficulty when a campaign is in.</summary>
+    Content = 1,
+
+    /// <summary>The settings, shaped by the content chosen on page 1.</summary>
+    Settings = 2,
+}
+
 public sealed class ConfigureYamlViewModel : ObservableObject
 {
     private readonly Re4rYamlBuilder _re4rYamlBuilder;
@@ -65,10 +75,16 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     private int _tradeChecksPerChapter = 3;
     private bool _tradeChecksEnabled = true;
     private bool _merchantChecksEnabled = true;
+    private YamlEditorPage _currentPage = YamlEditorPage.Content;
+    private readonly int _campaignLocationCount;
+    private readonly int _separateWaysLocationCount;
+    private readonly int _mercenariesCheckCount;
     private bool _includeMainCampaign = true;
     private bool _includeMercenaries;
     private bool _includeSeparateWays;
     private bool _separateWaysUnlocked;
+    private readonly RelayCommand _continueToSettingsCommand;
+    private readonly RelayCommand _backToContentCommand;
     // 0.7.6: Ranks as Checks is a range over the ladder below, held as indexes
     // so the two slider markers can bind straight to them.
     private int _mercenariesRankFloorIndex;
@@ -91,6 +107,10 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         _re4rYamlBuilder = re4rYamlBuilder ?? throw new ArgumentNullException(nameof(re4rYamlBuilder));
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
         _action = action ?? throw new ArgumentNullException(nameof(action));
+        _continueToSettingsCommand = new RelayCommand(
+            () => CurrentPage = YamlEditorPage.Settings, () => CanContinue);
+        _backToContentCommand = new RelayCommand(
+            () => CurrentPage = YamlEditorPage.Content);
         _draftStore = draftStore ?? throw new ArgumentNullException(nameof(draftStore));
 
         _saveYamlCommand = new AsyncRelayCommand(SaveYamlAsync, CanUseYaml);
@@ -115,6 +135,15 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         // picker with a stance per row rather than two lists that could
         // contradict each other.
         var staticData = new StaticGameDataProvider().TryLoad();
+        // The content tiles say what each piece is worth. Counted from the
+        // bundled data, never written into the copy: the world moved from 456
+        // to 646 locations the day Ada's were added, and a hardcoded number
+        // would have gone quietly wrong (2026-09-07).
+        _campaignLocationCount =
+            staticData?.Locations.Values.Count(location => !location.IsSeparateWays) ?? 0;
+        _separateWaysLocationCount =
+            staticData?.Locations.Values.Count(location => location.IsSeparateWays) ?? 0;
+        _mercenariesCheckCount = staticData?.Counts.Mercenaries ?? 0;
         ItemSelection = new YamlSelectionListViewModel(
             "Items",
             "Anywhere",
@@ -650,10 +679,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
                 {
                     IncludeSeparateWays = false;
                 }
-                OnPropertyChanged(nameof(HasIncludedContentError));
-                OnPropertyChanged(nameof(CanContinue));
-                RebuildYamlPreview();
-                QueueDraftSave();
+                RaiseContentChanged();
             }
         }
     }
@@ -676,10 +702,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
                 {
                     IncludeMainCampaign = false;
                 }
-                OnPropertyChanged(nameof(HasIncludedContentError));
-                OnPropertyChanged(nameof(CanContinue));
-                RebuildYamlPreview();
-                QueueDraftSave();
+                RaiseContentChanged();
             }
         }
     }
@@ -702,7 +725,11 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     }
 
     public string SeparateWaysNote => _separateWaysUnlocked
-        ? "Unlocked for testing. A room generates, but no build can patch it yet."
+        // Stale as of 2026-09-07: Ada generates, patches and plays now. She is
+        // held out of the release because she has no typewriter warps and no
+        // merchant, and the apworld refuses the content without
+        // RE4R_AP_ALLOW_SEPARATE_WAYS set.
+        ? "Unlocked for testing. Generating also needs RE4R_AP_ALLOW_SEPARATE_WAYS set."
         : "[Coming Soon]";
 
     public bool IncludeMercenaries
@@ -712,12 +739,121 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         {
             if (SetProperty(ref _includeMercenaries, value))
             {
-                OnPropertyChanged(nameof(HasIncludedContentError));
-                OnPropertyChanged(nameof(CanContinue));
-                RebuildYamlPreview();
-                QueueDraftSave();
+                RaiseContentChanged();
             }
         }
+    }
+
+    // [Content gate, 2026-09-07] The editor asks what you are playing before
+    // it draws the settings for it. Cam, 2026-09-06: the screen "may show them
+    // like a dozen unrelated options, probably more once we add Separate
+    // Ways". Counted properly a Mercenaries-only player was shown eleven
+    // controls that do nothing, plus a location picker offering 456 campaign
+    // spots their slot does not hold.
+    //
+    // Both pages live INSIDE the editor, so organizer step 3 is still the
+    // editor from the outside and the standalone settings entry gets the same
+    // gate. Page 2 keeps the content editable, so page 1 traps nobody.
+    public YamlEditorPage CurrentPage
+    {
+        get => _currentPage;
+        private set
+        {
+            if (SetProperty(ref _currentPage, value))
+            {
+                OnPropertyChanged(nameof(IsOnContentPage));
+                OnPropertyChanged(nameof(IsOnSettingsPage));
+                RebuildFooter();
+            }
+        }
+    }
+
+    public bool IsOnContentPage => _currentPage == YamlEditorPage.Content;
+
+    public bool IsOnSettingsPage => _currentPage == YamlEditorPage.Settings;
+
+    /// <summary>
+    /// Page 1 to page 2. Gated on the same rule as the footer's Continue, so
+    /// nobody reaches the settings without a usable slot name and some
+    /// content to configure.
+    /// </summary>
+    public ICommand ContinueToSettingsCommand => _continueToSettingsCommand;
+
+    /// <summary>Back to page 1, for a player who wants to change what they are playing.</summary>
+    public ICommand BackToContentCommand => _backToContentCommand;
+
+    /// <summary>
+    /// A campaign is in. Everything the campaign owns - the merchant, the
+    /// trade tab, guidance, typewriters, keycards, backtracking, missables,
+    /// Random Events, the starting arsenal - hangs off this.
+    /// </summary>
+    public bool CampaignIncluded => _includeMainCampaign || _includeSeparateWays;
+
+    /// <summary>The slot is nothing but Mercenaries ranks.</summary>
+    public bool MercenariesOnly => _includeMercenaries && !CampaignIncluded;
+
+    /// <summary>
+    /// What each content tile is worth, straight out of the bundled static
+    /// data rather than written into the copy, so the numbers cannot drift
+    /// away from the world the launcher actually ships.
+    /// </summary>
+    public string MainCampaignCheckCount => _campaignLocationCount > 0
+        ? $"{_campaignLocationCount} checks" : "the campaign's checks";
+
+    public string SeparateWaysCheckCount => _separateWaysLocationCount > 0
+        ? $"{_separateWaysLocationCount} checks" : "Ada's checks";
+
+    public string MercenariesCheckCount => _mercenariesCheckCount > 0
+        ? $"up to {_mercenariesCheckCount} checks" : "the mode's rank checks";
+
+    /// <summary>The running total under the tiles, so the page answers "what do I get".</summary>
+    public string IncludedContentTotal
+    {
+        get
+        {
+            if (HasIncludedContentError)
+            {
+                return "Pick at least one to carry on.";
+            }
+            var total = 0;
+            if (_includeMainCampaign) total += _campaignLocationCount;
+            if (_includeSeparateWays) total += _separateWaysLocationCount;
+            if (_includeMercenaries) total += _mercenariesCheckCount;
+            return total > 0
+                ? $"Your slot holds up to {total} checks."
+                : "Your slot's checks are counted when the room generates.";
+        }
+    }
+
+    /// <summary>What page 2 shows at the top, so the choice stays visible.</summary>
+    public string IncludedContentSummary
+    {
+        get
+        {
+            var parts = new List<string>();
+            if (_includeMainCampaign) parts.Add("Main Campaign");
+            if (_includeSeparateWays) parts.Add("Separate Ways");
+            if (_includeMercenaries) parts.Add("The Mercenaries");
+            return parts.Count == 0 ? "Nothing selected" : string.Join(" + ", parts);
+        }
+    }
+
+    /// <summary>
+    /// Everything that reads the content. One place, because a band that
+    /// forgets to refresh does not throw - it just keeps showing options the
+    /// slot no longer has, which is the bug this whole gate exists to stop.
+    /// </summary>
+    private void RaiseContentChanged()
+    {
+        OnPropertyChanged(nameof(HasIncludedContentError));
+        OnPropertyChanged(nameof(CanContinue));
+        OnPropertyChanged(nameof(CampaignIncluded));
+        OnPropertyChanged(nameof(MercenariesOnly));
+        OnPropertyChanged(nameof(IncludedContentSummary));
+        OnPropertyChanged(nameof(IncludedContentTotal));
+        _continueToSettingsCommand.NotifyCanExecuteChanged();
+        RebuildYamlPreview();
+        QueueDraftSave();
     }
 
     public bool HasIncludedContentError =>
@@ -944,7 +1080,21 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     private void RebuildFooter()
     {
         FooterButtons.Clear();
-        FooterButtons.Add(new FooterButtonViewModel("Back", BackToLandingCommand));
+
+        // [Content gate] Page 1 has no file to save or copy yet, and its
+        // Continue goes to page 2 rather than out of the editor. Every screen
+        // in this app navigates from the footer, so the gate does too.
+        if (_currentPage == YamlEditorPage.Content)
+        {
+            FooterButtons.Add(new FooterButtonViewModel("Back", BackToLandingCommand));
+            FooterButtons.Add(new FooterButtonViewModel(
+                "Continue", ContinueToSettingsCommand, isPrimary: true));
+            return;
+        }
+
+        // Back returns to the content question, not out of the editor: leaving
+        // is then two presses, which is the right shape for a two-page step.
+        FooterButtons.Add(new FooterButtonViewModel("Back", BackToContentCommand));
         FooterButtons.Add(new FooterButtonViewModel("Save to File...", SaveYamlCommand));
         FooterButtons.Add(new FooterButtonViewModel("Copy to Clipboard", CopyYamlCommand));
         // Both roles get Continue. The organizer's command (wired by the
@@ -1189,6 +1339,19 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             var legacy = draft.LegacyGameMode.Trim().ToLowerInvariant().Replace(' ', '_');
             IncludeMercenaries = legacy.Contains("mercenaries", StringComparison.Ordinal);
             IncludeMainCampaign = !legacy.StartsWith("mercenaries_only", StringComparison.Ordinal);
+        }
+        // A returning player who ANSWERED page 1 does not get asked again: land
+        // on the settings with the content shown compact at the top.
+        //
+        // Answered means both halves. Checking the content alone skipped the
+        // gate for a draft carrying a content default and no slot name, which
+        // dropped the player on a settings page whose Continue could never
+        // light up and hid the one field that would fix it (Cam, live
+        // 2026-09-07, first run of this build). CanContinue is the same gate
+        // page 1's own Continue uses, so the two cannot disagree.
+        if (CanContinue)
+        {
+            CurrentPage = YamlEditorPage.Settings;
         }
         MercenariesRankCeilingIndex = MercenariesRankIndexFor(draft.MercenariesRankCeiling, 2);
         MercenariesRankFloorIndex = MercenariesRankIndexFor(draft.MercenariesRankFloor, 0);
@@ -1456,6 +1619,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         _copyYamlCommand.NotifyCanExecuteChanged();
         // The shell watches CanContinue to gate the footer's Continue.
         OnPropertyChanged(nameof(CanContinue));
+        _continueToSettingsCommand.NotifyCanExecuteChanged();
     }
 
     private static int SoftSnapProgressionBalancing(int value)

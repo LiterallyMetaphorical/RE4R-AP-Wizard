@@ -226,6 +226,70 @@
         </Style>
 
         <!-- The two landing doors: equal size, equal weight, icon + one line. -->
+        <!-- [Content gate] A content tile: a big pressable card that reads as
+             a choice rather than a form field. Checkboxes in a narrow card
+             wasted most of a wide window and made three top-level decisions
+             look like three minor ones (Cam, 2026-09-07). Selected state is
+             the accent border plus a tint, so the choice is legible at a
+             glance across the row. -->
+        <Style x:Key="ContentTileStyle" TargetType="ToggleButton">
+            <Setter Property="Width" Value="290" />
+            <Setter Property="MinHeight" Value="150" />
+            <Setter Property="Margin" Value="0,0,14,14" />
+            <Setter Property="Padding" Value="18,16" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Shell"
+                                Background="{DynamicResource SurfaceBrush}"
+                                BorderBrush="{DynamicResource SubtleBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="10"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Stretch"
+                                              VerticalAlignment="Stretch" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Shell" Property="BorderBrush"
+                                        Value="{DynamicResource AccentBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Shell" Property="BorderBrush"
+                                        Value="{DynamicResource AccentBrush}" />
+                                <Setter TargetName="Shell" Property="BorderThickness" Value="2" />
+                                <Setter TargetName="Shell" Property="Background"
+                                        Value="{DynamicResource SurfaceAltBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Shell" Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ContentTileTitleStyle" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="FontSize" Value="17" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+
+        <Style x:Key="ContentTileBodyStyle" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="Margin" Value="0,6,0,0" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Foreground" Value="{DynamicResource SubtleTextBrush}" />
+        </Style>
+
+        <Style x:Key="ContentTileCountStyle" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="Margin" Value="0,10,0,0" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+        </Style>
+
         <Style x:Key="LandingCardStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Padding" Value="18,16" />
             <Setter Property="Margin" Value="0,0,14,0" />
@@ -740,12 +804,159 @@
                                Text="{Binding HeaderDescription}" />
                 </StackPanel>
 
+            <!-- [Content gate] Page 1: what are you playing. The settings
+                 page below is shaped by this, so it is asked first rather
+                 than shown as one card among a dozen that do not apply
+                 (Cam, 2026-09-06). A saved draft skips straight past this. -->
+            <Grid Grid.Row="4"
+                  Visibility="{Binding IsOnContentPage, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <StackPanel>
+                    <Border Style="{StaticResource SettingsSectionRuleStyle}">
+                        <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
+                                   Text="WHAT ARE YOU PLAYING" />
+                    </Border>
+                    <WrapPanel MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}, Converter={StaticResource ColumnSnapConverter}, ConverterParameter=550}">
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Slot Name" />
+                            <TextBox Text="{Binding SlotName, UpdateSourceTrigger=PropertyChanged}"
+                                     MaxLength="32" />
+                            <TextBlock Margin="0,4,0,0"
+                                       Foreground="{DynamicResource DangerTextBrush}"
+                                       TextWrapping="Wrap"
+                                       Visibility="{Binding HasSlotNameError, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                       Text="{Binding SlotNameError}" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Your in-game player name (16 characters max). You'll type this exact name when joining - capitalization matters." />
+                        </StackPanel>
+                    </WrapPanel>
+                    <Border Style="{StaticResource SettingsSectionRuleStyle}">
+                        <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
+                                   Text="INCLUDED CONTENT" />
+                    </Border>
+                    <StackPanel>
+                        <TextBlock Margin="0,0,0,12"
+                                   Foreground="{DynamicResource SubtleTextBrush}"
+                                   TextWrapping="Wrap"
+                                   Text="Pick what this slot plays. The next page only shows the settings your choice actually uses." />
+                        <WrapPanel>
+                            <ToggleButton Style="{StaticResource ContentTileStyle}"
+                                          IsChecked="{Binding IncludeMainCampaign}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Right"
+                                                   FontSize="17"
+                                                   FontWeight="Bold"
+                                                   Foreground="{DynamicResource AccentBrush}"
+                                                   Visibility="{Binding IncludeMainCampaign, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                   Text="&#x2714;" />
+                                        <TextBlock Style="{StaticResource ContentTileTitleStyle}"
+                                                   Text="Main Campaign" />
+                                    </DockPanel>
+                                    <TextBlock Grid.Row="1"
+                                               Style="{StaticResource ContentTileBodyStyle}"
+                                               Text="Leon's story, randomized by BioRand. Every pickup, the merchant and the trade tab become multiworld checks." />
+                                    <TextBlock Grid.Row="2"
+                                               Style="{StaticResource ContentTileCountStyle}"
+                                               Text="{Binding MainCampaignCheckCount}" />
+                                </Grid>
+                            </ToggleButton>
+                            <ToggleButton Style="{StaticResource ContentTileStyle}"
+                                          IsChecked="{Binding IncludeMercenaries}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Right"
+                                                   FontSize="17"
+                                                   FontWeight="Bold"
+                                                   Foreground="{DynamicResource AccentBrush}"
+                                                   Visibility="{Binding IncludeMercenaries, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                   Text="&#x2714;" />
+                                        <TextBlock Style="{StaticResource ContentTileTitleStyle}"
+                                                   Text="The Mercenaries" />
+                                    </DockPanel>
+                                    <TextBlock Grid.Row="1"
+                                               Style="{StaticResource ContentTileBodyStyle}"
+                                               Text="The mode's ranks become checks, and its characters and stages become items you have to be sent. Plays alone or alongside a campaign." />
+                                    <TextBlock Grid.Row="2"
+                                               Style="{StaticResource ContentTileCountStyle}"
+                                               Text="{Binding MercenariesCheckCount}" />
+                                </Grid>
+                            </ToggleButton>
+                            <ToggleButton Style="{StaticResource ContentTileStyle}"
+                                          IsChecked="{Binding IncludeSeparateWays}"
+                                      IsEnabled="{Binding SeparateWaysUnlocked}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Right"
+                                                   FontSize="17"
+                                                   FontWeight="Bold"
+                                                   Foreground="{DynamicResource AccentBrush}"
+                                                   Visibility="{Binding IncludeSeparateWays, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                   Text="&#x2714;" />
+                                        <TextBlock Style="{StaticResource ContentTileTitleStyle}"
+                                                   Text="Separate Ways" />
+                                    </DockPanel>
+                                    <TextBlock Grid.Row="1"
+                                               Style="{StaticResource ContentTileBodyStyle}"
+                                               Text="Ada's campaign, seven chapters. Plays instead of Main Campaign, since a room patches one campaign." />
+                                    <TextBlock Grid.Row="2"
+                                               Style="{StaticResource ContentTileCountStyle}"
+                                               Text="{Binding SeparateWaysCheckCount}" />
+                                    <TextBlock Grid.Row="2"
+                                               HorizontalAlignment="Right"
+                                               VerticalAlignment="Bottom"
+                                               Opacity="0.6"
+                                               Text="{Binding SeparateWaysNote}" />
+                                </Grid>
+                            </ToggleButton>
+                        </WrapPanel>
+                        <TextBlock Margin="0,4,0,0"
+                                   FontWeight="SemiBold"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding IncludedContentTotal}" />
+                        <TextBlock Margin="0,6,0,0"
+                                   Foreground="{DynamicResource DangerTextBrush}"
+                                   TextWrapping="Wrap"
+                                   Visibility="{Binding HasIncludedContentError, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                   Text="{Binding IncludedContentError}" />
+                    </StackPanel>
+                    <WrapPanel>
+                        <StackPanel Style="{StaticResource OptionCardStyle}"
+                                    Visibility="{Binding CampaignIncluded, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Difficulty" />
+                            <ListBox ItemsSource="{Binding DifficultyOptions}"
+                                     SelectedItem="{Binding SelectedDifficulty, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource SegmentedPickerStyle}" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="The difficulty you'll actually play. Hardcore and Professional remove the few spots that can't be collected there, so this needs to match your save. Don't change difficulty mid-run either: moving up to Hardcore can strand an item in a spot you're no longer able to pick up." />
+                        </StackPanel>
+                    </WrapPanel>
+                </StackPanel>
+            </Grid>
+
             <!-- Two columns: settings on the left, the file preview and its
                  actions parked on the right. The page was a single narrow
                  list with the preview stacked underneath, which wasted half
                  the window and pushed the buttons off-screen (Cam
                  2026-07-31). -->
-            <Grid Grid.Row="4">
+            <Grid Grid.Row="4"
+                  Visibility="{Binding IsOnSettingsPage, Converter={StaticResource BooleanToVisibilityConverter}}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
@@ -776,38 +987,24 @@
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="Your in-game player name (16 characters max). You'll type this exact name when joining - capitalization matters." />
                         </StackPanel>
+<!-- The choice stays visible and changeable, so page 1 traps
+                             nobody: Change goes back to it. -->
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="Included Content" />
-                            <CheckBox Margin="0,4,0,0"
-                                      IsChecked="{Binding IncludeMainCampaign}"
-                                      Content="Main Campaign" />
-                            <CheckBox Margin="0,4,0,0"
-                                      IsChecked="{Binding IncludeMercenaries}"
-                                      Content="Mercenaries" />
-                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                <!-- Live only when settings.json sets
-                                     unlock_separate_ways. The note beside it
-                                     says what an unlocked room cannot do, so
-                                     nobody reads the tick as "it works". -->
-                                <CheckBox IsEnabled="{Binding SeparateWaysUnlocked}"
-                                          IsChecked="{Binding IncludeSeparateWays}"
-                                          Content="Separate Ways" />
-                                <TextBlock Margin="8,0,0,0"
-                                           VerticalAlignment="Center"
-                                           Opacity="0.6"
-                                           TextWrapping="Wrap"
-                                           Text="{Binding SeparateWaysNote}" />
-                            </StackPanel>
                             <TextBlock Margin="0,4,0,0"
-                                       Foreground="{DynamicResource DangerTextBrush}"
+                                       FontWeight="SemiBold"
                                        TextWrapping="Wrap"
-                                       Visibility="{Binding HasIncludedContentError, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                       Text="{Binding IncludedContentError}" />
+                                       Text="{Binding IncludedContentSummary}" />
+                            <Button Margin="0,8,0,0"
+                                    HorizontalAlignment="Left"
+                                    Command="{Binding BackToContentCommand}"
+                                    Content="Change" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="The included content for your RE4R AP seed. Main Campaign is Leon's story with BioRand. Mercenaries turns the mode's ranks into checks and its characters and stages into items, on its own or alongside the campaign. A Mercenaries-only slot needs no campaign patch." />
+                                       Text="What this slot plays. Everything below is shaped by it: a slot with no campaign is not shown the merchant, guidance, typewriters or the rest of Leon's settings, because they would do nothing." />
                         </StackPanel>
-                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                        <StackPanel Style="{StaticResource OptionCardStyle}"
+                                    Visibility="{Binding CampaignIncluded, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="Difficulty" />
                             <ListBox ItemsSource="{Binding DifficultyOptions}"
@@ -847,11 +1044,13 @@
                                        Text="When enabled, allows Progression items to be held in Ranks up to Rank A. When off, every Rank is restricted to Useful &amp; Filler only." />
                         </StackPanel>
                     </WrapPanel>
-                    <Border Style="{StaticResource SettingsSectionRuleStyle}">
+                    <Border Style="{StaticResource SettingsSectionRuleStyle}"
+                            Visibility="{Binding CampaignIncluded, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
                                    Text="THE MERCHANT" />
                     </Border>
-                    <WrapPanel MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}, Converter={StaticResource ColumnSnapConverter}, ConverterParameter=550}">
+                    <WrapPanel MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}, Converter={StaticResource ColumnSnapConverter}, ConverterParameter=550}"
+                               Visibility="{Binding CampaignIncluded, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="Merchant Checks" />
@@ -961,21 +1160,24 @@
                                    Text="WHERE THINGS END UP" />
                     </Border>
                     <WrapPanel MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}, Converter={StaticResource ColumnSnapConverter}, ConverterParameter=550}">
-                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                        <StackPanel Style="{StaticResource OptionCardStyle}"
+                                    Visibility="{Binding CampaignIncluded, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <CheckBox Style="{StaticResource OptionCardCheckTitleStyle}"
                                       IsChecked="{Binding AllowMissableLocations}"
                                       Content="Allow Missable Locations" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="Off by default, which keeps progression items away from spots you can permanently lose: ones you can walk past for good, and small-key drawers (a discarded Small Key can seal one). On allows them in both - riskier seeds." />
                         </StackPanel>
-                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                        <StackPanel Style="{StaticResource OptionCardStyle}"
+                                    Visibility="{Binding CampaignIncluded, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <CheckBox Style="{StaticResource OptionCardCheckTitleStyle}"
                                       IsChecked="{Binding MinimizeBacktracking}"
                                       Content="Minimize Backtracking" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="Keeps the important checks along the main path - all three Hexagon pieces are guaranteed before leaving the Fish Farm so the lake altar solves in one boat pass, and the optional excursions (Forest Altar, the chapter 12 Throne Room revisit, the lake's egg-nest islet) only ever hold plain filler. Off: the softer deadlines apply and side areas can hold anything." />
                         </StackPanel>
-                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                        <StackPanel Style="{StaticResource OptionCardStyle}"
+                                    Visibility="{Binding CampaignIncluded, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <CheckBox Style="{StaticResource OptionCardCheckTitleStyle}"
                                       IsChecked="{Binding ShuffleKeycards}"
                                       Content="Shuffle Keycards" />
@@ -1097,11 +1299,13 @@
                                        Text="{Binding DataContext.LocationSelectionHint, RelativeSource={RelativeSource AncestorType=Window}}" />
                         </StackPanel>
                     </WrapPanel>
-                    <Border Style="{StaticResource SettingsSectionRuleStyle}">
+                    <Border Style="{StaticResource SettingsSectionRuleStyle}"
+                            Visibility="{Binding CampaignIncluded, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
                                    Text="HELP WHILE YOU PLAY" />
                     </Border>
-                    <WrapPanel MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}, Converter={StaticResource ColumnSnapConverter}, ConverterParameter=550}">
+                    <WrapPanel MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}, Converter={StaticResource ColumnSnapConverter}, ConverterParameter=550}"
+                               Visibility="{Binding CampaignIncluded, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="Check Guidance" />
@@ -1158,7 +1362,8 @@
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="Dying sends a death to all Death Link players, and theirs kill you." />
                         </StackPanel>
-                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                        <StackPanel Style="{StaticResource OptionCardStyle}"
+                                    Visibility="{Binding CampaignIncluded, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <CheckBox Style="{StaticResource OptionCardCheckTitleStyle}"
                                       IsChecked="{Binding RandomEvents}"
                                       Content="Random Events (Experimental)" />

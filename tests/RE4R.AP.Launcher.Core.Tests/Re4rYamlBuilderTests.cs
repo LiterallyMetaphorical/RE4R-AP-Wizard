@@ -1,4 +1,4 @@
-using RE4R.AP.Launcher.Core.Models;
+﻿using RE4R.AP.Launcher.Core.Models;
 using RE4R.AP.Launcher.Core.Services;
 using Xunit;
 using YamlDotNet.RepresentationModel;
@@ -337,5 +337,91 @@ public sealed class Re4rYamlBuilderTests
         Assert.Equal("3", Scalar(options, "merchant_checks_per_chapter"));
         Assert.Equal("true", Scalar(options, "shuffle_merchant_gear"));
         Assert.Equal("2", Scalar(options, "starting_arsenal"));
+    }
+
+    // [Content gate, 2026-09-07] The settings screen stopped showing a slot
+    // the options its content cannot use, so the file must stop carrying them
+    // too. Cam, 2026-09-06: a Mercenaries-only player was shown eleven
+    // controls that do nothing.
+    private static readonly string[] CampaignOnlyKeys =
+    [
+        "difficulty", "check_guidance", "marker_detail", "allow_missable_locations",
+        "shuffle_keycards", "shuffle_merchant_gear", "starting_arsenal",
+        "random_weapon_stats", "minimize_backtracking", "random_events",
+        "merchant_checks_per_chapter", "merchant_checks", "trade_checks_per_chapter",
+        "unlocked_typewriters",
+    ];
+
+    [Fact]
+    public void AMercenariesOnlySlotCarriesNoneOfTheCampaignsOptions()
+    {
+        var options = GameOptions(Builder.Build(Request(r =>
+        {
+            r.IncludeMainCampaign = false;
+            r.IncludeMercenaries = true;
+        })));
+
+        foreach (var key in CampaignOnlyKeys)
+        {
+            Assert.False(
+                options.Children.ContainsKey(new YamlScalarNode(key)),
+                $"a Mercenaries-only slot should not carry '{key}'");
+        }
+    }
+
+    [Fact]
+    public void AMercenariesOnlySlotKeepsWhatItsRanksActuallyUse()
+    {
+        var options = GameOptions(Builder.Build(Request(r =>
+        {
+            r.IncludeMainCampaign = false;
+            r.IncludeMercenaries = true;
+        })));
+
+        Assert.Equal(new[] { "Mercenaries" }, Sequence(options, "included_content"));
+        Assert.Equal("c", Scalar(options, "mercenaries_rank_floor"));
+        Assert.Equal("a", Scalar(options, "mercenaries_rank_ceiling"));
+        // Its ranks are the slot's only progression, so this is forced on.
+        Assert.Equal("true", Scalar(options, "mercenaries_progression"));
+        // Not campaign-owned: these belong to any slot at all.
+        Assert.True(options.Children.ContainsKey(new YamlScalarNode("progression_balancing")));
+        Assert.True(options.Children.ContainsKey(new YamlScalarNode("death_link")));
+    }
+
+    [Fact]
+    public void ACampaignSlotStillCarriesEveryCampaignOption()
+    {
+        // The trim must key on the CONTENT, not on the options themselves: a
+        // campaign slot that happens to have the merchant switched off still
+        // has a merchant to switch off.
+        var options = GameOptions(Builder.Build(Request(r =>
+        {
+            r.IncludeMercenaries = true;
+            r.MerchantChecksPerChapter = 0;
+            r.RandomEvents = false;
+        })));
+
+        foreach (var key in CampaignOnlyKeys)
+        {
+            Assert.True(
+                options.Children.ContainsKey(new YamlScalarNode(key)),
+                $"a campaign slot should still carry '{key}'");
+        }
+    }
+
+    [Fact]
+    public void ASeparateWaysSlotKeepsItsKeysWrittenOffRatherThanRemoved()
+    {
+        // Ada HAS a campaign, so the keys stay and are written off. Removing
+        // them would read as "not applicable" when the truth is "not yet".
+        var options = GameOptions(Builder.Build(Request(r =>
+        {
+            r.IncludeMainCampaign = false;
+            r.IncludeSeparateWays = true;
+        })));
+
+        Assert.True(options.Children.ContainsKey(new YamlScalarNode("merchant_checks_per_chapter")));
+        Assert.Equal("0", Scalar(options, "merchant_checks_per_chapter"));
+        Assert.True(options.Children.ContainsKey(new YamlScalarNode("difficulty")));
     }
 }
