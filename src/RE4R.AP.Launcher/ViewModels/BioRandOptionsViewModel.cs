@@ -1074,10 +1074,6 @@ public sealed class BioRandOptionsViewModel : ObservableObject
             UpdateModeState();
         }
 
-        if (string.Equals(item.Key, "allow-bonus-items", StringComparison.Ordinal) && item.BoolValue)
-        {
-            ConfirmBonusWeaponsOrRevert(item);
-        }
         if (string.Equals(item.Key, "random-inventory", StringComparison.Ordinal))
         {
             ApplyStartingKitOverlapNote();
@@ -1104,38 +1100,6 @@ public sealed class BioRandOptionsViewModel : ObservableObject
         if (EnemyConfigurationPresets.MendezPoolKeys.Contains(item.Key, StringComparer.Ordinal))
         {
             OnPropertyChanged(nameof(ExcludeDifficultMendezEncounters));
-        }
-    }
-
-    /// <summary>
-    /// Set by the shell: confirms the bonus-weapons force-unlock when the
-    /// player switches allow-bonus-items on. Returning false vetoes the switch.
-    /// </summary>
-    public Func<Task<bool>>? ConfirmBonusWeaponsUnlockAsync { get; set; }
-
-    private async void ConfirmBonusWeaponsOrRevert(BioRandOptionItemViewModel item)
-    {
-        var confirm = ConfirmBonusWeaponsUnlockAsync;
-        if (confirm == null)
-        {
-            return;
-        }
-
-        try
-        {
-            // Yield first: a modal opened inside a checkbox's property-change
-            // notification never shows (same dance as the Random Events
-            // warning on the YAML screen).
-            await Task.Yield();
-            if (!await confirm())
-            {
-                item.LoadValue(System.Text.Json.Nodes.JsonValue.Create(false));
-            }
-        }
-        catch
-        {
-            // Fail closed: no answer means no force-unlock.
-            item.LoadValue(System.Text.Json.Nodes.JsonValue.Create(false));
         }
     }
 

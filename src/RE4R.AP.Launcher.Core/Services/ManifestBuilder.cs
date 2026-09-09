@@ -383,6 +383,9 @@ public sealed class ManifestBuilder
         root["skip-ashley-section"] = false;
         root["ap-mode"] = true;
         root["ap-placements"] = placementObject;
+        // The bonus weapons are pool items in every AP room; BioRand must not
+        // place its own copies of them (2026-09-05, the consent option is gone).
+        root["allow-bonus-items"] = false;
 
         // 3. Random Events is AP-locked too: the multiworld already rolled the event set at
         //    generation time (or declined to), so the room decides, never this machine. When the

@@ -100,7 +100,7 @@ gates logic, so a seed can always be finished with what the world hands you.
 The case sizes and the knives are progressive: each Progressive Attache Case
 you receive is the next size up from the one you carry, and each Progressive
 Knife is the next knife you do not own, the Fighting Knife first and then the
-Primal (which only enters the pool with Bonus Weapons on). Order of arrival
+Primal. Order of arrival
 never matters, and none of them is ever wasted.
 
 Consumable supplies stay: herbs, first aid, resources, gunpowder and grenades

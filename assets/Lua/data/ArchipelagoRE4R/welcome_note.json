@@ -46,14 +46,16 @@
         "Unless disabled, you start with 2 random weapons as your Starting Arsenal,",
         "drawn from up to 23 guns: the Merchant's original stock, the three guns found",
         "in the world, the Deluxe and Separate Ways guns that work in Leon's campaign,",
-        "and the Bonus Weapons if enabled. The guns you start with leave the AP pool;",
-        "the rest are scattered amongst the Multiworld. Your starting guns can also",
-        "spawn with attachments. A scope-supported gun starts with its scope 100% of",
-        "the time, and every other gun has a 50% chance of one compatible attachment.",
+        "and the Bonus Weapons (Handcannon and Chicago Sweeper). The guns you start",
+        "with leave the AP pool; the rest are scattered amongst the Multiworld. Your",
+        "starting guns can also spawn with attachments. A scope-supported gun starts",
+        "with its scope 100% of the time, and every other gun has a 50% chance of one",
+        "compatible attachment.",
         "",
-        "Bonus Weapons (Handcannon, Chicago Sweeper, Primal Knife) only enter the pool",
-        "when your settings file allows them, because owning them writes a permanent",
-        "unlock to your game profile."
+        "The Bonus Weapons (Handcannon, Chicago Sweeper, and the Primal Knife as the",
+        "second knife upgrade) are in the pool like the rest of the Merchant's gear.",
+        "The mod stops the game from handing them out for free or deleting them, and",
+        "nothing is ever written to your game profile."
       ]
     },
     {

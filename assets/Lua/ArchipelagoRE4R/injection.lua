@@ -3255,111 +3255,11 @@ local function install(ctx)
         return true, "removed " .. table.concat(names, ", ")
     end
 
-    -- use_static_fallback: pass true only from the IN-GAME retry poll. At
-    -- boot a lookup miss means the records are not loaded yet and a write
-    -- would silently do nothing (live 2026-08-14), so boot misses must stay
-    -- misses and arm the retry instead.
-    local function inject_ensure_bonus_weapons_unlocked(use_static_fallback)
-        local record_manager = sdk.get_managed_singleton("chainsaw.GameRecordManager")
-        if record_manager == nil then
-            return false, "GameRecordManager singleton missing"
-        end
-        record_manager = inject_try_add_ref(record_manager)
-
-        local ok_cat, category_weapon = pcall(function()
-            return sdk.find_type_definition("chainsaw.ExShopCategory"):get_field("Weapon"):get_data(nil)
-        end)
-        if not ok_cat or category_weapon == nil then
-            return false, "ExShopCategory.Weapon unresolved"
-        end
-
-        -- [Scatter interlock, retired 2026-08-28] This used to suppress the
-        -- Sweeper and Handcannon unlocks while the gear was scattered, so
-        -- the ExShop could not sell multiworld guns at 50,000 ("we want
-        -- weapons to be gotten via the multiworld", 2026-08-16). The fork
-        -- strips their Extra Content CONVERSIONS at patch time now, so an
-        -- unlock can no longer expose a purchase and is pure possession
-        -- protection - the game deletes un-entitled bonus weapons from the
-        -- inventory on death or reload, which is the whole reason consented
-        -- rooms arm this.
-        local weapons_to_unlock = BONUS_WEAPON_ITEM_IDS
-
-        local unlocked = 0
-        local unresolved = 0
-        local unresolved_names = {}
-        for _, weapon in ipairs(weapons_to_unlock) do
-            local ok, err = pcall(function()
-                local manager = inject_get_managed(record_manager)
-                local bonus_id = manager:call("getItemIdToBonus", weapon.id)
-                -- -1 is the not-found sentinel. At boot the ExShop records
-                -- are not loaded yet and every lookup misses; the old guard
-                -- only rejected non-numbers, so all four unlocks wrote to -1
-                -- and did nothing (live 2026-08-14). A miss is counted so
-                -- the caller can retry once the game is actually loaded.
-                if type(bonus_id) ~= "number" or bonus_id < 0 then
-                    -- In-game, a miss means the conversion row is gone (a
-                    -- bonus_weapons-consented room the fork stripped), so
-                    -- the known static id carries the write instead.
-                    if use_static_fallback and weapon.bonus_id ~= nil then
-                        bonus_id = weapon.bonus_id
-                        log.info(string.format(
-                            "[RE4R AP] conversion row absent for %s - using known bonus id %d",
-                            weapon.name, weapon.bonus_id))
-                    else
-                        unresolved = unresolved + 1
-                        unresolved_names[#unresolved_names + 1] = weapon.name
-                        return
-                    end
-                end
-                if manager:call("checkBuyBonus", bonus_id) ~= true then
-                    manager:call("setUnlockBonus", bonus_id)
-                    manager:call("setBuyBonus", bonus_id, category_weapon)
-                    unlocked = unlocked + 1
-                    log.info(string.format(
-                        "[RE4R AP] force-unlocked bonus weapon: %s (bonus id %s)",
-                        weapon.name, tostring(bonus_id)))
-                end
-            end)
-            if not ok then
-                log.info(string.format(
-                    "[RE4R AP] bonus-weapon unlock failed for %s: %s",
-                    weapon.name, tostring(err)))
-            end
-        end
-
-        if unlocked > 0 then
-            -- share.SaveDataManager has no requestSystemSave: that name belongs
-            -- to a boot-flow class. The real entry point is
-            -- requestSaveSystemData(AppSaveSlot, SystemSaveRequestArgs), which
-            -- needs both arguments built properly, so this asks through the
-            -- verified helper and reports honestly when it cannot. The unlocks
-            -- themselves are already applied in memory either way; what is at
-            -- risk is only whether they survive without a normal save.
-            local save_manager = sdk.get_managed_singleton("share.SaveDataManager")
-            local ok_save, save_detail = inject_call_verified(save_manager, "requestSystemSave")
-            if ok_save then
-                log.info(string.format(
-                    "[RE4R AP] %d bonus weapon(s) force-unlocked; system save requested",
-                    unlocked))
-            else
-                log.warn(string.format(
-                    "[RE4R AP] %d bonus weapon(s) force-unlocked but NOT persisted: %s"
-                    .. " - they hold until the next normal save",
-                    unlocked, tostring(save_detail)))
-            end
-        end
-
-        if unresolved > 0 then
-            -- Named so a single stubborn miss identifies itself: a weapon
-            -- still -1 IN-GAME is a wrong item id for its ExShop mapping,
-            -- not load timing (live 2026-08-15, one of the four).
-            log.info(string.format(
-                "[RE4R AP] %d bonus weapon id(s) unresolved (%s); retry pending",
-                unresolved, table.concat(unresolved_names, ", ")))
-        end
-
-        return true, unlocked, unresolved
-    end
+    -- [D5, retired 2026-09-05] inject_ensure_bonus_weapons_unlocked wrote
+    -- the trio's "bought" marks onto the player's profile so the game would
+    -- not delete them. The guards above make possession safe without it
+    -- (proven live 2026-09-05), so the profile is never written any more.
+    -- Profiles already marked stay that way; it is cosmetic in the ExShop.
 
     injection.items = injectable_items
     injection.item_names = injectable_item_names
@@ -3529,7 +3429,6 @@ local function install(ctx)
     export("inject_get_expected_commit_count", inject_get_expected_commit_count)
     export("inject_get_route_hint", inject_get_route_hint)
     export("inject_read_key_item_ids", inject_read_key_item_ids)
-    export("inject_ensure_bonus_weapons_unlocked", inject_ensure_bonus_weapons_unlocked)
     export("install_storage_sale_reconciler_hook", install_storage_sale_reconciler_hook)
     export("install_extra_item_veto_hook", install_extra_item_veto_hook)
     export("install_bonus_weapon_hooks", install_bonus_weapon_hooks)

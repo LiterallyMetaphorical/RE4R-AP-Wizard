@@ -1440,14 +1440,6 @@ return function(ctx)
     local difficulty_warned_for = nil
     local difficulty_next_poll = 0
 
-    -- [D5] Armed when the connect-time bonus-weapon unlock could not resolve
-    -- every ExShopBonusID (connecting usually happens at the title screen,
-    -- before the records load, where every lookup returns the -1 sentinel).
-    -- poll_bonus_weapons retries in-game and stands down on success.
-    local bonus_retry_pending = false
-    local bonus_retry_next = 0.0
-    local bonus_retry_attempts = 0
-
     local function current_game_difficulty()
         local manager = sdk.get_managed_singleton("chainsaw.CampaignManager")
         if manager == nil then return nil end
@@ -1459,43 +1451,6 @@ return function(ctx)
         rank = tonumber(rank)
         if rank == nil then return nil end
         return DIFFICULTY_RANKS[math.floor(rank)]
-    end
-
-    -- [D5] Retry the bonus-weapon unlock once the game is actually playable.
-    -- Every attempt is the same idempotent ensure call; success (every id
-    -- resolved) stands the poll down, and a dozen in-game misses means the
-    -- boot-timing theory is wrong, so it gives up loudly rather than spin.
-    local function poll_bonus_weapons()
-        if not bonus_retry_pending then return end
-        local bridge = ctx.bridge
-        if bridge == nil or (bridge.allow_bonus_items ~= true
-            and bridge.bonus_weapons_unlock ~= true) then
-            bonus_retry_pending = false
-            return
-        end
-        local state = bridge.last_state
-        if type(state) ~= "table" or state.is_playable ~= true then return end
-        local now = os.clock()
-        if now < bonus_retry_next then return end
-        bonus_retry_next = now + 10.0
-        bonus_retry_attempts = bonus_retry_attempts + 1
-
-        local ensure = ctx.inject_ensure_bonus_weapons_unlocked
-            or _G.inject_ensure_bonus_weapons_unlocked
-        if type(ensure) ~= "function" then
-            bonus_retry_pending = false
-            return
-        end
-        -- In-game the records are loaded, so a lookup miss now means a
-        -- stripped conversion row, not timing: allow the static fallback.
-        local ok, ensure_ok, _, unresolved = pcall(ensure, true)
-        if ok and ensure_ok == true and (tonumber(unresolved) or 0) == 0 then
-            bonus_retry_pending = false
-            info("bonus-weapon unlock resolved in-game")
-        elseif bonus_retry_attempts >= 12 then
-            bonus_retry_pending = false
-            warn("bonus-weapon ids still unresolved after 12 in-game retries; giving up until the next connect")
-        end
     end
 
     local function poll_difficulty_match()
@@ -2216,29 +2171,10 @@ return function(ctx)
         resend_checked_locations()
         -- [Phase 4] Refresh seed-aware location classifications for the progression UI.
         scout_all_locations()
-        -- [D5] Rooms patched with allow-bonus-items, or carrying the YAML's
-        -- bonus_weapons consent: make the bonus weapons legal on this
-        -- profile now, before any save/load can strip them from the
-        -- inventory. Idempotent (already-bought skipped). Connecting
-        -- usually happens at the title screen, where the ExShop records are
-        -- not loaded and every id lookup misses - any non-clean outcome
-        -- arms poll_bonus_weapons to retry in-game.
-        if ctx.bridge and (ctx.bridge.allow_bonus_items == true
-            or ctx.bridge.bonus_weapons_unlock == true) then
-            local ensure = ctx.inject_ensure_bonus_weapons_unlocked
-                or _G.inject_ensure_bonus_weapons_unlocked
-            if type(ensure) == "function" then
-                local ok_unlock, ensure_ok, _, unresolved = pcall(ensure)
-                if not ok_unlock then
-                    warn("bonus-weapon unlock failed: " .. tostring(ensure_ok))
-                end
-                if not ok_unlock or ensure_ok ~= true or (tonumber(unresolved) or 0) > 0 then
-                    bonus_retry_pending = true
-                    bonus_retry_attempts = 0
-                    bonus_retry_next = 0.0
-                end
-            end
-        end
+        -- [D5, retired 2026-09-05] The profile force-unlock of the bonus
+        -- weapons used to run here. The guards in injection.lua keep the
+        -- game from granting or deleting the three in every AP room, so
+        -- nothing is written to the player's profile any more.
         -- [D4] Shop stock rolls back with the save, the server's checked list
         -- does not: force every already-bought slot back to sold out now that
         -- the per-seed ack set is loaded.
@@ -2919,7 +2855,6 @@ return function(ctx)
                 drain_received_items()
                 drain_location_checks()
                 poll_difficulty_match()
-                poll_bonus_weapons()
                 maybe_send_victory()
                 poll_deathlink()
                 poll_port_recovery()

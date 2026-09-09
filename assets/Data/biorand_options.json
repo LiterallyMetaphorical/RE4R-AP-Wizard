@@ -59,21 +59,6 @@
      "title": "",
      "items": [
       {
-       "key": "allow-bonus-items",
-       "label": "Allow Bonus Weapons",
-       "description": "Let BioRand include the four bonus weapons (Primal Knife, Chicago Sweeper, Handcannon, Infinite Rocket Launcher). If your RE4R profile has not unlocked them, connecting in-game force-unlocks exactly those four on your profile, permanently - the game would otherwise delete them from your inventory on death or reload. Turning this on asks you to confirm.",
-       "type": "switch",
-       "min": null,
-       "max": null,
-       "step": null,
-       "advanced": false,
-       "defaults": [
-        false,
-        false,
-        false
-       ]
-      },
-      {
        "key": "allow-dlc-items",
        "label": "Allow DLC Weapons",
        "description": "DLC weapons can appear in the item pool. This does NOT affect the multiworld placeholder item, which is placed by id.",

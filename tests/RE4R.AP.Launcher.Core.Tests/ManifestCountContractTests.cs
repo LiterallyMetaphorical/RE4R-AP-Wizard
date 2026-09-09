@@ -155,7 +155,7 @@ public sealed class ManifestCountContractTests
     {
         var data = await LoadStaticAsync();
 
-        Assert.Equal("0.7.3", data.WorldVersion);
+        Assert.Equal("0.7.4", data.WorldVersion);
         Assert.Equal(456, data.Counts.LocationsTotal);
         Assert.Equal(456, data.LocationCodes.Count);
         Assert.Equal(456, data.Locations.Count);

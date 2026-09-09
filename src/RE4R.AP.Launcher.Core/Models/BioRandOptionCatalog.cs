@@ -39,6 +39,8 @@ public static class BioRandOptionCatalog
     ///   the roll arrives via slot_data and is pinned in as ap-forced-events. A local toggle here
     ///   would let a patch fire events the room's logic never modeled.
     /// - username: the connected slot name; identity comes from the room, never from a preset.
+    /// - allow-bonus-items: the Extra Content weapons are multiworld pool items in every AP room
+    ///   (since 2026-09-05, no consent option); BioRand placing its own copies would double them.
     /// </summary>
     public static readonly string[] ApLockedKeys =
     [
@@ -50,6 +52,7 @@ public static class BioRandOptionCatalog
         "ap-placements",
         "random-events",
         "username",
+        "allow-bonus-items",
     ];
 
     public const string RandomItemsKey = "random-items";

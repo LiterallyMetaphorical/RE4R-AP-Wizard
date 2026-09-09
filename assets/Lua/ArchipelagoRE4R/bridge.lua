@@ -34,6 +34,26 @@ local function install(ctx)
         return build_session_state_file_path(LEGACY_BRIDGE_DIR)
     end
 
+    -- REFramework's json.load_file logs an error for a file that is not
+    -- there, and on a brand-new seed neither the session file nor its legacy
+    -- twin exists yet, so every first connect read as two errors (live
+    -- 2026-09-05). fs.glob answers "is it there" quietly; its filter is a
+    -- regex over paths relative to the data folder, so the path's own
+    -- metacharacters (the backslashes, the dot) are escaped first. A build
+    -- without fs falls back to the plain load.
+    local function load_json_if_present(path)
+        if type(fs) == "table" and type(fs.glob) == "function" then
+            local pattern = string.gsub(path, "[\\%.%(%)%[%]%+%*%?%^%$%|%{%}]", function(c)
+                return "\\" .. c
+            end)
+            local ok, matches = pcall(fs.glob, pattern)
+            if ok and type(matches) == "table" and #matches == 0 then
+                return nil
+            end
+        end
+        return json.load_file(path)
+    end
+
     local function save_session_state()
         local session_state_path = get_session_state_file_path()
         bridge.loaded_session_state_path = session_state_path
@@ -91,14 +111,14 @@ local function install(ctx)
         bridge.multiworld_hints_overlay_chosen = false
         bridge.non_lead_checked_locations = {}
 
-        local payload = json.load_file(session_state_path)
+        local payload = load_json_if_present(session_state_path)
         local migrated_from = nil
         if type(payload) ~= "table" then
             -- One-time forward migration from the legacy drive-root store.
             -- The legacy file is left in place (never deleted): losing the
             -- watermark would re-inject received items as duplicates.
             local legacy_path = get_legacy_session_state_file_path()
-            local legacy_payload = json.load_file(legacy_path)
+            local legacy_payload = load_json_if_present(legacy_path)
             if type(legacy_payload) == "table" then
                 payload = legacy_payload
                 migrated_from = legacy_path

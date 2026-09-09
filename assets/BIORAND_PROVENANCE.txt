@@ -19,7 +19,7 @@ HISTORY SQUASHED 2026-08-10: the fork's branch was flattened to a single commit,
                 .cs/.csv/.json, so the SHA-256 below still describes the code
                 that is on the branch today. Keep the old ids for the reasoning
                 they carry; treat 703e59a as the citable source commit.
-Source commit:  9ab06de (2026-09-05 the welcome note, second edition; see the REBUILD entries below)
+Source commit:  b2cdd94 (2026-09-05 the welcome note, third edition; see the REBUILD entries below)
 HISTORY REWRITTEN 2026-09-03: the unpushed fork commits (2026-08-24 onward) were
                 squashed by scope and re-worded in plain language before review.
                 Every id cited in the REBUILD entries below is OFF-BRANCH now (still
@@ -167,11 +167,39 @@ Previous:       05f581e (2026-08-06: FORCED EVENTS - BioRand takes its event
                 DLC entitlement needed). Includes b27f7ac (drop-catalog fix)
                 and 90140f0 (purity gates).)
 Publish:        -c Release -r win-x64 --self-contained -p:PublishSingleFile=true (net10.0)
-biorand-re4r.exe SHA-256: e3b364d1b515dd24054b69cc79dd3f3496bc02e0d881898c42444f2026b7d5d2
-ProductVersion: 1.0.0+9ab06de30b36d72487259eced7e12a3cb81ff9f0 (the launcher
-                writes this into version_stamp.json, and a change here is what
-                triggers the one-time setup cache re-harvest)
+biorand-re4r.exe SHA-256: 72675fc4fd5df498154e12dc6fb2c608a00bec2bb3e6b8e879b4ca024cddca81
+ProductVersion: 1.0.0+b2cdd94 (the launcher writes this into version_stamp.json,
+                and a change here is what triggers the one-time setup cache
+                re-harvest)
 Built with:     .NET SDK 10.0.301
+
+REBUILD 2026-09-05 fourth (b2cdd94)
+    The welcome note, third edition.
+      * PlaceWelcomeDocument's Content regenerated from the apworld's
+        data/welcome_note.txt by welcome_note.py: the Starting Arsenal page no
+        longer says the bonus weapons need a settings-file permission (the
+        option is gone in apworld 0.7.4). Text only; no data or placement
+        change.
+    Offline verify: library builds clean; payload restaged, launcher tests pass
+    (54); the note harness passes (20 pages).
+    biorand-re4r.exe SHA-256: 72675fc4fd5df498154e12dc6fb2c608a00bec2bb3e6b8e879b4ca024cddca81
+
+REBUILD 2026-09-05 third (71d597a)
+    The bonus trio never sells in an AP room, and mode 1 places the extra merchants.
+      * StripExtraContentConversions strips the Extra Content shop entries of
+        the Chicago Sweeper, the Handcannon and the Primal Knife in EVERY AP
+        room, scattered or not. The in-game mod vetoes the game's grant of the
+        three everywhere (MOD 2026.09.05-88) and the bonus_weapons consent
+        option is gone (apworld 0.7.4: the trio scatter with the rest of the
+        gear), so a 50,000 purchase would have handed over nothing.
+      * GimmickPlaceModifier keeps the Biorand_Merchant / Biorand_MerchantTorch
+        placements in mode 1 (Cam, 2026-09-05: extra merchants everywhere,
+        they are shop access for the AP economy and cannot touch a check).
+        Every other extra still stays out of mode 1; the extra-merchants key
+        still switches them off.
+    Offline verify: library builds clean; payload restaged, launcher tests pass
+    (54). Live confirm owed with the 0.7.4 room (checklist 25).
+    biorand-re4r.exe SHA-256: df8146f4c397b20a6ff8ce1790ea4c50b9faa4c44ccc87f5e60a37855598fe8c
 
 REBUILD 2026-09-05 second (9ab06de)
     The welcome note, second edition.

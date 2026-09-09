@@ -102,12 +102,27 @@ local function install(ctx)
         )
     end
 
+    -- Same quiet existence test bridge.lua uses: a new seed has no unlock
+    -- file yet, and json.load_file logs a miss as an error (live 2026-09-05).
+    local function load_json_if_present(path)
+        if type(fs) == "table" and type(fs.glob) == "function" then
+            local pattern = string.gsub(path, "[\\%.%(%)%[%]%+%*%?%^%$%|%{%}]", function(c)
+                return "\\" .. c
+            end)
+            local ok, matches = pcall(fs.glob, pattern)
+            if ok and type(matches) == "table" and #matches == 0 then
+                return nil
+            end
+        end
+        return json.load_file(path)
+    end
+
     local function load_warp_unlocks()
         local unlocks_path = get_warp_unlocks_file_path()
         bridge.loaded_warp_unlocks_path = unlocks_path
         bridge.unlocked_warp_stage_ids = {}
 
-        local payload = json.load_file(unlocks_path)
+        local payload = load_json_if_present(unlocks_path)
         if type(payload) == "table" then
             for _, raw_stage_id in ipairs(payload) do
                 local stage_id = normalize_stage_id(raw_stage_id)

@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-09-05T18:34:44Z",
+  "generated_at_utc": "2026-09-06T01:37:22Z",
   "game": "Resident Evil 4 Remake",
-  "world_version": "0.7.3",
+  "world_version": "0.7.4",
   "placeholder_item_id": 120486400,
   "item_groups": {
     "Biosensor Scope": [

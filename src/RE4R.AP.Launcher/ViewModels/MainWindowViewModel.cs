@@ -189,7 +189,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             {
                 Key = "mode1",
                 DisplayName = "AP Item Randomization Only",
-                Description = "Fixed item pickups hold what the multiworld placed there - what you find is what you (or another player) get. Enemies, merchant, and drops stay vanilla.",
+                Description = "Fixed item pickups hold what the multiworld placed there - what you find is what you (or another player) get. Enemies and drops stay vanilla; the extra merchants are placed so the shop is never far.",
                 IsAvailable = true,
             });
         BioRandOptions.AvailableModes.Add(
@@ -197,7 +197,7 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
             {
                 Key = "mode2",
                 DisplayName = "Full BioRand Item Randomization",
-                Description = "Multiworld checks stay exactly where the multiworld put them; BioRand re-rolls every other world pickup. Enemies and the merchant stay vanilla.",
+                Description = "Multiworld checks stay exactly where the multiworld put them; BioRand re-rolls every other world pickup. Enemies stay vanilla; the extra merchants are placed.",
                 IsAvailable = true,
             });
         BioRandOptions.AvailableModes.Add(
@@ -261,26 +261,10 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         _retireSessionCommand = new AsyncRelayCommand(RetireBannerSessionAsync, () => !Action.IsBusy);
         _unlockBioRandOptionsCommand = new AsyncRelayCommand(UnlockBioRandOptionsAsync, () => !Action.IsBusy);
         BioRandOptions.UnlockCommand = _unlockBioRandOptionsCommand;
-        // Switching bonus weapons on force-unlocks them on the player's RE4R
-        // profile at connect (the game otherwise deletes un-bought bonus
-        // weapons from the inventory on death or reload), so it asks first.
-        // Three, not four: the Infinite Rocket Launcher can still be stocked,
-        // but it is a normal merchant purchase with no Extra Content record,
-        // so there is nothing to unlock for it.
-        BioRandOptions.ConfirmBonusWeaponsUnlockAsync = () => _dialogService.ConfirmProceedWithWarningAsync(
-            "Bonus Weapons Get Force-Unlocked",
-            "This lets the merchant stock the bonus weapons: Primal Knife, Chicago Sweeper, "
-            + "Handcannon and Infinite Rocket Launcher."
-            + Environment.NewLine + Environment.NewLine
-            + "The first three are Extra Content Shop weapons. If your RE4R profile does not have "
-            + "them unlocked, connecting in-game will force-unlock them on your profile - "
-            + "permanently, exactly as if you had bought them in the Extra Content Shop. Only "
-            + "those three are touched; without the unlock, the game deletes them from your "
-            + "inventory on death or reload. The Infinite Rocket Launcher needs no unlock."
-            + Environment.NewLine + Environment.NewLine
-            + "Are you sure?",
-            proceedLabel: "Force Unlock Them",
-            cancelLabel: "Turn It Back Off");
+        // The bonus-weapons force-unlock dialog used to hang off allow-bonus-items
+        // here. Retired 2026-09-05: the in-game mod keeps the game from granting
+        // or deleting the three in every AP room, so no profile is written and
+        // the trio simply scatter with the rest of the merchant's gear.
 
         // Pin the options to the previous patch of this room whenever the player reaches the
         // options step, so a re-patch can't silently discard what they pick.
