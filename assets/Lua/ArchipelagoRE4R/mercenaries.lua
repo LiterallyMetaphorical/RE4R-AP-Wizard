@@ -1188,13 +1188,23 @@ local function install(ctx)
     -- is read and stay in; the vanilla lines (a lie under AP: those unlocks
     -- are items elsewhere) are taken out whenever they appear, and logged
     -- once so their format is on record.
+    -- Our lines go in AT the notice steps, not before them. Going in early
+    -- lost a race nobody can win: the screen's own UnlockNoticePre fills the
+    -- list from its unlock rules, which wiped ours, and re-adding a few times
+    -- left one line by the time it displayed (Cam, live 2026-09-07: three set,
+    -- one in the list at UnlockNotice, none of it ours on screen).
+    --
+    -- The window is UnlockNoticePre through UnlockNoticeWait, and the lines are
+    -- re-asserted on every pass inside it, so whichever frame the screen reads
+    -- from, ours are what is there.
+    local STEP_UNLOCK_NOTICE_PRE = 5
     local STEP_UNLOCK_NOTICE = 6
+    local STEP_UNLOCK_NOTICE_WAIT = 7
     local STEP_NAMES = {
         [0] = "WaitOpen", [1] = "ResultShowing", [2] = "DrumRollWait", [3] = "Next",
         [4] = "NextWait", [5] = "UnlockNoticePre", [6] = "UnlockNotice", [7] = "UnlockNoticeWait",
         [8] = "RankingSend", [9] = "RankingSendWait", [10] = "End",
     }
-    local RESULT_SUMMARY_MAX_REINJECTIONS = 3
     local unlock_notice_suppressed_logged = false
 
     local function open_result_summary(payload, epoch)
@@ -1203,9 +1213,18 @@ local function install(ctx)
             char_name = payload.char_name,
             stage_name = payload.stage_name,
             rank_name = payload.rank_name,
-            lines = {},             -- what the list should carry, in order
+            lines = {},             -- the long form, for the log and the overlay
+            sent = {},              -- "C: Handgun Ammo x10", in rank order
+            sent_dest = {},         -- where each of those went, or false
+            named = {},             -- item names a sent clause already covers
+            extras = {},            -- items that arrived from somewhere else
+            remaining = {},         -- ranks this pair still owes
+            notice = nil,           -- the ONE line the result screen shows
+            notice_injected = false,
+            notice_injected_at_step = nil,
+            notice_injections = 0,
+            notice_consumed = false,
             injected = {},          -- line -> true once it went into the list
-            reinjections = 0,
             display_passed = false, -- the screen reached UnlockNotice
             consumed_logged = false,
             last_step = nil,
@@ -1216,14 +1235,36 @@ local function install(ctx)
         return merc_state.result_summary
     end
 
+    local function summary_has_line(text)
+        local summary = merc_state.result_summary
+        if summary == nil then return false end
+        for _, existing in ipairs(summary.lines) do
+            if existing == text then return true end
+        end
+        return false
+    end
+
     local function summary_add_line(text)
         local summary = merc_state.result_summary
         if summary == nil or type(text) ~= "string" or text == "" then return false end
-        for _, existing in ipairs(summary.lines) do
-            if existing == text then return false end
-        end
+        if summary_has_line(text) then return false end
         summary.lines[#summary.lines + 1] = text
         return true
+    end
+
+    -- Where one of your own items is going. "(yours)" said nothing you did not
+    -- already know; which of your contents it serves is the useful half (Cam,
+    -- 2026-09-07). A Mercenaries item needs no label at all, since the name
+    -- already carries it.
+    local function own_item_destination(item_name)
+        if type(item_name) == "string" and item_name:match("^Mercenaries ") then
+            return nil
+        end
+        local slot_data = bridge.slot_data
+        local campaign = type(slot_data) == "table" and slot_data.patched_campaign or nil
+        if campaign == "Separate Ways" then return "Separate Ways" end
+        if campaign == "Main Story" then return "the campaign" end
+        return nil
     end
 
     local function format_sent_line(rank_name, desc)
@@ -1233,7 +1274,26 @@ local function install(ctx)
         if desc.who ~= nil and not desc.mine then
             return string.format("Rank %s sent: %s for %s", rank_name, desc.item_name, desc.who)
         end
-        return string.format("Rank %s sent: %s (yours)", rank_name, desc.item_name)
+        local where = own_item_destination(desc.item_name)
+        if where ~= nil then
+            return string.format("Rank %s sent: %s to %s", rank_name, desc.item_name, where)
+        end
+        return string.format("Rank %s sent: %s", rank_name, desc.item_name)
+    end
+
+    -- The short form for the one-line notice: the rank, what it held, and
+    -- separately where it went. The destination is kept apart because a room
+    -- patches ONE campaign, so repeating "to Separate Ways" on every rank was
+    -- the same four words four times; compose_notice hoists it when it can.
+    local function format_sent_clause(rank_name, desc)
+        if desc.item_name == nil then
+            return string.format("%s sent", rank_name), nil
+        end
+        if desc.who ~= nil and not desc.mine then
+            return string.format("%s: %s for %s", rank_name, desc.item_name, desc.who), nil
+        end
+        return string.format("%s: %s", rank_name, desc.item_name),
+            own_item_destination(desc.item_name)
     end
 
     local function strip_merc_item_prefix(name)
@@ -1248,9 +1308,15 @@ local function install(ctx)
     -- apclient calls this for every Mercenaries item it delivers; only a
     -- result screen that is open takes note.
     local function merc_result_note_received(kind, name, from)
-        if merc_state.result_summary == nil then return false end
+        local summary = merc_state.result_summary
+        if summary == nil then return false end
         if kind == "merc_filler" then
             return summary_add_line("Nothing this time: that rank held no item for you")
+        end
+        -- The rank clause already said this. Saying it again as an unlock is
+        -- how the Docks stage appeared twice on one screen (Cam, 2026-09-07).
+        if summary.named[tostring(name)] then
+            return false
         end
         local short, what = strip_merc_item_prefix(name)
         local line
@@ -1262,14 +1328,110 @@ local function install(ctx)
         if type(from) == "string" and from ~= "" then
             line = line .. " (from " .. from .. ")"
         end
+        -- The same delivery announced twice is still one thing that happened.
+        -- extras used to grow even when the line was a repeat, which put the
+        -- unlock on the notice twice over (Cam, 2026-09-07).
+        if summary_has_line(line) then return false end
+        local short_extra = short
+        if what == "stage" then short_extra = short_extra .. " stage" end
+        if type(from) == "string" and from ~= "" then
+            short_extra = short_extra .. " from " .. from
+        end
+        summary.extras[#summary.extras + 1] = short_extra
+        -- Rebuilt on the next pass, but only while the screen has not been
+        -- handed it: changing the text after that would leave the injected
+        -- line unrecognised and read as a confirmation that never happened.
+        if not summary.notice_injected then summary.notice = nil end
         return summary_add_line(line)
     end
     export("merc_result_note_received", merc_result_note_received)
 
+    -- (4) ONE line for the screen: the pair, what each rank sent, anything that
+    -- arrived from elsewhere, and what the pair still owes. The screen shows
+    -- its notices one at a time and wants an OK for each, so several lines
+    -- meant several confirmations for one run (Cam, 2026-09-07).
+    local function compose_notice(summary)
+        if summary == nil then return nil end
+        if summary.notice ~= nil then return summary.notice end
+        if summary.notice_injected then return nil end
+        local parts = {}
+        local head = string.format("%s / %s",
+            tostring(summary.stage_name or "?"), tostring(summary.char_name or "?"))
+        if summary.rank_name ~= nil and summary.rank_name ~= "" then
+            head = head .. " - Rank " .. tostring(summary.rank_name)
+        end
+        parts[#parts + 1] = head
+        if #summary.sent > 0 then
+            -- One destination for every rank that has one, and none without:
+            -- say it once at the front. Anything mixed goes per rank.
+            local only_dest, mixed = nil, false
+            for index = 1, #summary.sent do
+                local dest = summary.sent_dest[index]
+                if dest == false or dest == nil then
+                    mixed = true
+                elseif only_dest == nil then
+                    only_dest = dest
+                elseif only_dest ~= dest then
+                    mixed = true
+                end
+            end
+            if only_dest ~= nil and not mixed then
+                parts[#parts + 1] = string.format("sent to %s: %s",
+                    only_dest, table.concat(summary.sent, ", "))
+            else
+                local clauses = {}
+                for index = 1, #summary.sent do
+                    local dest = summary.sent_dest[index]
+                    clauses[index] = (dest and dest ~= false)
+                        and (summary.sent[index] .. " to " .. dest)
+                        or summary.sent[index]
+                end
+                parts[#parts + 1] = "sent " .. table.concat(clauses, ", ")
+            end
+        else
+            parts[#parts + 1] = "no check this time"
+        end
+        if #summary.extras > 0 then
+            parts[#parts + 1] = "received " .. table.concat(summary.extras, ", ")
+        end
+        if #summary.remaining > 0 then
+            parts[#parts + 1] = "still to do: " .. table.concat(summary.remaining, ", ")
+        end
+        summary.notice = table.concat(parts, "  |  ")
+        return summary.notice
+    end
+
+    -- native_log.lua holds every toast queued while the result screen is up so
+    -- the screen's own notice is the only thing on it. If that notice was never
+    -- shown, the news still has to reach the player: give the held records back
+    -- to the overlay on the way out.
+    local function release_held_result_toasts(summary)
+        if type(bridge.check_notifications) ~= "table" then return 0 end
+        local released = 0
+        for _, rec in ipairs(bridge.check_notifications) do
+            if rec.held_by_result_screen then
+                rec.held_by_result_screen = nil
+                if not summary.notice_consumed then
+                    rec.rendered_natively = false
+                    rec.display_started_at_unix_ms = nil
+                    rec.display_started_clock = nil
+                    released = released + 1
+                end
+            end
+        end
+        return released
+    end
+
     local function close_result_summary(reason)
-        if merc_state.result_summary == nil then return end
-        log.info(string.format("[Merc AP] result screen summary closed (%s): %d line(s)",
-            tostring(reason), #merc_state.result_summary.lines))
+        local summary = merc_state.result_summary
+        if summary == nil then return end
+        local released = release_held_result_toasts(summary)
+        log.info(string.format(
+            "[Merc AP] result screen summary closed (%s): %d line(s), notice %s%s",
+            tostring(reason), #summary.lines,
+            summary.notice_consumed and "shown"
+                or (summary.notice_injected and "set but never shown" or "never set"),
+            released > 0 and string.format(", %d toast(s) handed back to the overlay", released) or ""))
         merc_state.result_summary = nil
     end
 
@@ -1351,15 +1513,22 @@ local function install(ctx)
                 tostring(STEP_NAMES[summary.last_step] or summary.last_step or "start"),
                 tostring(STEP_NAMES[step] or step), list_count(list)))
             summary.last_step = step
-            if step >= STEP_UNLOCK_NOTICE and not summary.display_passed then
+            -- Past the wait, the screen is done with the list for good. If our
+            -- line was in when it got there, the screen showed it.
+            if step > STEP_UNLOCK_NOTICE_WAIT and not summary.display_passed then
                 summary.display_passed = true
+                if summary.notice_injected and not summary.notice_consumed then
+                    summary.notice_consumed = true
+                    log.info("[Merc AP] result notice shown; the screen moved on")
+                end
             end
         end
 
         -- 1. The game's own lines out, logged once per result.
         local ours = {}
         if summary ~= nil then
-            for _, line in ipairs(summary.lines) do ours[line] = true end
+            local notice = compose_notice(summary)
+            if notice ~= nil then ours[notice] = true end
         end
         local count = list_count(list)
         local vanilla = {}
@@ -1392,42 +1561,50 @@ local function install(ctx)
         end
         if summary == nil then return end
 
-        -- 2. Our lines in. Each goes in once; a line that was in the list and
-        -- is gone while the screen is at or past its notice step was shown
-        -- and consumed, and stays out. Before that step a wipe by the game
-        -- (its UnlockNoticePre clearing the list) is undone, a few times.
-        local missing_after_injection = false
-        for _, line in ipairs(summary.lines) do
-            if summary.injected[line] and not present[line] then
-                missing_after_injection = true
-            end
-        end
-        if missing_after_injection then
-            if summary.display_passed or summary.reinjections >= RESULT_SUMMARY_MAX_REINJECTIONS then
-                if not summary.consumed_logged then
-                    summary.consumed_logged = true
-                    log.info("[Merc AP] result notice list consumed by the screen; later lines go to the overlay")
+        -- 2. ONE notice, in once, never put back. The screen shows its notices
+        -- one at a time and asks for an OK on each, so re-asserting on every
+        -- pass meant it could never finish: the player confirmed forever (Cam,
+        -- 2026-09-07). A notice that was in the list and is gone was taken by
+        -- the screen, which is the only confirmation available that it showed.
+        local notice = compose_notice(summary)
+        if notice == nil then return end
+        local step_now = summary.last_step
+        if summary.notice_injected and not present[notice] then
+            -- One exception to "gone means shown": the screen fills this list
+            -- with its own unlock lines on the way out of UnlockNoticePre, and
+            -- that fill can clear ours before anyone saw it. So a line that
+            -- goes missing while the screen is still at UnlockNoticePre buys
+            -- one more attempt, at UnlockNotice. Two attempts, ever: the count
+            -- is what keeps this from becoming the loop again.
+            local wiped_before_showing = summary.notice_injected_at_step == STEP_UNLOCK_NOTICE_PRE
+                and step_now ~= nil and step_now <= STEP_UNLOCK_NOTICE
+                and summary.notice_injections < 2
+            if not wiped_before_showing then
+                if not summary.notice_consumed then
+                    summary.notice_consumed = true
+                    log.info("[Merc AP] result notice shown and confirmed by the screen")
                 end
                 summary.display_passed = true
                 return
             end
-            summary.reinjections = summary.reinjections + 1
-            for _, line in ipairs(summary.lines) do summary.injected[line] = nil end
-            log.info(string.format("[Merc AP] result notice lines wiped by the screen; put back (%d)",
-                summary.reinjections))
+            if step_now < STEP_UNLOCK_NOTICE then return end
+            summary.notice_injected = false
+            log.info("[Merc AP] result notice was cleared before it showed; setting it once more")
         end
-        local added = 0
-        for _, line in ipairs(summary.lines) do
-            if not summary.injected[line] and not summary.display_passed then
-                if list_add(list, line) then
-                    summary.injected[line] = true
-                    added = added + 1
-                end
-            end
+        if summary.display_passed or summary.notice_injected then
+            return
         end
-        if added > 0 then
-            log.info(string.format("[Merc AP] result notice list: %d line(s) set (%d in the list): %s",
-                added, list_count(list), table.concat(summary.lines, " | ")))
+        if step_now == nil
+            or step_now < STEP_UNLOCK_NOTICE_PRE
+            or step_now > STEP_UNLOCK_NOTICE_WAIT then
+            return
+        end
+        if list_add(list, notice) then
+            summary.notice_injected = true
+            summary.notice_injected_at_step = step_now
+            summary.notice_injections = summary.notice_injections + 1
+            log.info(string.format("[Merc AP] result notice set (attempt %d, %d in the list): %s",
+                summary.notice_injections, list_count(list), notice))
         end
     end
     export("merc_maintain_result_notice_list", maintain_result_notice_list)
@@ -1453,6 +1630,18 @@ local function install(ctx)
         local problems = {}
         local already_sent = {}
         open_result_summary(payload, epoch or 0)
+        -- What this pair still owes, so the screen can say it in the same
+        -- breath (Cam asked, 2026-09-07).
+        do
+            local reached = {}
+            for _, rank_name in ipairs(rank_names) do reached[rank_name] = true end
+            local summary = merc_state.result_summary
+            for _, rank_name in ipairs(get_active_rank_names_for(slot_data)) do
+                if not reached[rank_name] then
+                    summary.remaining[#summary.remaining + 1] = rank_name
+                end
+            end
+        end
         if #rank_names == 0 then
             summary_add_line("No check this time: Rank A or better sends one")
         end
@@ -1522,7 +1711,18 @@ local function install(ctx)
                 "[Merc AP] score location queued: location_id=%d rank=%s",
                 item.id, item.rank
             ))
-            summary_add_line(format_sent_line(item.rank, describe_location_item(item.id)))
+            local desc = describe_location_item(item.id)
+            summary_add_line(format_sent_line(item.rank, desc))
+            local summary = merc_state.result_summary
+            if summary ~= nil then
+                local clause, dest = format_sent_clause(item.rank, desc)
+                summary.sent[#summary.sent + 1] = clause
+                summary.sent_dest[#summary.sent_dest + 1] = dest or false
+                if desc.item_name ~= nil then
+                    summary.named[tostring(desc.item_name)] = true
+                end
+                summary.notice = nil
+            end
             announce_rank_check(item.rank, item.id, payload)
         end
         if #to_queue > 0 then

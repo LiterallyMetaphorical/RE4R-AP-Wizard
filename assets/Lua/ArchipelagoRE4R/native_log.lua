@@ -737,8 +737,18 @@ local function install(ctx)
                 elseif presentation == "menu" then
                     -- no rail on screen: the overlay draws it
                 elseif presentation == "result" then
-                    -- the result screen's notice list carries the words
+                    -- One result, not two. mercenaries.lua composes a single
+                    -- line for the screen's own notice list and that line
+                    -- already names everything that arrived, so an imgui toast
+                    -- here is a second, older-looking copy of the same news
+                    -- drawn on top of it (Cam, 2026-09-07).
+                    --
+                    -- Held, not discarded: if the screen never shows the
+                    -- notice, close_result_summary hands these back and the
+                    -- overlay draws them once the screen is gone. Nothing here
+                    -- can tell yet which of those two it will be.
                     rec.rendered_natively = true
+                    rec.held_by_result_screen = true
                 elseif route == "suppress" then
                     if mode == "native" then
                         if is_ap_connected() then
