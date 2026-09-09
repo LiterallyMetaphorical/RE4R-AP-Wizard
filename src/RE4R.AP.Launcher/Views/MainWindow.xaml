@@ -1846,12 +1846,15 @@
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
                                             <StackPanel>
-                                                <StackPanel Orientation="Horizontal">
-                                                    <TextBlock FontWeight="SemiBold"
-                                                               TextWrapping="Wrap"
-                                                               Text="{Binding DisplayName}" />
-                                                    <Border Margin="8,0,0,0"
+                                                <!-- Badge docked right, title fills the rest: inside a
+                                                     horizontal StackPanel the title had unbounded width,
+                                                     so TextWrapping never engaged and the third card's
+                                                     title clipped ("Randomizatic", 2026-09-02). -->
+                                                <DockPanel LastChildFill="True">
+                                                    <Border DockPanel.Dock="Right"
+                                                            Margin="8,0,0,0"
                                                             Padding="6,1"
+                                                            VerticalAlignment="Top"
                                                             Background="{DynamicResource SurfaceAltBrush}"
                                                             CornerRadius="8"
                                                             Visibility="{Binding IsAvailable, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
@@ -1859,7 +1862,10 @@
                                                                    Foreground="{DynamicResource SubtleTextBrush}"
                                                                    Text="COMING SOON" />
                                                     </Border>
-                                                </StackPanel>
+                                                    <TextBlock FontWeight="SemiBold"
+                                                               TextWrapping="Wrap"
+                                                               Text="{Binding DisplayName}" />
+                                                </DockPanel>
                                                 <TextBlock Margin="0,4,0,0"
                                                            Foreground="{DynamicResource SubtleTextBrush}"
                                                            TextWrapping="Wrap"
