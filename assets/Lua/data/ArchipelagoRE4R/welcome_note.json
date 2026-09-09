@@ -1,0 +1,339 @@
+{
+  "version": 1,
+  "source": "data/welcome_note.txt via welcome_note.py",
+  "page_count": 20,
+  "pages": [
+    {
+      "title": "Resident Evil 4 - Archipelago",
+      "title_color": 4278255615,
+      "lines": [
+        "Dear {slot},",
+        "",
+        "Welcome to Resident Evil 4 Archipelago (RE4R AP). This mod randomizes the",
+        "contents of RE4R amongst all the other games in your Multiworld, set up by",
+        "your Archipelago Host. From the Hunter's Lodge onward you will start to see",
+        "items appearing as the Archipelago logo. Collecting one sends a Check to",
+        "another player in the Multiworld, and their findings send items to you -",
+        "weapons, herbs, key items, anything.",
+        "",
+        "WARNING",
+        "You may receive a key item early, but using it early may have unintended side",
+        "effects, including a softlock. If you're unsure, just proceed through the",
+        "playthrough in the intended order."
+      ]
+    },
+    {
+      "title": "Reporting a Bug",
+      "title_color": 4294967040,
+      "lines": [
+        "For every bug or issue, open the RE4R AP Wizard and press Generate Bug Report",
+        "(bottom right). It packs everything I need into one .zip, which you can send",
+        "to me in the Archipelago After Dark Discord, in the Resident Evil 4",
+        "discussion:",
+        "",
+        "discord.gg/fqvNCCRsu4",
+        "",
+        "Ideally, do this before you relaunch the game (not viable for a crash,",
+        "obviously), since RE4R wipes its log file every time it starts. The Wizard",
+        "keeps a copy of the last log it saw, but the freshest evidence is the log from",
+        "the run where things went wrong."
+      ]
+    },
+    {
+      "title": "Starting Arsenal",
+      "title_color": 4294967040,
+      "lines": [
+        "Unless disabled, you start with 2 random weapons as your Starting Arsenal,",
+        "drawn from up to 23 guns: the Merchant's original stock, the three guns found",
+        "in the world, the Deluxe and Separate Ways guns that work in Leon's campaign,",
+        "and the Bonus Weapons if enabled. The guns you start with leave the AP pool;",
+        "the rest are scattered amongst the Multiworld. Your starting guns can also",
+        "spawn with attachments. A scope-supported gun starts with its scope 100% of",
+        "the time, and every other gun has a 50% chance of one compatible attachment.",
+        "",
+        "Bonus Weapons (Handcannon, Chicago Sweeper, Primal Knife) only enter the pool",
+        "when your settings file allows them, because owning them writes a permanent",
+        "unlock to your game profile."
+      ]
+    },
+    {
+      "title": "The Merchant: Buy Tab",
+      "title_color": 4294967040,
+      "lines": [
+        "- The Merchant deals in Checks now, on both the Buy and Trade tabs.",
+        "- With Shuffle Merchant Gear on (the default), everything he sold as gear is",
+        "  in the AP Pool: weapons, attachments, case upgrades, knives, recipes, body",
+        "  armor and his trade stock.",
+        "- Buy tab Checks cost 2,500 / 7,500 / 15,000 pesetas by tier. Buying another",
+        "  player's item refunds you 1 / 3 / 6 Spinel, so helping a friend costs money",
+        "  up front and pays back in trade currency. Your own items are normal spending",
+        "  and refund nothing.",
+        "- New Checks are unlocked at every Chapter. The Buy tab shows at most 20",
+        "  unbought Checks at once; the rest sit in a queue until you buy more.",
+        "- The shop is restocked every Chapter with \"Staples\" to aid you with healing",
+        "  and crafting."
+      ]
+    },
+    {
+      "title": "The Merchant: Trade Tab",
+      "title_color": 4294967040,
+      "lines": [
+        "- Trade tab Checks cost 1 / 3 / 6 Spinel by tier, on seven tiles that rotate",
+        "  as you buy.",
+        "- Exchange Velvet Blue at 2 Spinel, as often as you like, and the three",
+        "  gemstones at 3, 4 and 5 Spinel, restocked every Chapter.",
+        "- Turn Spinel into money quickly with Velvet Blue, or invest into gems to slot",
+        "  into your Treasures for a larger profit.",
+        "- The Multiworld mints exactly enough Spinel to afford every Trade Check, and",
+        "  the Merchant's Requests provide more on top of that, so there's a bit of",
+        "  forgiveness if a Spinel check is left behind.",
+        "- A tile with nothing behind it displays the \"Claimed\" state.",
+        "- Trade Checks never refund."
+      ]
+    },
+    {
+      "title": "Receiving Items",
+      "title_color": 4294967040,
+      "lines": [
+        "- Items arrive while the game is playable, never mid-load or in a cutscene;",
+        "  anything sent while you're not in a \"playable\" state is queued until you are",
+        "- Guns, grenades, and knives go to typewriter Storage, never your case.",
+        "- Ammo, health, gunpowder and resources go into your case; if it is full, or",
+        "  nothing fits, they go to Storage too.",
+        "- Key items, tokens, charms and recipes reach the Key Items tab, treasures the",
+        "  Treasure tab, Pesetas and Spinel your wallet.",
+        "- Case upgrades and knives are progressive: each Progressive Attache Case is",
+        "  the next size up from the one you carry, each Progressive Knife the next",
+        "  knife you do not own (the Fighting Knife, then the Primal)."
+      ]
+    },
+    {
+      "title": "Typewriters",
+      "title_color": 4294967040,
+      "lines": [
+        "You're likely familiar with the Typewriters spread out across the world of",
+        "RE4R, like the one beside this note. They save your game - you're encouraged",
+        "to save often. AP items you send out and receive are saved and mirrored by the",
+        "AP server, but any \"normal\" items in RE4R will be lost, just like normal",
+        "progression.",
+        "",
+        "Typewriters also allow you to Warp back to them once discovered (or from the",
+        "start, if your settings file unlocked them). Be warned that this should be a",
+        "last resort, and is known to have issues with unloaded areas, strange",
+        "lighting, etc."
+      ]
+    },
+    {
+      "title": "REFramework, Menus, & Displays",
+      "title_color": 4294967040,
+      "lines": [
+        "Press Insert at any time to open the Archipelago window (this is REFramework's",
+        "toggle key, which will hide/show menus at any time).",
+        "",
+        "The UI Overlay sits in the top right corner and always shows your current",
+        "Chapter, Area & number of Checks you have found there.",
+        "",
+        "The Checklist tab is your hub for progress across everything in the room: the",
+        "Main Campaign, The Mercenaries, and (eventually) Separate Ways. The bar at the",
+        "top counts every Check found against every Check the room holds. Below it,",
+        "each content has its own section with its own count and bar. Main Campaign",
+        "lists every Typewriter & the Checks near it. Open a Typewriter to see the",
+        "Chapters & Areas it covers, and a Warp button. Merchant and Mercenaries each",
+        "have their own sections as well."
+      ]
+    },
+    {
+      "title": "REFramework, Menus, & Displays (continued)",
+      "title_color": 4294967040,
+      "lines": [
+        "The Guidance tab controls various assistance features that come with RE4R AP.",
+        "Unchecked AP item locations show a floating [AP] Marker with the distance, the",
+        "chapter it belongs to, and how far above or below you it is. The Guidance tab",
+        "allows you to turn Markers on or off, adjust how far away they appear, and",
+        "make them more or less detailed. You may also view this Tutorial again at any",
+        "time inside the Guidance tab.",
+        "",
+        "The Hints tab spends hint points to learn where an item is. Hints for items in",
+        "your world will automatically show their [AP] Marker, while Hints about your",
+        "items in other worlds get pinned on screen under Multiworld Hints. Multiworld",
+        "Hints can be hidden in the Guidance tab.",
+        "",
+        "Something's Wrong has recovery tools if a Check refuses to send. If you've run",
+        "into a bug or issue of some kind, you're encouraged to report it in the",
+        "Discord with a bug report generated from inside the Wizard (bottom right)."
+      ]
+    },
+    {
+      "title": "Debug Tab & Developer Tools",
+      "title_color": 4294967040,
+      "lines": [
+        "The Debug tab is hidden by default and nothing in it is needed to play. To",
+        "show it, open the REFramework menu (Insert), find ArchipelagoRE4R under Script",
+        "Generated UI, and tick \"Developer Tools (Debug tab)\".",
+        "",
+        "The one tool you may need is Item Injection. If an item another player sent",
+        "you never arrived, first reconnect from the Server tab: the mod re-delivers",
+        "anything it missed. If it is still not there, open Item Injection. The items",
+        "you were sent most recently sit under Recent, one button each; anything else",
+        "you can find by Category and name. Set the Count, press Inject Item, and the",
+        "Status line tells you where it landed. Only inject what the Multiworld",
+        "actually sent you.",
+        "",
+        "The rest of the tab is for the people fixing bugs. One warning: the DeathLink",
+        "simulation really does kill you."
+      ]
+    },
+    {
+      "title": "The Mercenaries",
+      "title_color": 4294967040,
+      "lines": [
+        "If your settings file includes The Mercenaries, the mode is part of your",
+        "Multiworld. Each character and stage pair has rank Checks (Rank A always; S,",
+        "S+ and S++ depending on your settings), and the characters and stages",
+        "themselves are the items: one of each starts with you, the rest stay locked",
+        "until their item arrives. Only Rank A can hold anything another player needs,",
+        "so no seed depends on a top score.",
+        "",
+        "Campaign items that arrive while you are in The Mercenaries wait until you are",
+        "back in the campaign. A room can also be Mercenaries only, with no campaign at",
+        "all; the goal is then Rank A on every character and stage combination."
+      ]
+    },
+    {
+      "title": "Keys, Drawers and Ashley",
+      "title_color": 4294967040,
+      "lines": [
+        "By default, Small Keys stay in your own world, each placed no later than the",
+        "drawer it opens. A locked drawer is never waiting on another player. If Small",
+        "Keys get shuffled into other Worlds, it's possible they could get to you after",
+        "you pass the drawer.",
+        "",
+        "While you play as Ashley, her own keys reach her directly, even mid-section.",
+        "Everything else waits until you are Leon again."
+      ]
+    },
+    {
+      "title": "Known Issues",
+      "title_color": 4294967040,
+      "lines": [
+        "- Some pickups can grant the item and send nothing. The tell is an Archipelago",
+        "  logo left in your inventory. Force Check it in Something's Wrong and report",
+        "  the location.",
+        "- A key sent by another player can vanish from a door's \"use\" list before the",
+        "  door opens. The mod puts it back on offer while you stand at the door",
+        "  holding it. If the door still refuses, report it; your host can open the way",
+        "  from the room's console.",
+        "- Typewriter Warps can land you in an area that has not finished loading, with",
+        "  odd lighting or missing objects. Save first; last resort only.",
+        "- An inbound DeathLink shows the game-over screen with no death animation.",
+        "- A summoned boat may face an odd direction at its pier.",
+        "- The overlay's counters can briefly disagree with the server. The server is",
+        "  right.",
+        "- Hardcore and Professional runs have one Check fewer by design (a Bindery",
+        "  stone the game will not hand over). If another stone there refuses to be",
+        "  picked up, report it.",
+        "- Random Events are experimental. A moved Check keeps its name but not its old",
+        "  spot; its Marker follows it."
+      ]
+    },
+    {
+      "title": "Credits",
+      "title_color": 4294967040,
+      "lines": [
+        "- The Archipelago project and its contributors, for the Multiworld framework,",
+        "  protocol, and server.",
+        "- praydog, for REFramework, the in-game scripting foundation.",
+        "- black-sliver, for the Archipelago client binding (lua-apclientpp).",
+        "- CriminalENT, for the in-game repack and model swap that placed the",
+        "  Archipelago logo in the game.",
+        "- snowzzrra, for advice, development help, Linux Support, and the entire",
+        "  Mercenaries AP Support.",
+        "- chenstack, for Item Adder and Item Indicator, the foundations for Multiworld",
+        "  item injection and the in-world Markers.",
+        "- JumperDenfer, for the RE4 Warp Mod, the foundation for the Typewriter warp",
+        "  system.",
+        "- Amondo, for many dozens of bug reports and feedback throughout the playtest.",
+        "- The Resident Evil Modding Community, for the tools and knowledge that made",
+        "  the world patches possible."
+      ]
+    },
+    {
+      "title": "The World Patcher: BioRand",
+      "title_color": 4278255615,
+      "lines": [
+        "The world you are fighting through - the enemies, the ambushes, the shape of",
+        "each seed - is the work of BioRand, the Resident Evil 4 randomizer by",
+        "IntelOrca. RE4R AP runs on a fork of it that takes its item placements from",
+        "the Multiworld.",
+        "",
+        "Your settings file also decides how far BioRand randomizes weapon upgrades:",
+        "untouched, rerolled stats, or full random upgrade trees (recent upstream work",
+        "by Mark Parton made the middle option possible).",
+        "",
+        "BioRand's own welcome note follows, as it was written."
+      ]
+    },
+    {
+      "title": "Welcome to BioRand 2.0",
+      "title_color": 4278255615,
+      "lines": [
+        "Dear {slot},",
+        "",
+        "Welcome to the 2.0 version of the Resident Evil 4 remake Randomizer. I'm",
+        "thrilled to see how popular this randomizer has become, and I'm deeply",
+        "grateful for the incredible support I have received for it.",
+        "",
+        "With this new version, there are lots of new exciting features to keep you on",
+        "edge and surprise you with each seed."
+      ]
+    },
+    {
+      "title": "Random events",
+      "title_color": 4294967040,
+      "lines": [
+        "Each seed will have a number of events that occur. You may occasionally find",
+        "yourself locked in a room or area forcing you to fight foes until the doors",
+        "unlock.",
+        "",
+        "Keys will not always be where they normally are. Some will be held by a tough",
+        "enemy nearby, others will be completely relocated. Keep your eyes open for",
+        "files that provide clues."
+      ]
+    },
+    {
+      "title": "Rare legendary weapons",
+      "title_color": 4294967040,
+      "lines": [
+        "Hidden within certain seeds are powerful, one-of-a-kind weapons. These weapons",
+        "contain powerful memes and unique mechanics.",
+        "",
+        "Gun rhymes with fun for a reason."
+      ]
+    },
+    {
+      "title": "Welcome to BioRand 2.0 (continued)",
+      "title_color": 4278255615,
+      "lines": [
+        "This project wouldn't have been possible without the help of some amazing",
+        "contributors:",
+        "",
+        "- 7rayD",
+        "- MightKusKus",
+        "- Afkkun",
+        "- Shinypockets",
+        "- 404runnotfound"
+      ]
+    },
+    {
+      "title": "Welcome to BioRand 2.0 (continued)",
+      "title_color": 4278255615,
+      "lines": [
+        "I hope this randomizer continues to surprise, challenge, and entertain you for",
+        "many runs to come.",
+        "",
+        "Thank you for playing!",
+        "IntelOrca"
+      ]
+    }
+  ]
+}

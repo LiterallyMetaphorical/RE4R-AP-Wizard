@@ -44,7 +44,6 @@ local function install(ctx)
     -- ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchSame.
     local TABLE_FLAGS = 512 + 32768
     -- ImGuiCond_Once: sections start open, and remember what the player did.
-    local COND_ONCE = 2
 
     local function push_rounding()
         local pushed = 0
@@ -112,10 +111,9 @@ local function install(ctx)
         end
     end
 
+    -- Sections start collapsed (Cam, 2026-09-05); imgui remembers what the
+    -- player opens for the rest of the session.
     local function section(title, id, count_text)
-        if has("set_next_item_open") then
-            pcall(imgui.set_next_item_open, true, COND_ONCE)
-        end
         local label = title
         if count_text ~= nil and count_text ~= "" then
             label = string.format("%s   %s", title, count_text)

@@ -242,6 +242,19 @@ return function(ctx)
             "room file: %d check(s) across %d display slot(s)%s",
             trade.check_count, trade.slot_count,
             trade.empty_name_msg_guid and "" or " (no empty-slot text in this room file)"))
+
+        -- [Stand-in sweep, 2026-09-05] A claim hands over the slot's stand-in
+        -- item like a bought row hands over its trinket. merchant.lua owns the
+        -- sweep, the load-time residue probe and the pickup-toast suppression,
+        -- so give it the slot ids and it treats them like shelf rows.
+        local register = ctx.merchant_register_standin_ids or _G.merchant_register_standin_ids
+        if type(register) == "function" then
+            local ids = {}
+            for _, slot in ipairs(trade.slots) do
+                ids[#ids + 1] = slot.item_id
+            end
+            pcall(register, ids, "trade")
+        end
     end
 
     -- ------------------------------------------------------------ reward table
@@ -731,6 +744,33 @@ return function(ctx)
                                 check.player_name, check.tier, check.price_spinel,
                                 queued and "" or " [already queued]"))
                             claimed_any = true
+                            -- The claim handed over the slot's stand-in item.
+                            -- Take it back: it is key-item kind, so it sat in
+                            -- Key Items with no way to drop it (live 2026-09-05).
+                            local sweep = ctx.merchant_queue_standin_sweep or _G.merchant_queue_standin_sweep
+                            if type(sweep) == "function" then
+                                pcall(sweep, slot.item_id)
+                            end
+                            -- And announce the claim on the native rail the way
+                            -- the buy tab announces a purchase: the real item
+                            -- for a local check, the AP logo for a foreign one.
+                            -- The stand-in's own pickup toast is dropped now.
+                            local push_item_get = ctx.push_native_item_get or _G.push_native_item_get
+                            local toast_ok = false
+                            if type(push_item_get) == "function" then
+                                local toast_id = (ctx.config and tonumber(ctx.config.PLACEHOLDER_ITEM_ID)) or 120486400
+                                if not check.remote and math.floor(tonumber(check.item_id_real) or 0) > 0 then
+                                    toast_id = math.floor(check.item_id_real)
+                                end
+                                local ok_push, pushed = pcall(push_item_get, toast_id, 1)
+                                toast_ok = (ok_push and pushed == true)
+                            end
+                            if not toast_ok then
+                                local push_text = ctx.push_native_text or _G.push_native_text
+                                if type(push_text) == "function" then
+                                    pcall(push_text, string.format("[AP] %s", tostring(check.display_name)))
+                                end
+                            end
                         else
                             -- The defect itself, if it ever fires again: a
                             -- purchase on a slot with nothing assigned. Parking

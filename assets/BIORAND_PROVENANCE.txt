@@ -19,7 +19,7 @@ HISTORY SQUASHED 2026-08-10: the fork's branch was flattened to a single commit,
                 .cs/.csv/.json, so the SHA-256 below still describes the code
                 that is on the branch today. Keep the old ids for the reasoning
                 they carry; treat 703e59a as the citable source commit.
-Source commit:  b7343ff (2026-09-05 a remote check's caption says the refund is spinel; see the REBUILD entries below)
+Source commit:  9ab06de (2026-09-05 the welcome note, second edition; see the REBUILD entries below)
 HISTORY REWRITTEN 2026-09-03: the unpushed fork commits (2026-08-24 onward) were
                 squashed by scope and re-worded in plain language before review.
                 Every id cited in the REBUILD entries below is OFF-BRANCH now (still
@@ -167,11 +167,20 @@ Previous:       05f581e (2026-08-06: FORCED EVENTS - BioRand takes its event
                 DLC entitlement needed). Includes b27f7ac (drop-catalog fix)
                 and 90140f0 (purity gates).)
 Publish:        -c Release -r win-x64 --self-contained -p:PublishSingleFile=true (net10.0)
-biorand-re4r.exe SHA-256: c28f14cbc9f32a068194be8da85cf7ef7fbf552db446f0a52379544c2bab8612
-ProductVersion: 1.0.0+b7343ff31fb31ae8f532f4b1e71ddc575a53628b (the launcher
+biorand-re4r.exe SHA-256: e3b364d1b515dd24054b69cc79dd3f3496bc02e0d881898c42444f2026b7d5d2
+ProductVersion: 1.0.0+9ab06de30b36d72487259eced7e12a3cb81ff9f0 (the launcher
                 writes this into version_stamp.json, and a change here is what
                 triggers the one-time setup cache re-harvest)
 Built with:     .NET SDK 10.0.301
+
+REBUILD 2026-09-05 second (9ab06de)
+    The welcome note, second edition.
+      * PlaceWelcomeDocument's Content is Cam's rewrite for v0.6.0-beta,
+        generated from the apworld's data/welcome_note.txt by welcome_note.py
+        (the same text feeds the mod's welcome-note window). Text only; no
+        data or placement change.
+    Offline verify: library builds clean; payload restaged, launcher tests pass.
+    biorand-re4r.exe SHA-256: e3b364d1b515dd24054b69cc79dd3f3496bc02e0d881898c42444f2026b7d5d2
 
 REBUILD 2026-09-05 (b7343ff)
     A remote check's caption says the refund is spinel.

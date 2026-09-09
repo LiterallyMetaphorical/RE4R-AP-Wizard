@@ -305,28 +305,52 @@ local function install(ctx)
         return domain_cache_value
     end
 
+    -- Which of the game's modes is really running. Live evidence only: the
+    -- mode's controller, or one of its Cp1021 screens, has to exist in the
+    -- current scene. The MercenariesManager is an AppSingleton that outlives
+    -- the mode and its IsResult stays raised after a run until the next one
+    -- starts, so reading it here kept a save loaded after an S rank in
+    -- "MERCENARIES": the campaign pickup scan stayed paused, the header kept
+    -- the mode's name and a remote check was lost (live 2026-09-05). Its
+    -- get_Routine never existed on the manager (it is the controller's), so
+    -- that half of the old test was always false.
+    local MERC_SCREEN_TYPES = {
+        "chainsaw.Cp1021GameClearResultGuiBehavior",
+        "chainsaw.Cp1021StageSelectGuiBehavior",
+        "chainsaw.Cp1021CharacterSelectGuiBehavior",
+        "chainsaw.Cp1021MainMenuGuiBehavior",
+        "chainsaw.Cp1021MainMenuBGGuiBehavior",
+    }
+    local last_reported_domain = nil
+
     get_runtime_domain_uncached = function()
-        local merc_mgr = get_merc_manager()
-        if merc_mgr ~= nil then
-            local is_active = get_safe_int(merc_mgr, "get_Routine", -1) >= 0
-            local is_result = get_safe_bool(merc_mgr, "get_IsResult", merc_state.last_is_result)
-            if is_active or is_result then return "MERCENARIES" end
+        local domain = nil
+        if get_merc_controller() ~= nil then
+            domain = "MERCENARIES"
+        else
+            for _, type_name in ipairs(MERC_SCREEN_TYPES) do
+                if find_first_component(type_name) ~= nil then
+                    domain = "MERCENARIES"
+                    break
+                end
+            end
         end
-
-        if get_merc_controller() ~= nil then return "MERCENARIES" end
-        if find_first_component("chainsaw.Cp1021GameClearResultGuiBehavior") ~= nil
-            or find_first_component("chainsaw.Cp1021StageSelectGuiBehavior") ~= nil
-            or find_first_component("chainsaw.Cp1021CharacterSelectGuiBehavior") ~= nil
-            or find_first_component("chainsaw.Cp1021MainMenuGuiBehavior") ~= nil
-            or find_first_component("chainsaw.Cp1021MainMenuBGGuiBehavior") ~= nil then
-            return "MERCENARIES"
+        if domain == nil then
+            local runtime_state = type(ctx.get_runtime_state) == "function" and ctx.get_runtime_state() or nil
+            if runtime_state ~= nil and runtime_state.is_in_game and not runtime_state.is_title_screen then
+                domain = "CAMPAIGN"
+            else
+                domain = "MENU_OR_OTHER"
+            end
         end
-
-        local runtime_state = type(ctx.get_runtime_state) == "function" and ctx.get_runtime_state() or nil
-        if runtime_state ~= nil and runtime_state.is_in_game and not runtime_state.is_title_screen then
-            return "CAMPAIGN"
+        -- One line per change, so the log shows when the mode was entered
+        -- and, above all, when it was left.
+        if domain ~= last_reported_domain then
+            log.info(string.format("[RE4R AP] runtime domain: %s -> %s",
+                tostring(last_reported_domain or "start"), domain))
+            last_reported_domain = domain
         end
-        return "MENU_OR_OTHER"
+        return domain
     end
     export("get_runtime_domain", get_runtime_domain)
 

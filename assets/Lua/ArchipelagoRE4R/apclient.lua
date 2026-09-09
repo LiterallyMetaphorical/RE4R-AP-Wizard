@@ -1503,6 +1503,9 @@ return function(ctx)
         if bridge == nil then return end
         local expected = st.slot_difficulty
         if expected == nil then return end
+        -- The Mercenaries has its own difficulty, not the seed's (live
+        -- 2026-09-05: "you are playing standard" fired from inside the mode).
+        if merc_domain_active() then return end
         local now = os.clock()
         if now < difficulty_next_poll then return end
         difficulty_next_poll = now + 5.0
@@ -1605,13 +1608,22 @@ return function(ctx)
                 if type(is_default) == "function" then
                     local ok_char, lead_active = pcall(is_default)
                     if ok_char and lead_active == false then
+                        local tagged = 0
                         for _, lid in ipairs(to_send) do
-                            bridge.non_lead_checked_locations[lid] = true
+                            -- A Mercenaries rank has no pickup to lose, so
+                            -- only world locations carry this debt (the ranks
+                            -- already bypass the own-find skip on their own).
+                            if not is_merc_location(lid) then
+                                bridge.non_lead_checked_locations[lid] = true
+                                tagged = tagged + 1
+                            end
                         end
-                        marked = true
-                        info(string.format(
-                            "%d location(s) collected by a non-lead character - their items will be delivered when the lead returns",
-                            #to_send))
+                        if tagged > 0 then
+                            marked = true
+                            info(string.format(
+                                "%d location(s) collected by a non-lead character - their items will be delivered when the lead returns",
+                                tagged))
+                        end
                     end
                 end
                 bridge.state_dirty = true

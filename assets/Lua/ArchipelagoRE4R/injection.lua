@@ -2871,8 +2871,15 @@ local function install(ctx)
     end
 
     -- Defined with the bonus-weapon hooks further down; the entitlement veto
-    -- below shares it, so a D5 room without scattered gear is covered too.
+    -- below shares them, so a D5 room without scattered gear is covered too.
     local is_pool_bonus_weapon
+    -- [2026-09-05] Any of the three, pool item or not. In an AP room the trio
+    -- never reaches Storage through the game's profile grant (Cam: "in any AP
+    -- room the trio should never land in Storage"). Until now a room without
+    -- bonus_weapons consent handed a profile that had once bought them a free
+    -- Handcannon, Chicago Sweeper and Primal Knife at campaign start, because
+    -- every guard was scoped to pool ids and stood aside.
+    local is_bonus_trio_weapon
 
     -- [Scatter interlock, 2026-08-16] The Deluxe entitlement grant drops DLC
     -- weapons (Sentinel Nine, Skull Shaker) straight into Storage through
@@ -2908,12 +2915,19 @@ local function install(ctx)
                 pcall(function()
                     item_id = tonumber(sdk.to_int64(args[3]))
                 end)
-                if item_id ~= nil
+                local pool_item = item_id ~= nil
                     and (scattered[item_id]
                         or (type(is_pool_bonus_weapon) == "function" and is_pool_bonus_weapon(item_id)))
-                then
+                local trio_item = item_id ~= nil
+                    and type(is_bonus_trio_weapon) == "function" and is_bonus_trio_weapon(item_id)
+                if pool_item then
                     log.info(string.format(
                         "[RE4R AP] entitlement grant vetoed: item %d is a multiworld item in this room",
+                        item_id))
+                    return sdk.PreHookResult.SKIP_ORIGINAL
+                elseif trio_item then
+                    log.info(string.format(
+                        "[RE4R AP] entitlement grant vetoed: item %d is a bonus weapon, and those never enter Storage in an AP room",
                         item_id))
                     return sdk.PreHookResult.SKIP_ORIGINAL
                 end
@@ -2993,6 +3007,10 @@ local function install(ctx)
             return true
         end
         return bridge.allow_bonus_items == true or bridge.bonus_weapons_unlock == true
+    end
+
+    is_bonus_trio_weapon = function(item_id)
+        return BONUS_WEAPON_BY_ITEM[item_id] ~= nil
     end
 
     local function is_pool_bonus_id(bonus_id)
@@ -3154,10 +3172,15 @@ local function install(ctx)
                 end)
                 if item_id ~= nil then
                     item_id = math.floor(item_id)
-                    if is_pool_bonus_weapon(item_id) then
+                    -- Any of the three, in any room (2026-09-05). Inside a
+                    -- grant window the only source is the game's profile
+                    -- grant; a delivered gun arrives outside the windows.
+                    if is_bonus_trio_weapon(item_id) then
                         log.info(string.format(
-                            "[RE4R AP] Storage grant vetoed: %s is a multiworld item in this room",
-                            BONUS_WEAPON_BY_ITEM[item_id].name))
+                            "[RE4R AP] Storage grant vetoed: %s %s",
+                            BONUS_WEAPON_BY_ITEM[item_id].name,
+                            is_pool_bonus_weapon(item_id) and "is a multiworld item in this room"
+                                or "is a bonus weapon, and those never enter Storage in an AP room"))
                         return sdk.PreHookResult.SKIP_ORIGINAL
                     end
                 end
@@ -3170,7 +3193,7 @@ local function install(ctx)
                     return sdk.PreHookResult.CALL_ORIGINAL
                 end
                 local item_id = bonus_arg_int(args, 3)
-                if item_id ~= nil and is_pool_bonus_weapon(item_id) then
+                if item_id ~= nil and is_bonus_trio_weapon(item_id) then
                     return sdk.PreHookResult.SKIP_ORIGINAL
                 end
                 return sdk.PreHookResult.CALL_ORIGINAL
@@ -3178,12 +3201,13 @@ local function install(ctx)
             function(retval) return retval end)
 
         log.info(string.format(
-            "[RE4R AP] bonus weapon guards installed (%d of %d): pool bonus weapons are never deleted and never granted into Storage",
+            "[RE4R AP] bonus weapon guards installed (%d of %d): pool bonus weapons are never deleted, and the trio is never granted into Storage",
             installed, wanted))
     end
 
-    -- Copies already in Storage from before the grant veto existed. Rows of
-    -- { id, name, count } for the pool ids only.
+    -- Copies the game's profile grant put into Storage: before any veto
+    -- existed, or on a save from a build that only vetoed pool ids. Rows of
+    -- { id, name, count } for any of the three.
     local function inject_bonus_weapons_in_storage()
         local rows = {}
         local armoury = sdk.get_managed_singleton("chainsaw.ArmouryManager")
@@ -3191,14 +3215,12 @@ local function install(ctx)
             return rows
         end
         for _, weapon in ipairs(BONUS_WEAPON_ITEM_IDS) do
-            if is_pool_bonus_weapon(weapon.id) then
-                local count = 0
-                pcall(function()
-                    count = tonumber(armoury:call("getItemCountSum", weapon.id)) or 0
-                end)
-                if count > 0 then
-                    rows[#rows + 1] = { id = weapon.id, name = weapon.name, count = count }
-                end
+            local count = 0
+            pcall(function()
+                count = tonumber(armoury:call("getItemCountSum", weapon.id)) or 0
+            end)
+            if count > 0 then
+                rows[#rows + 1] = { id = weapon.id, name = weapon.name, count = count }
             end
         end
         return rows

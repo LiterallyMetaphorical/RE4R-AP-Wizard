@@ -117,9 +117,9 @@ local function install(ctx)
 
         imgui.text("")
         theme.heading("Getting started")
-        imgui.text("The welcome note in the Hunter's Lodge covers the basics. This")
-        imgui.text("reopens the same guide as a window, any time:")
-        if imgui.button("Show the getting-started guide again") then
+        imgui.text("The welcome note on the desk where you started covers everything.")
+        imgui.text("This opens the same note as a window, any time:")
+        if imgui.button("Show the welcome note") then
             local replay = ctx.replay_tutorial or _G.replay_tutorial
             if type(replay) == "function" then
                 replay()

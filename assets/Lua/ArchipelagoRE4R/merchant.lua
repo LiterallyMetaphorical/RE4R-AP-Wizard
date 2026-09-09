@@ -229,6 +229,12 @@ return function(ctx)
                 suppress_ids[normalized] = true
             end
         end
+        -- Plus whatever another module registered (the trade tab's slot
+        -- stand-ins), whichever of the two configured first.
+        for extra_id in pairs(merchant.extra_standin_ids or {}) do
+            suppress_ids = suppress_ids or {}
+            suppress_ids[extra_id] = true
+        end
         bridge.suppress_item_toast_ids = suppress_ids
     end
 
@@ -340,7 +346,10 @@ return function(ctx)
     -- sweep looks in the treasure inventory, which is where the mod's own
     -- treasure delivery routes; if the live test shows it landing elsewhere,
     -- the "not found" log line below says so and the resolver gains a case.
-    local function resolve_treasure_controller()
+    -- Both per-character inventory controllers hang off the PlayerHeadUpdater
+    -- (il2cpp dump: get_TreasureInventoryController and
+    -- get_KeyItemInventoryController sit side by side on it).
+    local function resolve_head_controller(getter)
         local character_manager = sdk.get_managed_singleton("chainsaw.CharacterManager")
         if character_manager == nil then return nil end
         local player = nil
@@ -356,11 +365,24 @@ return function(ctx)
         end
         if head_updater == nil then return nil end
         local controller = nil
-        pcall(function() controller = head_updater:call("get_TreasureInventoryController()") end)
+        pcall(function() controller = head_updater:call(getter .. "()") end)
         if controller == nil then
-            pcall(function() controller = head_updater:call("get_TreasureInventoryController") end)
+            pcall(function() controller = head_updater:call(getter) end)
         end
         return controller
+    end
+
+    local function resolve_treasure_controller()
+        return resolve_head_controller("get_TreasureInventoryController")
+    end
+
+    -- [Trade stand-ins, 2026-09-05] A claimed trade check hands over its
+    -- stand-in the way a bought row hands over its trinket, but the trade
+    -- stand-ins are key-item kind, so the copy lands in Key Items & Treasures
+    -- (live: an "[AP] Nothing to Trade" square in the key item row, which a
+    -- player cannot drop or sell). Third inventory the sweep has to cover.
+    local function resolve_key_item_controller()
+        return resolve_head_controller("get_KeyItemInventoryController")
     end
 
     -- An inventory entry wraps the item; both the wrapper and the inner item
@@ -382,15 +404,85 @@ return function(ctx)
     end
 
     local function entry_item_id(entry)
+        -- The treasure and key item entries are chainsaw.InventoryItemBase:
+        -- the item sits behind get_ItemId / get_Item with only compiler
+        -- backing fields underneath (il2cpp dump, 2026-09-05), so the getters
+        -- come first and the field names stay as fallbacks for other shapes.
+        local via_getter = nil
+        pcall(function() via_getter = tonumber(entry:call("get_ItemId")) end)
+        if via_getter ~= nil then return math.floor(via_getter) end
         local direct = tonumber(read_first_field(entry, ITEM_ID_FIELDS))
         if direct ~= nil then return math.floor(direct) end
         local inner = nil
-        pcall(function() inner = entry:get_field("_Item") end)
+        pcall(function() inner = entry:call("get_Item") end)
+        if inner == nil then
+            pcall(function() inner = entry:get_field("_Item") end)
+        end
         if inner ~= nil then
             local nested = tonumber(read_first_field(inner, ITEM_ID_FIELDS))
             if nested ~= nil then return math.floor(nested) end
         end
         return nil
+    end
+
+    -- The instance guid the controllers' remove(System.Guid) takes: the
+    -- entry's own get_ID, else the wrapped chainsaw.Item's _ID.
+    local function entry_instance_guid(entry)
+        local guid = nil
+        pcall(function() guid = entry:call("get_ID") end)
+        if guid ~= nil then return guid end
+        guid = read_first_field(entry, INSTANCE_GUID_FIELDS)
+        if guid ~= nil then return guid end
+        local inner = nil
+        pcall(function() inner = entry:call("get_Item") end)
+        if inner == nil then
+            pcall(function() inner = entry:get_field("_Item") end)
+        end
+        if inner ~= nil then
+            return read_first_field(inner, INSTANCE_GUID_FIELDS)
+        end
+        return nil
+    end
+
+    -- One controller's list: every entry carrying item_id is removed by
+    -- instance guid, walked from the end so a removal never shifts an entry
+    -- the walk has not reached. Returns the removed count, or nil and a
+    -- reason when the list cannot be read at all.
+    local function sweep_controller_inventory(controller, item_id)
+        local items = nil
+        pcall(function() items = controller:call("getInventoryItems") end)
+        if items == nil then
+            pcall(function() items = controller:call("getInventoryItems()") end)
+        end
+        if items == nil then
+            return nil, "inventory list unavailable"
+        end
+        local count = nil
+        pcall(function() count = items:call("get_Count") end)
+        count = tonumber(count)
+        if count == nil then
+            return nil, "inventory count unavailable"
+        end
+        local removed = 0
+        for index = count - 1, 0, -1 do
+            local entry = nil
+            pcall(function() entry = items:call("get_Item", index) end)
+            if entry ~= nil and entry_item_id(entry) == item_id then
+                local guid = entry_instance_guid(entry)
+                if guid ~= nil then
+                    -- The key item controller overloads remove (Guid, a Guid
+                    -- list, a slot index), so name the overload first.
+                    local ok, result = pcall(function()
+                        return controller:call("remove(System.Guid)", guid)
+                    end)
+                    if not ok then
+                        ok, result = pcall(function() return controller:call("remove", guid) end)
+                    end
+                    if ok and result ~= false then removed = removed + 1 end
+                end
+            end
+        end
+        return removed, nil
     end
 
     -- [Stand-in diagnosis 2026-08-17] Both of these run ONLY on the loud last
@@ -496,54 +588,45 @@ return function(ctx)
         local function note(text)
             if not quiet then info(text) end
         end
+        -- Key items first: the trade stand-ins are key-item kind and that is
+        -- where a claimed one lands (live 2026-09-05). Then the treasure tab,
+        -- then the case.
+        local key_items = resolve_key_item_controller()
+        if key_items ~= nil then
+            local removed_keys, why_keys = sweep_controller_inventory(key_items, item_id)
+            if removed_keys ~= nil and removed_keys > 0 then
+                info(string.format("stand-in %d swept from the key items (%d)", item_id, removed_keys))
+                return true
+            elseif removed_keys == nil then
+                note(string.format("stand-in %d: key item inventory unreadable (%s)",
+                    item_id, tostring(why_keys)))
+            end
+        end
         local controller = resolve_treasure_controller()
         if controller == nil then
             note(string.format("stand-in %d left in place (treasure controller unavailable)", item_id))
             return false
         end
-        local items = nil
-        pcall(function() items = controller:call("getInventoryItems") end)
-        if items == nil then
-            pcall(function() items = controller:call("getInventoryItems()") end)
-        end
-        if items == nil then
-            note(string.format("stand-in %d left in place (inventory list unavailable)", item_id))
+        local removed, why = sweep_controller_inventory(controller, item_id)
+        if removed == nil then
+            note(string.format("stand-in %d left in place (%s)", item_id, tostring(why)))
             return false
-        end
-        local count = nil
-        pcall(function() count = items:call("get_Count") end)
-        count = tonumber(count)
-        if count == nil then
-            note(string.format("stand-in %d left in place (inventory count unavailable)", item_id))
-            return false
-        end
-        local removed = 0
-        for index = 0, count - 1 do
-            local entry = nil
-            pcall(function() entry = items:call("get_Item", index) end)
-            if entry ~= nil and entry_item_id(entry) == item_id then
-                local guid = read_first_field(entry, INSTANCE_GUID_FIELDS)
-                if guid ~= nil then
-                    local ok = pcall(function() controller:call("remove", guid) end)
-                    if ok then removed = removed + 1 end
-                end
-            end
         end
         if removed > 0 then
             info(string.format("stand-in %d swept from the treasure inventory (%d)", item_id, removed))
             return true
         end
-        -- ANSWERED 2026-08-17: it lands in the main case, not the treasure
-        -- tab. The stand-in is a treasure-kind item, but a shop purchase
-        -- routes it like ordinary merchandise, so the case is the second
-        -- place to look.
+        -- ANSWERED 2026-08-17: a bought row's trinket lands in the main case,
+        -- not the treasure tab. The stand-in is a treasure-kind item, but a
+        -- shop purchase routes it like ordinary merchandise, so the case is
+        -- the last place to look.
         local swept_case = sweep_case_inventory(item_id, quiet)
         if swept_case > 0 then
             info(string.format("stand-in %d swept from the case (%d)", item_id, swept_case))
             return true
         end
         note(string.format(
-            "stand-in %d not in the treasure inventory or the case yet", item_id))
+            "stand-in %d not in the key items, the treasure inventory or the case yet", item_id))
         return false
     end
 
@@ -588,12 +671,20 @@ return function(ctx)
         -- Residue probes: short window, always quiet - anything they can
         -- find is already settled in an inventory at boot. Success speaks
         -- through suppress_standin's own "swept" line plus the tag below.
+        -- The window only counts down while the player is in-game: at the
+        -- title screen there are no inventories to probe, and a probe that
+        -- burned its ticks there would miss the leftover the moment the save
+        -- loaded (2026-09-05: the trade stand-ins stranded in Key Items).
+        local in_game = bridge.last_state ~= nil and bridge.last_state.is_in_game == true
         for item_id, ticks_left in pairs(merchant.residue_probes) do
             local ok, swept = pcall(suppress_standin, item_id, true)
             if ok and swept then
                 merchant.residue_probes[item_id] = nil
                 info(string.format(
                     "stand-in %d was residue from an earlier session", item_id))
+            elseif not in_game then
+                -- Stay armed until there is something to look at.
+                merchant.residue_probes[item_id] = ticks_left
             elseif ticks_left <= 1 then
                 merchant.residue_probes[item_id] = nil
             else
@@ -2021,6 +2112,51 @@ return function(ctx)
         return slot_key(check)
     end
     ctx.merchant_poll_pending_sweeps = poll_pending_sweeps
+    -- [Trade stand-ins, 2026-09-05] The trade tab's display slots are stand-in
+    -- items too, handed over on a claim exactly like a bought row's trinket.
+    -- trade.lua registers them here so the same three things happen to them:
+    -- the game's blank-square pickup toast is dropped, a leftover copy is
+    -- swept at load, and a claim queues a sweep debt that holds until the
+    -- copy is actually seen and removed.
+    local function register_standin_ids(ids, label)
+        merchant.extra_standin_ids = merchant.extra_standin_ids or {}
+        local added = 0
+        for _, raw in ipairs(ids or {}) do
+            local normalized = math.floor(tonumber(raw) or 0)
+            if normalized > 0 and not merchant.extra_standin_ids[normalized] then
+                merchant.extra_standin_ids[normalized] = true
+                merchant.residue_probes[normalized] = RESIDUE_PROBE_TICKS
+                added = added + 1
+            end
+        end
+        if added > 0 then
+            local suppress_ids = bridge.suppress_item_toast_ids or {}
+            for id in pairs(merchant.extra_standin_ids) do
+                suppress_ids[id] = true
+            end
+            bridge.suppress_item_toast_ids = suppress_ids
+            info(string.format("%d %s stand-in id(s) registered: toast dropped, swept at load and on claim",
+                added, tostring(label or "extra")))
+        end
+        return added
+    end
+    local function queue_standin_sweep(item_id)
+        local normalized = math.floor(tonumber(item_id) or 0)
+        if normalized <= 0 then
+            return false
+        end
+        local ok_sweep, swept = pcall(suppress_standin, normalized, true)
+        if ok_sweep and swept then
+            return true
+        end
+        -- Ticks ELAPSED, not remaining: the debt holds until swept.
+        merchant.pending_sweeps[normalized] = 0
+        return false
+    end
+    ctx.merchant_register_standin_ids = register_standin_ids
+    ctx.merchant_queue_standin_sweep = queue_standin_sweep
+    _G.merchant_register_standin_ids = register_standin_ids
+    _G.merchant_queue_standin_sweep = queue_standin_sweep
     ctx.merchant_settle_refunds_for_loaded_save = settle_refunds_for_loaded_save
     -- The save hook asks for this at the instant a version is written, which is
     -- the only moment we know what that file actually contains.
