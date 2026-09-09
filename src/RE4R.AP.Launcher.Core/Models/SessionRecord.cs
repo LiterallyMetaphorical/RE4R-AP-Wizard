@@ -42,6 +42,25 @@ public sealed class SessionRecord
     [JsonPropertyName("game_mode")]
     public string GameMode { get; set; } = "campaign";
 
+    /// <summary>
+    /// The campaign this record's patch was built for, named the way the
+    /// patcher names it, or "" for a room that needed no patch. Null on a
+    /// record written before this existed.
+    /// </summary>
+    [JsonPropertyName("patched_campaign")]
+    public string? PatchedCampaign { get; set; }
+
+    /// <summary>
+    /// What is actually installed: the record's own answer when it has one,
+    /// otherwise derived from the mode, which is right for every record that
+    /// predates this because Leon's was the only campaign anyone could patch.
+    /// </summary>
+    [JsonIgnore]
+    public string CampaignPatched =>
+        PatchedCampaign ?? (string.Equals(GameMode, "mercenaries_only", StringComparison.OrdinalIgnoreCase)
+            ? string.Empty
+            : "Main Story");
+
     // One of: "patch_in_progress" (breadcrumb written before game files are
     // touched; survives a crash mid-patch), "active", "superseded", "finished".
     [JsonPropertyName("status")]

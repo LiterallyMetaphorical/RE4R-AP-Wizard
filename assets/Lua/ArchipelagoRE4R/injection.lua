@@ -1246,6 +1246,166 @@ local function install(ctx)
             "%s (no %s registered)", tostring(lookup_error), table.concat(type_names, "/"))
     end
 
+    -- [Separate Ways probe] Read-only. When the character gate below says the
+    -- lead is not active, this says WHO is, by reporting the ContextID keys the
+    -- table actually holds and the class registered under each.
+    --
+    -- Ada leads her own campaign. If the game registers the lead under the same
+    -- context whoever the lead is, delivery works in Separate Ways untouched;
+    -- if she gets her own contexts, the gate below holds every incoming item
+    -- for that whole campaign, the way it does in the Ashley section. Nothing
+    -- offline can answer that, so the mod answers it from a normal play
+    -- session instead of anybody guessing (Cam asked, 2026-09-06).
+    local controller_table_report = nil
+
+    -- A ContextID is (4, 2, inventory-kind, CHARACTER), and only the last
+    -- number moves between characters. Proven live 2026-09-06 by the probe
+    -- below: Leon, Ashley and Ada each register the same four controllers.
+    --
+    -- The campaign matters more than the name. Ashley's section runs inside
+    -- Leon's campaign, on his map, among his checks; Ada's is a campaign of
+    -- her own with her own map.
+    local CHARACTER_BY_INDEX = {
+        [4000] = { name = "Leon", campaign = "leon" },
+        [4100] = { name = "Ashley", campaign = "leon" },
+        [4200] = { name = "Ada", campaign = "separate_ways" },
+    }
+    local LEAD_KEY_ITEM_INDEX = 4000
+    local current_character = nil
+
+    -- Every (key, value) pair in the controller table, or an empty list.
+    --
+    -- ONE walk, shared. The character index used to have a walk of its own and
+    -- it was missing the indexed fallback, so it read nothing on the live table
+    -- while the probe beside it read four controllers (Cam, 2026-09-06: the
+    -- overlay header never named Ada). Two copies of a walk means one of them
+    -- is wrong.
+    local function inject_controller_entries(controller_table)
+        local managed = inject_get_managed(controller_table)
+        if managed == nil then
+            return {}
+        end
+
+        local function field_of(entry, names)
+            for _, name in ipairs(names) do
+                local value = inject_safe_call(function() return entry:get_field(name) end)
+                if value ~= nil then
+                    return value
+                end
+            end
+            return nil
+        end
+
+        local function pair_of(entry)
+            if entry == nil then
+                return nil
+            end
+            local value = field_of(entry, { "value", "_value" })
+            if value == nil then
+                return nil
+            end
+            return { key = field_of(entry, { "key", "_key" }), value = value }
+        end
+
+        for _, field_name in ipairs({ "_entries", "entries", "_values", "values" }) do
+            local entries = inject_safe_call(function() return managed:get_field(field_name) end)
+            if entries ~= nil then
+                local pairs_found = {}
+                local elements = inject_safe_call(function() return entries:get_elements() end)
+                if type(elements) == "table" then
+                    for _, entry in ipairs(elements) do
+                        local pair = pair_of(entry)
+                        if pair ~= nil then
+                            pairs_found[#pairs_found + 1] = pair
+                        end
+                        if #pairs_found >= 24 then
+                            break
+                        end
+                    end
+                end
+                if #pairs_found == 0 then
+                    -- The path the live table actually takes.
+                    local count = tonumber(inject_safe_call(function() return entries:get_size() end))
+                        or tonumber(inject_safe_call(function() return entries:call("get_Length()") end))
+                    if count ~= nil and count > 0 then
+                        for i = 0, math.min(math.floor(count), 24) - 1 do
+                            local pair = pair_of(
+                                inject_safe_call(function() return entries:get_element(i) end))
+                            if pair ~= nil then
+                                pairs_found[#pairs_found + 1] = pair
+                            end
+                        end
+                    end
+                end
+                if #pairs_found > 0 then
+                    return pairs_found
+                end
+            end
+        end
+        return {}
+    end
+
+    local function inject_describe_controller_table(controller_table)
+        local managed = inject_get_managed(controller_table)
+        if managed == nil then
+            return "controller table unreadable"
+        end
+
+        local parts = {}
+        for _, pair in ipairs(inject_controller_entries(controller_table)) do
+            local class = tostring(inject_get_value_type_name(pair.value) or "?")
+            if pair.key == nil then
+                parts[#parts + 1] = "(no key)=" .. class
+            else
+                local numbers = {}
+                for index, name in ipairs({ "_Category", "_Kind", "_Group", "_Index" }) do
+                    numbers[index] = tostring(
+                        inject_safe_call(function() return pair.key:get_field(name) end) or "?")
+                end
+                parts[#parts + 1] = string.format("(%s)=%s", table.concat(numbers, ","), class)
+            end
+        end
+
+        if #parts == 0 then
+            -- Say which fields the table even has, so a third attempt is not
+            -- another guess.
+            local seen = {}
+            for _, field_name in ipairs({
+                "_entries", "entries", "_values", "values", "_buckets", "_count", "_size", "_keys",
+            }) do
+                if inject_safe_call(function() return managed:get_field(field_name) end) ~= nil then
+                    seen[#seen + 1] = field_name
+                end
+            end
+            if #seen > 0 then
+                return "no readable entries; fields present: " .. table.concat(seen, ", ")
+            end
+            return "no readable entries and no known field on the table"
+        end
+        return table.concat(parts, "  ")
+    end
+
+    -- Which character owns the live inventories, read off the key-item
+    -- controller's own ContextID. nil when it cannot be read, which callers
+    -- must treat as "carry on as before" rather than as a swap.
+    local function inject_read_character_index(controller_table)
+        for _, pair in ipairs(inject_controller_entries(controller_table)) do
+            if pair.key ~= nil
+                and inject_get_value_type_name(pair.value) == "chainsaw.KeyItemInventoryController" then
+                return tonumber(inject_safe_call(function() return pair.key:get_field("_Index") end))
+            end
+        end
+        return nil
+    end
+
+    -- Who is playing, as { index, name, campaign }, or nil when unread. Other
+    -- modules ask this to tell Ada's campaign from Leon's: her stage ids
+    -- overlap his, so the stage alone cannot separate them.
+    local function inject_current_character()
+        return current_character
+    end
+    export("inject_current_character", inject_current_character)
+
     -- True while the campaign lead (Leon) owns the live inventories. The Ashley
     -- section registers HER controllers under different ContextIDs, so Leon's
     -- known key-item ID being absent is a reliable, cheap "someone else is
@@ -1271,7 +1431,42 @@ local function install(ctx)
         if controller_table == nil then
             return true
         end
-        local controller = inject_lookup_controller(controller_table, 4, 2, 1, 4000)
+        local controller = inject_lookup_controller(controller_table, 4, 2, 1, LEAD_KEY_ITEM_INDEX)
+        local index = controller ~= nil
+            and LEAD_KEY_ITEM_INDEX
+            or inject_read_character_index(controller_table)
+        local known = index ~= nil and CHARACTER_BY_INDEX[index] or nil
+        if index ~= nil and known == nil then
+            -- An index nobody has seen. Named rather than quietly treated as
+            -- the lead, because guessing wrong here costs a delivered item.
+            known = { name = string.format("character %d", index), campaign = "unknown" }
+        end
+        local character = known ~= nil
+            and { index = index, name = known.name, campaign = known.campaign }
+            or nil
+        local was = current_character ~= nil and current_character.index or nil
+        local now = character ~= nil and character.index or nil
+        if was ~= now then
+            current_character = character
+            if character ~= nil then
+                log.info(string.format("[RE4R AP] playing as %s (inventory index %d, %s campaign)",
+                    character.name, character.index, character.campaign))
+            end
+        end
+
+        if controller == nil then
+            -- Once per distinct table, so a whole section or campaign costs one
+            -- line rather than one per poll.
+            local report = inject_describe_controller_table(controller_table)
+            if report ~= controller_table_report then
+                controller_table_report = report
+                log.info("[RE4R AP] inventory owner: Leon's key-item context (4,2,1,4000) is absent; "
+                    .. "the table holds " .. report)
+            end
+        elseif controller_table_report ~= nil then
+            controller_table_report = nil
+            log.info("[RE4R AP] inventory owner: the campaign lead's contexts are back")
+        end
         return controller ~= nil
     end
     export("inject_is_default_character_active", inject_is_default_character_active)

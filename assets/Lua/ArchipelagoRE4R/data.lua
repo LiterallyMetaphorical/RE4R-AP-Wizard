@@ -692,29 +692,51 @@ local function install(ctx)
         return bucket.checked, bucket.total
     end
 
+    -- [Separate Ways] Ada reuses Leon's stage ids with different chapters:
+    -- 47101 is his chapter 6 and her chapter 2, so reading her stage off his
+    -- table told a Separate Ways player the wrong chapter (Cam, live
+    -- 2026-09-06). The chapter has never come from save data; it is a lookup
+    -- on the stage, which is why the campaign has to pick the table.
+    --
+    -- Falls back to Leon's when the block is missing, which is any payload
+    -- older than this one.
+    local function chapter_tables_for_campaign()
+        local who = ctx.inject_current_character or _G.inject_current_character
+        if type(who) == "function" then
+            local ok_character, character = pcall(who)
+            if ok_character and type(character) == "table"
+                and character.campaign == "separate_ways"
+                and type(stage_chapter_map.separate_ways) == "table" then
+                return stage_chapter_map.separate_ways
+            end
+        end
+        return stage_chapter_map
+    end
+
     local function resolve_chapter_for_ui(stage_id)
         if type(stage_id) ~= "number" then
             return nil, "(unknown)", nil
         end
 
+        local tables = chapter_tables_for_campaign()
         local exact_key = tostring(stage_id)
-        local exact_chapter = stage_chapter_map.exact[exact_key]
+        local exact_chapter = tables.exact and tables.exact[exact_key]
         if type(exact_chapter) == "number" then
             return exact_chapter, tostring(exact_chapter), "exact"
         end
 
-        local exact_candidates = stage_chapter_map.exact_candidates[exact_key]
+        local exact_candidates = tables.exact_candidates and tables.exact_candidates[exact_key]
         if type(exact_candidates) == "table" and #exact_candidates > 0 then
             return nil, join_numbers(exact_candidates), "ambiguous_stage"
         end
 
         local family_key = tostring(math.floor(stage_id / 100))
-        local family_chapter = stage_chapter_map.family[family_key]
+        local family_chapter = tables.family and tables.family[family_key]
         if type(family_chapter) == "number" then
             return family_chapter, tostring(family_chapter), "family"
         end
 
-        local family_candidates = stage_chapter_map.family_candidates[family_key]
+        local family_candidates = tables.family_candidates and tables.family_candidates[family_key]
         if type(family_candidates) == "table" and #family_candidates > 0 then
             return nil, join_numbers(family_candidates), "ambiguous_family"
         end

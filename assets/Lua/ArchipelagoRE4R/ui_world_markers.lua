@@ -121,8 +121,21 @@ local function install(ctx)
     -- nearby list and the header progression notice), so an eligibility rule
     -- edit there lands here automatically. This function only turns each open
     -- location into a drawable marker entry.
+    -- Which campaign the player is in, or nil when it could not be read.
+    -- Refreshed once a frame by draw_world_check_markers.
+    local playing_campaign = nil
+
     local function build_marker_entry(open_location)
         local display_entry = open_location.entry
+        -- [Separate Ways] Ada revisits much of Leon's map and 36 stage ids
+        -- carry checks from both campaigns, so a marker chosen by stage alone
+        -- points at his checks while she is in a room they were never placed
+        -- in (Cam, live 2026-09-06, chapter 2). A check with no campaign is
+        -- Leon's, which is every check in a room built before the key existed.
+        if playing_campaign ~= nil
+            and ((display_entry and display_entry.campaign) or "leon") ~= playing_campaign then
+            return nil
+        end
         local x = display_entry and tonumber(display_entry.x)
         local y = display_entry and tonumber(display_entry.y)
         local z = display_entry and tonumber(display_entry.z)
@@ -295,6 +308,22 @@ local function install(ctx)
         -- Mercenaries mode does not have campaign world pickup markers
         if is_mercenaries_active() then
             return
+        end
+
+        -- Who is playing comes off the inventory ContextID, the only thing
+        -- that separates Ada's campaign from Leon's. Ashley's section is his
+        -- campaign on his map, so it keeps his markers.
+        --
+        -- Unread means carry on: a failure to read the inventory table must
+        -- never blank the markers on an ordinary campaign run, so nil here
+        -- leaves every check eligible exactly as before.
+        playing_campaign = nil
+        local who = ctx.inject_current_character or _G.inject_current_character
+        if type(who) == "function" then
+            local ok_character, character = pcall(who)
+            if ok_character and type(character) == "table" then
+                playing_campaign = character.campaign
+            end
         end
 
         -- YAML ceiling: check_guidance "off" disables ALL world guidance,

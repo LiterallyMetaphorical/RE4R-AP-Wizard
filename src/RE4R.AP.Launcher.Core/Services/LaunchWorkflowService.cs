@@ -889,13 +889,14 @@ public sealed class LaunchWorkflowService
                 ResumeValidated: false);
         }
 
-        // A record from the other mode cannot be resumed: its files are not
-        // the files this room needs (a campaign pak under a Mercenaries-only
-        // room, or none under a campaign room). Patch again instead.
-        var recordIsMercOnly = string.Equals(sameSessionRecord.GameMode, "mercenaries_only", StringComparison.OrdinalIgnoreCase);
-        if (recordIsMercOnly != scoutResult.MercenariesOnly)
+        // A record built for another campaign cannot be resumed: its files are
+        // not the files this room needs. Compared by CAMPAIGN rather than by
+        // "is this Mercenaries only", because that boolean cannot tell Leon's
+        // patch from Ada's - both are simply "not Mercenaries only" - and
+        // resuming would then hand one campaign's pak to the other's room.
+        if (!string.Equals(sameSessionRecord.CampaignPatched, scoutResult.CampaignPatchTarget, StringComparison.OrdinalIgnoreCase))
         {
-            Log("The saved session played a different mode than this room. Patching again for the room's mode.");
+            Log("The saved session was patched for different content than this room. Patching again for the room's content.");
             return new SessionDecisionResult(
                 SessionKey: sessionKey,
                 SessionRecord: sameSessionRecord,
@@ -1210,6 +1211,7 @@ public sealed class LaunchWorkflowService
             SlotName = request.SlotName,
             SeedName = scoutResult.SeedName,
             GameMode = scoutResult.GameMode,
+            PatchedCampaign = scoutResult.CampaignPatchTarget,
             Status = "active",
             CreatedAtUtc = priorRecord?.CreatedAtUtc ?? _utcNow(),
             LastOpenedAtUtc = _utcNow(),
@@ -1264,6 +1266,7 @@ public sealed class LaunchWorkflowService
             SlotName = request.SlotName,
             SeedName = scoutResult.SeedName,
             GameMode = scoutResult.GameMode,
+            PatchedCampaign = scoutResult.CampaignPatchTarget,
             Status = "patch_in_progress",
             CreatedAtUtc = priorRecord?.CreatedAtUtc ?? _utcNow(),
             LastOpenedAtUtc = _utcNow(),

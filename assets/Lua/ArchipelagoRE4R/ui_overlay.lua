@@ -677,11 +677,34 @@ local function install(ctx)
         local chapter_display = tostring(bridge.ui_current_chapter_display or "(unknown)")
 
 
-        -- Header: Chapter | <pause-map area name> | <section-scoped checks>.
-        -- Stages are internal streaming units and never player-facing (see
-        -- PLAYER_GUIDANCE_DESIGN.md); the section is the same place name the
-        -- player reads on the in-game map, and the count always describes
+        -- Header: <character> | Chapter | <pause-map area name> | <section
+        -- checks>. Stages are internal streaming units and never player-facing
+        -- (see PLAYER_GUIDANCE_DESIGN.md); the section is the same place name
+        -- the player reads on the in-game map, and the count always describes
         -- exactly the place printed next to it.
+        --
+        -- The character comes first because it changes what the rest of the
+        -- line means: Ada walks much of Leon's map with his stage ids, so
+        -- "Chapter 2 | Castle Gate" reads identically in either campaign
+        -- (Cam, 2026-09-06). Omitted rather than guessed when the inventory
+        -- table cannot be read, which is how an ordinary run behaves today.
+        local character_name = nil
+        do
+            local who = ctx.inject_current_character or _G.inject_current_character
+            if type(who) == "function" then
+                local ok_character, character = pcall(who)
+                if ok_character and type(character) == "table" then
+                    character_name = character.name
+                end
+            end
+        end
+        local function with_character(text)
+            if character_name == nil or character_name == "" then
+                return text
+            end
+            return character_name .. " | " .. text
+        end
+
         local section_name = get_current_section(state.current_stage)
         local header_text
         if section_name ~= nil and section_name ~= "" then
@@ -694,12 +717,12 @@ local function install(ctx)
             else
                 progress_text = "No Checks Here"
             end
-            header_text = string.format(
+            header_text = with_character(string.format(
                 "Chapter %s | %s | %s",
                 chapter_display,
                 section_name,
                 progress_text
-            )
+            ))
         else
             -- No section resolved (no labels loaded / unknown scene): stage-scoped
             -- counts with honest "nearby" wording, stage id kept out of the UI.
@@ -708,11 +731,11 @@ local function install(ctx)
             if total_count > 0 and checked_count >= total_count then
                 progress_text = string.format("All %d Nearby Checked", total_count)
             end
-            header_text = string.format(
+            header_text = with_character(string.format(
                 "Chapter %s | %s",
                 chapter_display,
                 progress_text
-            )
+            ))
         end
         local ap_client_text, ap_client_color = build_ap_client_overlay_text()
         local progression_text = nil
