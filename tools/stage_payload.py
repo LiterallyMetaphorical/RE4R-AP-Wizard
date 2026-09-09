@@ -217,10 +217,35 @@ def write_stamp(info: dict, results: dict) -> None:
     print(f"  world_version: {results.get('world_version', '?')}, MOD_VERSION {results.get('mod_version', '?')}")
 
 
+TESTS = LAUNCHER / "tests" / "RE4R.AP.Launcher.Core.Tests" / "RE4R.AP.Launcher.Core.Tests.csproj"
+
+
+def run_tests() -> None:
+    """The launcher's test project reads the STAGED assets, so a green run here
+    means the bundle about to ship can load and patch. Its first run caught a
+    bundle whose declared item count disagreed with its table (2026-09-04),
+    which the launcher refuses before any patch."""
+    print("running the launcher tests against the staged payload")
+    if not TESTS.exists():
+        fail(f"the test project is missing at {TESTS}")
+        return
+    proc = subprocess.run(
+        [DOTNET, "test", str(TESTS), "-c", "Release", "--nologo", "-v", "q"],
+        cwd=str(LAUNCHER), capture_output=True, text=True, encoding="utf-8", errors="replace")
+    output = (proc.stdout or "") + (proc.stderr or "")
+    summary = next((line.strip() for line in output.splitlines() if "Passed!" in line or "Failed!" in line), "")
+    if proc.returncode != 0:
+        tail = "\n".join(output.strip().splitlines()[-15:])
+        fail(f"launcher tests failed: {summary or 'see the output below'}\n{tail}")
+    else:
+        ok(f"launcher tests: {summary or 'passed'}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--verify", action="store_true", help="check the staged payload, build nothing")
     parser.add_argument("--skip-exe", action="store_true", help="stage without rebuilding the exe")
+    parser.add_argument("--skip-tests", action="store_true", help="do not run the launcher tests against the staged payload")
     args = parser.parse_args()
 
     info = preflight()
@@ -238,6 +263,10 @@ def main() -> int:
 
     results = verify(info)
     write_stamp(info, results)
+    if args.skip_tests:
+        print("skipping the launcher tests (--skip-tests)")
+    else:
+        run_tests()
 
     print()
     if problems:
