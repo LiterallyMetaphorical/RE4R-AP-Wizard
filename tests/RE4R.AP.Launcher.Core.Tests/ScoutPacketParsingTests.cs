@@ -235,6 +235,27 @@ public sealed class ScoutPacketParsingTests
     }
 
     [Theory]
+    // The exact slot_data a Separate Ways room emits, copied from rooms
+    // generated on the feature branch after its rebase (seed 909, 2026-09-07).
+    // Both keys are present and both say Ada; this is the shape that reaches a
+    // real launcher, so it is the one worth pinning.
+    [InlineData("""{"included_content":["Separate Ways"],"game_mode":"separate_ways","patched_campaign":"Separate Ways"}""")]
+    [InlineData("""{"included_content":["Mercenaries","Separate Ways"],"game_mode":"separate_ways_and_mercenaries","patched_campaign":"Separate Ways"}""")]
+    public void ARealSeparateWaysRoomIsRefused(string slotData)
+    {
+        var packet = Packet(slotData);
+
+        var error = Assert.Throws<ArchipelagoScoutException>(() =>
+            ArchipelagoScoutClient.RefuseUnpatchableCampaign(
+                ArchipelagoScoutClient.ParsePatchedCampaignSlotData(packet),
+                ArchipelagoScoutClient.ParseRawGameModeSlotData(packet)));
+
+        // Named, not a generic version mismatch: the room said what it needs.
+        Assert.Contains("Separate Ways campaign patched", error.Message, StringComparison.Ordinal);
+        Assert.Contains("Nothing has been changed in your game.", error.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
     // The room said, so its answer is used.
     [InlineData("Main Story", "campaign", "Main Story", false)]
     [InlineData("", "campaign", "", true)]

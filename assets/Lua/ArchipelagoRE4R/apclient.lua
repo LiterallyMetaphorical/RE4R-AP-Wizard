@@ -1085,7 +1085,20 @@ return function(ctx)
             if ok_character and not default_active then
                 if not st.item_delivery_character_logged then
                     st.item_delivery_character_logged = true
-                    info("another character is playing (their inventory is discarded at section end) - holding received items until the campaign lead returns")
+                    -- Name them when the mod knows. Since 2026-09-07 this only
+                    -- fires for a character whose inventory is thrown away, so
+                    -- saying who removes the guesswork from a bug report.
+                    local playing = nil
+                    local who = ctx.inject_current_character or _G.inject_current_character
+                    if type(who) == "function" then
+                        local ok_character, character = pcall(who)
+                        if ok_character and type(character) == "table" then
+                            playing = character.name
+                        end
+                    end
+                    info(string.format(
+                        "%s is playing and that inventory is discarded at section end - holding received items until the campaign lead returns",
+                        playing or "another character"))
                 end
                 side_deliver_section_keys()
                 return -- do not advance

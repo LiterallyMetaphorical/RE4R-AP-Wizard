@@ -1265,10 +1265,19 @@ local function install(ctx)
     -- The campaign matters more than the name. Ashley's section runs inside
     -- Leon's campaign, on his map, among his checks; Ada's is a campaign of
     -- her own with her own map.
+    --
+    -- keeps_items is the question the delivery gate actually asks: will an item
+    -- put in this character's inventory still be there later? A campaign lead
+    -- keeps what they are given. Ashley's section inventories are DISCARDED
+    -- when it ends, proven live 2026-07-30 when items placed in her main grid
+    -- and even in Storage were gone once Leon returned, and telling the
+    -- multiworld an item was received that the player never keeps is
+    -- unrecoverable. Anyone unrecognised is treated as not keeping them: a
+    -- wrong guess in that direction only delays an item.
     local CHARACTER_BY_INDEX = {
-        [4000] = { name = "Leon", campaign = "leon" },
-        [4100] = { name = "Ashley", campaign = "leon" },
-        [4200] = { name = "Ada", campaign = "separate_ways" },
+        [4000] = { name = "Leon", campaign = "leon", keeps_items = true },
+        [4100] = { name = "Ashley", campaign = "leon", keeps_items = false },
+        [4200] = { name = "Ada", campaign = "separate_ways", keeps_items = true },
     }
     local LEAD_KEY_ITEM_INDEX = 4000
     local current_character = nil
@@ -1442,7 +1451,12 @@ local function install(ctx)
             known = { name = string.format("character %d", index), campaign = "unknown" }
         end
         local character = known ~= nil
-            and { index = index, name = known.name, campaign = known.campaign }
+            and {
+                index = index,
+                name = known.name,
+                campaign = known.campaign,
+                keeps_items = known.keeps_items == true,
+            }
             or nil
         local was = current_character ~= nil and current_character.index or nil
         local now = character ~= nil and character.index or nil
@@ -1466,6 +1480,16 @@ local function install(ctx)
         elseif controller_table_report ~= nil then
             controller_table_report = nil
             log.info("[RE4R AP] inventory owner: the campaign lead's contexts are back")
+        end
+        -- Ada leads her own campaign and keeps what she is given, so holding
+        -- her items was only ever a side effect of the test being "is Leon
+        -- here" (Cam, 2026-09-07). Delivery itself was never the problem: the
+        -- controllers resolve by class, so they already resolve for her.
+        --
+        -- No character read means no claim: fall back to the original test,
+        -- which delivers only while Leon's own contexts are present.
+        if character ~= nil then
+            return character.keeps_items
         end
         return controller ~= nil
     end
@@ -3748,6 +3772,24 @@ local function install(ctx)
         end
 
         local ok, err = pcall(function()
+            -- [Separate Ways] The mirror is a Leon-campaign feature. It exists
+            -- because Ashley finds her own Salazar insignia inside a section of
+            -- his campaign, and Archipelago may have shuffled it away, so the
+            -- lead's key items are replayed into hers. Ada's campaign is not
+            -- his: she has her own key items, and copying his into her
+            -- inventory would hand her things her campaign never gives.
+            do
+                local who = ctx.inject_current_character or _G.inject_current_character
+                if type(who) == "function" then
+                    local ok_character, character = pcall(who)
+                    if ok_character and type(character) == "table"
+                        and character.campaign ~= "leon" then
+                        key_mirror_last_clock = now
+                        return
+                    end
+                end
+            end
+
             local default_active = inject_is_default_character_active()
 
             if default_active then
