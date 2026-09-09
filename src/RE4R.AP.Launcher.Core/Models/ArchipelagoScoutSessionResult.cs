@@ -41,6 +41,13 @@ public sealed class ArchipelagoScoutSessionResult
     public MerchantShopSlotData MerchantShop { get; init; } = MerchantShopSlotData.Disabled;
 
     /// <summary>
+    /// The Trade-tab checks and exchange economy (Phase 2), resolved from
+    /// slot_data. Disabled for rooms whose apworld predates the option or
+    /// whose trade_checks is 0 with no shuffled trade stock.
+    /// </summary>
+    public TradeShopSlotData TradeShop { get; init; } = TradeShopSlotData.Disabled;
+
+    /// <summary>
     /// The YAML's weapon-randomization choice, stats half: the multiworld
     /// holds the weapons, so their character rides with them and BioRand's
     /// own switch is pinned to this at patch time. Null for rooms whose

@@ -43,6 +43,12 @@ public sealed class StaticGameData
     [JsonPropertyName("shop_slots")]
     public Dictionary<long, StaticShopSlot> ShopSlots { get; set; } = new();
 
+    // Trade-tab checks (Phase 2), keyed by location code. Same reasoning as
+    // ShopSlots: variable per room, so outside the exact-count contracts.
+    // Empty on a pre-trade bundle.
+    [JsonPropertyName("trade_checks")]
+    public Dictionary<long, StaticTradeCheck> TradeChecks { get; set; } = new();
+
     [JsonPropertyName("items")]
     public Dictionary<long, StaticGameItem> Items { get; set; } = new();
 

@@ -221,21 +221,38 @@ public sealed class ArchipelagoScoutClient
                 Log($"The merchant sells {merchantShop.Slots.Count} Archipelago check(s) in this room.{scatterSuffix}");
             }
 
+            var tradeShop = ParseTradeShopSlotData(connectedPacket);
+            if (tradeShop.Enabled)
+            {
+                var stripSuffix = tradeShop.ShuffledTradeItemIds.Count > 0
+                    ? $" {tradeShop.ShuffledTradeItemIds.Count} piece(s) of his trade stock are shuffled into the multiworld."
+                    : string.Empty;
+                Log($"The merchant trades {tradeShop.Checks.Count} Archipelago check(s) for spinel in this room.{stripSuffix}");
+            }
+
             // Since apworld 0.4.0 the room's location count varies with the
             // RandomizeGatedKeys option, so scout exactly what the room
             // declares (missing + checked from Connected) instead of the full
             // bundled list - the server rejects unknown location ids.
+            var extraKnownIds = new HashSet<long>(request.ShopSlotLocationIds);
+            extraKnownIds.UnionWith(request.TradeCheckLocationIds);
             var roomLocationIds = GetRoomLocationIds(
-                connectedPacket, requestedLocationIds, request.ShopSlotLocationIds);
+                connectedPacket, requestedLocationIds, extraKnownIds);
             var knownShopSlotIds = new HashSet<long>(request.ShopSlotLocationIds);
+            var knownTradeCheckIds = new HashSet<long>(request.TradeCheckLocationIds);
             var roomShopSlotCount = roomLocationIds.Count(knownShopSlotIds.Contains);
-            var roomWorldCount = roomLocationIds.Length - roomShopSlotCount;
+            var roomTradeCheckCount = roomLocationIds.Count(knownTradeCheckIds.Contains);
+            var roomWorldCount = roomLocationIds.Length - roomShopSlotCount - roomTradeCheckCount;
             var scoutingMessage = roomWorldCount == requestedLocationIds.Length
                 ? $"Scouting {roomWorldCount} locations"
                 : $"Scouting {roomWorldCount} of {requestedLocationIds.Length} bundled locations (the rest are vanilla/preserved spots that are not part of this multiworld).";
             if (roomShopSlotCount > 0)
             {
                 scoutingMessage += $" Plus {roomShopSlotCount} merchant shop check(s).";
+            }
+            if (roomTradeCheckCount > 0)
+            {
+                scoutingMessage += $" Plus {roomTradeCheckCount} trade check(s).";
             }
 
             Log(scoutingMessage);
@@ -274,6 +291,7 @@ public sealed class ArchipelagoScoutClient
                 RoomLocationIds = roomLocationIds,
                 RandomEvents = randomEvents,
                 MerchantShop = merchantShop,
+                TradeShop = tradeShop,
                 RandomWeaponStats = randomWeaponStats,
                 RandomWeaponUpgrades = randomWeaponUpgrades,
                 BonusWeaponsConsented = bonusWeaponsConsented,
@@ -790,6 +808,152 @@ public sealed class ArchipelagoScoutClient
     /// fork refuses a manifest whose slot has no tier, so a half-parsed block
     /// must not reach it.
     /// </summary>
+    /// <summary>
+    /// slot_data.trade_shop -> model. Absent/malformed reads as Disabled,
+    /// which leaves the Trade tab exactly as BioRand made it (older rooms).
+    /// A check missing its price is dropped rather than guessed: the fork
+    /// refuses a manifest slot with no price, so a half-parsed check must
+    /// not reach it.
+    /// </summary>
+    private static TradeShopSlotData ParseTradeShopSlotData(JsonElement connectedPacket)
+    {
+        if (!TryGetProperty(connectedPacket, "slot_data", out var slotData)
+            || slotData.ValueKind != JsonValueKind.Object
+            || !slotData.TryGetProperty("trade_shop", out var block)
+            || block.ValueKind != JsonValueKind.Object
+            || !block.TryGetProperty("enabled", out var enabled)
+            || enabled.ValueKind != JsonValueKind.True)
+        {
+            return TradeShopSlotData.Disabled;
+        }
+
+        var checks = new List<TradeShopCheck>();
+        if (block.TryGetProperty("checks", out var checksElement)
+            && checksElement.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var element in checksElement.EnumerateArray())
+            {
+                if (element.ValueKind != JsonValueKind.Object
+                    || !element.TryGetProperty("code", out var codeElement)
+                    || !codeElement.TryGetInt64(out var locationCode)
+                    || !element.TryGetProperty("release_index", out var releaseElement)
+                    || !releaseElement.TryGetInt32(out var releaseIndex)
+                    || !element.TryGetProperty("chapter", out var chapterElement)
+                    || !chapterElement.TryGetInt32(out var chapter)
+                    || !element.TryGetProperty("price_spinel", out var priceElement)
+                    || !priceElement.TryGetInt32(out var priceSpinel)
+                    || priceSpinel < 1)
+                {
+                    continue;
+                }
+
+                checks.Add(new TradeShopCheck
+                {
+                    LocationCode = locationCode,
+                    ReleaseIndex = releaseIndex,
+                    Chapter = chapter,
+                    PriceSpinel = priceSpinel,
+                    Identity = element.TryGetProperty("identity", out var identityElement)
+                        && identityElement.ValueKind == JsonValueKind.String
+                        && !string.IsNullOrWhiteSpace(identityElement.GetString())
+                            ? identityElement.GetString()!
+                            : $"trade:release:{releaseIndex}",
+                    ChapterOrdinal = element.TryGetProperty("chapter_ordinal", out var ordinalElement)
+                        && ordinalElement.TryGetInt32(out var parsedOrdinal)
+                        && parsedOrdinal > 0
+                            ? parsedOrdinal
+                            : 1,
+                    Tier = element.TryGetProperty("tier", out var tierElement)
+                        && tierElement.ValueKind == JsonValueKind.String
+                            ? tierElement.GetString() ?? "FILLER"
+                            : "FILLER",
+                    CumulativeSpinel = element.TryGetProperty("cumulative_spinel", out var cumulativeElement)
+                        && cumulativeElement.TryGetInt32(out var parsedCumulative)
+                        && parsedCumulative > 0
+                            ? parsedCumulative
+                            : priceSpinel,
+                    ItemId = element.TryGetProperty("item_id", out var itemIdElement)
+                        && itemIdElement.TryGetInt32(out var parsedItemId)
+                        && parsedItemId > 0
+                            ? parsedItemId
+                            : 0,
+                    ItemStack = element.TryGetProperty("item_stack", out var stackElement)
+                        && stackElement.TryGetInt32(out var parsedStack)
+                        && parsedStack > 0
+                            ? parsedStack
+                            : 0,
+                    DisplayName = element.TryGetProperty("display_name", out var nameElement)
+                        && nameElement.ValueKind == JsonValueKind.String
+                            ? nameElement.GetString() ?? string.Empty
+                            : string.Empty,
+                    PlayerName = element.TryGetProperty("player_name", out var playerElement)
+                        && playerElement.ValueKind == JsonValueKind.String
+                            ? playerElement.GetString() ?? string.Empty
+                            : string.Empty,
+                    Remote = element.TryGetProperty("remote", out var remoteElement)
+                        && remoteElement.ValueKind == JsonValueKind.True,
+                });
+            }
+        }
+
+        var gems = new Dictionary<string, TradeShopGem>(StringComparer.OrdinalIgnoreCase);
+        if (block.TryGetProperty("gems", out var gemsElement)
+            && gemsElement.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var gemProperty in gemsElement.EnumerateObject())
+            {
+                var gem = gemProperty.Value;
+                if (gem.ValueKind != JsonValueKind.Object
+                    || !gem.TryGetProperty("item_id", out var gemIdElement)
+                    || !gemIdElement.TryGetInt32(out var gemItemId)
+                    || !gem.TryGetProperty("spinel", out var gemSpinelElement)
+                    || !gemSpinelElement.TryGetInt32(out var gemSpinel)
+                    || gemSpinel < 1)
+                {
+                    continue;
+                }
+
+                gems[gemProperty.Name] = new TradeShopGem(gemItemId, gemSpinel);
+            }
+        }
+
+        var shuffledTradeItemIds = new List<int>();
+        if (block.TryGetProperty("shuffled_trade_item_ids", out var shuffledElement)
+            && shuffledElement.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var element in shuffledElement.EnumerateArray())
+            {
+                if (element.ValueKind == JsonValueKind.Number
+                    && element.TryGetInt32(out var itemId)
+                    && itemId > 0)
+                {
+                    shuffledTradeItemIds.Add(itemId);
+                }
+            }
+        }
+
+        return new TradeShopSlotData
+        {
+            Enabled = true,
+            Checks = checks,
+            Gems = gems,
+            ShuffledTradeItemIds = shuffledTradeItemIds,
+            VelvetBlueSpinel = block.TryGetProperty("velvet_blue_spinel", out var vbElement)
+                && vbElement.TryGetInt32(out var vbSpinel)
+                && vbSpinel > 0
+                    ? vbSpinel
+                    : 2,
+            SpinelItemId = block.TryGetProperty("spinel_item_id", out var spinelIdElement)
+                && spinelIdElement.TryGetInt32(out var spinelItemId)
+                    ? spinelItemId
+                    : 0,
+            SpinelPoolTotal = block.TryGetProperty("spinel_pool_total", out var spinelTotalElement)
+                && spinelTotalElement.TryGetInt32(out var spinelTotal)
+                    ? spinelTotal
+                    : 0,
+        };
+    }
+
     private static MerchantShopSlotData ParseMerchantShopSlotData(JsonElement connectedPacket)
     {
         if (!TryGetProperty(connectedPacket, "slot_data", out var slotData)

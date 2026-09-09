@@ -28,4 +28,8 @@ public sealed class StaticGameDataCounts
     // Merchant shop slot superset size (D4). 0 on a pre-shop bundle.
     [JsonPropertyName("shop_slots")]
     public int ShopSlots { get; set; }
+
+    // Trade check superset size (Phase 2). 0 on a pre-trade bundle.
+    [JsonPropertyName("trade_checks")]
+    public int TradeChecks { get; set; }
 }

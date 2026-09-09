@@ -20,6 +20,13 @@ public sealed class ArchipelagoScoutRequest
     /// </summary>
     public IReadOnlyCollection<long> ShopSlotLocationIds { get; set; } = Array.Empty<long>();
 
+    /// <summary>
+    /// Trade check location ids from the bundled static data, so the scout
+    /// can recognise what a trade room declares without tripping the
+    /// unknown-id refusal.
+    /// </summary>
+    public IReadOnlyCollection<long> TradeCheckLocationIds { get; set; } = Array.Empty<long>();
+
     public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds(10);
 
     public TimeSpan ReceiveTimeout { get; set; } = TimeSpan.FromSeconds(10);

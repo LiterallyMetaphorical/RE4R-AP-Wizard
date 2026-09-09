@@ -560,6 +560,7 @@ public sealed class LaunchWorkflowService
                     GameName = staticData.Game,
                     LocationIds = staticData.LocationCodes,
                     ShopSlotLocationIds = staticData.ShopSlots.Keys.ToArray(),
+                    TradeCheckLocationIds = staticData.TradeChecks.Keys.ToArray(),
                 },
                 cancellationToken);
 
@@ -1404,6 +1405,43 @@ public sealed class LaunchWorkflowService
                             .Concat(scoutResult.MerchantShop.StartingAttachmentIds ?? Array.Empty<int>())
                             .ToArray(),
                         merchant_shop = merchantShop,
+                        // [Trade takeover, Phase 2] The Trade tab's checks and
+                        // exchange economy for the in-game mod. Additive: the
+                        // current mod ignores the key; the trade layer reads
+                        // it when it lands. Null when the room has no trade
+                        // block, which leaves the tab exactly as BioRand made
+                        // it.
+                        trade_shop = !scoutResult.TradeShop.Enabled
+                            ? null
+                            : (object)new
+                            {
+                                velvet_blue_spinel = scoutResult.TradeShop.VelvetBlueSpinel,
+                                spinel_item_id = scoutResult.TradeShop.SpinelItemId,
+                                spinel_pool_total = scoutResult.TradeShop.SpinelPoolTotal,
+                                gems = scoutResult.TradeShop.Gems.ToDictionary(
+                                    pair => pair.Key,
+                                    pair => new
+                                    {
+                                        item_id = pair.Value.ItemId,
+                                        spinel = pair.Value.Spinel,
+                                    }),
+                                shuffled_trade_item_ids = scoutResult.TradeShop.ShuffledTradeItemIds,
+                                checks = scoutResult.TradeShop.Checks.Select(check => new
+                                {
+                                    identity = check.Identity,
+                                    location_code = check.LocationCode,
+                                    release_index = check.ReleaseIndex,
+                                    chapter = check.Chapter,
+                                    chapter_ordinal = check.ChapterOrdinal,
+                                    price_spinel = check.PriceSpinel,
+                                    tier = check.Tier,
+                                    display_name = check.DisplayName,
+                                    player_name = check.PlayerName,
+                                    remote = check.Remote,
+                                    item_id = check.ItemId,
+                                    item_stack = check.ItemStack,
+                                }).ToArray(),
+                            },
                         enemy_gates = enemyGates,
                     }, new JsonSerializerOptions { WriteIndented = true });
                     await File.WriteAllTextAsync(roomLocationsPath, roomJson, cancellationToken);

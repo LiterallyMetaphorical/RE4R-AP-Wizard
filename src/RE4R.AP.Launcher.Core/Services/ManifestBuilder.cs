@@ -58,7 +58,20 @@ public sealed class ManifestBuilder
                 $"The room carries {scoutedShopSlotCount} merchant shop location(s) but its slot data describes {declaredShopSlotCount}. The room's shop data does not match its location list.");
         }
 
-        var scoutedCount = scoutSession.Locations.Count - scoutedShopSlotCount;
+        // Trade checks (Phase 2) get the same treatment as shop slots: a
+        // count varying with trade_checks, verified against slot_data.
+        var scoutedTradeCheckCount = scoutSession.Locations.Count(
+            location => staticData.TradeChecks.ContainsKey(location.LocationId));
+        var declaredTradeCheckCount = scoutSession.TradeShop.Enabled
+            ? scoutSession.TradeShop.Checks.Count
+            : 0;
+        if (scoutedTradeCheckCount != declaredTradeCheckCount)
+        {
+            throw new ManifestBuildException(
+                $"The room carries {scoutedTradeCheckCount} trade check location(s) but its slot data describes {declaredTradeCheckCount}. The room's trade data does not match its location list.");
+        }
+
+        var scoutedCount = scoutSession.Locations.Count - scoutedShopSlotCount - scoutedTradeCheckCount;
 
         // [Hard-difficulty allowance] Hardcore and Professional slots never
         // create the spots the game draws but refuses to hand over, so those
@@ -193,7 +206,8 @@ public sealed class ManifestBuilder
             placements, normalizedOptions, gameVersion, scoutSession.SlotName, scoutSession.RandomEvents, plannedShopSlots,
             scoutSession.MerchantShop.ScatteredItemIds, scoutSession.MerchantShop.StartingWeaponIds,
             scoutSession.MerchantShop.StartingAttachmentIds,
-            scoutSession.RandomWeaponStats, scoutSession.RandomWeaponUpgrades);
+            scoutSession.RandomWeaponStats, scoutSession.RandomWeaponUpgrades,
+            scoutSession.TradeShop);
         if (scoutSession.RandomWeaponStats is bool yamlWeaponStats)
         {
             var weaponMode = scoutSession.RandomWeaponUpgrades is bool yamlWeaponUpgrades
@@ -256,7 +270,8 @@ public sealed class ManifestBuilder
         IReadOnlyList<int> startingWeaponIds,
         IReadOnlyList<int>? startingAttachmentIds,
         bool? randomWeaponStats,
-        bool? randomWeaponUpgrades)
+        bool? randomWeaponUpgrades,
+        TradeShopSlotData tradeShop)
     {
         var placementObject = new JsonObject();
         foreach (var placement in placements)
@@ -449,6 +464,58 @@ public sealed class ManifestBuilder
                 // these on purpose.
                 ["rows"] = rowIds,
                 ["slots"] = slotsArray,
+            };
+        }
+
+        // [Trade takeover, Phase 2] The Trade tab's half of the manifest.
+        // The fork's consumer lands in the next build step; until then this
+        // section is additive and ignored (System.Text.Json skips unknown
+        // properties). Carried whenever the room enables it so the fork
+        // strip and slot bake need no launcher release in lockstep.
+        if (tradeShop.Enabled)
+        {
+            var tradeChecks = new JsonArray();
+            foreach (var check in tradeShop.Checks)
+            {
+                tradeChecks.Add(new JsonObject
+                {
+                    ["identity"] = check.Identity,
+                    ["location-code"] = check.LocationCode,
+                    ["release-index"] = check.ReleaseIndex,
+                    ["chapter"] = check.Chapter,
+                    ["chapter-ordinal"] = check.ChapterOrdinal,
+                    ["price-spinel"] = check.PriceSpinel,
+                    ["tier"] = check.Tier,
+                    ["display-name"] = check.DisplayName,
+                    ["player-name"] = check.PlayerName,
+                    ["remote"] = check.Remote,
+                    ["item-id"] = check.ItemId,
+                });
+            }
+
+            var gems = new JsonObject();
+            foreach (var gem in tradeShop.Gems.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+            {
+                gems[gem.Key] = new JsonObject
+                {
+                    ["item-id"] = gem.Value.ItemId,
+                    ["spinel"] = gem.Value.Spinel,
+                };
+            }
+
+            var strippedTradeIds = new JsonArray();
+            foreach (var itemId in tradeShop.ShuffledTradeItemIds)
+            {
+                strippedTradeIds.Add(itemId);
+            }
+
+            root["ap-trade-shop"] = new JsonObject
+            {
+                ["velvet-blue-spinel"] = tradeShop.VelvetBlueSpinel,
+                ["gems"] = gems,
+                ["spinel-item-id"] = tradeShop.SpinelItemId,
+                ["stripped-item-ids"] = strippedTradeIds,
+                ["checks"] = tradeChecks,
             };
         }
 
