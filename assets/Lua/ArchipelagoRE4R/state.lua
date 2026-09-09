@@ -131,11 +131,13 @@ local function install(ctx)
         world_markers_show_distance = true,
         world_markers_importance_colors = false,
         -- [D5] True when the launcher's room file says this world was patched
-        -- with allow-bonus-items; drives the bonus-weapon force-unlock.
+        -- with allow-bonus-items.
         allow_bonus_items = false,
-        -- [Bonus Weapons] The YAML's consent from slot_data, via the room
-        -- file: arms the same force-unlock for the scattered Extra Content
-        -- trio. Either flag alone is enough to arm.
+        -- [Bonus Weapons] True when the room holds the Extra Content trio as
+        -- pool items, which since 2026-09-08 is every room with a campaign.
+        -- Either flag marks the three as multiworld items, which is what the
+        -- Storage and deleter guards report. The force-unlock these two once
+        -- armed was retired on 2026-09-05; nothing writes to the profile.
         bonus_weapons_unlock = false,
         -- Marker detail tier (minimal | basic | locate | identify |
         -- developer). Set from slot_data.marker_detail on connect, which is

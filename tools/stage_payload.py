@@ -71,7 +71,7 @@ def preflight() -> dict:
     print("preflight")
     info = {}
     for name, repo, branch in (
-        ("apworld", APWORLD_REPO, "fix/playtest-round-2"),
+        ("apworld", APWORLD_REPO, "fix/playtest-round-3"),
         ("fork", FORK_REPO, "ap-manifest-input"),
     ):
         if not repo.exists():
