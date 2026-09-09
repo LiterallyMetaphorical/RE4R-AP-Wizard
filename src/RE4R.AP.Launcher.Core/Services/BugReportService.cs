@@ -1,4 +1,4 @@
-using System.IO.Compression;
+﻿using System.IO.Compression;
 using System.Text;
 using RE4R.AP.Launcher.Core.Utilities;
 
@@ -382,6 +382,64 @@ public sealed class BugReportService
         catch
         {
             // Freshness check is a nicety; skip on any error.
+        }
+
+        // [Crash dump age, 2026-09-07] The dump survives relaunches on purpose,
+        // which means the one in the folder is very often NOT the crash being
+        // reported. A hang writes no dump at all, so the report then carries
+        // whatever crash happened last - hours earlier, in another session -
+        // and reads exactly like the event the player just hit. That cost a
+        // full triage pass on the day: exception record, module list and stack
+        // walked, all of the wrong crash. Say which session it belongs to.
+        try
+        {
+            var dump = Path.Combine(installPath, "reframework_crash.dmp");
+            var log = Path.Combine(installPath, "re2_framework_log.txt");
+            if (File.Exists(dump))
+            {
+                var dumpTime = File.GetLastWriteTime(dump);
+                sb.AppendLine("Crash dump:");
+                sb.AppendLine($"  reframework_crash.dmp last written {dumpTime:yyyy-MM-dd HH:mm:ss}");
+
+                DateTime? sessionStart = null;
+                if (File.Exists(log))
+                {
+                    foreach (var line in File.ReadLines(log))
+                    {
+                        var open = line.IndexOf('[');
+                        var close = line.IndexOf(']');
+                        if (open == 0 && close > open
+                            && DateTime.TryParse(line.Substring(1, close - 1), out var parsed))
+                        {
+                            sessionStart = parsed;
+                        }
+                        break;
+                    }
+                }
+
+                if (sessionStart is null)
+                {
+                    sb.AppendLine("  The framework log has no readable start time, so this dump "
+                        + "cannot be matched to a session. Check its timestamp before reading it.");
+                }
+                else if (dumpTime < sessionStart.Value)
+                {
+                    sb.AppendLine($"  The framework log in this report starts {sessionStart.Value:yyyy-MM-dd HH:mm:ss}.");
+                    sb.AppendLine("  WARNING: this dump PREDATES that session. It is a leftover from an "
+                        + "earlier crash and is NOT the event being reported. If the report is about a "
+                        + "hang or an infinite load, expect no dump: nothing crashed.");
+                }
+                else
+                {
+                    sb.AppendLine($"  The framework log in this report starts {sessionStart.Value:yyyy-MM-dd HH:mm:ss}, "
+                        + "so the dump is from this session.");
+                }
+                sb.AppendLine();
+            }
+        }
+        catch
+        {
+            // Dump age is triage help; skip on any error.
         }
 
         // REFramework stability triage (Amondo's freeze class, 2026-08-28):
