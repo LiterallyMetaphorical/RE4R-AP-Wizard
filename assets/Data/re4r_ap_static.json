@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-09-04T16:40:38Z",
+  "generated_at_utc": "2026-09-05T18:04:04Z",
   "game": "Resident Evil 4 Remake",
-  "world_version": "0.7.2",
+  "world_version": "0.7.3",
   "placeholder_item_id": 120486400,
   "item_groups": {
     "Biosensor Scope": [
@@ -136,12 +136,7 @@
       "Blacktail x1",
       "Bolt Thrower x1",
       "Broken Butterfly x1",
-      "Case: 7x12 x1",
-      "Case: 8x12 x1",
-      "Case: 8x13 x1",
-      "Case: 9x13 x1",
       "Chicago Sweeper x1",
-      "Fighting Knife x1",
       "Flamethrower x1",
       "Handcannon x1",
       "High-power Scope x1",
@@ -149,7 +144,8 @@
       "Laser Sight x1",
       "Matilda Stock x1",
       "Matilda x1",
-      "Primal Knife x1",
+      "Progressive Attache Case x1",
+      "Progressive Knife x1",
       "Punisher x1",
       "Recipe: Attachable Mines x1",
       "Recipe: Bolts x1",
@@ -220,15 +216,10 @@
       "Boot Knife x1",
       "Broken Butterfly x1",
       "CQBR Assault Rifle x20",
-      "Case: 7x12 x1",
-      "Case: 8x12 x1",
-      "Case: 8x13 x1",
-      "Case: 9x13 x1",
       "Charm: Ada Wong x1",
       "Charm: Iluminados Emblem x1",
       "Chicago Sweeper x1",
       "Exclusive Upgrade Ticket x1",
-      "Fighting Knife x1",
       "Flamethrower x1",
       "Handcannon x1",
       "High-power Scope x1",
@@ -238,7 +229,8 @@
       "Laser Sight x1",
       "Matilda Stock x1",
       "Matilda x1",
-      "Primal Knife x1",
+      "Progressive Attache Case x1",
+      "Progressive Knife x1",
       "Punisher x1",
       "Recipe: Attachable Mines x1",
       "Recipe: Bolts x1",
@@ -989,7 +981,7 @@
     "locations_total": 456,
     "guid_locations": 456,
     "noguid_locations": 0,
-    "items_total": 185,
+    "items_total": 181,
     "always_locations": 456,
     "optional_key_locations": 0,
     "shop_slots": 120,
@@ -10703,1204 +10695,1344 @@
       "biorand_item_id": 116001600,
       "biorand_name": "Red9 Stock",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "attachment"
     },
     "24553929": {
       "name": "Recipe: Flash Grenade x1",
       "biorand_item_id": 124337600,
       "biorand_name": "Recipe: Flash Grenade",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "recipe"
     },
     "42736575": {
       "name": "Insignia Key x1",
       "biorand_item_id": 119204800,
       "biorand_name": "Insignia Key",
       "classification": "PROGRESSION",
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "52754570": {
       "name": "Blue Dial x1",
       "biorand_item_id": 119284800,
       "biorand_name": "Blue Dial",
       "classification": "PROGRESSION",
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "104347270": {
       "name": "CQBR Assault Rifle x20",
       "biorand_item_id": 275478656,
       "biorand_name": "CQBR Assault Rifle",
       "classification": "USEFUL",
-      "count": 20
+      "count": 20,
+      "kind": "weapon"
     },
     "141231755": {
       "name": "Attachable Mines x4",
       "biorand_item_id": 117603200,
       "biorand_name": "Attachable Mines",
       "classification": "FILLER",
-      "count": 4
+      "count": 4,
+      "kind": "ammo"
     },
     "146128197": {
       "name": "Scratched Emerald x1",
       "biorand_item_id": 120865600,
       "biorand_name": "Scratched Emerald",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "214868457": {
       "name": "Bolts x2",
       "biorand_item_id": 112808000,
       "biorand_name": "Bolts",
       "classification": "FILLER",
-      "count": 2
+      "count": 2,
+      "kind": "ammo"
     },
     "231408568": {
       "name": "Attaché Case: Gold x1",
       "biorand_item_id": 124192000,
       "biorand_name": "Attaché Case: Gold",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "case-perk"
     },
     "258681200": {
       "name": "Bolts x4",
       "biorand_item_id": 112808000,
       "biorand_name": "Bolts",
       "classification": "FILLER",
-      "count": 4
+      "count": 4,
+      "kind": "ammo"
     },
     "352639030": {
       "name": "Antique Pipe x1",
       "biorand_item_id": 120814400,
       "biorand_name": "Antique Pipe",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "359093623": {
       "name": "Golden Hourglass x1",
       "biorand_item_id": 120824000,
       "biorand_name": "Golden Hourglass",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "368103480": {
       "name": "Alexandrite x1",
       "biorand_item_id": 120838400,
       "biorand_name": "Alexandrite",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
+    },
+    "383595044": {
+      "name": "Progressive Knife x1",
+      "biorand_item_id": -1,
+      "biorand_name": "Progressive Knife",
+      "classification": "USEFUL",
+      "count": 1,
+      "kind": "progressive-knife"
     },
     "396050682": {
       "name": "Silver Token x1",
       "biorand_item_id": 119286400,
       "biorand_name": "Silver Token",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "token"
     },
     "399783606": {
       "name": "Skull Shaker x1",
       "biorand_item_id": 278037056,
       "biorand_name": "Skull Shaker",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "457754278": {
       "name": "Lithographic Stone D x1",
       "biorand_item_id": 119270400,
       "biorand_name": "Lithographic Stone D",
       "classification": "PROGRESSION",
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "459975048": {
       "name": "Handgun Ammo x20",
       "biorand_item_id": 112800000,
       "biorand_name": "Handgun Ammo",
       "classification": "FILLER",
-      "count": 20
+      "count": 20,
+      "kind": "ammo"
     },
     "494594691": {
       "name": "Gold Ingot x1",
       "biorand_item_id": 120843200,
       "biorand_name": "Gold Ingot",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "511930758": {
       "name": "Resource (Large) x1",
       "biorand_item_id": 117601600,
       "biorand_name": "Resource (Large)",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "resource"
     },
     "551833093": {
       "name": "Hexagon Piece C x1",
       "biorand_item_id": 119251200,
       "biorand_name": "Hexagon Piece C",
       "classification": "PROGRESSION",
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "569408376": {
       "name": "Biosensor Scope x1",
       "biorand_item_id": 116004800,
       "biorand_name": "Biosensor Scope",
       "classification": "PROGRESSION",
-      "count": 1
+      "count": 1,
+      "kind": "attachment"
     },
     "612460856": {
       "name": "Extravagant Clock x1",
       "biorand_item_id": 122408000,
       "biorand_name": "Extravagant Clock",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "617211728": {
       "name": "Elegant Chessboard x1",
       "biorand_item_id": 120827200,
       "biorand_name": "Elegant Chessboard",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "626635549": {
       "name": "High-power Scope x1",
       "biorand_item_id": 116003200,
       "biorand_name": "High-power Scope",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "attachment"
     },
     "652308034": {
       "name": "Submachine Gun Ammo x50",
       "biorand_item_id": 112806400,
       "biorand_name": "Submachine Gun Ammo",
       "classification": "FILLER",
-      "count": 50
+      "count": 50,
+      "kind": "ammo"
     },
     "654617985": {
       "name": "Emerald x1",
       "biorand_item_id": 120832000,
       "biorand_name": "Emerald",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "656977786": {
       "name": "Handgun Ammo x8",
       "biorand_item_id": 112800000,
       "biorand_name": "Handgun Ammo",
       "classification": "FILLER",
-      "count": 8
+      "count": 8,
+      "kind": "ammo"
     },
     "659501534": {
       "name": "Rifle Ammo x3",
       "biorand_item_id": 112804800,
       "biorand_name": "Rifle Ammo",
       "classification": "FILLER",
-      "count": 3
+      "count": 3,
+      "kind": "ammo"
     },
     "671991005": {
       "name": "Handgun Ammo x12",
       "biorand_item_id": 112800000,
       "biorand_name": "Handgun Ammo",
       "classification": "FILLER",
-      "count": 12
+      "count": 12,
+      "kind": "ammo"
     },
     "673697542": {
       "name": "Gunpowder x2",
       "biorand_item_id": 117600000,
       "biorand_name": "Gunpowder",
       "classification": "FILLER",
-      "count": 2
+      "count": 2,
+      "kind": "gunpowder"
     },
     "686624439": {
       "name": "TMP Stock x1",
       "biorand_item_id": 116006400,
       "biorand_name": "TMP Stock",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "attachment"
     },
     "750570238": {
       "name": "XM96E1 x1",
       "biorand_item_id": 278515456,
       "biorand_name": "XM96E1",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "754561484": {
       "name": "Scope x1",
       "biorand_item_id": 116000000,
       "biorand_name": "Scope",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "attachment"
     },
     "771039498": {
       "name": "SR M1903 x1",
       "biorand_item_id": 275475456,
       "biorand_name": "SR M1903",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "872710715": {
       "name": "Recipe: Attachable Mines x1",
       "biorand_item_id": 124334400,
       "biorand_name": "Recipe: Attachable Mines",
       "classification": "USEFUL",
-      "count": 1
-    },
-    "882777558": {
-      "name": "Fighting Knife x1",
-      "biorand_item_id": 276437056,
-      "biorand_name": "Fighting Knife",
-      "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "recipe"
     },
     "885416727": {
       "name": "Brown Chicken Egg x1",
       "biorand_item_id": 277081856,
       "biorand_name": "Brown Chicken Egg",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "egg"
     },
     "888826940": {
       "name": "Recipe: Bolts x1",
       "biorand_item_id": 124329600,
       "biorand_name": "Recipe: Bolts",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "recipe"
     },
     "915040027": {
       "name": "Resources (Small) x1",
       "biorand_item_id": 117606400,
       "biorand_name": "Resources (Small)",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "resource"
     },
     "921567379": {
       "name": "Bunch of Keys x1",
       "biorand_item_id": 119275200,
       "biorand_name": "Bunch of Keys",
       "classification": "PROGRESSION",
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "940874684": {
       "name": "Flamethrower x1",
       "biorand_item_id": 275957056,
       "biorand_name": "Flamethrower",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "972234972": {
       "name": "Golden Lynx x1",
       "biorand_item_id": 122406400,
       "biorand_name": "Golden Lynx",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "981884737": {
       "name": "Riot Gun x1",
       "biorand_item_id": 274997056,
       "biorand_name": "Riot Gun",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "1037821037": {
       "name": "Blacktail x1",
       "biorand_item_id": 274840256,
       "biorand_name": "Blacktail",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "1070734931": {
       "name": "Elegant Bangle x1",
       "biorand_item_id": 122416000,
       "biorand_name": "Elegant Bangle",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "1078968599": {
       "name": "Iluminados Pendant x1",
       "biorand_item_id": 120820800,
       "biorand_name": "Iluminados Pendant",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "1128726829": {
       "name": "Rifle Ammo x8",
       "biorand_item_id": 112804800,
       "biorand_name": "Rifle Ammo",
       "classification": "FILLER",
-      "count": 8
+      "count": 8,
+      "kind": "ammo"
     },
     "1168238438": {
       "name": "Shotgun Shells x3",
       "biorand_item_id": 112803200,
       "biorand_name": "Shotgun Shells",
       "classification": "FILLER",
-      "count": 3
+      "count": 3,
+      "kind": "ammo"
     },
     "1172678581": {
       "name": "Lip Rouge x1",
       "biorand_item_id": 120856000,
       "biorand_name": "Lip Rouge",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "1175538565": {
       "name": "Wooden Planks x1",
       "biorand_item_id": 119289600,
       "biorand_name": "Wooden Planks",
       "classification": "PROGRESSION",
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "1209299439": {
       "name": "Hexagonal Emblem x1",
       "biorand_item_id": 119203200,
       "biorand_name": "Hexagonal Emblem",
       "classification": "PROGRESSION",
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "1210331884": {
       "name": "Handgun Ammo x5",
       "biorand_item_id": 112800000,
       "biorand_name": "Handgun Ammo",
       "classification": "FILLER",
-      "count": 5
+      "count": 5,
+      "kind": "ammo"
     },
     "1229012439": {
       "name": "Dungeon Key x1",
       "biorand_item_id": 119254400,
       "biorand_name": "Dungeon Key",
       "classification": "PROGRESSION",
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "1347656822": {
       "name": "Depraved Idol x1",
       "biorand_item_id": 120844800,
       "biorand_name": "Depraved Idol",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "1372324022": {
       "name": "Hexagon Piece B x1",
       "biorand_item_id": 119249600,
       "biorand_name": "Hexagon Piece B",
       "classification": "PROGRESSION",
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "1385661921": {
       "name": "Boot Knife x1",
       "biorand_item_id": 276440256,
       "biorand_name": "Boot Knife",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "knife"
     },
     "1446550920": {
       "name": "Elegant Mask x1",
       "biorand_item_id": 122400000,
       "biorand_name": "Elegant Mask",
       "classification": "FILLER",
-      "count": 1
-    },
-    "1466847945": {
-      "name": "Primal Knife x1",
-      "biorand_item_id": 276445056,
-      "biorand_name": "Primal Knife",
-      "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "1487112975": {
       "name": "Mirror with Pearls & Rubies x1",
       "biorand_item_id": 120822400,
       "biorand_name": "Mirror with Pearls & Rubies",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "1491486916": {
       "name": "Handgun Ammo x30",
       "biorand_item_id": 112800000,
       "biorand_name": "Handgun Ammo",
       "classification": "FILLER",
-      "count": 30
+      "count": 30,
+      "kind": "ammo"
     },
     "1514729802": {
       "name": "Handgun Ammo x7",
       "biorand_item_id": 112800000,
       "biorand_name": "Handgun Ammo",
       "classification": "FILLER",
-      "count": 7
+      "count": 7,
+      "kind": "ammo"
     },
     "1544487469": {
       "name": "Apostate's Head x1",
       "biorand_item_id": 119232000,
       "biorand_name": "Apostate's Head",
       "classification": "PROGRESSION",
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "1581525943": {
       "name": "Lion Head x1",
       "biorand_item_id": 119222400,
       "biorand_name": "Lion Head",
       "classification": "PROGRESSION",
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "1651349733": {
       "name": "Crystal Marble x1",
       "biorand_item_id": 119217600,
       "biorand_name": "Crystal Marble",
       "classification": "PROGRESSION",
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "1669567494": {
       "name": "Bolts x5",
       "biorand_item_id": 112808000,
       "biorand_name": "Bolts",
       "classification": "FILLER",
-      "count": 5
+      "count": 5,
+      "kind": "ammo"
     },
     "1671399243": {
       "name": "Boat Fuel x1",
       "biorand_item_id": 119273600,
       "biorand_name": "Boat Fuel",
       "classification": "PROGRESSION",
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "1718910190": {
       "name": "Blasphemer's Head x1",
       "biorand_item_id": 119230400,
       "biorand_name": "Blasphemer's Head",
       "classification": "PROGRESSION",
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "1766814127": {
       "name": "Splendid Bangle x1",
       "biorand_item_id": 122409600,
       "biorand_name": "Splendid Bangle",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "1791443381": {
       "name": "Level 1 Keycard x1",
       "biorand_item_id": 119211200,
       "biorand_name": "Level 1 Keycard",
       "classification": "PROGRESSION",
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "1798334688": {
       "name": "Lithographic Stone C x1",
       "biorand_item_id": 119268800,
       "biorand_name": "Lithographic Stone C",
       "classification": "PROGRESSION",
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "1834220951": {
       "name": "Yellow Diamond x1",
       "biorand_item_id": 120835200,
       "biorand_name": "Yellow Diamond",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "1855505831": {
       "name": "SW - Blast Crossbow x1",
       "biorand_item_id": 278198656,
       "biorand_name": "SW - Blast Crossbow",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "1862471185": {
       "name": "Ruby x1",
       "biorand_item_id": 120830400,
       "biorand_name": "Ruby",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "1895554320": {
       "name": "SW - Sawed-off W-870 x1",
       "biorand_item_id": 278195456,
       "biorand_name": "SW - Sawed-off W-870",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "1906327026": {
       "name": "Hexagon Piece A x1",
       "biorand_item_id": 119248000,
       "biorand_name": "Hexagon Piece A",
       "classification": "PROGRESSION",
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "1965776713": {
       "name": "Dynamite x1",
       "biorand_item_id": 119236800,
       "biorand_name": "Dynamite",
       "classification": "PROGRESSION",
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "2010127242": {
       "name": "Justitia Statue x1",
       "biorand_item_id": 120848000,
       "biorand_name": "Justitia Statue",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "2013551872": {
       "name": "Rifle Ammo x10",
       "biorand_item_id": 112804800,
       "biorand_name": "Rifle Ammo",
       "classification": "FILLER",
-      "count": 10
+      "count": 10,
+      "kind": "ammo"
     },
     "2015447627": {
       "name": "Serpent Head x1",
       "biorand_item_id": 119225600,
       "biorand_name": "Serpent Head",
       "classification": "PROGRESSION",
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "2061407981": {
       "name": "Recipe: Magnum Ammo x1",
       "biorand_item_id": 124328000,
       "biorand_name": "Recipe: Magnum Ammo",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "recipe"
     },
     "2134491726": {
       "name": "Black Bass x1",
       "biorand_item_id": 114417600,
       "biorand_name": "Black Bass",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "fish"
     },
     "2164502607": {
       "name": "Handgun Ammo x4",
       "biorand_item_id": 112800000,
       "biorand_name": "Handgun Ammo",
       "classification": "FILLER",
-      "count": 4
+      "count": 4,
+      "kind": "ammo"
     },
     "2204308324": {
       "name": "Gunpowder x4",
       "biorand_item_id": 117600000,
       "biorand_name": "Gunpowder",
       "classification": "FILLER",
-      "count": 4
+      "count": 4,
+      "kind": "gunpowder"
     },
     "2206838959": {
       "name": "Pearl Bangle x1",
       "biorand_item_id": 120816000,
       "biorand_name": "Pearl Bangle",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "2208221446": {
       "name": "Exclusive Upgrade Ticket x1",
       "biorand_item_id": 120867200,
       "biorand_name": "Exclusive Upgrade Ticket",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "special"
     },
     "2217291210": {
       "name": "Velvet Blue x1",
       "biorand_item_id": 120864000,
       "biorand_name": "Velvet Blue",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "2310309362": {
       "name": "Méndez's False Eye x1",
       "biorand_item_id": 120852800,
       "biorand_name": "Méndez's False Eye",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "2317863931": {
       "name": "Crystal Ore x1",
       "biorand_item_id": 120849600,
       "biorand_name": "Crystal Ore",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "2324378637": {
       "name": "Small Key x1",
       "biorand_item_id": 119244800,
       "biorand_name": "Small Key",
       "classification": "PROGRESSION",
-      "count": 1
+      "count": 1,
+      "kind": "small-key"
     },
     "2328994552": {
       "name": "Red Herb x1",
       "biorand_item_id": 114401600,
       "biorand_name": "Red Herb",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "health"
     },
     "2342841231": {
       "name": "Chicago Sweeper x1",
       "biorand_item_id": 275157056,
       "biorand_name": "Chicago Sweeper",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "2351475899": {
       "name": "Sapphire x1",
       "biorand_item_id": 120833600,
       "biorand_name": "Sapphire",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "2402639670": {
       "name": "Matilda x1",
       "biorand_item_id": 274841856,
       "biorand_name": "Matilda",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "2442382199": {
       "name": "Yellow Herb x1",
       "biorand_item_id": 114403200,
       "biorand_name": "Yellow Herb",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "health"
     },
     "2475531310": {
       "name": "Butterfly Lamp x1",
       "biorand_item_id": 122403200,
       "biorand_name": "Butterfly Lamp",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "2498409783": {
       "name": "Gold Token x1",
       "biorand_item_id": 119288000,
       "biorand_name": "Gold Token",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "token"
     },
     "2543323800": {
       "name": "Flash Grenade x1",
       "biorand_item_id": 277078656,
       "biorand_name": "Flash Grenade",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "grenade"
     },
     "2557426438": {
       "name": "Stingray x1",
       "biorand_item_id": 275477056,
       "biorand_name": "Stingray",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "2582217593": {
       "name": "Gunpowder x10",
       "biorand_item_id": 117600000,
       "biorand_name": "Gunpowder",
       "classification": "FILLER",
-      "count": 10
+      "count": 10,
+      "kind": "gunpowder"
     },
     "2582766715": {
       "name": "Brass Pocket Watch x1",
       "biorand_item_id": 120809600,
       "biorand_name": "Brass Pocket Watch",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "2601834280": {
       "name": "Rhinoceros Beetle x1",
       "biorand_item_id": 114424000,
       "biorand_name": "Rhinoceros Beetle",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "2613939803": {
       "name": "Gold Bangle x1",
       "biorand_item_id": 120819200,
       "biorand_name": "Gold Bangle",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "2709354575": {
       "name": "Bolt Thrower x1",
       "biorand_item_id": 275795456,
       "biorand_name": "Bolt Thrower",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "2763550898": {
       "name": "Red9 x1",
       "biorand_item_id": 274838656,
       "biorand_name": "Red9",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "2768851234": {
       "name": "Attachable Mines x5",
       "biorand_item_id": 117603200,
       "biorand_name": "Attachable Mines",
       "classification": "FILLER",
-      "count": 5
+      "count": 5,
+      "kind": "ammo"
     },
     "2774100122": {
       "name": "Handgun Ammo x10",
       "biorand_item_id": 112800000,
       "biorand_name": "Handgun Ammo",
       "classification": "FILLER",
-      "count": 10
+      "count": 10,
+      "kind": "ammo"
     },
     "2806905227": {
       "name": "Rifle Ammo x4",
       "biorand_item_id": 112804800,
       "biorand_name": "Rifle Ammo",
       "classification": "FILLER",
-      "count": 4
+      "count": 4,
+      "kind": "ammo"
     },
     "2820328595": {
       "name": "Handgun Ammo x15",
       "biorand_item_id": 112800000,
       "biorand_name": "Handgun Ammo",
       "classification": "FILLER",
-      "count": 15
-    },
-    "2828451666": {
-      "name": "Case: 8x13 x1",
-      "biorand_item_id": 124164800,
-      "biorand_name": "Case: 8x13",
-      "classification": "USEFUL",
-      "count": 1
+      "count": 15,
+      "kind": "ammo"
     },
     "2834473979": {
       "name": "Recipe: Heavy Grenade x1",
       "biorand_item_id": 124336000,
       "biorand_name": "Recipe: Heavy Grenade",
       "classification": "USEFUL",
-      "count": 1
-    },
-    "2859524944": {
-      "name": "Case: 8x12 x1",
-      "biorand_item_id": 124163200,
-      "biorand_name": "Case: 8x12",
-      "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "recipe"
     },
     "2888050195": {
       "name": "Level 3 Keycard x1",
       "biorand_item_id": 119214400,
       "biorand_name": "Level 3 Keycard",
       "classification": "PROGRESSION",
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "2892172865": {
       "name": "Spinel x1",
       "biorand_item_id": 120800000,
       "biorand_name": "Spinel",
       "classification": "PROGRESSION_SKIP_BALANCING",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "2937574877": {
       "name": "Vintage Compass x1",
       "biorand_item_id": 120846400,
       "biorand_name": "Vintage Compass",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "2979536989": {
       "name": "Shotgun Shells x5",
       "biorand_item_id": 112803200,
       "biorand_name": "Shotgun Shells",
       "classification": "FILLER",
-      "count": 5
+      "count": 5,
+      "kind": "ammo"
     },
     "2996421434": {
       "name": "Red Gemstone Ring x1",
       "biorand_item_id": 120817600,
       "biorand_name": "Red Gemstone Ring",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "3009070136": {
       "name": "Rocket Launcher x1",
       "biorand_item_id": 276275456,
       "biorand_name": "Rocket Launcher",
       "classification": "USEFUL",
-      "count": 1
-    },
-    "3023476029": {
-      "name": "Case: 7x12 x1",
-      "biorand_item_id": 124161600,
-      "biorand_name": "Case: 7x12",
-      "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "3043978533": {
       "name": "Heavy Grenade x1",
       "biorand_item_id": 277077056,
       "biorand_name": "Heavy Grenade",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "grenade"
     },
     "3062218041": {
       "name": "Gold Bar (L) x1",
       "biorand_item_id": 120841600,
       "biorand_name": "Gold Bar (L)",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "3064599675": {
       "name": "Antique Camera x1",
       "biorand_item_id": 120860800,
       "biorand_name": "Antique Camera",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "3076045768": {
       "name": "Staff of Royalty x1",
       "biorand_item_id": 120828800,
       "biorand_name": "Staff of Royalty",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "3078996540": {
       "name": "Elegant Crown x1",
       "biorand_item_id": 122404800,
       "biorand_name": "Elegant Crown",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "3091930671": {
       "name": "Handgun Ammo x16",
       "biorand_item_id": 112800000,
       "biorand_name": "Handgun Ammo",
       "classification": "FILLER",
-      "count": 16
+      "count": 16,
+      "kind": "ammo"
     },
     "3099953136": {
       "name": "Halo Wheel x1",
       "biorand_item_id": 119206400,
       "biorand_name": "Halo Wheel",
       "classification": "PROGRESSION",
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "3109021309": {
       "name": "Spinel x3",
       "biorand_item_id": 120800000,
       "biorand_name": "Spinel",
       "classification": "PROGRESSION_SKIP_BALANCING",
-      "count": 3
+      "count": 3,
+      "kind": "treasure"
     },
     "3152993356": {
       "name": "Gold Bar x1",
       "biorand_item_id": 120840000,
       "biorand_name": "Gold Bar",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "3259886427": {
       "name": "Punisher x1",
       "biorand_item_id": 274837056,
       "biorand_name": "Punisher",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "3263967379": {
       "name": "Lithographic Stone B x1",
       "biorand_item_id": 119267200,
       "biorand_name": "Lithographic Stone B",
       "classification": "PROGRESSION",
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "3264850340": {
       "name": "Kitchen Knife x1",
       "biorand_item_id": 276438656,
       "biorand_name": "Kitchen Knife",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "knife"
     },
     "3311002821": {
       "name": "Gunpowder x3",
       "biorand_item_id": 117600000,
       "biorand_name": "Gunpowder",
       "classification": "FILLER",
-      "count": 3
+      "count": 3,
+      "kind": "gunpowder"
     },
     "3315045920": {
       "name": "Green Herb x1",
       "biorand_item_id": 114400000,
       "biorand_name": "Green Herb",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "health"
     },
     "3322005405": {
       "name": "Chalice of Atonement x1",
       "biorand_item_id": 122411200,
       "biorand_name": "Chalice of Atonement",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "3340862733": {
       "name": "Ornate Beetle x1",
       "biorand_item_id": 120851200,
       "biorand_name": "Ornate Beetle",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "3342204226": {
       "name": "Charm: Iluminados Emblem x1",
       "biorand_item_id": 127243200,
       "biorand_name": "Charm: Iluminados Emblem",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "charm"
     },
     "3421455092": {
       "name": "Elegant Perfume Bottle x1",
       "biorand_item_id": 120825600,
       "biorand_name": "Elegant Perfume Bottle",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "3457959937": {
       "name": "Cubic Device x1",
       "biorand_item_id": 119276800,
       "biorand_name": "Cubic Device",
       "classification": "PROGRESSION",
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "3515208522": {
       "name": "LE 5 x60",
       "biorand_item_id": 275158656,
       "biorand_name": "LE 5",
       "classification": "USEFUL",
-      "count": 60
+      "count": 60,
+      "kind": "weapon"
     },
     "3526330697": {
       "name": "Spinel x2",
       "biorand_item_id": 120800000,
       "biorand_name": "Spinel",
       "classification": "PROGRESSION_SKIP_BALANCING",
-      "count": 2
+      "count": 2,
+      "kind": "treasure"
     },
     "3534671013": {
       "name": "Matilda Stock x1",
       "biorand_item_id": 116009600,
       "biorand_name": "Matilda Stock",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "attachment"
     },
     "3567440286": {
       "name": "Striker x1",
       "biorand_item_id": 274998656,
       "biorand_name": "Striker",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "3580942952": {
       "name": "Rifle Ammo x2",
       "biorand_item_id": 112804800,
       "biorand_name": "Rifle Ammo",
       "classification": "FILLER",
-      "count": 2
+      "count": 2,
+      "kind": "ammo"
     },
     "3584757178": {
       "name": "Chicken Egg x1",
       "biorand_item_id": 277080256,
       "biorand_name": "Chicken Egg",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "egg"
     },
     "3630250794": {
       "name": "Red Beryl x1",
       "biorand_item_id": 120857600,
       "biorand_name": "Red Beryl",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "3680769264": {
       "name": "Old Wayshrine Key x1",
       "biorand_item_id": 119256000,
       "biorand_name": "Old Wayshrine Key",
       "classification": "PROGRESSION",
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "3688870194": {
       "name": "Gold Chicken Egg x1",
       "biorand_item_id": 277083456,
       "biorand_name": "Gold Chicken Egg",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "egg"
+    },
+    "3709764134": {
+      "name": "Progressive Attache Case x1",
+      "biorand_item_id": -1,
+      "biorand_name": "Progressive Attache Case",
+      "classification": "USEFUL",
+      "count": 1,
+      "kind": "progressive-case"
     },
     "3733278404": {
       "name": "Handgun Ammo x9",
       "biorand_item_id": 112800000,
       "biorand_name": "Handgun Ammo",
       "classification": "FILLER",
-      "count": 9
+      "count": 9,
+      "kind": "ammo"
     },
     "3824283124": {
       "name": "Ornate Necklace x1",
       "biorand_item_id": 122412800,
       "biorand_name": "Ornate Necklace",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "3838225701": {
       "name": "Salazar Family Insignia x1",
       "biorand_item_id": 119220800,
       "biorand_name": "Salazar Family Insignia",
       "classification": "PROGRESSION",
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "3862385800": {
       "name": "Flagon x1",
       "biorand_item_id": 122401600,
       "biorand_name": "Flagon",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "3899322968": {
       "name": "Sentinel Nine x1",
       "biorand_item_id": 278035456,
       "biorand_name": "Sentinel Nine",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "3910021636": {
       "name": "Bloodied Sword x1",
       "biorand_item_id": 119278400,
       "biorand_name": "Bloodied Sword",
       "classification": "PROGRESSION",
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "3953430960": {
       "name": "Submachine Gun Ammo x30",
       "biorand_item_id": 112806400,
       "biorand_name": "Submachine Gun Ammo",
       "classification": "FILLER",
-      "count": 30
+      "count": 30,
+      "kind": "ammo"
     },
     "3958133696": {
       "name": "W-870 x5",
       "biorand_item_id": 274995456,
       "biorand_name": "W-870",
       "classification": "USEFUL",
-      "count": 5
+      "count": 5,
+      "kind": "weapon"
     },
     "3974588439": {
       "name": "Hand Grenade x1",
       "biorand_item_id": 277075456,
       "biorand_name": "Hand Grenade",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "grenade"
     },
     "3982676783": {
       "name": "Rifle Ammo x5",
       "biorand_item_id": 112804800,
       "biorand_name": "Rifle Ammo",
       "classification": "FILLER",
-      "count": 5
+      "count": 5,
+      "kind": "ammo"
     },
     "4000844222": {
       "name": "Broken Butterfly x1",
       "biorand_item_id": 275635456,
       "biorand_name": "Broken Butterfly",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "4063988846": {
       "name": "First Aid Spray x1",
       "biorand_item_id": 114416000,
       "biorand_name": "First Aid Spray",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "health"
     },
     "4068051991": {
       "name": "Attaché Case: Leather x1",
       "biorand_item_id": 124179200,
       "biorand_name": "Attaché Case: Leather",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "case-perk"
     },
     "4073624936": {
       "name": "Killer7 x1",
       "biorand_item_id": 275637056,
       "biorand_name": "Killer7",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "4117592696": {
       "name": "Pesetas x5000",
       "biorand_item_id": 124000000,
       "biorand_name": "Pesetas",
       "classification": "FILLER",
-      "count": 5000
-    },
-    "4126917699": {
-      "name": "Case: 9x13 x1",
-      "biorand_item_id": 124166400,
-      "biorand_name": "Case: 9x13",
-      "classification": "USEFUL",
-      "count": 1
+      "count": 5000,
+      "kind": "money"
     },
     "4131203438": {
       "name": "Goat Head x1",
       "biorand_item_id": 119224000,
       "biorand_name": "Goat Head",
       "classification": "PROGRESSION",
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "4160710145": {
       "name": "Level 2 Keycard x1",
       "biorand_item_id": 119212800,
       "biorand_name": "Level 2 Keycard",
       "classification": "PROGRESSION",
-      "count": 1
+      "count": 1,
+      "kind": "key"
     },
     "4171742266": {
       "name": "Gunpowder x5",
       "biorand_item_id": 117600000,
       "biorand_name": "Gunpowder",
       "classification": "FILLER",
-      "count": 5
+      "count": 5,
+      "kind": "gunpowder"
     },
     "4175876706": {
       "name": "Handcannon x1",
       "biorand_item_id": 275638656,
       "biorand_name": "Handcannon",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "4204340803": {
       "name": "Spinel x5",
       "biorand_item_id": 120800000,
       "biorand_name": "Spinel",
       "classification": "PROGRESSION_SKIP_BALANCING",
-      "count": 5
+      "count": 5,
+      "kind": "treasure"
     },
     "4228309747": {
       "name": "Laser Sight x1",
       "biorand_item_id": 116008000,
       "biorand_name": "Laser Sight",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "attachment"
     },
     "4249727162": {
       "name": "Elegant Headdress x1",
       "biorand_item_id": 120812800,
       "biorand_name": "Elegant Headdress",
       "classification": "FILLER",
-      "count": 1
+      "count": 1,
+      "kind": "treasure"
     },
     "4251553254": {
       "name": "Charm: Ada Wong x1",
       "biorand_item_id": 127236800,
       "biorand_name": "Charm: Ada Wong",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "charm"
     },
     "4262302934": {
       "name": "Handgun Ammo x25",
       "biorand_item_id": 112800000,
       "biorand_name": "Handgun Ammo",
       "classification": "FILLER",
-      "count": 25
+      "count": 25,
+      "kind": "ammo"
     },
     "4288743819": {
       "name": "TMP x1",
       "biorand_item_id": 275155456,
       "biorand_name": "TMP",
       "classification": "USEFUL",
-      "count": 1
+      "count": 1,
+      "kind": "weapon"
     },
     "440000001": {
       "name": "Mercenaries Character: Leon",

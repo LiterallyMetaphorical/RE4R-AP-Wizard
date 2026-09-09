@@ -3360,6 +3360,116 @@ local function install(ctx)
     export("consume_local_injection_suppression", consume_local_injection_suppression)
     export("select_known_injectable_item", select_known_injectable_item)
     export("find_known_injectable_item_index", find_known_injectable_item_index)
+    -- [Progressive gear, 2026-09-05] Progressive Knife and Progressive
+    -- Attache Case are one AP item per ladder; a received copy becomes the
+    -- next tier. The case reads the current size and steps up one; the knife
+    -- is the first tier the player does not own (Storage or case). Readers
+    -- can be swapped in by a harness; the defaults are the live ones.
+    local function inject_read_attache_case_size()
+        local character_manager = sdk.get_managed_singleton("chainsaw.CharacterManager")
+        if character_manager == nil then
+            return nil, "CharacterManager singleton missing"
+        end
+        local player = inject_safe_call(function()
+            return character_manager:call("getPlayerContextRef()")
+        end)
+        if player == nil then
+            player = inject_safe_call(function()
+                return character_manager:call("getPlayerContextRef")
+            end)
+        end
+        if player == nil then
+            return nil, "player context missing"
+        end
+        player = inject_try_add_ref(player)
+        local head_updater = inject_safe_call(function()
+            return player:call("get_HeadUpdater()")
+        end)
+        if head_updater == nil then
+            head_updater = inject_safe_call(function()
+                return player:call("get_HeadUpdater")
+            end)
+        end
+        if head_updater == nil then
+            return nil, "HeadUpdater missing"
+        end
+        head_updater = inject_try_add_ref(head_updater)
+        local controller = inject_safe_call(function()
+            return head_updater:call("get_InventoryController()")
+        end)
+        if controller == nil then
+            controller = inject_safe_call(function()
+                return head_updater:call("get_InventoryController")
+            end)
+        end
+        if controller == nil then
+            return nil, "InventoryController missing"
+        end
+        controller = inject_try_add_ref(controller)
+        local raw = inject_safe_call(function()
+            return controller:call("get_CurrInventorySize()")
+        end)
+        if raw == nil then
+            raw = inject_safe_call(function()
+                return controller:call("get_CurrInventorySize")
+            end)
+        end
+        local size = tonumber(raw)
+        if size == nil then
+            return nil, "case size unreadable"
+        end
+        return math.floor(size), nil
+    end
+
+    -- Returns engine_id, tier_index, note. engine_id nil with note "exhausted"
+    -- means the ladder has nothing left to hand out (the case is already at
+    -- its largest, every knife is owned); any other note is a read failure
+    -- the caller should retry rather than guess on.
+    local function inject_resolve_progressive(kind, tiers, readers)
+        readers = readers or {}
+        if type(tiers) ~= "table" or #tiers == 0 then
+            return nil, nil, "no tiers"
+        end
+        if kind == "progressive-case" then
+            local read_size = readers.case_size or inject_read_attache_case_size
+            local size, why = read_size()
+            if size == nil then
+                return nil, nil, why or "case size unreadable"
+            end
+            for index, raw_tier in ipairs(tiers) do
+                local tier_id = math.floor(tonumber(raw_tier) or 0)
+                local tier_size = INJECT_ATTACHE_CASE_SIZE_BY_ITEM_ID[tier_id] or index
+                if tier_size > size then
+                    return tier_id, index, nil
+                end
+            end
+            return nil, nil, "exhausted"
+        end
+        if kind == "progressive-knife" then
+            local owns = readers.owns or function(item_id)
+                local ok, owned = pcall(inject_player_owns_item, item_id)
+                if not ok then
+                    return nil
+                end
+                return owned == true
+            end
+            for index, raw_tier in ipairs(tiers) do
+                local tier_id = math.floor(tonumber(raw_tier) or 0)
+                local owned = owns(tier_id)
+                if owned == nil then
+                    return nil, nil, "ownership unreadable"
+                end
+                if not owned then
+                    return tier_id, index, nil
+                end
+            end
+            return nil, nil, "exhausted"
+        end
+        return nil, nil, "unknown progressive kind " .. tostring(kind)
+    end
+    export("inject_read_attache_case_size", inject_read_attache_case_size)
+    export("inject_resolve_progressive", inject_resolve_progressive)
+
     export("inject_record_recent_item", inject_record_recent_item)
     export("get_injectable_label_for_item_id", get_injectable_label_for_item_id)
     export("inject_status_succeeded", inject_status_succeeded)

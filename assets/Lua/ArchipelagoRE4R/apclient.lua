@@ -365,6 +365,29 @@ return function(ctx)
         return ok and domain == "MERCENARIES"
     end
 
+    -- [Progressive gear] A ladder item (Progressive Knife, Progressive
+    -- Attache Case) carries no engine id of its own; its tiers do, in hand-out
+    -- order. nil for every ordinary item.
+    local function progressive_tiers_of(value)
+        if type(value) ~= "table" or type(value.tiers) ~= "table" then return nil end
+        local tiers = {}
+        for _, raw in ipairs(value.tiers) do
+            local id = tonumber(raw)
+            if id ~= nil and id > 0 then tiers[#tiers + 1] = math.floor(id) end
+        end
+        if #tiers == 0 then return nil end
+        return tiers
+    end
+    local function progressive_tier_names_of(value)
+        if type(value) ~= "table" or type(value.tier_names) ~= "table" then return nil end
+        local names = {}
+        for _, raw in ipairs(value.tier_names) do names[#names + 1] = tostring(raw) end
+        return names
+    end
+    local function is_progressive_item(mapping)
+        return type(mapping) == "table" and type(mapping.tiers) == "table" and #mapping.tiers > 0
+    end
+
     local function load_ap_item_map()
         ap_item_map = {}
         st.item_map_loaded = false
@@ -388,6 +411,8 @@ return function(ctx)
                     count = math.max(1, count),
                     name = (type(value.name) == "string" and value.name ~= "") and value.name or nil,
                     kind = (type(value.kind) == "string" and value.kind ~= "") and value.kind or nil,
+                    tiers = progressive_tiers_of(value),
+                    tier_names = progressive_tier_names_of(value),
                 }
                 n = n + 1
             end
@@ -1122,7 +1147,12 @@ return function(ctx)
                 -- reached the player).
                 and not is_merchant_shop_location(entry.location)
                 -- ...nor a Mercenaries rank: nothing physical was picked up.
-                and not is_merc_location(entry.location) then
+                and not is_merc_location(entry.location)
+                -- ...nor a progressive ladder item: it has no engine item of
+                -- its own, so BioRand placed the Archipelago logo there and
+                -- the pickup granted nothing. The tier is resolved and
+                -- delivered below, like a foreign gift.
+                and not is_progressive_item(ap_item_map[entry.item]) then
                 -- own-world physical pickup: BioRand already granted it in-game.
                 info(string.format("own-find skip idx=%d ap=%s location=%d",
                     idx, tostring(entry.item), entry.location))
@@ -1132,7 +1162,71 @@ return function(ctx)
                 processed = processed + 1
             else
                 local mapping = ap_item_map[entry.item]
-                if mapping == nil or type(mapping.re4r_item_id) ~= "number" or mapping.re4r_item_id <= 0 then
+                -- [Progressive gear] Resolve the ladder to the tier this copy
+                -- becomes: a copy of the mapping carrying the tier's engine id,
+                -- so everything below (inject, suppression, toast) runs as for
+                -- any item. An exhausted ladder (case already at its largest,
+                -- every knife owned) delivers nothing and says so; a state the
+                -- resolver cannot read retries like a failed injection.
+                local progressive_exhausted = false
+                local progressive_unreadable = nil
+                if is_progressive_item(mapping) then
+                    local resolve = ctx.inject_resolve_progressive or _G.inject_resolve_progressive
+                    local tier_id, tier_index, note = nil, nil, "resolver unavailable"
+                    if type(resolve) == "function" then
+                        tier_id, tier_index, note = resolve(mapping.kind, mapping.tiers)
+                    end
+                    if tier_id ~= nil then
+                        local tier_name = (type(mapping.tier_names) == "table" and mapping.tier_names[tier_index]) or nil
+                        mapping = {
+                            re4r_item_id = tier_id,
+                            count = 1,
+                            name = tier_name and string.format("%s (%s)", tostring(mapping.name), tostring(tier_name))
+                                or mapping.name,
+                            kind = mapping.kind,
+                        }
+                    elseif note == "exhausted" then
+                        progressive_exhausted = true
+                    else
+                        progressive_unreadable = tostring(note)
+                    end
+                end
+                if progressive_exhausted then
+                    info(string.format(
+                        "progressive idx=%d ap=%s [%s]: already at the top tier - nothing to hand out",
+                        idx, tostring(entry.item), tostring(mapping.name)))
+                    bridge.injected_ap_item_indexes[idx] = true
+                    bridge.last_received_index = idx
+                    inject_failure_counts[idx] = nil
+                    pop_head(idx)
+                    processed = processed + 1
+                    need_flush = false
+                    if st.in_sync_burst then
+                        bump_sync_summary(1, false)
+                    else
+                        enqueue_toast("Received " .. tostring(mapping.name),
+                            "already at the top tier, nothing to add", classify_flags(entry.flags), "received")
+                    end
+                    if not persist() then break end
+                elseif progressive_unreadable ~= nil then
+                    local n = (inject_failure_counts[idx] or 0) + 1
+                    inject_failure_counts[idx] = n
+                    if n >= MAX_INJECT_RETRIES then
+                        err(string.format(
+                            "POISON: progressive resolve failed %dx for idx=%d ap=%s (%s) -> SKIPPING (item lost)",
+                            n, idx, tostring(entry.item), progressive_unreadable))
+                        bridge.last_received_index = idx
+                        inject_failure_counts[idx] = nil
+                        pop_head(idx)
+                        processed = processed + 1
+                        need_flush = false
+                        if not persist() then break end
+                    else
+                        warn(string.format("progressive resolve failed idx=%d (attempt %d/%d): %s -- retrying next tick",
+                            idx, n, MAX_INJECT_RETRIES, progressive_unreadable))
+                        break
+                    end
+                elseif mapping == nil or type(mapping.re4r_item_id) ~= "number" or mapping.re4r_item_id <= 0 then
                     -- Map is confirmed loaded (gated above), so this id is genuinely
                     -- unknown -> skip it (loud) so it can't block later items forever.
                     err(string.format(

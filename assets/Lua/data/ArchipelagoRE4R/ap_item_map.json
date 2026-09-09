@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "item_count": 185,
+  "item_count": 181,
   "items": {
     "20665965": {
       "name": "Red9 Stock x1",
@@ -79,6 +79,20 @@
       "re4r_item_id": 120838400,
       "count": 1,
       "kind": "treasure"
+    },
+    "383595044": {
+      "name": "Progressive Knife x1",
+      "re4r_item_id": -1,
+      "count": 1,
+      "kind": "progressive-knife",
+      "tiers": [
+        276437056,
+        276445056
+      ],
+      "tier_names": [
+        "Fighting Knife",
+        "Primal Knife"
+      ]
     },
     "396050682": {
       "name": "Silver Token x1",
@@ -212,12 +226,6 @@
       "count": 1,
       "kind": "recipe"
     },
-    "882777558": {
-      "name": "Fighting Knife x1",
-      "re4r_item_id": 276437056,
-      "count": 1,
-      "kind": "weapon"
-    },
     "885416727": {
       "name": "Brown Chicken Egg x1",
       "re4r_item_id": 277081856,
@@ -343,12 +351,6 @@
       "re4r_item_id": 122400000,
       "count": 1,
       "kind": "treasure"
-    },
-    "1466847945": {
-      "name": "Primal Knife x1",
-      "re4r_item_id": 276445056,
-      "count": 1,
-      "kind": "weapon"
     },
     "1487112975": {
       "name": "Mirror with Pearls & Rubies x1",
@@ -650,23 +652,11 @@
       "count": 15,
       "kind": "ammo"
     },
-    "2828451666": {
-      "name": "Case: 8x13 x1",
-      "re4r_item_id": 124164800,
-      "count": 1,
-      "kind": "case-size"
-    },
     "2834473979": {
       "name": "Recipe: Heavy Grenade x1",
       "re4r_item_id": 124336000,
       "count": 1,
       "kind": "recipe"
-    },
-    "2859524944": {
-      "name": "Case: 8x12 x1",
-      "re4r_item_id": 124163200,
-      "count": 1,
-      "kind": "case-size"
     },
     "2888050195": {
       "name": "Level 3 Keycard x1",
@@ -703,12 +693,6 @@
       "re4r_item_id": 276275456,
       "count": 1,
       "kind": "weapon"
-    },
-    "3023476029": {
-      "name": "Case: 7x12 x1",
-      "re4r_item_id": 124161600,
-      "count": 1,
-      "kind": "case-size"
     },
     "3043978533": {
       "name": "Heavy Grenade x1",
@@ -878,6 +862,24 @@
       "count": 1,
       "kind": "egg"
     },
+    "3709764134": {
+      "name": "Progressive Attache Case x1",
+      "re4r_item_id": -1,
+      "count": 1,
+      "kind": "progressive-case",
+      "tiers": [
+        124161600,
+        124163200,
+        124164800,
+        124166400
+      ],
+      "tier_names": [
+        "Case: 7x12",
+        "Case: 8x12",
+        "Case: 8x13",
+        "Case: 9x13"
+      ]
+    },
     "3733278404": {
       "name": "Handgun Ammo x9",
       "re4r_item_id": 112800000,
@@ -967,12 +969,6 @@
       "re4r_item_id": 124000000,
       "count": 5000,
       "kind": "money"
-    },
-    "4126917699": {
-      "name": "Case: 9x13 x1",
-      "re4r_item_id": 124166400,
-      "count": 1,
-      "kind": "case-size"
     },
     "4131203438": {
       "name": "Goat Head x1",

@@ -155,7 +155,7 @@ public sealed class ManifestCountContractTests
     {
         var data = await LoadStaticAsync();
 
-        Assert.Equal("0.7.2", data.WorldVersion);
+        Assert.Equal("0.7.3", data.WorldVersion);
         Assert.Equal(456, data.Counts.LocationsTotal);
         Assert.Equal(456, data.LocationCodes.Count);
         Assert.Equal(456, data.Locations.Count);
@@ -197,6 +197,27 @@ public sealed class ManifestCountContractTests
         Assert.Equal(1, result.RealRe4rItemCount);
         Assert.Equal(455, result.PlaceholderItemCount);
         Assert.Contains(herb.Value.BioRandItemId.ToString(), result.ConfigJson);
+    }
+
+    [Fact]
+    public async Task ProgressiveGearInOwnWorldIsPlacedAsThePlaceholder()
+    {
+        // A ladder item has no engine id; the mod picks the tier on receipt,
+        // so BioRand places the logo and the pickup sends the check.
+        var data = await LoadStaticAsync();
+        var knife = data.Items.Single(pair => pair.Value.Name == "Progressive Knife x1");
+        var caseLadder = data.Items.Single(pair => pair.Value.Name == "Progressive Attache Case x1");
+        var locations = Foreign(data.LocationCodes);
+        locations[0] = new ScoutLocationResult { LocationId = locations[0].LocationId, ItemId = knife.Key, OwningPlayerSlot = ConnectedSlot };
+        locations[1] = new ScoutLocationResult { LocationId = locations[1].LocationId, ItemId = caseLadder.Key, OwningPlayerSlot = ConnectedSlot };
+        var (builder, _) = BuilderWithLog();
+
+        var result = await builder.BuildAsync(Room(locations), null, GameVersion);
+
+        Assert.True(knife.Value.BioRandItemId <= 0);
+        Assert.True(caseLadder.Value.BioRandItemId <= 0);
+        Assert.Equal(0, result.RealRe4rItemCount);
+        Assert.Equal(456, result.PlaceholderItemCount);
     }
 
     [Fact]

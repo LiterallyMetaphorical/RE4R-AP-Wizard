@@ -300,8 +300,13 @@ public sealed class ManifestBuilder
             // A Mercenaries unlock has no engine item: in a campaign spot it
             // shows the Archipelago logo, and picking that up sends the check
             // while the unlock itself arrives through the received-item path.
-            if ((staticItem.Kind ?? string.Empty).StartsWith("merc_", StringComparison.Ordinal)
-                || staticItem.Name.StartsWith("Mercenaries ", StringComparison.Ordinal))
+            var kind = staticItem.Kind ?? string.Empty;
+            if (kind.StartsWith("merc_", StringComparison.Ordinal)
+                || staticItem.Name.StartsWith("Mercenaries ", StringComparison.Ordinal)
+                // A progressive ladder item (Progressive Knife, Progressive
+                // Attache Case) has no engine item either: the mod picks the
+                // tier when the copy is received, so the spot shows the logo.
+                || kind.StartsWith("progressive-", StringComparison.Ordinal))
             {
                 return new ManifestPlacement(staticData.PlaceholderItemId, 1);
             }
