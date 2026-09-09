@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "item_count": 181,
+  "item_count": 182,
   "items": {
     "20665965": {
       "name": "Red9 Stock x1",
@@ -207,6 +207,12 @@
       "re4r_item_id": 278515456,
       "count": 1,
       "kind": "weapon"
+    },
+    "752533964": {
+      "name": "Body Armor x1",
+      "re4r_item_id": 124001600,
+      "count": 1,
+      "kind": "armor"
     },
     "754561484": {
       "name": "Scope x1",

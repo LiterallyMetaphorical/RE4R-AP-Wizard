@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-09-05T18:04:04Z",
+  "generated_at_utc": "2026-09-05T18:34:44Z",
   "game": "Resident Evil 4 Remake",
   "world_version": "0.7.3",
   "placeholder_item_id": 120486400,
@@ -134,6 +134,7 @@
     ],
     "Merchant Gear": [
       "Blacktail x1",
+      "Body Armor x1",
       "Bolt Thrower x1",
       "Broken Butterfly x1",
       "Chicago Sweeper x1",
@@ -212,6 +213,7 @@
     ],
     "Useful": [
       "Blacktail x1",
+      "Body Armor x1",
       "Bolt Thrower x1",
       "Boot Knife x1",
       "Broken Butterfly x1",
@@ -981,7 +983,7 @@
     "locations_total": 456,
     "guid_locations": 456,
     "noguid_locations": 0,
-    "items_total": 181,
+    "items_total": 182,
     "always_locations": 456,
     "optional_key_locations": 0,
     "shop_slots": 120,
@@ -10953,6 +10955,14 @@
       "classification": "USEFUL",
       "count": 1,
       "kind": "weapon"
+    },
+    "752533964": {
+      "name": "Body Armor x1",
+      "biorand_item_id": 124001600,
+      "biorand_name": "Body Armor",
+      "classification": "USEFUL",
+      "count": 1,
+      "kind": "armor"
     },
     "754561484": {
       "name": "Scope x1",
