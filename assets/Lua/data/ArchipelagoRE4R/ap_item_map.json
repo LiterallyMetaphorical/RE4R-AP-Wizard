@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "item_count": 182,
+  "item_count": 201,
   "items": {
     "20665965": {
       "name": "Red9 Stock x1",
@@ -20,9 +20,21 @@
       "count": 1,
       "kind": "key"
     },
+    "52243092": {
+      "name": "SW - Housekeeper's Barrette x1",
+      "re4r_item_id": 120484800,
+      "count": 1,
+      "kind": "treasure"
+    },
     "52754570": {
       "name": "Blue Dial x1",
       "re4r_item_id": 119284800,
+      "count": 1,
+      "kind": "key"
+    },
+    "64374036": {
+      "name": "SW - Hidden Key x1",
+      "re4r_item_id": 118920000,
       "count": 1,
       "kind": "key"
     },
@@ -43,6 +55,18 @@
       "re4r_item_id": 120865600,
       "count": 1,
       "kind": "treasure"
+    },
+    "196033967": {
+      "name": "Shotgun Shells x2",
+      "re4r_item_id": 112803200,
+      "count": 2,
+      "kind": "ammo"
+    },
+    "211352952": {
+      "name": "SW - Blast Arrows x2",
+      "re4r_item_id": 112480000,
+      "count": 2,
+      "kind": "ammo"
     },
     "214868457": {
       "name": "Bolts x2",
@@ -105,6 +129,12 @@
       "re4r_item_id": 278037056,
       "count": 1,
       "kind": "weapon"
+    },
+    "454631481": {
+      "name": "SW - Blast Arrows x3",
+      "re4r_item_id": 112480000,
+      "count": 3,
+      "kind": "ammo"
     },
     "457754278": {
       "name": "Lithographic Stone D x1",
@@ -178,6 +208,12 @@
       "count": 8,
       "kind": "ammo"
     },
+    "658487193": {
+      "name": "Pearl Pendant x1",
+      "re4r_item_id": 120801600,
+      "count": 1,
+      "kind": "treasure"
+    },
     "659501534": {
       "name": "Rifle Ammo x3",
       "re4r_item_id": 112804800,
@@ -226,6 +262,12 @@
       "count": 1,
       "kind": "weapon"
     },
+    "797427134": {
+      "name": "Handgun Ammo x13",
+      "re4r_item_id": 112800000,
+      "count": 13,
+      "kind": "ammo"
+    },
     "872710715": {
       "name": "Recipe: Attachable Mines x1",
       "re4r_item_id": 124334400,
@@ -261,6 +303,12 @@
       "re4r_item_id": 275957056,
       "count": 1,
       "kind": "weapon"
+    },
+    "946396859": {
+      "name": "SW - Blue Butterfly x1",
+      "re4r_item_id": 118891200,
+      "count": 1,
+      "kind": "key"
     },
     "972234972": {
       "name": "Golden Lynx x1",
@@ -328,6 +376,12 @@
       "count": 5,
       "kind": "ammo"
     },
+    "1213823399": {
+      "name": "Submachine Gun Ammo x20",
+      "re4r_item_id": 112806400,
+      "count": 20,
+      "kind": "ammo"
+    },
     "1229012439": {
       "name": "Dungeon Key x1",
       "re4r_item_id": 119254400,
@@ -376,6 +430,18 @@
       "count": 7,
       "kind": "ammo"
     },
+    "1517711163": {
+      "name": "SW - Silver Bottle x1",
+      "re4r_item_id": 118907200,
+      "count": 1,
+      "kind": "key"
+    },
+    "1518956443": {
+      "name": "SW - Gold Bottle x1",
+      "re4r_item_id": 118889600,
+      "count": 1,
+      "kind": "key"
+    },
     "1544487469": {
       "name": "Apostate's Head x1",
       "re4r_item_id": 119232000,
@@ -409,6 +475,12 @@
     "1718910190": {
       "name": "Blasphemer's Head x1",
       "re4r_item_id": 119230400,
+      "count": 1,
+      "kind": "key"
+    },
+    "1721834968": {
+      "name": "SW - Boat Key x1",
+      "re4r_item_id": 118905600,
       "count": 1,
       "kind": "key"
     },
@@ -448,6 +520,12 @@
       "count": 1,
       "kind": "treasure"
     },
+    "1864202047": {
+      "name": "Crimson Lantern x1",
+      "re4r_item_id": 119209600,
+      "count": 1,
+      "kind": "key"
+    },
     "1895554320": {
       "name": "SW - Sawed-off W-870 x1",
       "re4r_item_id": 278195456,
@@ -459,6 +537,18 @@
       "re4r_item_id": 119248000,
       "count": 1,
       "kind": "key"
+    },
+    "1926468488": {
+      "name": "Shotgun Shells x4",
+      "re4r_item_id": 112803200,
+      "count": 4,
+      "kind": "ammo"
+    },
+    "1929145066": {
+      "name": "SW - SR M1903 x5",
+      "re4r_item_id": 278217856,
+      "count": 5,
+      "kind": "weapon"
     },
     "1965776713": {
       "name": "Dynamite x1",
@@ -928,6 +1018,12 @@
       "count": 30,
       "kind": "ammo"
     },
+    "3956437790": {
+      "name": "Submachine Gun Ammo x40",
+      "re4r_item_id": 112806400,
+      "count": 40,
+      "kind": "ammo"
+    },
     "3958133696": {
       "name": "W-870 x5",
       "re4r_item_id": 274995456,
@@ -952,6 +1048,12 @@
       "count": 1,
       "kind": "weapon"
     },
+    "4028086584": {
+      "name": "SW - Lithographic Stone B x1",
+      "re4r_item_id": 118913600,
+      "count": 1,
+      "kind": "key"
+    },
     "4063988846": {
       "name": "First Aid Spray x1",
       "re4r_item_id": 114416000,
@@ -970,6 +1072,12 @@
       "count": 1,
       "kind": "weapon"
     },
+    "4110113569": {
+      "name": "SW - Lithographic Stone A x1",
+      "re4r_item_id": 118912000,
+      "count": 1,
+      "kind": "key"
+    },
     "4117592696": {
       "name": "Pesetas x5000",
       "re4r_item_id": 124000000,
@@ -979,6 +1087,12 @@
     "4131203438": {
       "name": "Goat Head x1",
       "re4r_item_id": 119224000,
+      "count": 1,
+      "kind": "key"
+    },
+    "4157635526": {
+      "name": "SW - Red Ink x1",
+      "re4r_item_id": 118888000,
       "count": 1,
       "kind": "key"
     },

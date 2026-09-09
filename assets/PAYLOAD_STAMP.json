@@ -1,11 +1,11 @@
 {
-  "staged_at_utc": "2026-09-07T04:30:18Z",
+  "staged_at_utc": "2026-09-07T04:51:25Z",
   "sources": {
     "apworld": {
       "repo": "ArchipelagoRE4R",
       "branch": "fix/playtest-round-2",
-      "commit": "a0f1628f7c4110ceb5838d6517831161efe1a5d3",
-      "short": "a0f1628"
+      "commit": "7cc8ee27a65eb42100442dd861e813fb8818c30c",
+      "short": "7cc8ee2"
     },
     "fork": {
       "repo": "biorand-re4r-ap",
@@ -17,9 +17,9 @@
   "payload": {
     "exe_sha256": "24424d7d29544b3897006282b5de827304c525fe8c2a6d4475377903c14599b4",
     "exe_bytes": 108612796,
-    "apworld_sha256": "b683380ad4897ec4d3d11e46d9c6d3b204f12786e85cb3e301af4e9e5b8b207a",
-    "world_version": "0.7.5",
-    "locations": 456,
+    "apworld_sha256": "0ad14dbf51fa8ba45bfc314a762b8fa06f04bc04ce77f7a31b34a2f2c701b3e5",
+    "world_version": "0.8.0",
+    "locations": 646,
     "mod_version": "2026.09.07-121"
   }
 }

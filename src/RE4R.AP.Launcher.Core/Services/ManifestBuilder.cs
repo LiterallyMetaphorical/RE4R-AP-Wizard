@@ -101,10 +101,21 @@ public sealed class ManifestBuilder
         var scoutedLocationIds = scoutSession.Locations
             .Select(location => location.LocationId)
             .ToHashSet();
-        // A room without the campaign declares no world spot at all, so
+        // The world carries BOTH campaigns since 0.8.0, and a room plays one.
+        // So what a room "should" declare is its own campaign's locations, not
+        // every location in the bundle: comparing a 456-spot Leon room against
+        // all 646 read as a room missing Ada's 190 (2026-09-07, the merge).
+        //
+        // A room without any campaign declares no world spot at all, so
         // nothing is "missing" from it.
+        var separateWays = string.Equals(
+            scoutSession.CampaignPatchTarget, "Separate Ways", StringComparison.OrdinalIgnoreCase);
+        var campaignLocations = staticData.Locations
+            .Where(pair => pair.Value.IsSeparateWays == separateWays)
+            .Select(pair => pair.Key)
+            .ToList();
         var missingDeclaredIds = scoutSession.CampaignIncluded
-            ? staticData.LocationCodes.Where(code => !scoutedLocationIds.Contains(code)).ToList()
+            ? campaignLocations.Where(code => !scoutedLocationIds.Contains(code)).ToList()
             : new List<long>();
         var inertIds = staticData.DifficultyInertLocations
             .Select(entry => entry.Code)
@@ -122,14 +133,21 @@ public sealed class ManifestBuilder
             Log($"Room is missing {difficultyAllowance} hard-difficulty spot(s), which is expected on Hardcore and Professional: {string.Join("; ", names)}");
         }
 
+        // Counted from the campaign's own locations for the same reason. The
+        // always-locations figure covers the whole bundle, so scale it the
+        // same way rather than comparing a campaign against a world total.
+        var alwaysInCampaign = staticData.Counts.AlwaysLocations >= staticData.Counts.LocationsTotal
+            ? campaignLocations.Count
+            : staticData.Counts.AlwaysLocations
+              - (staticData.Counts.LocationsTotal - campaignLocations.Count);
         var expectedCount = scoutSession.CampaignIncluded
-            ? staticData.Counts.LocationsTotal - removedByEvents - difficultyAllowance
+            ? campaignLocations.Count - removedByEvents - difficultyAllowance
             : 0;
         var expectedAlways = scoutSession.CampaignIncluded
-            ? staticData.Counts.AlwaysLocations - removedByEvents - difficultyAllowance
+            ? alwaysInCampaign - removedByEvents - difficultyAllowance
             : 0;
         if (scoutedCount == expectedCount
-            || (staticData.Counts.AlwaysLocations > 0 && scoutedCount == expectedAlways))
+            || (alwaysInCampaign > 0 && scoutedCount == expectedAlways))
         {
             var shopSuffix = scoutedShopSlotCount > 0
                 ? $" Plus {scoutedShopSlotCount} merchant shop check(s)."

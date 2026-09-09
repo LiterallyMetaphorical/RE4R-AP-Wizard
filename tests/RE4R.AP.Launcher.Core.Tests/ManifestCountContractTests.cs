@@ -27,6 +27,18 @@ public sealed class ManifestCountContractTests
         return (builder, log);
     }
 
+    /// <summary>
+    /// Leon's location codes. Since 0.8.0 the world carries both campaigns, so
+    /// "every code" is no longer a room anybody could join: a room plays one
+    /// campaign, and these tests are about his.
+    /// </summary>
+    private static IEnumerable<long> LeonCodes(StaticGameData data) =>
+        data.Locations.Where(pair => !pair.Value.IsSeparateWays).Select(pair => pair.Key);
+
+    /// <summary>Ada's, for the same reason.</summary>
+    private static IEnumerable<long> SeparateWaysCodes(StaticGameData data) =>
+        data.Locations.Where(pair => pair.Value.IsSeparateWays).Select(pair => pair.Key);
+
     /// <summary>Every location holds another player's item: no item lookups needed.</summary>
     private static List<ScoutLocationResult> Foreign(IEnumerable<long> locationIds) =>
         locationIds.Select(id => new ScoutLocationResult
@@ -158,13 +170,17 @@ public sealed class ManifestCountContractTests
     {
         var data = await LoadStaticAsync();
 
-        Assert.Equal("0.7.5", data.WorldVersion);
-        Assert.Equal(456, data.Counts.LocationsTotal);
-        Assert.Equal(456, data.LocationCodes.Count);
-        Assert.Equal(456, data.Locations.Count);
+        // 0.8.0 carries BOTH campaigns: one world, and included_content picks
+        // per slot. Leon's 456 are untouched by Ada's arrival.
+        Assert.Equal("0.8.0", data.WorldVersion);
+        Assert.Equal(646, data.Counts.LocationsTotal);
+        Assert.Equal(646, data.LocationCodes.Count);
+        Assert.Equal(646, data.Locations.Count);
+        Assert.Equal(456, data.Locations.Values.Count(location => !location.IsSeparateWays));
+        Assert.Equal(190, data.Locations.Values.Count(location => location.IsSeparateWays));
         Assert.Equal(120, data.ShopSlots.Count);
         Assert.Equal(45, data.TradeChecks.Count);
-        Assert.Equal(192, data.Mercenaries.Count); // 0.7.5: 32 per rank, C to S++
+        Assert.Equal(192, data.Mercenaries.Count); // 32 per rank, C to S++
         Assert.Single(data.DifficultyInertLocations);
         Assert.All(data.Locations.Values, location => Assert.False(string.IsNullOrWhiteSpace(location.Guid)));
     }
@@ -175,7 +191,7 @@ public sealed class ManifestCountContractTests
         var data = await LoadStaticAsync();
         var (builder, log) = BuilderWithLog();
 
-        var result = await builder.BuildAsync(Room(Foreign(data.LocationCodes)), null, GameVersion);
+        var result = await builder.BuildAsync(Room(Foreign(LeonCodes(data))), null, GameVersion);
 
         Assert.Equal(456, result.GuidPlacementCount);
         Assert.Equal(456, result.PlaceholderItemCount);
@@ -190,7 +206,7 @@ public sealed class ManifestCountContractTests
         var data = await LoadStaticAsync();
         var herb = data.Items.Single(pair => pair.Value.Name == "Green Herb x1");
         var unlock = data.Items.First(pair => pair.Value.Name.StartsWith("Mercenaries Character: ", StringComparison.Ordinal));
-        var locations = Foreign(data.LocationCodes);
+        var locations = Foreign(LeonCodes(data));
         locations[0] = new ScoutLocationResult { LocationId = locations[0].LocationId, ItemId = herb.Key, OwningPlayerSlot = ConnectedSlot };
         locations[1] = new ScoutLocationResult { LocationId = locations[1].LocationId, ItemId = unlock.Key, OwningPlayerSlot = ConnectedSlot };
         var (builder, _) = BuilderWithLog();
@@ -210,7 +226,7 @@ public sealed class ManifestCountContractTests
         var data = await LoadStaticAsync();
         var knife = data.Items.Single(pair => pair.Value.Name == "Progressive Knife x1");
         var caseLadder = data.Items.Single(pair => pair.Value.Name == "Progressive Attache Case x1");
-        var locations = Foreign(data.LocationCodes);
+        var locations = Foreign(LeonCodes(data));
         locations[0] = new ScoutLocationResult { LocationId = locations[0].LocationId, ItemId = knife.Key, OwningPlayerSlot = ConnectedSlot };
         locations[1] = new ScoutLocationResult { LocationId = locations[1].LocationId, ItemId = caseLadder.Key, OwningPlayerSlot = ConnectedSlot };
         var (builder, _) = BuilderWithLog();
@@ -231,7 +247,7 @@ public sealed class ManifestCountContractTests
         var (builder, log) = BuilderWithLog();
 
         var result = await builder.BuildAsync(
-            Room(Foreign(data.LocationCodes.Where(code => code != inert))), null, GameVersion);
+            Room(Foreign(LeonCodes(data).Where(code => code != inert))), null, GameVersion);
 
         Assert.Equal(455, result.GuidPlacementCount);
         Assert.Contains(log, line => line.Contains("hard-difficulty spot(s)", StringComparison.Ordinal));
@@ -242,11 +258,11 @@ public sealed class ManifestCountContractTests
     public async Task RoomMissingAnyOtherSpotIsRefusedAndNamesTheId()
     {
         var data = await LoadStaticAsync();
-        var missing = data.LocationCodes.First(code => code != data.DifficultyInertLocations.Single().Code);
+        var missing = LeonCodes(data).First(code => code != data.DifficultyInertLocations.Single().Code);
         var (builder, _) = BuilderWithLog();
 
         var error = await Assert.ThrowsAsync<ManifestBuildException>(() =>
-            builder.BuildAsync(Room(Foreign(data.LocationCodes.Where(code => code != missing))), null, GameVersion));
+            builder.BuildAsync(Room(Foreign(LeonCodes(data).Where(code => code != missing))), null, GameVersion));
 
         Assert.Contains("expects 456", error.Message, StringComparison.Ordinal);
         Assert.Contains($"(first: {missing})", error.Message, StringComparison.Ordinal);
@@ -257,7 +273,7 @@ public sealed class ManifestCountContractTests
     {
         var data = await LoadStaticAsync();
         var shopCodes = ShopSlotsInOrder(data).Take(45).Select(pair => pair.Key).ToList();
-        var locations = Foreign(data.LocationCodes.Concat(shopCodes));
+        var locations = Foreign(LeonCodes(data).Concat(shopCodes));
 
         var (builder, log) = BuilderWithLog();
         var result = await builder.BuildAsync(Room(locations, s => s.MerchantShop = Shop(data, 45)), null, GameVersion);
@@ -275,7 +291,7 @@ public sealed class ManifestCountContractTests
     {
         var data = await LoadStaticAsync();
         var tradeCodes = TradeChecksInOrder(data).Select(pair => pair.Key).ToList();
-        var locations = Foreign(data.LocationCodes.Concat(tradeCodes));
+        var locations = Foreign(LeonCodes(data).Concat(tradeCodes));
 
         var (builder, _) = BuilderWithLog();
         var result = await builder.BuildAsync(Room(locations, s => s.TradeShop = Trade(data, 45)), null, GameVersion);
@@ -302,7 +318,7 @@ public sealed class ManifestCountContractTests
         var (builder, _) = BuilderWithLog();
 
         var result = await builder.BuildAsync(
-            Room(Foreign(data.LocationCodes), s => s.TradeShop = Trade(data, 0)), null, GameVersion);
+            Room(Foreign(LeonCodes(data)), s => s.TradeShop = Trade(data, 0)), null, GameVersion);
 
         Assert.Equal(456, result.GuidPlacementCount);
     }
@@ -313,7 +329,7 @@ public sealed class ManifestCountContractTests
         var data = await LoadStaticAsync();
         var standard = RankIds(data, "A", "S");
         Assert.Equal(64, standard.Length);
-        var locations = Foreign(data.LocationCodes.Concat(standard));
+        var locations = Foreign(LeonCodes(data).Concat(standard));
 
         var (builder, log) = BuilderWithLog();
         var result = await builder.BuildAsync(
@@ -354,6 +370,45 @@ public sealed class ManifestCountContractTests
         Assert.Contains(log, line => line.StartsWith("Room has 0 RE4R locations.", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public async Task ASeparateWaysRoomBuildsHerPlacementsAndOnlyHers()
+    {
+        // A room plays one campaign, so Ada's room declares her 190 and none
+        // of Leon's 456. Comparing it against the whole 646-location bundle
+        // read as a room missing his, which is what the merge exposed.
+        var data = await LoadStaticAsync();
+        var (builder, log) = BuilderWithLog();
+
+        var result = await builder.BuildAsync(
+            Room(Foreign(SeparateWaysCodes(data)), s => s.PatchedCampaign = "Separate Ways"),
+            null,
+            GameVersion);
+
+        Assert.Equal(190, result.GuidPlacementCount);
+        Assert.Equal(190, result.PlaceholderItemCount);
+        Assert.Equal(0, result.SkippedNoGuidLocationCount);
+        Assert.Contains(log, line => line.StartsWith("Room has 190 RE4R locations.", StringComparison.Ordinal));
+        Assert.Contains("\"campaign\": \"Separate Ways\"", result.ConfigJson, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ARoomCarryingTheOtherCampaignsLocationsIsRefused()
+    {
+        // The check still has to catch a genuinely wrong room. Ada's room
+        // holding Leon's locations is exactly that.
+        var data = await LoadStaticAsync();
+        var (builder, _) = BuilderWithLog();
+
+        var error = await Assert.ThrowsAsync<ManifestBuildException>(() =>
+            builder.BuildAsync(
+                Room(Foreign(LeonCodes(data)), s => s.PatchedCampaign = "Separate Ways"),
+                null,
+                GameVersion));
+
+        Assert.Contains("456 world locations", error.Message, StringComparison.Ordinal);
+        Assert.Contains("expects 190", error.Message, StringComparison.Ordinal);
+    }
+
     [Theory]
     // A room made before 0.7.6 says nothing, and Leon is what it was patched as.
     [InlineData(null, "Main Story")]
@@ -368,7 +423,7 @@ public sealed class ManifestCountContractTests
         var (builder, _) = BuilderWithLog();
 
         var result = await builder.BuildAsync(
-            Room(Foreign(data.LocationCodes), s => s.PatchedCampaign = patchedCampaign), null, GameVersion);
+            Room(Foreign(LeonCodes(data)), s => s.PatchedCampaign = patchedCampaign), null, GameVersion);
 
         Assert.Contains($"\"campaign\": \"{expected}\"", result.ConfigJson, StringComparison.Ordinal);
     }
