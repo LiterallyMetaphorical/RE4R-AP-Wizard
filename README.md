@@ -82,6 +82,11 @@ The currency exchange is there whatever rate you set, zero included: Velvet Blue
 always available at 2 spinel, and the three gemstones at 3, 4 and 5, restocking
 every chapter. Leftover spinel still turns into money.
 
+One caution before you cash out: the logic that paces trade checks counts
+only the spinel the multiworld minted, and spinel you spend on gemstones or
+Gold Tokens is invisible to it. Keep enough back for the trade checks still
+on the tab, or only the merchant's own request rewards can make it up.
+
 **Merchant Gear.** On by default. His weapons, attachments, case sizes and
 crafting recipes leave the buy tab and join the multiworld, the Deluxe and
 Separate Ways guns included. Your next gun is a check somewhere out there,
