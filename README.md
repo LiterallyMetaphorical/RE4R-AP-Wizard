@@ -89,11 +89,18 @@ only the spinel the multiworld minted, and spinel you spend on gemstones or
 Gold Tokens is invisible to it. Keep enough back for the trade checks still
 on the tab, or only the merchant's own request rewards can make it up.
 
-**Merchant Gear.** On by default. His weapons, attachments, case sizes and
-crafting recipes leave the buy tab and join the multiworld, the Deluxe and
-Separate Ways guns included. Your next gun is a check somewhere out there,
-possibly in another player's world. Expect a different power curve. Gear never
-gates logic, so a seed can always be finished with what the world hands you.
+**Merchant Gear.** On by default. His weapons, attachments, case sizes,
+knives and crafting recipes leave the buy tab and join the multiworld, the
+Deluxe and Separate Ways guns included. Your next gun is a check somewhere out
+there, possibly in another player's world. Expect a different power curve. Gear
+never gates logic, so a seed can always be finished with what the world hands
+you.
+
+The case sizes and the knives are progressive: each Progressive Attache Case
+you receive is the next size up from the one you carry, and each Progressive
+Knife is the next knife you do not own, the Fighting Knife first and then the
+Primal (which only enters the pool with Bonus Weapons on). Order of arrival
+never matters, and none of them is ever wasted.
 
 Consumable supplies stay: herbs, first aid, resources, gunpowder and grenades
 restock at every chapter. Ammo deliberately does not, because you craft it and
