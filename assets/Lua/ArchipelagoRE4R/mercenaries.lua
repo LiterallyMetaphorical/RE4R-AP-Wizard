@@ -1157,6 +1157,21 @@ local function install(ctx)
         return { item_name = item_name, who = who, mine = mine, classification = classification }
     end
 
+    -- Where one of your own items is going. "(yours)" said nothing you did not
+    -- already know; which of your contents it serves is the useful half (Cam,
+    -- 2026-09-07). A Mercenaries item needs no label at all, since the name
+    -- already carries it.
+    local function own_item_destination(item_name)
+        if type(item_name) == "string" and item_name:match("^Mercenaries ") then
+            return nil
+        end
+        local slot_data = bridge.slot_data
+        local campaign = type(slot_data) == "table" and slot_data.patched_campaign or nil
+        if campaign == "Separate Ways" then return "Separate Ways" end
+        if campaign == "Main Story" then return "the campaign" end
+        return nil
+    end
+
     -- One toast per rank check the result screen just earned. On the result
     -- screen itself the same words go through the screen's own notice list
     -- (below), and native_log leaves these records to the Message Log.
@@ -1169,7 +1184,8 @@ local function install(ctx)
             if desc.who ~= nil and not desc.mine then
                 detail = desc.item_name .. " for " .. desc.who
             else
-                detail = desc.item_name .. " (yours)"
+                local where = own_item_destination(desc.item_name)
+                detail = where ~= nil and (desc.item_name .. " to " .. where) or desc.item_name
             end
         end
         pcall(enqueue,
@@ -1206,6 +1222,10 @@ local function install(ctx)
         [8] = "RankingSend", [9] = "RankingSendWait", [10] = "End",
     }
     local unlock_notice_suppressed_logged = false
+    -- What the screen's notice text treats as a line break. Named because it is
+    -- the one thing in the layout we cannot check offline: if the widget shows
+    -- the notice as one run-on line, this is the knob to turn.
+    local NOTICE_LINE_BREAK = string.char(10)
 
     local function open_result_summary(payload, epoch)
         merc_state.result_summary = {
@@ -1252,21 +1272,6 @@ local function install(ctx)
         return true
     end
 
-    -- Where one of your own items is going. "(yours)" said nothing you did not
-    -- already know; which of your contents it serves is the useful half (Cam,
-    -- 2026-09-07). A Mercenaries item needs no label at all, since the name
-    -- already carries it.
-    local function own_item_destination(item_name)
-        if type(item_name) == "string" and item_name:match("^Mercenaries ") then
-            return nil
-        end
-        local slot_data = bridge.slot_data
-        local campaign = type(slot_data) == "table" and slot_data.patched_campaign or nil
-        if campaign == "Separate Ways" then return "Separate Ways" end
-        if campaign == "Main Story" then return "the campaign" end
-        return nil
-    end
-
     local function format_sent_line(rank_name, desc)
         if desc.item_name == nil then
             return string.format("Rank %s check sent", rank_name)
@@ -1281,16 +1286,15 @@ local function install(ctx)
         return string.format("Rank %s sent: %s", rank_name, desc.item_name)
     end
 
-    -- The short form for the one-line notice: the rank, what it held, and
-    -- separately where it went. The destination is kept apart because a room
-    -- patches ONE campaign, so repeating "to Separate Ways" on every rank was
-    -- the same four words four times; compose_notice hoists it when it can.
+    -- The short form for the notice: the rank and what it held, plus where it
+    -- went kept separate. compose_notice groups the ranks under one heading per
+    -- destination, so nothing repeats the destination per rank.
     local function format_sent_clause(rank_name, desc)
         if desc.item_name == nil then
-            return string.format("%s sent", rank_name), nil
+            return string.format("%s: check sent", rank_name), nil
         end
         if desc.who ~= nil and not desc.mine then
-            return string.format("%s: %s for %s", rank_name, desc.item_name, desc.who), nil
+            return string.format("%s: %s", rank_name, desc.item_name), desc.who
         end
         return string.format("%s: %s", rank_name, desc.item_name),
             own_item_destination(desc.item_name)
@@ -1346,58 +1350,60 @@ local function install(ctx)
     end
     export("merc_result_note_received", merc_result_note_received)
 
-    -- (4) ONE line for the screen: the pair, what each rank sent, anything that
-    -- arrived from elsewhere, and what the pair still owes. The screen shows
-    -- its notices one at a time and wants an OK for each, so several lines
-    -- meant several confirmations for one run (Cam, 2026-09-07).
+    -- (4) ONE notice for the screen, laid out over several lines: the pair,
+    -- what each rank sent and to whom, anything that arrived from elsewhere,
+    -- and what the pair still owes. The screen shows its notices one at a time
+    -- and wants an OK for each, so several notices meant several confirmations
+    -- for one run (Cam, 2026-09-07). Line breaks are Cam's layout, 2026-09-07.
     local function compose_notice(summary)
         if summary == nil then return nil end
         if summary.notice ~= nil then return summary.notice end
         if summary.notice_injected then return nil end
-        local parts = {}
+
+        local lines = {}
         local head = string.format("%s / %s",
             tostring(summary.stage_name or "?"), tostring(summary.char_name or "?"))
         if summary.rank_name ~= nil and summary.rank_name ~= "" then
             head = head .. " - Rank " .. tostring(summary.rank_name)
         end
-        parts[#parts + 1] = head
-        if #summary.sent > 0 then
-            -- One destination for every rank that has one, and none without:
-            -- say it once at the front. Anything mixed goes per rank.
-            local only_dest, mixed = nil, false
-            for index = 1, #summary.sent do
-                local dest = summary.sent_dest[index]
-                if dest == false or dest == nil then
-                    mixed = true
-                elseif only_dest == nil then
-                    only_dest = dest
-                elseif only_dest ~= dest then
-                    mixed = true
-                end
+        lines[#lines + 1] = head
+
+        -- One heading per destination, in the order the ranks reached them.
+        local order, groups = {}, {}
+        for index = 1, #summary.sent do
+            local dest = summary.sent_dest[index]
+            if dest == false then dest = nil end
+            local key = dest or ""
+            if groups[key] == nil then
+                groups[key] = { dest = dest, clauses = {} }
+                order[#order + 1] = key
             end
-            if only_dest ~= nil and not mixed then
-                parts[#parts + 1] = string.format("sent to %s: %s",
-                    only_dest, table.concat(summary.sent, ", "))
-            else
-                local clauses = {}
-                for index = 1, #summary.sent do
-                    local dest = summary.sent_dest[index]
-                    clauses[index] = (dest and dest ~= false)
-                        and (summary.sent[index] .. " to " .. dest)
-                        or summary.sent[index]
-                end
-                parts[#parts + 1] = "sent " .. table.concat(clauses, ", ")
-            end
-        else
-            parts[#parts + 1] = "no check this time"
+            local clauses = groups[key].clauses
+            clauses[#clauses + 1] = summary.sent[index]
         end
+        lines[#lines + 1] = ""
+        if #order == 0 then
+            lines[#lines + 1] = "No check this time"
+        else
+            for _, key in ipairs(order) do
+                local group = groups[key]
+                lines[#lines + 1] = group.dest ~= nil
+                    and ("Sent to " .. group.dest .. ":") or "Sent:"
+                lines[#lines + 1] = table.concat(group.clauses, ", ")
+            end
+        end
+
         if #summary.extras > 0 then
-            parts[#parts + 1] = "received " .. table.concat(summary.extras, ", ")
+            lines[#lines + 1] = ""
+            lines[#lines + 1] = "Received: " .. table.concat(summary.extras, ", ")
         end
         if #summary.remaining > 0 then
-            parts[#parts + 1] = "still to do: " .. table.concat(summary.remaining, ", ")
+            lines[#lines + 1] = ""
+            lines[#lines + 1] = "Ranks left on this Stage/Character combination: "
+                .. table.concat(summary.remaining, ", ")
         end
-        summary.notice = table.concat(parts, "  |  ")
+
+        summary.notice = table.concat(lines, NOTICE_LINE_BREAK)
         return summary.notice
     end
 
@@ -1604,7 +1610,8 @@ local function install(ctx)
             summary.notice_injected_at_step = step_now
             summary.notice_injections = summary.notice_injections + 1
             log.info(string.format("[Merc AP] result notice set (attempt %d, %d in the list): %s",
-                summary.notice_injections, list_count(list), notice))
+                summary.notice_injections, list_count(list),
+                (notice:gsub(NOTICE_LINE_BREAK, " / "))))
         end
     end
     export("merc_maintain_result_notice_list", maintain_result_notice_list)
@@ -2176,6 +2183,127 @@ local function install(ctx)
         ))
     end
 
+    -- ------------------------------------------------------------------
+    -- [Menu visuals] The name of a stage or character came out right while its
+    -- ARTWORK did not: Docks read "DOCKS" over a padlock tile, Island read
+    -- "???" over its real photo, and the character strip lit up costumes AP
+    -- has not granted (Cam, 2026-09-07). The tile art and the blurred
+    -- background ask different questions than the label does, and two of the
+    -- answering methods were never hooked:
+    --
+    --   Cp1021GuiManager.IsUnlock(chara) / IsUnlock(stage)  -- takes the KIND
+    --   Cp1021MainMenuBGGuiBehavior.isUnlock(stage action)  -- the background
+    --
+    -- The manager pair is the useful one: it is handed the kind itself, so
+    -- there is no menu index to translate and no chance of answering about the
+    -- wrong row. Nothing here writes to the profile; every hook only changes
+    -- what the game is told when it asks.
+    --
+    -- Menu action enums, from the il2cpp dump: a stage action is Exit 0,
+    -- Ranking 1, then Stage01..Stage04 at 2..5, so the stage kind is the
+    -- action less two.
+    local STAGE_ACTION_OFFSET = 2
+    local STAGE_KIND_MAX = 3
+    local CHARACTER_KIND_MAX = 7
+
+    -- One line per distinct answer, so a single visit to both menus says who
+    -- asked, about what, and whether we changed the answer. The key carries
+    -- both answers, so an unlock arriving later logs a fresh line by itself and
+    -- there is nothing to reset.
+    local unlock_answer_logged = {}
+    local function log_unlock_answer(source, what, kind, vanilla, ours)
+        local key = string.format("%s|%s|%d|%s|%s", source, what, kind,
+            tostring(vanilla), tostring(ours))
+        if unlock_answer_logged[key] then return end
+        unlock_answer_logged[key] = true
+        log.info(string.format(
+            "[Merc AP Gating] %s asked about %s %d: game said %s, AP says %s%s",
+            source, what, kind, tostring(vanilla), tostring(ours),
+            (vanilla ~= ours) and " (changed)" or ""))
+    end
+    -- ------------------------------------------------------------------
+    -- [Menu art] MOD -128 answered every unlock question the menus ask, and
+    -- the NAME and the big preview panel followed. The tile art and the two
+    -- portrait strips did not: after that build Docks still showed a padlock,
+    -- and the only greyed-out character in either strip was Hunk, who is the
+    -- one character Cam's SAVE has not unlocked (Cam, 2026-09-07).
+    --
+    -- The log says why the extra hooks did nothing: Cp1021GuiManager.IsUnlock
+    -- and Cp1021MainMenuBGGuiBehavior.isUnlock installed and were never once
+    -- called, and neither was the UnlockSettingsUserData pair. The art asks
+    -- nothing we can answer, so this reaches the art itself instead.
+    --
+    -- Two of these take the lock state as a writable input and are corrected
+    -- outright; the rest only report, because their vocabulary is unknown
+    -- until a menu visit prints it. Every line is logged once per distinct
+    -- observation, and says whether it reports or corrects.
+    local CHARACTER_ACTION_OFFSET = 1  -- Exit 0, then Character01.. at 1..8
+
+    local art_logged = {}
+    local function log_art(key, message)
+        if art_logged[key] then return end
+        art_logged[key] = true
+        log.info("[Merc AP Art] " .. message)
+    end
+
+    -- A menu action is not a kind. Translating here rather than through
+    -- getKindId keeps the two overloads of that name out of it.
+    local function stage_kind_of_action(action)
+        if type(action) ~= "number" then return -1 end
+        return action - STAGE_ACTION_OFFSET
+    end
+    local function character_kind_of_action(action)
+        if type(action) ~= "number" then return -1 end
+        return action - CHARACTER_ACTION_OFFSET
+    end
+
+    local function ap_says_stage(kind)
+        if kind < 0 or kind > STAGE_KIND_MAX then return nil end
+        return is_stage_owned(kind) and true or false
+    end
+    local function ap_says_character(kind)
+        if kind < 0 or kind > CHARACTER_KIND_MAX then return nil end
+        return is_character_owned(kind) and true or false
+    end
+
+    -- [Menu art, round 2] Both portrait strips keep TWO pieces of art per
+    -- character and pick one: the character screen's strip has SelectTextureId
+    -- and SelectLockTextureId, and the stage screen's records row has
+    -- UVSettingDefault and UVSettingLock. The picking is done by something that
+    -- asks nothing we can hook, which is why -128 and -129 left both strips
+    -- reading the save (Cam, 2026-09-07: the only greyed-out face was Hunk, the
+    -- one character his save has not unlocked).
+    --
+    -- So stop trying to influence the choice. Set BOTH halves of the pair to
+    -- the art Archipelago says is right, and whichever the game reaches for is
+    -- the correct one. The pristine values are kept from the first sighting, so
+    -- this stays correct when an unlock arrives later and never compounds.
+    local art_originals = {}
+    local function original_pair(owner, key, read_a, read_b)
+        local id = get_obj_address_str(owner) .. "|" .. tostring(key)
+        local kept = art_originals[id]
+        if kept == nil then
+            kept = { unlocked = read_a(), locked = read_b() }
+            art_originals[id] = kept
+        end
+        return kept
+    end
+
+    local function answer_unlock(source, what, kind, retval)
+        local vanilla = nil
+        pcall(function() vanilla = sdk.to_int64(retval) ~= 0 end)
+        local ours
+        if what == "stage" then
+            if kind < 0 or kind > STAGE_KIND_MAX then return retval end
+            ours = is_stage_owned(kind) and true or false
+        else
+            if kind < 0 or kind > CHARACTER_KIND_MAX then return retval end
+            ours = is_character_owned(kind) and true or false
+        end
+        log_unlock_answer(source, what, kind, vanilla, ours)
+        return sdk.to_ptr(ours and 1 or 0)
+    end
+
     local is_unlock_query_stack = {}
     local function on_is_unlock_pre(args)
         local this_object = nil
@@ -2196,20 +2324,20 @@ local function install(ctx)
         if type_name == "chainsaw.Cp1021UnlockSettingsUserData.CharacterSetting" then
             local kind = get_safe_field_int(query.this, "KindId", -1)
             if kind < 0 then kind = get_safe_int(query.this, "get_KindId", -1) end
-            if kind >= 0 and kind <= 7 then return sdk.to_ptr(is_character_owned(kind) and 1 or 0) end
+            if kind >= 0 then return answer_unlock("CharacterSetting", "character", kind, retval) end
         elseif type_name == "chainsaw.Cp1021UnlockSettingsUserData.StageSetting" then
             local kind = get_safe_field_int(query.this, "KindId", -1)
             if kind < 0 then kind = get_safe_int(query.this, "get_KindId", -1) end
-            if kind >= 0 and kind <= 3 then return sdk.to_ptr(is_stage_owned(kind) and 1 or 0) end
+            if kind >= 0 then return answer_unlock("StageSetting", "stage", kind, retval) end
         elseif type_name == "chainsaw.Cp1021CharacterSelectGuiBehavior" and query.arg >= 0 then
             local ok_kind, kind = pcall(function() return query.this:call("getCharacterKind", query.arg) end)
-            if ok_kind and type(kind) == "number" and kind >= 0 and kind <= 7 then
-                return sdk.to_ptr(is_character_owned(kind) and 1 or 0)
+            if ok_kind and type(kind) == "number" and kind >= 0 then
+                return answer_unlock("CharacterSelectGui", "character", kind, retval)
             end
         elseif type_name == "chainsaw.Cp1021StageSelectGuiBehavior" and query.arg >= 0 then
             local ok_kind, kind = pcall(function() return query.this:call("getKindId", query.arg) end)
-            if ok_kind and type(kind) == "number" and kind >= 0 and kind <= 3 then
-                return sdk.to_ptr(is_stage_owned(kind) and 1 or 0)
+            if ok_kind and type(kind) == "number" and kind >= 0 then
+                return answer_unlock("StageSelectGui", "stage", kind, retval)
             end
         end
         return retval
@@ -2233,6 +2361,398 @@ local function install(ctx)
                 end
             end
         end
+
+        -- [Menu visuals] The kind-taking pair on the manager, one hook per
+        -- overload so each knows what it is answering about without having to
+        -- read the argument's type at call time.
+        local manager_type = sdk.find_type_definition("chainsaw.Cp1021GuiManager")
+        if manager_type ~= nil then
+            local installed = 0
+            for _, method in ipairs(manager_type:get_methods() or {}) do
+                local method_name, param_type = nil, nil
+                pcall(function() method_name = method:get_name() end)
+                if method_name == "IsUnlock" then
+                    pcall(function()
+                        local params = method:get_param_types()
+                        if params ~= nil and params[1] ~= nil then
+                            param_type = params[1]:get_full_name()
+                        end
+                    end)
+                    local what = nil
+                    if param_type == "chainsaw.MercenariesDefine.StageKind" then
+                        what = "stage"
+                    elseif param_type == "chainsaw.MercenariesDefine.PlayerCharacterWithCostumeKind" then
+                        what = "character"
+                    end
+                    if what ~= nil then
+                        local kind_stack = {}
+                        if safe_hook_unique(method, function(args)
+                            kind_stack[#kind_stack + 1] = decode_action(args[3]) or -1
+                        end, function(retval)
+                            local kind = kind_stack[#kind_stack]
+                            kind_stack[#kind_stack] = nil
+                            if kind == nil or not should_enforce_gating() then return retval end
+                            return answer_unlock("Cp1021GuiManager", what, kind, retval)
+                        end) then
+                            installed = installed + 1
+                        end
+                    else
+                        log.info("[Merc AP Gating] Cp1021GuiManager.IsUnlock has an "
+                            .. "unrecognised parameter type: " .. tostring(param_type))
+                    end
+                end
+            end
+            log.info(string.format(
+                "[Merc AP Gating] Cp1021GuiManager.IsUnlock hooks installed: %d", installed))
+        else
+            log.info("[Merc AP Gating] Cp1021GuiManager not found; menu art stays on the save")
+        end
+
+        -- The blurred stage photo behind the menu asks on its own.
+        local bg_type = sdk.find_type_definition("chainsaw.Cp1021MainMenuBGGuiBehavior")
+        if bg_type ~= nil then
+            for _, method in ipairs(bg_type:get_methods() or {}) do
+                local method_name = nil
+                pcall(function() method_name = method:get_name() end)
+                if method_name == "isUnlock" then
+                    local action_stack = {}
+                    safe_hook_unique(method, function(args)
+                        action_stack[#action_stack + 1] = decode_action(args[3]) or -1
+                    end, function(retval)
+                        local action = action_stack[#action_stack]
+                        action_stack[#action_stack] = nil
+                        if action == nil or not should_enforce_gating() then return retval end
+                        return answer_unlock("Cp1021MainMenuBGGuiBehavior", "stage",
+                            action - STAGE_ACTION_OFFSET, retval)
+                    end)
+                end
+            end
+        end
+
+        -- [Menu art] Reach the functions that actually paint the tiles and the
+        -- portrait strips. MOD -128 answered every unlock question the menus
+        -- ask and the NAME and the big preview followed, but the tiles and both
+        -- portrait strips did not: Docks still showed a padlock, and the only
+        -- greyed-out character was Hunk, the one character Cam's SAVE has not
+        -- unlocked (Cam, 2026-09-07). The log said why: Cp1021GuiManager and
+        -- Cp1021MainMenuBGGuiBehavior installed and were never once called.
+        --
+        -- Two of these take the lock state as a writable input and are
+        -- corrected outright. The rest only report, because their vocabulary is
+        -- not in the dump and inventing a state name that does not exist would
+        -- leave a panel with no state at all.
+        -- A System.String return does not always read back through the
+        -- managed wrapper. Say when it does not, so a missing line is never
+        -- mistaken for a method that was never called.
+        local function read_returned_string(retval, label)
+            local name = nil
+            local ok = pcall(function()
+                local text = sdk.to_managed_object(retval)
+                if text ~= nil then name = text:call("ToString") end
+            end)
+            if not ok or type(name) ~= "string" then
+                log_art("unreadable|" .. label, label .. " returned a string we could not read")
+                return nil
+            end
+            return name
+        end
+
+        local function hook_by_name(type_name, method_name, pre, post)
+            local type_def = sdk.find_type_definition(type_name)
+            if type_def == nil then
+                log.info("[Merc AP Art] type not found: " .. type_name)
+                return false
+            end
+            local found = false
+            for _, method in ipairs(type_def:get_methods() or {}) do
+                local name = nil
+                pcall(function() name = method:get_name() end)
+                if name == method_name then
+                    found = safe_hook_unique(method, pre, post) or found
+                end
+            end
+            if not found then
+                log.info(string.format("[Merc AP Art] %s.%s not hooked", type_name, method_name))
+            end
+            return found
+        end
+
+        -- The stage tiles. PanelStage.Param is { bUnlock, uvSetting }, one per
+        -- tile, and both of these are handed the array.
+        local function correct_stage_params(params, source)
+            if params == nil then return end
+            local size = nil
+            pcall(function() size = params:get_size() end)
+            if type(size) ~= "number" then
+                log_art(source .. "|noarray", source .. ": the Param array could not be read")
+                return
+            end
+            for index = 0, size - 1 do
+                local param = nil
+                pcall(function() param = params:get_element(index) end)
+                if param ~= nil then
+                    local was = nil
+                    pcall(function() was = param:get_field("bUnlock") end)
+                    -- The array is in menu order, which is stage kind order.
+                    local ours = ap_says_stage(index)
+                    if ours ~= nil then
+                        pcall(function() param:set_field("bUnlock", ours) end)
+                        local now = nil
+                        pcall(function() now = param:get_field("bUnlock") end)
+                        log_art(string.format("%s|%d|%s|%s", source, index, tostring(was), tostring(now)),
+                            string.format("%s tile %d: was %s, set %s, reads %s",
+                                source, index, tostring(was), tostring(ours), tostring(now)))
+                    end
+                end
+            end
+        end
+
+        hook_by_name("chainsaw.Cp1021StageSelectGuiBehavior.PanelStage", "set", function(args)
+            if not should_enforce_gating() then return sdk.PreHookResult.CALL_ORIGINAL end
+            pcall(function() correct_stage_params(sdk.to_managed_object(args[4]), "PanelStage.set") end)
+            return sdk.PreHookResult.CALL_ORIGINAL
+        end, function(retval) return retval end)
+
+        hook_by_name("chainsaw.Cp1021StageSelectGuiBehavior.PanelStage", "setStageTexture", function(args)
+            if not should_enforce_gating() then return sdk.PreHookResult.CALL_ORIGINAL end
+            pcall(function() correct_stage_params(sdk.to_managed_object(args[3]), "setStageTexture") end)
+            return sdk.PreHookResult.CALL_ORIGINAL
+        end, function(retval) return retval end)
+
+        -- The state string that paints the padlock, reported for its vocabulary.
+        do
+            local stage_num_stack = {}
+            hook_by_name("chainsaw.Cp1021StageSelectGuiBehavior.PanelStage", "getStateName", function(args)
+                stage_num_stack[#stage_num_stack + 1] = decode_action(args[3]) or -1
+            end, function(retval)
+                local stage_num = stage_num_stack[#stage_num_stack]
+                stage_num_stack[#stage_num_stack] = nil
+                local name = read_returned_string(retval, "PanelStage.getStateName")
+                if name ~= nil then
+                    log_art("getStateName|" .. tostring(stage_num) .. "|" .. name,
+                        string.format("PanelStage.getStateName(%s) -> %s (AP says %s)",
+                            tostring(stage_num), name, tostring(ap_says_stage(stage_num))))
+                end
+                return retval
+            end)
+        end
+
+        -- The stage screen's character portraits: this one is HANDED the lock
+        -- flag and picks UVSettingDefault or UVSettingLock from it, so setting
+        -- the argument is the whole fix if this is what draws them.
+        hook_by_name("chainsaw.Cp1021StageSelectGuiBehavior", "getCharacterUVSetting", function(args)
+            if not should_enforce_gating() then return sdk.PreHookResult.CALL_ORIGINAL end
+            pcall(function()
+                local action = decode_action(args[3]) or -1
+                local was = (decode_action(args[4]) or 0) ~= 0
+                local kind = character_kind_of_action(action)
+                local ours = ap_says_character(kind)
+                if ours ~= nil then
+                    args[4] = sdk.to_ptr(ours and 1 or 0)
+                    log_art(string.format("uv|%d|%s|%s", kind, tostring(was), tostring(ours)),
+                        string.format("getCharacterUVSetting(action %d = character %d): was %s, set %s",
+                            action, kind, tostring(was), tostring(ours)))
+                end
+            end)
+            return sdk.PreHookResult.CALL_ORIGINAL
+        end, function(retval) return retval end)
+
+        -- The character screen's strip: align SelectTextureId with
+        -- SelectLockTextureId on every Setting the userdata carries.
+        local function align_character_textures(gui)
+            local userdata = nil
+            pcall(function() userdata = gui:get_field("_UserData") end)
+            if userdata == nil then
+                log_art("chara_userdata", "character select: _UserData could not be read")
+                return
+            end
+            local settings = nil
+            pcall(function() settings = userdata:get_field("Settings") end)
+            local size = nil
+            pcall(function() size = settings:get_size() end)
+            if type(size) ~= "number" then
+                log_art("chara_settings", "character select: Settings could not be read")
+                return
+            end
+            for index = 0, size - 1 do
+                local setting = nil
+                pcall(function() setting = settings:get_element(index) end)
+                if setting ~= nil then
+                    local action = nil
+                    pcall(function() action = setting:get_field("Character") end)
+                    local kind = character_kind_of_action(tonumber(action))
+                    local ours = ap_says_character(kind)
+                    if ours ~= nil then
+                        local kept = original_pair(setting, "tex",
+                            function()
+                                local v = nil
+                                pcall(function() v = setting:get_field("SelectTextureId") end)
+                                return v
+                            end,
+                            function()
+                                local v = nil
+                                pcall(function() v = setting:get_field("SelectLockTextureId") end)
+                                return v
+                            end)
+                        local want = ours and kept.unlocked or kept.locked
+                        if want ~= nil then
+                            pcall(function() setting:set_field("SelectTextureId", want) end)
+                            pcall(function() setting:set_field("SelectLockTextureId", want) end)
+                            log_art(string.format("tex|%d|%s", kind, tostring(ours)),
+                                string.format(
+                                    "character %d: AP says %s, both strip textures set to the %s art (%s/%s)",
+                                    kind, tostring(ours), ours and "unlocked" or "locked",
+                                    tostring(kept.unlocked), tostring(kept.locked)))
+                        end
+                    end
+                end
+            end
+        end
+
+        hook_by_name("chainsaw.Cp1021CharacterSelectGuiBehavior", "updateSelectCharacterList",
+            function(args)
+                if not should_enforce_gating() then return sdk.PreHookResult.CALL_ORIGINAL end
+                pcall(function() align_character_textures(sdk.to_managed_object(args[2])) end)
+                return sdk.PreHookResult.CALL_ORIGINAL
+            end, function(retval) return retval end)
+
+        hook_by_name("chainsaw.Cp1021CharacterSelectGuiBehavior", "setup",
+            function(args)
+                if not should_enforce_gating() then return sdk.PreHookResult.CALL_ORIGINAL end
+                pcall(function() align_character_textures(sdk.to_managed_object(args[2])) end)
+                return sdk.PreHookResult.CALL_ORIGINAL
+            end, function(retval) return retval end)
+
+        -- The stage screen's records row: same idea, but the pair is a UV
+        -- setting rather than a texture id.
+        local function align_record_uvs(gui)
+            local datas = nil
+            pcall(function() datas = gui:get_field("_UserDatas") end)
+            local outer = nil
+            pcall(function() outer = datas:get_size() end)
+            if type(outer) ~= "number" then
+                log_art("record_userdata", "stage select: _UserDatas could not be read")
+                return
+            end
+            for d = 0, outer - 1 do
+                local userdata = nil
+                pcall(function() userdata = datas:get_element(d) end)
+                local settings = nil
+                if userdata ~= nil then
+                    pcall(function() settings = userdata:get_field("CharacterSettings") end)
+                end
+                local size = nil
+                pcall(function() size = settings:get_size() end)
+                if type(size) == "number" then
+                    for index = 0, size - 1 do
+                        local setting = nil
+                        pcall(function() setting = settings:get_element(index) end)
+                        if setting ~= nil then
+                            local action = nil
+                            pcall(function() action = setting:get_field("Character") end)
+                            local kind = character_kind_of_action(tonumber(action))
+                            local ours = ap_says_character(kind)
+                            if ours ~= nil then
+                                local kept = original_pair(setting, "uv",
+                                    function()
+                                        local v = nil
+                                        pcall(function() v = setting:get_field("UVSettingDefault") end)
+                                        return v
+                                    end,
+                                    function()
+                                        local v = nil
+                                        pcall(function() v = setting:get_field("UVSettingLock") end)
+                                        return v
+                                    end)
+                                local want = ours and kept.unlocked or kept.locked
+                                if want ~= nil then
+                                    pcall(function() setting:set_field("UVSettingDefault", want) end)
+                                    pcall(function() setting:set_field("UVSettingLock", want) end)
+                                    log_art(string.format("uvpair|%d|%s", kind, tostring(ours)),
+                                        string.format(
+                                            "records character %d: AP says %s, both UV settings set to the %s art",
+                                            kind, tostring(ours), ours and "unlocked" or "locked"))
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
+        -- The records row's own params carry a bUnlock that greys the score.
+        hook_by_name("chainsaw.Cp1021StageSelectGuiBehavior.PanelRecord", "setRecord",
+            function(args)
+                if not should_enforce_gating() then return sdk.PreHookResult.CALL_ORIGINAL end
+                pcall(function()
+                    local list = sdk.to_managed_object(args[3])
+                    if list == nil then return end
+                    local count = list:call("get_Count")
+                    if type(count) ~= "number" then
+                        log_art("record_list", "PanelRecord.setRecord: the Param list could not be read")
+                        return
+                    end
+                    for index = 0, count - 1 do
+                        local param = list:call("get_Item", index)
+                        if param ~= nil then
+                            local action = nil
+                            pcall(function() action = param:get_field("Character") end)
+                            local kind = character_kind_of_action(tonumber(action))
+                            local ours = ap_says_character(kind)
+                            if ours ~= nil then
+                                local was = nil
+                                pcall(function() was = param:get_field("bUnlock") end)
+                                pcall(function() param:set_field("bUnlock", ours) end)
+                                local now = nil
+                                pcall(function() now = param:get_field("bUnlock") end)
+                                log_art(string.format("record|%d|%s|%s", kind, tostring(was), tostring(now)),
+                                    string.format("records character %d: bUnlock was %s, set %s, reads %s",
+                                        kind, tostring(was), tostring(ours), tostring(now)))
+                            end
+                        end
+                    end
+                end)
+                return sdk.PreHookResult.CALL_ORIGINAL
+            end, function(retval) return retval end)
+
+        -- Reported only, so one visit says which of these builds the strip.
+        for _, entry in ipairs({
+            { "chainsaw.Cp1021CharacterSelectGuiBehavior", "updateSelectCharacterList", false },
+            { "chainsaw.Cp1021CharacterSelectGuiBehavior", "loadTexture", true },
+            { "chainsaw.Cp1021CharacterSelectGuiBehavior", "getTextureSubCharacter", true },
+            { "chainsaw.Cp1021CharacterSelectGuiBehavior.PanelThumbList", "set", false },
+            { "chainsaw.Cp1021StageSelectGuiBehavior", "getStageUVSetting", true },
+        }) do
+            local type_name, method_name, takes_action = entry[1], entry[2], entry[3]
+            hook_by_name(type_name, method_name, function(args)
+                pcall(function()
+                    local action = takes_action and (decode_action(args[3]) or -1) or nil
+                    log_art(method_name .. "|" .. tostring(action),
+                        string.format("%s called%s", method_name,
+                            action ~= nil and (" with action " .. tostring(action)) or ""))
+                end)
+                return sdk.PreHookResult.CALL_ORIGINAL
+            end, function(retval) return retval end)
+        end
+
+        hook_by_name("chainsaw.Cp1021StageSelectGuiBehavior", "setRecord", function(args)
+            if not should_enforce_gating() then return sdk.PreHookResult.CALL_ORIGINAL end
+            pcall(function() align_record_uvs(sdk.to_managed_object(args[2])) end)
+            return sdk.PreHookResult.CALL_ORIGINAL
+        end, function(retval) return retval end)
+
+        -- The big preview's silhouette state, reported for its vocabulary.
+        hook_by_name("chainsaw.Cp1021CharacterSelectGuiBehavior.PanelImage",
+            "getImageColorStateName",
+            function() return sdk.PreHookResult.CALL_ORIGINAL end,
+            function(retval)
+                local name = read_returned_string(retval, "PanelImage.getImageColorStateName")
+                if name ~= nil then
+                    log_art("imageColor|" .. name,
+                        "PanelImage.getImageColorStateName -> " .. name)
+                end
+                return retval
+            end)
 
         -- [Result screen] The screen's _UnlockNoticeList is ours while the
         -- gate is armed: the vanilla "unlocked <character> / <stage>" lines
