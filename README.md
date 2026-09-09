@@ -118,9 +118,12 @@ covers: Main Campaign, The Mercenaries, or both. Separate Ways is listed and
 greyed out as coming soon.
 
 With The Mercenaries included, every character and stage pair has rank checks.
-**Mercenaries Score Checks** decides which ranks count: A only (32 checks), A
-and S (64, the default), or every rank up to S++ (128). Only Rank A can hold
-progression, so no seed ever depends on a top score.
+**Ranks as Checks** is a range with two markers on the C, B, A, S, S+, S++
+ladder: every rank between them counts, for every character and stage, 32
+checks a rank. The default is C through A, which is 96 checks. Rank C is
+finishing a run at all, and the game never shows C or B as letters even
+though every finished run carries one. C, B and A can hold progression; S and
+above never do, so no seed ever depends on a top score.
 
 The characters and stages are the items. One of each starts with you; the rest
 stay locked in the mode's menus until their item arrives, with a toast when it
@@ -174,7 +177,7 @@ name and patch.
 ### Your settings file
 
 - **Included Content** - Main Campaign, The Mercenaries, or both. See [The Mercenaries](#the-mercenaries).
-- **Mercenaries Score Checks** - which ranks count as checks: A only, A and S, or every rank.
+- **Ranks as Checks** - the range of Mercenaries ranks that count, set by its lowest and highest marker (default C through A).
 - **Difficulty** - the difficulty you'll actually play. Hardcore and Professional remove the few spots that can't be collected on those difficulties, so it needs to match your save.
 - **Death Link** - share deaths with the room.
 - **Progression Balancing** - how hard the multiworld works to keep your important items early. 50-70 suits RE4R's gated chapters; lower values mean longer waits on other players.

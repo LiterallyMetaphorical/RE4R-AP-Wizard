@@ -119,8 +119,13 @@ public sealed class PendingSessionDraft
     [JsonPropertyName("include_mercenaries")]
     public bool IncludeMercenaries { get; set; }
 
-    [JsonPropertyName("mercenaries_score_checks")]
-    public string MercenariesScoreChecks { get; set; } = "standard";
+    // 0.7.6: the rank range that counts. Absent in older drafts, which read as
+    // the default C through A.
+    [JsonPropertyName("mercenaries_rank_floor")]
+    public string MercenariesRankFloor { get; set; } = "c";
+
+    [JsonPropertyName("mercenaries_rank_ceiling")]
+    public string MercenariesRankCeiling { get; set; } = "a";
 
     // 0.7.4; absent in older drafts, which read as on.
     [JsonPropertyName("mercenaries_progression")]

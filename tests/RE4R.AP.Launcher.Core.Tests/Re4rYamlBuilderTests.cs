@@ -49,7 +49,8 @@ public sealed class Re4rYamlBuilderTests
         var options = GameOptions(Builder.Build(Request()));
 
         Assert.Equal(new[] { "Main Campaign" }, Sequence(options, "included_content"));
-        Assert.Equal("standard", Scalar(options, "mercenaries_score_checks"));
+        Assert.Equal("c", Scalar(options, "mercenaries_rank_floor"));
+        Assert.Equal("a", Scalar(options, "mercenaries_rank_ceiling"));
         Assert.Equal("standard", Scalar(options, "difficulty"));
     }
 
@@ -88,17 +89,50 @@ public sealed class Re4rYamlBuilderTests
     }
 
     [Theory]
-    [InlineData("A Only", "a_only")]
-    [InlineData("a_only", "a_only")]
-    [InlineData("full", "full")]
-    [InlineData("All Ranks", "full")]
-    [InlineData("standard", "standard")]
-    [InlineData("nonsense", "standard")]
-    public void ScoreChecksAreNormalisedToTheApworldsKeys(string given, string expected)
+    [InlineData("c", "c")]
+    [InlineData("S+", "s_plus")]
+    [InlineData("s_plus", "s_plus")]
+    [InlineData("S++", "s_plus_plus")]
+    [InlineData("nonsense", "c")]
+    public void TheRankFloorIsNormalisedToTheApworldsKeys(string given, string expected)
     {
-        var yaml = Builder.Build(Request(r => r.MercenariesScoreChecks = given));
+        var yaml = Builder.Build(Request(r =>
+        {
+            r.MercenariesRankFloor = given;
+            r.MercenariesRankCeiling = "s_plus_plus";
+        }));
 
-        Assert.Equal(expected, Scalar(GameOptions(yaml), "mercenaries_score_checks"));
+        Assert.Equal(expected, Scalar(GameOptions(yaml), "mercenaries_rank_floor"));
+    }
+
+    [Fact]
+    public void MarkersGivenBackwardsAreWrittenInOrder()
+    {
+        // A range has no direction to a player, and the apworld refuses one
+        // that runs backwards, so the builder puts them right.
+        var yaml = Builder.Build(Request(r =>
+        {
+            r.MercenariesRankFloor = "s_plus";
+            r.MercenariesRankCeiling = "b";
+        }));
+
+        var options = GameOptions(yaml);
+        Assert.Equal("b", Scalar(options, "mercenaries_rank_floor"));
+        Assert.Equal("s_plus", Scalar(options, "mercenaries_rank_ceiling"));
+    }
+
+    [Fact]
+    public void ASingleRankRangeWritesTheSameRankTwice()
+    {
+        var yaml = Builder.Build(Request(r =>
+        {
+            r.MercenariesRankFloor = "a";
+            r.MercenariesRankCeiling = "a";
+        }));
+
+        var options = GameOptions(yaml);
+        Assert.Equal("a", Scalar(options, "mercenaries_rank_floor"));
+        Assert.Equal("a", Scalar(options, "mercenaries_rank_ceiling"));
     }
 
     [Theory]

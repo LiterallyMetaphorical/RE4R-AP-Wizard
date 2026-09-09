@@ -256,7 +256,7 @@ public sealed class ManifestBuilder
             scoutSession.MerchantShop.ScatteredItemIds, scoutSession.MerchantShop.StartingWeaponIds,
             scoutSession.MerchantShop.StartingAttachmentIds,
             scoutSession.RandomWeaponStats, scoutSession.RandomWeaponUpgrades,
-            scoutSession.TradeShop);
+            scoutSession.TradeShop, scoutSession.SlotDifficulty);
         if (scoutSession.RandomWeaponStats is bool yamlWeaponStats)
         {
             var weaponMode = scoutSession.RandomWeaponUpgrades is bool yamlWeaponUpgrades
@@ -334,7 +334,8 @@ public sealed class ManifestBuilder
         IReadOnlyList<int>? startingAttachmentIds,
         bool? randomWeaponStats,
         bool? randomWeaponUpgrades,
-        TradeShopSlotData tradeShop)
+        TradeShopSlotData tradeShop,
+        int slotDifficulty)
     {
         var placementObject = new JsonObject();
         foreach (var placement in placements)
@@ -522,6 +523,12 @@ public sealed class ManifestBuilder
 
             root["ap-merchant-shop"] = new JsonObject
             {
+                // The shelf's stock and price settings are written for this
+                // difficulty. A shop row carries ONE stock setting and the
+                // game only applies it when the difficulty matches the one
+                // being played, so a shelf written for the wrong one holds a
+                // single unit of everything (live 2026-09-06).
+                ["difficulty"] = slotDifficulty,
                 ["excluded-item-ids"] = excluded,
                 ["tiers"] = tiers,
                 ["staples"] = staples,

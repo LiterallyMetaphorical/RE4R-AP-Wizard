@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:viewModels="clr-namespace:RE4R.AP.Launcher.ViewModels"
         xmlns:converters="clr-namespace:RE4R.AP.Launcher.Infrastructure"
+        xmlns:controls="clr-namespace:RE4R.AP.Launcher.Controls"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="RE4R AP Wizard"
@@ -820,19 +821,25 @@
                                Visibility="{Binding IncludeMercenaries, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
-                                       Text="Mercenaries Score Checks" />
-                            <ListBox ItemsSource="{Binding MercenariesScoreChecksOptions}"
-                                     SelectedItem="{Binding SelectedMercenariesScoreChecks, UpdateSourceTrigger=PropertyChanged}"
-                                     Style="{StaticResource SegmentedPickerStyle}" />
+                                       Text="Ranks as Checks" />
+                            <TextBlock Margin="0,0,0,6"
+                                       FontWeight="SemiBold"
+                                       Text="{Binding MercenariesRanksSummary}" />
+                            <controls:RangeSlider Margin="0,2,0,0"
+                                                  Minimum="0"
+                                                  Maximum="5"
+                                                  StepLabels="{Binding MercenariesRankNames}"
+                                                  LowerValue="{Binding MercenariesRankFloorIndex, Mode=TwoWay}"
+                                                  UpperValue="{Binding MercenariesRankCeilingIndex, Mode=TwoWay}" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="Which ranks count, for every character and stage: A only is 32 checks, A and S is 64, all ranks is 128. Only Rank A can hold progression, so no seed depends on a top score." />
+                                       Text="Every rank between the two markers is a check, for every character and stage, 32 a rank. C is finishing a run at all, and the game never shows C or B as letters even though every finished run carries one. C, B and A can hold progression; S and above never do, so no seed depends on a top score. The default is C through A." />
                         </StackPanel>
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <CheckBox Style="{StaticResource OptionCardCheckTitleStyle}"
                                       IsChecked="{Binding MercenariesProgression}"
                                       Content="Ranks May Hold Progression" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="On by default: a Rank A check can hold an item the seed needs, so the campaign may wait on a character and stage pair until its unlocks arrive. Off: every rank pays out useful items and filler only, and the mode is a bonus, never a gate. A Mercenaries-only slot ignores this: its unlocks are its only progression." />
+                                       Text="On by default: a check at Rank A or below can hold an item the seed needs, so the campaign may wait on a character and stage pair until its unlocks arrive. Off: every rank pays out useful items and filler only, and the mode is a bonus, never a gate. A Mercenaries-only slot ignores this: its unlocks are its only progression." />
                         </StackPanel>
                     </WrapPanel>
                     <Border Style="{StaticResource SettingsSectionRuleStyle}">

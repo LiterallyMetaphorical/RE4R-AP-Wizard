@@ -39,7 +39,8 @@ public sealed class Re4rYamlBuilder
             // Included Content (apworld 0.7.2): what the slot plays. Always
             // emitted, so the file says it plainly.
             { "included_content", new YamlSequenceNode(IncludedContentNames(request).Select(SingleQuotedScalar)) },
-            { "mercenaries_score_checks", NormalizeMercenariesScoreChecks(request.MercenariesScoreChecks) },
+            { "mercenaries_rank_floor", MercenariesRankRange(request).Floor },
+            { "mercenaries_rank_ceiling", MercenariesRankRange(request).Ceiling },
             // 0.7.4: a Mercenaries-only slot has no campaign to carry its
             // progression, so its ranks always may (the apworld refuses
             // otherwise); the switch only means something with the campaign.
@@ -134,15 +135,35 @@ public sealed class Re4rYamlBuilder
     private static bool IsMercenariesOnly(Re4rYamlRequest request) =>
         request.IncludeMercenaries && !request.IncludeMainCampaign;
 
-    private static string NormalizeMercenariesScoreChecks(string? value)
+    // The rank ladder, lowest first. Both the display names ("S+") and the
+    // apworld's keys ("s_plus") land here.
+    private static readonly string[] MercenariesRankLadder =
+        ["c", "b", "a", "s", "s_plus", "s_plus_plus"];
+
+    private static int MercenariesRankIndex(string? value, int fallback)
     {
-        var normalized = (value ?? string.Empty).Trim().ToLowerInvariant().Replace(' ', '_');
-        return normalized switch
+        var normalized = (value ?? string.Empty).Trim().ToLowerInvariant();
+        normalized = normalized switch
         {
-            "a_only" or "aonly" or "a" => "a_only",
-            "full" or "all" or "all_ranks" => "full",
-            _ => "standard",
+            "s+" or "splus" => "s_plus",
+            "s++" or "splusplus" => "s_plus_plus",
+            _ => normalized,
         };
+        var index = Array.IndexOf(MercenariesRankLadder, normalized);
+        return index >= 0 ? index : fallback;
+    }
+
+    // Markers given backwards are read in order rather than refused: the
+    // apworld would reject them, and a range has no direction to a player.
+    private static (string Floor, string Ceiling) MercenariesRankRange(Re4rYamlRequest request)
+    {
+        var floor = MercenariesRankIndex(request.MercenariesRankFloor, 0);
+        var ceiling = MercenariesRankIndex(request.MercenariesRankCeiling, 2);
+        if (ceiling < floor)
+        {
+            (floor, ceiling) = (ceiling, floor);
+        }
+        return (MercenariesRankLadder[floor], MercenariesRankLadder[ceiling]);
     }
 
     private static string NormalizeMerchantChecks(string? value)

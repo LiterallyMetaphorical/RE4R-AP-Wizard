@@ -217,7 +217,7 @@ public sealed class ArchipelagoScoutClient
             var mercenaries = ParseMercenariesSlotData(connectedPacket);
             if (mercenaries.Enabled)
             {
-                Log($"This room plays {DescribeGameMode(gameMode)}: {mercenaries.LocationIds.Count} Mercenaries rank check(s), {mercenaries.ScoreChecks}.");
+                Log($"This room plays {DescribeGameMode(gameMode)}: {mercenaries.LocationIds.Count} Mercenaries rank check(s), {DescribeRank(mercenaries.RankFloor)} through {DescribeRank(mercenaries.RankCeiling)}.");
             }
 
             var merchantShop = ParseMerchantShopSlotData(connectedPacket);
@@ -305,6 +305,7 @@ public sealed class ArchipelagoScoutClient
                 Locations = locations,
                 RoomLocationIds = roomLocationIds,
                 RandomEvents = randomEvents,
+                SlotDifficulty = ParseSlotDifficulty(connectedPacket),
                 MerchantShop = merchantShop,
                 TradeShop = tradeShop,
                 RandomWeaponStats = randomWeaponStats,
@@ -1064,6 +1065,37 @@ public sealed class ArchipelagoScoutClient
         return "campaign";
     }
 
+    /// <summary>The room's difficulty as the game numbers it; 20 when unsaid.</summary>
+    internal static int ParseSlotDifficulty(JsonElement connectedPacket)
+    {
+        if (!TryGetProperty(connectedPacket, "slot_data", out var slotData)
+            || slotData.ValueKind != JsonValueKind.Object
+            || !slotData.TryGetProperty("difficulty", out var value)
+            || value.ValueKind != JsonValueKind.String)
+        {
+            return 20;
+        }
+
+        return (value.GetString() ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "assisted" => 10,
+            "hardcore" => 30,
+            "professional" => 40,
+            _ => 20,
+        };
+    }
+
+    private static string DescribeRank(string rank) => rank switch
+    {
+        "c" => "C",
+        "b" => "B",
+        "a" => "A",
+        "s" => "S",
+        "s_plus" => "S+",
+        "s_plus_plus" => "S++",
+        _ => string.IsNullOrWhiteSpace(rank) ? "?" : rank,
+    };
+
     private static string DescribeGameMode(string gameMode) => gameMode switch
     {
         "mercenaries_only" => "The Mercenaries only",
@@ -1125,7 +1157,8 @@ public sealed class ArchipelagoScoutClient
         return new MercenariesSlotData
         {
             Enabled = true,
-            ScoreChecks = ReadString(block, "score_checks"),
+            RankFloor = ReadString(block, "rank_floor"),
+            RankCeiling = ReadString(block, "rank_ceiling"),
             StartingCharacter = ReadString(block, "starting_character"),
             StartingStage = ReadString(block, "starting_stage"),
             LocationIds = ids.Distinct().OrderBy(id => id).ToArray(),

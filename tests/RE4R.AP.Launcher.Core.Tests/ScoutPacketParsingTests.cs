@@ -69,14 +69,15 @@ public sealed class ScoutPacketParsingTests
     {
         var packet = Packet(
             """
-            {"game_mode":"campaign_and_mercenaries","mercenaries":{"enabled":true,"game_mode":"campaign_and_mercenaries","score_checks":"standard","starting_character":"Leon","starting_stage":"Village",
+            {"game_mode":"campaign_and_mercenaries","mercenaries":{"enabled":true,"game_mode":"campaign_and_mercenaries","rank_floor":"c","rank_ceiling":"a","starting_character":"Leon","starting_stage":"Village",
              "locations":{"Leon":{"Village":{"A":440001000,"S":440001001}},"Ada":{"Castle":{"A":440002000,"S":440002001}}}}}
             """);
 
         var mercenaries = ArchipelagoScoutClient.ParseMercenariesSlotData(packet);
 
         Assert.True(mercenaries.Enabled);
-        Assert.Equal("standard", mercenaries.ScoreChecks);
+        Assert.Equal("c", mercenaries.RankFloor);
+        Assert.Equal("a", mercenaries.RankCeiling);
         Assert.Equal("Leon", mercenaries.StartingCharacter);
         Assert.Equal("Village", mercenaries.StartingStage);
         Assert.Equal(new long[] { 440001000, 440001001, 440002000, 440002001 }, mercenaries.LocationIds);
@@ -89,6 +90,20 @@ public sealed class ScoutPacketParsingTests
     public void MercenariesAbsentOrDisabledReadsDisabled(string slotData)
     {
         Assert.False(ArchipelagoScoutClient.ParseMercenariesSlotData(Packet(slotData)).Enabled);
+    }
+
+    [Theory]
+    [InlineData("{}", 20)]
+    [InlineData("""{"difficulty":"assisted"}""", 10)]
+    [InlineData("""{"difficulty":"standard"}""", 20)]
+    [InlineData("""{"difficulty":"Hardcore"}""", 30)]
+    [InlineData("""{"difficulty":"professional"}""", 40)]
+    [InlineData("""{"difficulty":"nonsense"}""", 20)]
+    public void TheRoomsDifficultyIsReadAsTheGameNumbersThem(string slotData, int expected)
+    {
+        // The merchant's shelf is written for this: a shop row carries one
+        // stock setting and the game only applies it on a matching difficulty.
+        Assert.Equal(expected, ArchipelagoScoutClient.ParseSlotDifficulty(Packet(slotData)));
     }
 
     [Theory]

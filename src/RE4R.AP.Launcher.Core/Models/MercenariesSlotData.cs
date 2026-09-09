@@ -12,8 +12,11 @@ public sealed class MercenariesSlotData
 
     public bool Enabled { get; init; }
 
-    /// <summary>"a_only", "standard" or "full".</summary>
-    public string ScoreChecks { get; init; } = string.Empty;
+    /// <summary>The lowest rank that counts, off the C, B, A, S, S+, S++ ladder (0.7.6).</summary>
+    public string RankFloor { get; init; } = string.Empty;
+
+    /// <summary>The highest rank that counts (0.7.6).</summary>
+    public string RankCeiling { get; init; } = string.Empty;
 
     public string StartingCharacter { get; init; } = string.Empty;
 

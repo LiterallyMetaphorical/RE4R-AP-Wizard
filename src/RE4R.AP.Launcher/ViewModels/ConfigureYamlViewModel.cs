@@ -67,7 +67,10 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     private bool _merchantChecksEnabled = true;
     private bool _includeMainCampaign = true;
     private bool _includeMercenaries;
-    private string _selectedMercenariesScoreChecks = "A and S";
+    // 0.7.6: Ranks as Checks is a range over the ladder below, held as indexes
+    // so the two slider markers can bind straight to them.
+    private int _mercenariesRankFloorIndex;
+    private int _mercenariesRankCeilingIndex = 2;
     // 0.7.4: Rank A may hold progression unless the player turns this off.
     private bool _mercenariesProgression = true;
     private string _yamlPreview = "Enter your slot name to generate the YAML preview.";
@@ -664,20 +667,81 @@ public sealed class ConfigureYamlViewModel : ObservableObject
 
     public string IncludedContentError => "Include Main Campaign or Mercenaries (or both).";
 
-    public IReadOnlyList<string> MercenariesScoreChecksOptions { get; } = ["A only", "A and S", "All ranks"];
+    /// <summary>The rank ladder, lowest first. The apworld keys are the same order.</summary>
+    public static readonly IReadOnlyList<string> MercenariesRankLadder = ["C", "B", "A", "S", "S+", "S++"];
 
-    /// <summary>Which ranks count as checks: 32, 64 or 128 per slot.</summary>
-    public string SelectedMercenariesScoreChecks
+    /// <summary>The same ladder, for the range slider to label its steps with.</summary>
+    public IReadOnlyList<string> MercenariesRankNames => MercenariesRankLadder;
+
+    private static readonly string[] MercenariesRankKeys = ["c", "b", "a", "s", "s_plus", "s_plus_plus"];
+
+    /// <summary>The lower marker of Ranks as Checks. Pushing it past the upper one carries that one along.</summary>
+    public int MercenariesRankFloorIndex
     {
-        get => _selectedMercenariesScoreChecks;
+        get => _mercenariesRankFloorIndex;
         set
         {
-            if (SetProperty(ref _selectedMercenariesScoreChecks, value))
+            var clamped = Math.Clamp(value, 0, MercenariesRankNames.Count - 1);
+            if (SetProperty(ref _mercenariesRankFloorIndex, clamped))
             {
+                if (_mercenariesRankCeilingIndex < clamped)
+                {
+                    MercenariesRankCeilingIndex = clamped;
+                }
+                OnPropertyChanged(nameof(MercenariesRanksSummary));
                 RebuildYamlPreview();
                 QueueDraftSave();
             }
         }
+    }
+
+    /// <summary>The upper marker of Ranks as Checks.</summary>
+    public int MercenariesRankCeilingIndex
+    {
+        get => _mercenariesRankCeilingIndex;
+        set
+        {
+            var clamped = Math.Clamp(value, 0, MercenariesRankNames.Count - 1);
+            if (SetProperty(ref _mercenariesRankCeilingIndex, clamped))
+            {
+                if (_mercenariesRankFloorIndex > clamped)
+                {
+                    MercenariesRankFloorIndex = clamped;
+                }
+                OnPropertyChanged(nameof(MercenariesRanksSummary));
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
+
+    /// <summary>What the two markers add up to, in the player's words.</summary>
+    public string MercenariesRanksSummary
+    {
+        get
+        {
+            var low = Math.Min(_mercenariesRankFloorIndex, _mercenariesRankCeilingIndex);
+            var high = Math.Max(_mercenariesRankFloorIndex, _mercenariesRankCeilingIndex);
+            var count = (high - low + 1) * 32;
+            var span = low == high
+                ? $"Rank {MercenariesRankNames[low]} only"
+                : $"Ranks {MercenariesRankNames[low]} through {MercenariesRankNames[high]}";
+            return $"{span} - {count} checks";
+        }
+    }
+
+    /// <summary>The YAML value behind the lower marker.</summary>
+    public string MercenariesRankFloorValue =>
+        MercenariesRankKeys[Math.Min(_mercenariesRankFloorIndex, _mercenariesRankCeilingIndex)];
+
+    /// <summary>The YAML value behind the upper marker.</summary>
+    public string MercenariesRankCeilingValue =>
+        MercenariesRankKeys[Math.Max(_mercenariesRankFloorIndex, _mercenariesRankCeilingIndex)];
+
+    private static int MercenariesRankIndexFor(string? key, int fallback)
+    {
+        var index = Array.IndexOf(MercenariesRankKeys, (key ?? string.Empty).Trim().ToLowerInvariant());
+        return index >= 0 ? index : fallback;
     }
 
     /// <summary>Whether a Rank A check may hold progression (apworld mercenaries_progression).</summary>
@@ -694,21 +758,6 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         }
     }
 
-    /// <summary>The YAML value behind the picker label.</summary>
-    public string MercenariesScoreChecksValue => _selectedMercenariesScoreChecks switch
-    {
-        "A only" => "a_only",
-        "All ranks" => "full",
-        _ => "standard",
-    };
-
-    private static string MercenariesScoreChecksLabelFor(string? value) =>
-        (value ?? string.Empty).Trim().ToLowerInvariant() switch
-        {
-            "a_only" or "a only" => "A only",
-            "full" or "all ranks" => "All ranks",
-            _ => "A and S",
-        };
 
     /// <summary>
     /// The apworld's cap. Three per chapter is also the whole superset, so
@@ -1080,7 +1129,8 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             IncludeMercenaries = legacy.Contains("mercenaries", StringComparison.Ordinal);
             IncludeMainCampaign = !legacy.StartsWith("mercenaries_only", StringComparison.Ordinal);
         }
-        SelectedMercenariesScoreChecks = MercenariesScoreChecksLabelFor(draft.MercenariesScoreChecks);
+        MercenariesRankCeilingIndex = MercenariesRankIndexFor(draft.MercenariesRankCeiling, 2);
+        MercenariesRankFloorIndex = MercenariesRankIndexFor(draft.MercenariesRankFloor, 0);
         MercenariesProgression = draft.MercenariesProgression;
         var selected = new HashSet<string>(draft.UnlockedTypewriterStageIds, StringComparer.Ordinal);
         foreach (var option in TypewriterOptions)
@@ -1140,7 +1190,8 @@ public sealed class ConfigureYamlViewModel : ObservableObject
                 draft.TradeChecksPerChapter = TradeChecksPerChapterEffective;
                 draft.IncludeMainCampaign = IncludeMainCampaign;
                 draft.IncludeMercenaries = IncludeMercenaries;
-                draft.MercenariesScoreChecks = MercenariesScoreChecksValue;
+                draft.MercenariesRankFloor = MercenariesRankFloorValue;
+                draft.MercenariesRankCeiling = MercenariesRankCeilingValue;
                 draft.MercenariesProgression = MercenariesProgression;
                 draft.LegacyGameMode = null;
                 draft.UnlockedTypewriterStageIds = TypewriterOptions
@@ -1189,7 +1240,8 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             MerchantChecks = SelectedMerchantChecks.Value,
             IncludeMainCampaign = IncludeMainCampaign,
             IncludeMercenaries = IncludeMercenaries,
-            MercenariesScoreChecks = MercenariesScoreChecksValue,
+            MercenariesRankFloor = MercenariesRankFloorValue,
+            MercenariesRankCeiling = MercenariesRankCeilingValue,
             MercenariesProgression = MercenariesProgression,
             UnlockedTypewriterStageIds = TypewriterOptions
                 .Where(option => option.IsSelected)

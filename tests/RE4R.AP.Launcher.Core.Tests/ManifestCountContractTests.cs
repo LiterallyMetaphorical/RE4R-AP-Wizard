@@ -144,7 +144,8 @@ public sealed class ManifestCountContractTests
     private static MercenariesSlotData Mercs(long[] ids) => new()
     {
         Enabled = true,
-        ScoreChecks = "standard",
+        RankFloor = "c",
+        RankCeiling = "a",
         StartingCharacter = "Leon",
         StartingStage = "Village",
         LocationIds = ids,
@@ -155,13 +156,13 @@ public sealed class ManifestCountContractTests
     {
         var data = await LoadStaticAsync();
 
-        Assert.Equal("0.7.4", data.WorldVersion);
+        Assert.Equal("0.7.5", data.WorldVersion);
         Assert.Equal(456, data.Counts.LocationsTotal);
         Assert.Equal(456, data.LocationCodes.Count);
         Assert.Equal(456, data.Locations.Count);
         Assert.Equal(120, data.ShopSlots.Count);
         Assert.Equal(45, data.TradeChecks.Count);
-        Assert.Equal(128, data.Mercenaries.Count);
+        Assert.Equal(192, data.Mercenaries.Count); // 0.7.5: 32 per rank, C to S++
         Assert.Single(data.DifficultyInertLocations);
         Assert.All(data.Locations.Values, location => Assert.False(string.IsNullOrWhiteSpace(location.Guid)));
     }

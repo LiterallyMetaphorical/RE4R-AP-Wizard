@@ -53,8 +53,11 @@ public sealed class Re4rYamlRequest
 
     public bool IncludeMercenaries { get; set; }
 
-    // Mercenaries rank checks: a_only, standard, full.
-    public string MercenariesScoreChecks { get; set; } = "standard";
+    // 0.7.6: Ranks as Checks is a range over the C, B, A, S, S+, S++ ladder.
+    // Every rank from the floor to the ceiling counts, 32 checks a rank.
+    public string MercenariesRankFloor { get; set; } = "c";
+
+    public string MercenariesRankCeiling { get; set; } = "a";
 
     // 0.7.4: whether a Rank A check may hold progression. On by default.
     public bool MercenariesProgression { get; set; } = true;

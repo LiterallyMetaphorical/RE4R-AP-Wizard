@@ -35,6 +35,16 @@ public sealed class ArchipelagoScoutSessionResult
     public RandomEventsSlotData RandomEvents { get; init; } = RandomEventsSlotData.Disabled;
 
     /// <summary>
+    /// The difficulty this room was generated for, as the game numbers them:
+    /// 10 assisted, 20 standard, 30 hardcore, 40 professional. The merchant's
+    /// shelf needs it, because a shop row carries one stock setting and the
+    /// game only applies it on a matching difficulty (live 2026-09-06: a shelf
+    /// written for Standard holds a single unit of everything on Assisted).
+    /// 20 when the room does not say, which is what the patcher always wrote.
+    /// </summary>
+    public int SlotDifficulty { get; init; } = 20;
+
+    /// <summary>
     /// The apworld's merchant shop checks (D4), already resolved to what fill
     /// put in each slot. Disabled for rooms whose apworld predates the option
     /// or whose shop_checks is 0.
