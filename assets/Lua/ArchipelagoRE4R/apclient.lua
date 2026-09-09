@@ -78,6 +78,19 @@ return function(ctx)
         local ok, result = pcall(lookup, location_code)
         return ok and result == true
     end
+    -- [Trade delivery] The twin of the above for the TRADE tab, which the
+    -- own-find skip did not consult: claiming your own check swept the
+    -- stand-in and skipped the real item, so it never arrived (Cam, live
+    -- 2026-09-07, a Chalice of Atonement claimed and never seen). Exactly the
+    -- shop case, one tab over.
+    local function is_trade_location(location_code)
+        local lookup = ctx.trade_is_trade_location or _G.trade_is_trade_location
+        if type(lookup) ~= "function" then
+            return false
+        end
+        local ok, result = pcall(lookup, location_code)
+        return ok and result == true
+    end
     -- [DeathLink] The "DeathLink" tag is carried ALWAYS (not toggled by the option),
     -- because lua-apclientpp exposes no ConnectUpdate to change tags after connect and
     -- slot_data.death_link only arrives post-connect. Behaviour is gated on
@@ -1167,12 +1180,14 @@ return function(ctx)
                 -- went into an inventory the game then threw away, so it owes
                 -- delivery to the lead exactly like a foreign gift would.
                 and bridge.non_lead_checked_locations[entry.location] ~= true
-                -- ...or unless it was BOUGHT. A merchant check has no world
-                -- pickup to have granted it: the till hands over the stand-in
-                -- trinket, so the real item still owes delivery (live
+                -- ...or unless it was BOUGHT or TRADED. A merchant check has
+                -- no world pickup to have granted it: the till hands over the
+                -- stand-in trinket, so the real item still owes delivery (live
                 -- 2026-08-17: a bought Insignia Key was skipped here and never
-                -- reached the player).
+                -- reached the player; live 2026-09-07: the same on the trade
+                -- tab, which this only covered on the Buy side).
                 and not is_merchant_shop_location(entry.location)
+                and not is_trade_location(entry.location)
                 -- ...nor a Mercenaries rank: nothing physical was picked up.
                 and not is_merc_location(entry.location)
                 -- ...nor a progressive ladder item: it has no engine item of

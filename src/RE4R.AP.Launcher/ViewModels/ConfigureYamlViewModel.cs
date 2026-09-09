@@ -659,10 +659,11 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Unfinished, and only offered when settings.json says
-    /// unlock_separate_ways. A room made from it generates, and then the
-    /// launcher refuses to patch it, because the patcher has no Ada support
-    /// yet. It is here to test the settings file, not to play.
+    /// Held out of this release, and only offered when settings.json says
+    /// unlock_separate_ways. Ada's campaign generates, patches and plays as of
+    /// 2026-09-07, but she has no typewriter warps and no merchant, so it is
+    /// not shipped. The apworld refuses the content too, so a yaml written
+    /// here only generates with RE4R_AP_ALLOW_SEPARATE_WAYS in the environment.
     /// </summary>
     public bool IncludeSeparateWays
     {

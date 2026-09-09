@@ -1168,7 +1168,7 @@ local function install(ctx)
         local slot_data = bridge.slot_data
         local campaign = type(slot_data) == "table" and slot_data.patched_campaign or nil
         if campaign == "Separate Ways" then return "Separate Ways" end
-        if campaign == "Main Story" then return "the campaign" end
+        if campaign == "Main Story" then return "Leon's Campaign" end
         return nil
     end
 
@@ -2184,25 +2184,19 @@ local function install(ctx)
     end
 
     -- ------------------------------------------------------------------
-    -- [Menu visuals] The name of a stage or character came out right while its
-    -- ARTWORK did not: Docks read "DOCKS" over a padlock tile, Island read
-    -- "???" over its real photo, and the character strip lit up costumes AP
-    -- has not granted (Cam, 2026-09-07). The tile art and the blurred
-    -- background ask different questions than the label does, and two of the
-    -- answering methods were never hooked:
+    -- [Menu unlock answers] The stage and character select screens ask whether
+    -- each entry is unlocked, and the NAME and the big preview panel follow
+    -- whatever they are told. Their artwork does not: see the [Menu art] block
+    -- below for that, which took two builds of wrong guesses to find.
     --
-    --   Cp1021GuiManager.IsUnlock(chara) / IsUnlock(stage)  -- takes the KIND
-    --   Cp1021MainMenuBGGuiBehavior.isUnlock(stage action)  -- the background
+    -- Hooked and then removed on 2026-09-07, because a live visit proved each
+    -- one installs and is then never called: Cp1021GuiManager.IsUnlock (both
+    -- overloads), Cp1021MainMenuBGGuiBehavior.isUnlock, and the
+    -- UnlockSettingsUserData pair. Do not add them back without a log line
+    -- showing them run.
     --
-    -- The manager pair is the useful one: it is handed the kind itself, so
-    -- there is no menu index to translate and no chance of answering about the
-    -- wrong row. Nothing here writes to the profile; every hook only changes
-    -- what the game is told when it asks.
-    --
-    -- Menu action enums, from the il2cpp dump: a stage action is Exit 0,
-    -- Ranking 1, then Stage01..Stage04 at 2..5, so the stage kind is the
-    -- action less two.
-    local STAGE_ACTION_OFFSET = 2
+    -- Menu action enums, from the il2cpp dump: a character action is Exit 0
+    -- then Character01.. at 1..8, so the character kind is the action less one.
     local STAGE_KIND_MAX = 3
     local CHARACTER_KIND_MAX = 7
 
@@ -2247,11 +2241,9 @@ local function install(ctx)
     end
 
     -- A menu action is not a kind. Translating here rather than through
-    -- getKindId keeps the two overloads of that name out of it.
-    local function stage_kind_of_action(action)
-        if type(action) ~= "number" then return -1 end
-        return action - STAGE_ACTION_OFFSET
-    end
+    -- getKindId keeps the two overloads of that name out of it. The stage side
+    -- needs no such helper: its tiles are corrected by array index, which is
+    -- already the kind.
     local function character_kind_of_action(action)
         if type(action) ~= "number" then return -1 end
         return action - CHARACTER_ACTION_OFFSET
@@ -2362,73 +2354,6 @@ local function install(ctx)
             end
         end
 
-        -- [Menu visuals] The kind-taking pair on the manager, one hook per
-        -- overload so each knows what it is answering about without having to
-        -- read the argument's type at call time.
-        local manager_type = sdk.find_type_definition("chainsaw.Cp1021GuiManager")
-        if manager_type ~= nil then
-            local installed = 0
-            for _, method in ipairs(manager_type:get_methods() or {}) do
-                local method_name, param_type = nil, nil
-                pcall(function() method_name = method:get_name() end)
-                if method_name == "IsUnlock" then
-                    pcall(function()
-                        local params = method:get_param_types()
-                        if params ~= nil and params[1] ~= nil then
-                            param_type = params[1]:get_full_name()
-                        end
-                    end)
-                    local what = nil
-                    if param_type == "chainsaw.MercenariesDefine.StageKind" then
-                        what = "stage"
-                    elseif param_type == "chainsaw.MercenariesDefine.PlayerCharacterWithCostumeKind" then
-                        what = "character"
-                    end
-                    if what ~= nil then
-                        local kind_stack = {}
-                        if safe_hook_unique(method, function(args)
-                            kind_stack[#kind_stack + 1] = decode_action(args[3]) or -1
-                        end, function(retval)
-                            local kind = kind_stack[#kind_stack]
-                            kind_stack[#kind_stack] = nil
-                            if kind == nil or not should_enforce_gating() then return retval end
-                            return answer_unlock("Cp1021GuiManager", what, kind, retval)
-                        end) then
-                            installed = installed + 1
-                        end
-                    else
-                        log.info("[Merc AP Gating] Cp1021GuiManager.IsUnlock has an "
-                            .. "unrecognised parameter type: " .. tostring(param_type))
-                    end
-                end
-            end
-            log.info(string.format(
-                "[Merc AP Gating] Cp1021GuiManager.IsUnlock hooks installed: %d", installed))
-        else
-            log.info("[Merc AP Gating] Cp1021GuiManager not found; menu art stays on the save")
-        end
-
-        -- The blurred stage photo behind the menu asks on its own.
-        local bg_type = sdk.find_type_definition("chainsaw.Cp1021MainMenuBGGuiBehavior")
-        if bg_type ~= nil then
-            for _, method in ipairs(bg_type:get_methods() or {}) do
-                local method_name = nil
-                pcall(function() method_name = method:get_name() end)
-                if method_name == "isUnlock" then
-                    local action_stack = {}
-                    safe_hook_unique(method, function(args)
-                        action_stack[#action_stack + 1] = decode_action(args[3]) or -1
-                    end, function(retval)
-                        local action = action_stack[#action_stack]
-                        action_stack[#action_stack] = nil
-                        if action == nil or not should_enforce_gating() then return retval end
-                        return answer_unlock("Cp1021MainMenuBGGuiBehavior", "stage",
-                            action - STAGE_ACTION_OFFSET, retval)
-                    end)
-                end
-            end
-        end
-
         -- [Menu art] Reach the functions that actually paint the tiles and the
         -- portrait strips. MOD -128 answered every unlock question the menus
         -- ask and the NAME and the big preview followed, but the tiles and both
@@ -2441,22 +2366,6 @@ local function install(ctx)
         -- corrected outright. The rest only report, because their vocabulary is
         -- not in the dump and inventing a state name that does not exist would
         -- leave a panel with no state at all.
-        -- A System.String return does not always read back through the
-        -- managed wrapper. Say when it does not, so a missing line is never
-        -- mistaken for a method that was never called.
-        local function read_returned_string(retval, label)
-            local name = nil
-            local ok = pcall(function()
-                local text = sdk.to_managed_object(retval)
-                if text ~= nil then name = text:call("ToString") end
-            end)
-            if not ok or type(name) ~= "string" then
-                log_art("unreadable|" .. label, label .. " returned a string we could not read")
-                return nil
-            end
-            return name
-        end
-
         local function hook_by_name(type_name, method_name, pre, post)
             local type_def = sdk.find_type_definition(type_name)
             if type_def == nil then
@@ -2516,44 +2425,6 @@ local function install(ctx)
         hook_by_name("chainsaw.Cp1021StageSelectGuiBehavior.PanelStage", "setStageTexture", function(args)
             if not should_enforce_gating() then return sdk.PreHookResult.CALL_ORIGINAL end
             pcall(function() correct_stage_params(sdk.to_managed_object(args[3]), "setStageTexture") end)
-            return sdk.PreHookResult.CALL_ORIGINAL
-        end, function(retval) return retval end)
-
-        -- The state string that paints the padlock, reported for its vocabulary.
-        do
-            local stage_num_stack = {}
-            hook_by_name("chainsaw.Cp1021StageSelectGuiBehavior.PanelStage", "getStateName", function(args)
-                stage_num_stack[#stage_num_stack + 1] = decode_action(args[3]) or -1
-            end, function(retval)
-                local stage_num = stage_num_stack[#stage_num_stack]
-                stage_num_stack[#stage_num_stack] = nil
-                local name = read_returned_string(retval, "PanelStage.getStateName")
-                if name ~= nil then
-                    log_art("getStateName|" .. tostring(stage_num) .. "|" .. name,
-                        string.format("PanelStage.getStateName(%s) -> %s (AP says %s)",
-                            tostring(stage_num), name, tostring(ap_says_stage(stage_num))))
-                end
-                return retval
-            end)
-        end
-
-        -- The stage screen's character portraits: this one is HANDED the lock
-        -- flag and picks UVSettingDefault or UVSettingLock from it, so setting
-        -- the argument is the whole fix if this is what draws them.
-        hook_by_name("chainsaw.Cp1021StageSelectGuiBehavior", "getCharacterUVSetting", function(args)
-            if not should_enforce_gating() then return sdk.PreHookResult.CALL_ORIGINAL end
-            pcall(function()
-                local action = decode_action(args[3]) or -1
-                local was = (decode_action(args[4]) or 0) ~= 0
-                local kind = character_kind_of_action(action)
-                local ours = ap_says_character(kind)
-                if ours ~= nil then
-                    args[4] = sdk.to_ptr(ours and 1 or 0)
-                    log_art(string.format("uv|%d|%s|%s", kind, tostring(was), tostring(ours)),
-                        string.format("getCharacterUVSetting(action %d = character %d): was %s, set %s",
-                            action, kind, tostring(was), tostring(ours)))
-                end
-            end)
             return sdk.PreHookResult.CALL_ORIGINAL
         end, function(retval) return retval end)
 
@@ -2715,44 +2586,11 @@ local function install(ctx)
                 return sdk.PreHookResult.CALL_ORIGINAL
             end, function(retval) return retval end)
 
-        -- Reported only, so one visit says which of these builds the strip.
-        for _, entry in ipairs({
-            { "chainsaw.Cp1021CharacterSelectGuiBehavior", "updateSelectCharacterList", false },
-            { "chainsaw.Cp1021CharacterSelectGuiBehavior", "loadTexture", true },
-            { "chainsaw.Cp1021CharacterSelectGuiBehavior", "getTextureSubCharacter", true },
-            { "chainsaw.Cp1021CharacterSelectGuiBehavior.PanelThumbList", "set", false },
-            { "chainsaw.Cp1021StageSelectGuiBehavior", "getStageUVSetting", true },
-        }) do
-            local type_name, method_name, takes_action = entry[1], entry[2], entry[3]
-            hook_by_name(type_name, method_name, function(args)
-                pcall(function()
-                    local action = takes_action and (decode_action(args[3]) or -1) or nil
-                    log_art(method_name .. "|" .. tostring(action),
-                        string.format("%s called%s", method_name,
-                            action ~= nil and (" with action " .. tostring(action)) or ""))
-                end)
-                return sdk.PreHookResult.CALL_ORIGINAL
-            end, function(retval) return retval end)
-        end
-
         hook_by_name("chainsaw.Cp1021StageSelectGuiBehavior", "setRecord", function(args)
             if not should_enforce_gating() then return sdk.PreHookResult.CALL_ORIGINAL end
             pcall(function() align_record_uvs(sdk.to_managed_object(args[2])) end)
             return sdk.PreHookResult.CALL_ORIGINAL
         end, function(retval) return retval end)
-
-        -- The big preview's silhouette state, reported for its vocabulary.
-        hook_by_name("chainsaw.Cp1021CharacterSelectGuiBehavior.PanelImage",
-            "getImageColorStateName",
-            function() return sdk.PreHookResult.CALL_ORIGINAL end,
-            function(retval)
-                local name = read_returned_string(retval, "PanelImage.getImageColorStateName")
-                if name ~= nil then
-                    log_art("imageColor|" .. name,
-                        "PanelImage.getImageColorStateName -> " .. name)
-                end
-                return retval
-            end)
 
         -- [Result screen] The screen's _UnlockNoticeList is ours while the
         -- gate is armed: the vanilla "unlocked <character> / <stage>" lines

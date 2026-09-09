@@ -1,4 +1,4 @@
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
 namespace RE4R.AP.Launcher.Core.Models;
 
@@ -47,10 +47,12 @@ public sealed class LauncherSettings
     public string DismissedLauncherUpdate { get; set; } = string.Empty;
 
     /// <summary>
-    /// Lets the settings screen offer Separate Ways while it is unfinished.
-    /// Off unless someone has hand-edited this file, which is the point: it is
-    /// for testing the settings file a Separate Ways slot needs, and a room
-    /// made from one cannot be patched or played yet.
+    /// Lets the settings screen offer Separate Ways, which is HELD OUT of this
+    /// release. Off unless someone has hand-edited this file, which is the
+    /// point. Ada's campaign generates, patches and plays as of 2026-09-07,
+    /// but she has no typewriter warps and no merchant, so it is not shipped.
+    /// The apworld refuses the content as well: generating from a yaml this
+    /// flag produced needs RE4R_AP_ALLOW_SEPARATE_WAYS set in the environment.
     ///
     /// A flag rather than a hidden key sequence, so that it shows up in this
     /// file and in the launcher log. A room built with it on has to be
