@@ -61,6 +61,8 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     private bool _minimizeBacktracking;
     private bool _randomEvents;
     private int _merchantChecksPerChapter = 3;
+    private int _tradeChecksPerChapter = 3;
+    private bool _tradeChecksEnabled = true;
     private bool _merchantChecksEnabled = true;
     private bool _tutorial = true;
     private string _yamlPreview = "Enter your slot name to generate the YAML preview.";
@@ -459,6 +461,12 @@ public sealed class ConfigureYamlViewModel : ObservableObject
                     MerchantChecksEnabled = true;
                 }
 
+                // The Trade takeover rides this switch, so its row has to
+                // re-read: with the gear shuffle off, Trade is not merely
+                // unset, it is unavailable, and the label says so.
+                OnPropertyChanged(nameof(TradeChecksLabel));
+                OnPropertyChanged(nameof(TradeChecksPerChapterEffective));
+
                 RebuildYamlPreview();
                 QueueDraftSave();
             }
@@ -569,6 +577,64 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     /// derived total cannot drift from what the world will actually accept.
     /// </summary>
     public const int MerchantChecksPerChapterMax = 6;
+
+    /// <summary>
+    /// How many Trade-tab checks release each chapter. Same shape as the shop
+    /// slider next to it, because they are two halves of one merchant.
+    /// </summary>
+    public int TradeChecksPerChapter
+    {
+        get => _tradeChecksPerChapter;
+        set
+        {
+            var clamped = Math.Clamp(value, 0, TradeChecksPerChapterMax);
+            if (SetProperty(ref _tradeChecksPerChapter, clamped))
+            {
+                OnPropertyChanged(nameof(TradeChecksLabel));
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
+
+    /// <summary>
+    /// On/off for the Trade tab's checks, so turning it off is not hunting for
+    /// zero on a slider and turning it back on remembers the number.
+    /// </summary>
+    public bool TradeChecksEnabled
+    {
+        get => _tradeChecksEnabled;
+        set
+        {
+            if (SetProperty(ref _tradeChecksEnabled, value))
+            {
+                OnPropertyChanged(nameof(TradeChecksLabel));
+                OnPropertyChanged(nameof(TradeChecksPerChapterEffective));
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
+
+    /// <summary>
+    /// The apworld's cap. Three per chapter is also the whole superset, so
+    /// unlike the shop's six this default sits AT the ceiling.
+    /// </summary>
+    public const int TradeChecksPerChapterMax = 3;
+
+    /// <summary>What actually reaches the YAML, dependency included.</summary>
+    public int TradeChecksPerChapterEffective =>
+        _tradeChecksEnabled && ShuffleMerchantGear ? _tradeChecksPerChapter : 0;
+
+    /// <summary>Slider read-out, e.g. "3 per chapter (45 checks this seed)".</summary>
+    public string TradeChecksLabel =>
+        !ShuffleMerchantGear
+            ? "Off - the Trade takeover needs Merchant Gear"
+            : !_tradeChecksEnabled
+                ? "Off - the tab stays a pure currency exchange"
+                : $"{_tradeChecksPerChapter} per chapter "
+                  + $"({_tradeChecksPerChapter * MerchantCheckChapters} checks this seed)";
+
 
     private const int MerchantCheckChapters = 15;
 
@@ -918,6 +984,11 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         var draftMerchantRate = draft.MerchantChecksPerChapter;
         MerchantChecksEnabled = draftMerchantRate is null || draftMerchantRate > 0;
         MerchantChecksPerChapter = draftMerchantRate is > 0 ? draftMerchantRate.Value : 3;
+        // Null means a draft from before the control existed: take the
+        // apworld default rather than reading absence as off.
+        var draftTradeRate = draft.TradeChecksPerChapter;
+        TradeChecksEnabled = draftTradeRate is not 0;
+        TradeChecksPerChapter = draftTradeRate is > 0 ? draftTradeRate.Value : 3;
         Tutorial = draft.Tutorial;
         var selected = new HashSet<string>(draft.UnlockedTypewriterStageIds, StringComparer.Ordinal);
         foreach (var option in TypewriterOptions)
@@ -974,6 +1045,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
                 draft.MinimizeBacktracking = MinimizeBacktracking;
                 draft.RandomEvents = RandomEvents;
                 draft.MerchantChecksPerChapter = MerchantChecksEnabled ? MerchantChecksPerChapter : 0;
+                draft.TradeChecksPerChapter = TradeChecksPerChapterEffective;
                 draft.Tutorial = Tutorial;
                 draft.UnlockedTypewriterStageIds = TypewriterOptions
                     .Where(option => option.IsSelected)
@@ -1017,6 +1089,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             MinimizeBacktracking = MinimizeBacktracking,
             RandomEvents = RandomEvents,
             MerchantChecksPerChapter = MerchantChecksEnabled ? MerchantChecksPerChapter : 0,
+            TradeChecksPerChapter = TradeChecksPerChapterEffective,
             MerchantChecks = SelectedMerchantChecks.Value,
             Tutorial = Tutorial,
             UnlockedTypewriterStageIds = TypewriterOptions

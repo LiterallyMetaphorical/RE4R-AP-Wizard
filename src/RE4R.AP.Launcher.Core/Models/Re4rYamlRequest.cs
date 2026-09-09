@@ -62,6 +62,12 @@ public sealed class Re4rYamlRequest
     // times the campaign's 15 releasing chapters.
     public int MerchantChecksPerChapter { get; set; }
 
+    /// <summary>
+    /// [Trade takeover] Trade-tab checks per chapter, 0-3. Requires
+    /// <see cref="ShuffleMerchantGear"/>, which the builder enforces.
+    /// </summary>
+    public int TradeChecksPerChapter { get; set; } = 3;
+
     public IReadOnlyCollection<string> UnlockedTypewriterStageIds { get; set; } = Array.Empty<string>();
 
     // Archipelago's per-game item/location options (Amondo's request, 2026-08).

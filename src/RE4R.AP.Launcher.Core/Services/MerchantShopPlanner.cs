@@ -59,18 +59,49 @@ public static class MerchantShopPlanner
     };
 
     /// <summary>
-    /// How many of the stand-in ids can actually carry a shelf row. The table
-    /// holds 24, but only the front 20 are clean: a pak built on all 24 crashes
-    /// RE4R at startup, six seconds in, before the mod loads (proven
-    /// 2026-08-17). Rotation removed the need for more - one row now carries
-    /// several checks - so this number is the DISPLAY window, not a ceiling on
-    /// how many checks a seed can hold.
+    /// How many stand-in ids are SAFE to mint. The table holds 24, but only
+    /// the front 20 are clean: a pak built on all 24 crashes RE4R at startup,
+    /// six seconds in, before the mod loads (proven 2026-08-17). Treat this as
+    /// a hard ceiling on the two windows below COMBINED, not as a suggestion.
     /// </summary>
-    public const int MaxDisplayRows = 20;
+    public const int SafeStandinCount = 20;
+
+    /// <summary>
+    /// How many of the safe ids carry a BUY-tab shelf row.
+    ///
+    /// Was 20 - the whole safe pool - until the Trade takeover needed
+    /// stand-ins of its own (MERCHANT_TRADE_DESIGN.md 4.6.9). A trade slot
+    /// showing a REMOTE check has no RE4R item id to display, exactly like a
+    /// shelf row, and the two tabs cannot share an id: the mod's runtime
+    /// name/caption overwrite is keyed by ITEM ID, so one id showing check A
+    /// on the shelf and check B in Trade would show one text on both.
+    ///
+    /// So the safe pool is PARTITIONED rather than stretched. Cam, 2026-08-31:
+    /// partition now so Trade reaches a live test this cycle, then mine more
+    /// cut ids from the ItemID enum afterwards to give the shelf its rows
+    /// back. Rotation means this is a display window, not a ceiling on checks
+    /// - a room can still carry 90 - so a smaller window queues deeper rather
+    /// than losing anything.
+    /// </summary>
+    public const int MaxDisplayRows = 13;
+
+    /// <summary>
+    /// How many safe ids carry a TRADE-tab check slot. The rest of that tab is
+    /// real items needing no stand-in (Velvet Blue plus the three gems), so
+    /// this covers the rotating check window only.
+    /// </summary>
+    public const int MaxTradeSlots = SafeStandinCount - MaxDisplayRows;
 
     /// <summary>The clean front of the table, in row order.</summary>
     public static readonly IReadOnlyList<int> RowItemIds =
         StandinItemIds.Take(MaxDisplayRows).ToArray();
+
+    /// <summary>
+    /// The trade tab's slice, disjoint from <see cref="RowItemIds"/> by
+    /// construction so the two tabs can never collide on an id.
+    /// </summary>
+    public static readonly IReadOnlyList<int> TradeSlotItemIds =
+        StandinItemIds.Skip(MaxDisplayRows).Take(MaxTradeSlots).ToArray();
 
     public static MerchantShopPlan Plan(MerchantShopSlotData shop)
     {

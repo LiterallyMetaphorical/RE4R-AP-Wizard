@@ -137,6 +137,7 @@ public sealed class ManifestBuilder
         var realRe4rCount = 0;
         var skippedNoGuidCount = 0;
         var shopSlotSkippedCount = 0;
+        var tradeCheckSkippedCount = 0;
 
         foreach (var scoutedLocation in scoutSession.Locations.OrderBy(location => location.LocationId))
         {
@@ -145,6 +146,19 @@ public sealed class ManifestBuilder
             if (staticData.ShopSlots.ContainsKey(scoutedLocation.LocationId))
             {
                 shopSlotSkippedCount++;
+                continue;
+            }
+
+            // Trade checks are the same: no world spot, carried by the
+            // ap-trade-shop section instead. Without this they fell through to
+            // the world-location lookup below and the patch died on "the
+            // bundled RE4R world data did not contain AP location id ..." -
+            // which reads as a version mismatch and is not one. The bundle
+            // knew the id perfectly well; this loop just was not asking the
+            // right table. Caught by Cam's first patch, 2026-09-01.
+            if (staticData.TradeChecks.ContainsKey(scoutedLocation.LocationId))
+            {
+                tradeCheckSkippedCount++;
                 continue;
             }
 
@@ -182,16 +196,20 @@ public sealed class ManifestBuilder
         // placement, an explicitly counted no-GUID skip, or a shop slot the
         // shop plan owns; a shortfall means scouted data silently failed to
         // map.
-        if (placements.Count + skippedNoGuidCount + shopSlotSkippedCount != scoutSession.Locations.Count)
+        if (placements.Count + skippedNoGuidCount + shopSlotSkippedCount + tradeCheckSkippedCount
+            != scoutSession.Locations.Count)
         {
             throw new ManifestBuildException(
-                $"The AP manifest mapped {placements.Count} GUID placements (+{skippedNoGuidCount} no-GUID skips, +{shopSlotSkippedCount} shop slots) from {scoutSession.Locations.Count} scouted locations. The bundled world data does not match the room.");
+                $"The AP manifest mapped {placements.Count} GUID placements (+{skippedNoGuidCount} no-GUID skips, "
+                + $"+{shopSlotSkippedCount} shop slots, +{tradeCheckSkippedCount} trade checks) from "
+                + $"{scoutSession.Locations.Count} scouted locations. The bundled world data does not match the room.");
         }
 
         Log($"{placements.Count} GUID-backed locations mapped into BioRand ap-placements.");
         Log(
             $"{placeholderCount} placeholder items, {realRe4rCount} real RE4R items, " +
-            $"{skippedNoGuidCount} no-GUID locations skipped, {shopSlotSkippedCount} shop slot(s) left to the shop plan.");
+            $"{skippedNoGuidCount} no-GUID locations skipped, {shopSlotSkippedCount} shop slot(s) left to the shop plan, "
+            + $"{tradeCheckSkippedCount} trade check(s) left to the trade plan.");
         Log("AP manifest JSON is ready for BioRand generation.");
 
         var plannedShopSlots = MerchantShopPlanner.Plan(scoutSession.MerchantShop);
@@ -474,9 +492,23 @@ public sealed class ManifestBuilder
         // strip and slot bake need no launcher release in lockstep.
         if (tradeShop.Enabled)
         {
+            // The tab's display window, planned the same way the shelf's is:
+            // stand-in ids with a BAKED spinel price, and a stable message
+            // GUID per check so the fork can bake its text without the mod
+            // inventing strings. See TradeShopPlanner.
+            var tradePlan = TradeShopPlanner.Plan(tradeShop);
+            var plannedByIdentity = tradePlan.Checks.ToDictionary(
+                entry => entry.Check.Identity, StringComparer.Ordinal);
+
             var tradeChecks = new JsonArray();
             foreach (var check in tradeShop.Checks)
             {
+                // A check the planner dropped (duplicate identity) has no
+                // baked text and must not reach the fork claiming to.
+                if (!plannedByIdentity.TryGetValue(check.Identity, out var planned))
+                {
+                    continue;
+                }
                 tradeChecks.Add(new JsonObject
                 {
                     ["identity"] = check.Identity,
@@ -490,6 +522,21 @@ public sealed class ManifestBuilder
                     ["player-name"] = check.PlayerName,
                     ["remote"] = check.Remote,
                     ["item-id"] = check.ItemId,
+                    ["name-msg-guid"] = planned.NameMsgGuid.ToString(),
+                    ["caption-msg-guid"] = planned.CaptionMsgGuid.ToString(),
+                });
+            }
+
+            var tradeSlots = new JsonArray();
+            foreach (var slot in tradePlan.Slots)
+            {
+                tradeSlots.Add(new JsonObject
+                {
+                    ["item-id"] = slot.ItemId,
+                    // Fixed per slot so the pak can carry the price. The mod
+                    // only ever shows a check of this tier here.
+                    ["tier"] = slot.Tier,
+                    ["price-spinel"] = slot.PriceSpinel,
                 });
             }
 
@@ -515,8 +562,14 @@ public sealed class ManifestBuilder
                 ["gems"] = gems,
                 ["spinel-item-id"] = tradeShop.SpinelItemId,
                 ["stripped-item-ids"] = strippedTradeIds,
+                // The rotating check window: stand-in ids the fork mints
+                // reward slots for, disjoint from the shelf's rows.
+                ["slots"] = tradeSlots,
                 ["checks"] = tradeChecks,
             };
+
+            Log($"Merchant trades {tradePlan.Count} AP check(s) across "
+                + $"{tradePlan.Slots.Count} trade slot(s).");
         }
 
         // 4b. Weapon character rides with the multiworld's weapons: the

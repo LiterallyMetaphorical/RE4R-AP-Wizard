@@ -104,6 +104,14 @@ public sealed class PendingSessionDraft
     [JsonPropertyName("merchant_checks_per_chapter")]
     public int? MerchantChecksPerChapter { get; set; }
 
+    /// <summary>
+    /// [Trade takeover] How many Trade-tab checks release each chapter.
+    /// Null on a draft written before the control existed, which reads as
+    /// the apworld default rather than as off.
+    /// </summary>
+    [JsonPropertyName("trade_checks_per_chapter")]
+    public int? TradeChecksPerChapter { get; set; }
+
     // Default TRUE so drafts saved before this option existed keep the guide
     // on, matching the apworld default.
     [JsonPropertyName("tutorial")]

@@ -53,20 +53,19 @@ public sealed class Re4rYamlBuilder
             { "tutorial", request.Tutorial ? "true" : "false" },
         };
 
-        // [Trade takeover, Phase 2] The apworld's trade_checks_per_chapter
-        // defaults to 1 and REFUSES to generate without shuffle_merchant_gear
-        // (the takeover strips the vanilla tab, so trade checks without the
-        // shuffle would sell against a tab BioRand still owns). No Trade
-        // control on the launcher yet, so a gear-off yaml would carry no such
-        // line at all, inherit that default, and fail generation - a blocker
-        // the player could not see or fix. Pin it to 0 exactly the way
-        // ConfigureYamlViewModel already pins starting_arsenal for the same
-        // dependency. When the shuffle IS on the key stays absent, so the
-        // apworld default applies and old YAMLs do not churn.
-        if (!request.ShuffleMerchantGear)
-        {
-            gameOptions.Add("trade_checks_per_chapter", "0");
-        }
+        // [Trade takeover, Phase 2] Always emitted now that the options
+        // screen owns it. The apworld REFUSES to generate with trade checks
+        // and no shuffle_merchant_gear (the takeover strips the vanilla tab,
+        // so trade checks without the shuffle would sell against a tab BioRand
+        // still owns), so the dependency is forced here rather than left for a
+        // player to discover: gear off means Trade off, the same way
+        // ConfigureYamlViewModel already forces starting_arsenal to 0.
+        var tradeChecks = request.ShuffleMerchantGear
+            ? Math.Clamp(request.TradeChecksPerChapter, 0, 3)
+            : 0;
+        gameOptions.Add(
+            "trade_checks_per_chapter",
+            tradeChecks.ToString(System.Globalization.CultureInfo.InvariantCulture));
 
         var unlockedTypewriters = new YamlSequenceNode(
             request.UnlockedTypewriterStageIds

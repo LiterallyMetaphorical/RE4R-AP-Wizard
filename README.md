@@ -21,7 +21,8 @@
 
 ## What gets randomized
 
-- **467 item locations** across the full Leon campaign, chapters 1 to 16. Includes Key Items with logic to ensure they spawn before you need them.
+- **456 item locations** across the full Leon campaign, chapters 1 to 16. Includes Key Items with logic to ensure they spawn before you need them.
+- **The merchant sells multiworld checks** on both his tabs: the shop for pesetas and the trade tab for spinel, each on by default at 3 a chapter (45 a seed each). See [The merchant](#the-merchant).
 - Other players' items appear as Archipelago-logo pickups. Collecting one sends its check and puts nothing in your inventory. Your own items are collected normally.
 - Locations that cannot be collected in game are excluded from the pool, so nothing gets stranded on them.
 
@@ -41,6 +42,59 @@ would change the set of checks, or create a softlock, are locked out.
 > YAML setting only when you want it: generation picks the event set, models its
 > room changes in logic, and the launcher applies that authoritative roll when
 > patching. It requires item and enemy randomization, so both are forced on.
+
+## The merchant
+
+The merchant is a second source of checks, and by default he is part of the run
+rather than an option you go looking for. Both of his tabs hold checks now: the
+shop, paid in pesetas, and the trade tab, paid in spinel.
+
+**Merchant Shop Checks.** His buy tab holds Archipelago checks. Three a chapter
+by default, forty-five a seed, up to ninety at the cap. His shelf shows thirteen
+at a time and the rest queue behind them, moving up as you buy, so a check is
+never lost. Each row names what it really is and who it belongs to, then reads
+SOLD OUT once bought.
+
+Prices are fixed by tier - 5,000 filler, 7,000 useful, 9,000 progression - and
+buying another player's item hands you back a gemstone worth exactly what you
+paid. You need the money, but you never lose it. Your own items are normal
+spending.
+
+You can set who the rows may hold: **Mixed** lets the multiworld decide,
+**Local** keeps your own items on the shelf, and **Remote** turns the shop into
+a trading post where every row belongs to somebody else.
+
+**Merchant Trade Checks.** His trade tab holds checks too, bought with spinel
+instead of pesetas. Three a chapter by default, forty-five a seed. Seven slots
+show at once, and a claimed slot rotates to the next check straight away, so the
+tab keeps offering something as long as checks remain.
+
+Spinel prices are fixed by tier as well - 1 filler, 3 useful, 6 progression -
+and the item pool mints exactly enough spinel to pay for every trade check in
+the seed, so the tab is always affordable. The nineteen Merchant Requests still
+pay their spinel on top of that.
+
+Two things work differently here. Trade checks never refund, and the owners
+setting does not apply to them, so the trade tab is always mixed no matter what
+you chose for the shelf.
+
+The currency exchange is there whatever rate you set, zero included: Velvet Blue
+always available at 2 spinel, and the three gemstones at 3, 4 and 5, restocking
+every chapter. Leftover spinel still turns into money.
+
+**Merchant Gear.** On by default. His weapons, attachments, case sizes and
+crafting recipes leave the buy tab and join the multiworld, the Deluxe and
+Separate Ways guns included. Your next gun is a check somewhere out there,
+possibly in another player's world. Expect a different power curve. Gear never
+gates logic, so a seed can always be finished with what the world hands you.
+
+Consumable supplies stay: herbs, first aid, resources, gunpowder and grenades
+restock at every chapter. Ammo deliberately does not, because you craft it and
+the multiworld now carries it.
+
+**Starting Arsenal.** Two pool weapons in your case from the campaign's first
+moment, with ammo to match. Each one leaves the pool, so nobody finds a second
+copy. Set it to zero if you would rather start with nothing.
 
 ## What You Need
 
@@ -102,10 +156,25 @@ A check is only forgotten locally once the server acknowledges it, so a dropped 
 
 ## Known issues
 
+**Some pickups grant the item and send nothing.** Roughly one in twenty, and
+this is the one to know about because it is silent. **The tell: if an
+Archipelago-logo placeholder lands in your inventory, that check did not send** -
+a placeholder is meant to vanish on pickup. Nothing is permanently lost.
+**Force Check** in the Something's Wrong tab sends it, one location at a time.
+If it happens, please send `re2_framework_log.txt` grabbed WITHOUT relaunching
+the game, since it is overwritten every launch. This build carries a diagnostic
+that names the cause, so a single report is worth a lot right now.
+
+Smaller things:
+
+- Merchant row icons can look stretched. Known, cosmetic, cause not confirmed.
+- Per-check descriptions do not display; every check row shares one caption.
+- The merchant backlog is only in the log, not on screen.
+- A summoned boat may face an odd direction at its pier.
 - An inbound DeathLink shows the game-over screen with no death animation.
-- Some overlay counters can briefly disagree with the server
-- RE4R AP has recently still struggled with missing item placements if you find one, please send a screenshot of the item (With Developer type Markers enabled, ideally) and describe where you are.
-- If a Marker points at nothing, please also report that in the same way.
+- Some overlay counters can briefly disagree with the server.
+- If a Marker points at nothing, please report it with a screenshot (Developer
+  marker detail enabled, ideally) and where you were standing.
 
 ## In-Game
 

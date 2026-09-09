@@ -1315,6 +1315,12 @@ public sealed class LaunchWorkflowService
                     // room has no shop checks; the mod then leaves the
                     // merchant alone.
                     var plannedShopSlots = MerchantShopPlanner.Plan(scoutResult.MerchantShop);
+                    // [Trade takeover, Phase 2] Planned here as well as in
+                    // ManifestBuilder so the room file and the pak describe the
+                    // SAME slots: the planner is deterministic, so both calls
+                    // agree by construction rather than by convention.
+                    var plannedTradeShop = TradeShopPlanner.Plan(scoutResult.TradeShop);
+                    var plannedTradeChecks = plannedTradeShop.Checks;
                     var merchantShop = plannedShopSlots.Count == 0
                         ? null
                         : new
@@ -1411,10 +1417,11 @@ public sealed class LaunchWorkflowService
                         // it when it lands. Null when the room has no trade
                         // block, which leaves the tab exactly as BioRand made
                         // it.
-                        trade_shop = !scoutResult.TradeShop.Enabled
+                        trade_shop = !plannedTradeChecks.Any()
                             ? null
                             : (object)new
                             {
+                                enabled = true,
                                 velvet_blue_spinel = scoutResult.TradeShop.VelvetBlueSpinel,
                                 spinel_item_id = scoutResult.TradeShop.SpinelItemId,
                                 spinel_pool_total = scoutResult.TradeShop.SpinelPoolTotal,
@@ -1426,20 +1433,38 @@ public sealed class LaunchWorkflowService
                                         spinel = pair.Value.Spinel,
                                     }),
                                 shuffled_trade_item_ids = scoutResult.TradeShop.ShuffledTradeItemIds,
-                                checks = scoutResult.TradeShop.Checks.Select(check => new
+                                // The rotating display window. The mod cannot
+                                // derive these: the stand-in ids are the
+                                // launcher's assignment and the price is baked
+                                // per slot, so a slot may only ever show a
+                                // check of its own tier.
+                                slots = plannedTradeShop.Slots.Select(slot => new
                                 {
-                                    identity = check.Identity,
-                                    location_code = check.LocationCode,
-                                    release_index = check.ReleaseIndex,
-                                    chapter = check.Chapter,
-                                    chapter_ordinal = check.ChapterOrdinal,
-                                    price_spinel = check.PriceSpinel,
-                                    tier = check.Tier,
-                                    display_name = check.DisplayName,
-                                    player_name = check.PlayerName,
-                                    remote = check.Remote,
-                                    item_id = check.ItemId,
-                                    item_stack = check.ItemStack,
+                                    item_id = slot.ItemId,
+                                    tier = slot.Tier,
+                                    price_spinel = slot.PriceSpinel,
+                                }).ToArray(),
+                                checks = plannedTradeShop.Checks.Select(planned => new
+                                {
+                                    identity = planned.Check.Identity,
+                                    location_code = planned.Check.LocationCode,
+                                    release_index = planned.Check.ReleaseIndex,
+                                    chapter = planned.Check.Chapter,
+                                    chapter_ordinal = planned.Check.ChapterOrdinal,
+                                    price_spinel = planned.Check.PriceSpinel,
+                                    tier = planned.Check.Tier,
+                                    cumulative_spinel = planned.Check.CumulativeSpinel,
+                                    display_name = planned.Check.DisplayName,
+                                    player_name = planned.Check.PlayerName,
+                                    remote = planned.Check.Remote,
+                                    item_id = planned.Check.ItemId,
+                                    item_stack = planned.Check.ItemStack,
+                                    // The fork baked this check's text at these
+                                    // GUIDs; the mod points a slot at them when
+                                    // that slot starts showing this check, so
+                                    // neither side invents a string.
+                                    name_msg_guid = planned.NameMsgGuid.ToString(),
+                                    caption_msg_guid = planned.CaptionMsgGuid.ToString(),
                                 }).ToArray(),
                             },
                         enemy_gates = enemyGates,

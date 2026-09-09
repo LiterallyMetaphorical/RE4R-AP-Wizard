@@ -807,7 +807,27 @@
                                            Text="{Binding MerchantChecksLabel}" />
                             </StackPanel>
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="On by default, at 3 a chapter (45 checks a seed). The merchant releases this many Archipelago checks each chapter. His shelf shows twenty at a time and the rest queue behind them, moving up as you buy - a check is never lost, and the backlog is shown on screen. Each row names what it really is and who it belongs to, then reads SOLD OUT once bought. Prices are fixed by tier - 5,000 filler / 7,000 useful / 9,000 progression - and buying another player's item hands you back a gemstone worth exactly what you paid, so you need the money but never lose it. Your own items are normal spending. Every check also puts an item into the multiworld weighted toward what the merchant used to stock: healing, Resources, gunpowder and ammo." />
+                                       Text="On by default, at 3 a chapter (45 checks a seed). The merchant releases this many Archipelago checks each chapter. His shelf shows thirteen at a time and the rest queue behind them, moving up as you buy - a check is never lost, and the backlog is shown on screen. Each row names what it really is and who it belongs to, then reads SOLD OUT once bought. Prices are fixed by tier - 5,000 filler / 7,000 useful / 9,000 progression - and buying another player's item hands you back a gemstone worth exactly what you paid, so you need the money but never lose it. Your own items are normal spending. Every check also puts an item into the multiworld weighted toward what the merchant used to stock: healing, Resources, gunpowder and ammo." />
+                            <CheckBox Margin="0,16,0,0"
+                                      Content="Let the merchant trade multiworld checks for Spinel"
+                                      IsChecked="{Binding TradeChecksEnabled}"
+                                      IsEnabled="{Binding ShuffleMerchantGear}" />
+                            <StackPanel Margin="0,6,0,0"
+                                        Orientation="Horizontal"
+                                        IsEnabled="{Binding TradeChecksEnabled}">
+                                <Slider Width="220"
+                                        VerticalAlignment="Center"
+                                        IsSnapToTickEnabled="True"
+                                        Maximum="3"
+                                        Minimum="1"
+                                        TickFrequency="1"
+                                        Value="{Binding TradeChecksPerChapter}" />
+                                <TextBlock Margin="10,0,0,0"
+                                           VerticalAlignment="Center"
+                                           Text="{Binding TradeChecksLabel}" />
+                            </StackPanel>
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="His TRADE tab, the one that takes Spinel. On by default at 3 a chapter (45 checks a seed), the same lever shape as the shelf above because they are two halves of one merchant. Prices are in Spinel and fixed by tier - 1 filler / 3 useful / 6 progression - and the seed mints exactly enough Spinel to afford every one of them, so the tab always pays for itself. Trade checks never refund. The tab keeps its exchange either way: an endless Velvet Blue, three gems that restock as the chapters pass, and the game's own Gold Token row untouched. Turning this off leaves that exchange and nothing else, which is a fine way to play - the vanilla trade stock still goes into the multiworld while Merchant Gear is on. Needs Merchant Gear: the takeover is what empties the tab in the first place." />
                             <TextBlock Margin="0,10,0,0"
                                        Text="Merchant checks" />
                             <ListBox ItemsSource="{Binding MerchantChecksOptions}"

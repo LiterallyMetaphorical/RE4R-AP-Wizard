@@ -331,6 +331,23 @@ internal sealed class MainWindow : Window
         });
         left.Children.Add(Label("Merchant checks"));
         left.Children.Add(Combo("MerchantChecksOptions", "SelectedMerchantChecks", "Label"));
+        // [Trade takeover] The other half of the merchant. Same shape as the
+        // shelf slider above; the view model forces it to 0 when the gear
+        // shuffle is off, because the takeover is what empties the tab.
+        left.Children.Add(Label("Trade checks per chapter"));
+        left.Children.Add(Text("TradeChecksLabel"));
+        var tradeRow = new StackPanel { Spacing = 6 };
+        tradeRow.Children.Add(Check("Let the merchant trade checks for Spinel", "TradeChecksEnabled"));
+        tradeRow.Children.Add(new Slider
+        {
+            Minimum = 0,
+            Maximum = 3,
+            IsSnapToTickEnabled = true,
+            TickFrequency = 1,
+            [!RangeBase.ValueProperty] = Binding("TradeChecksPerChapter", BindingMode.TwoWay),
+        });
+        tradeRow.Bind(IsEnabledProperty, Binding("ShuffleMerchantGear"));
+        left.Children.Add(tradeRow);
         left.Children.Add(Check("Shuffle merchant gear into the multiworld", "ShuffleMerchantGear"));
         var arsenalRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         arsenalRow.Children.Add(new TextBlock { Text = "Starting arsenal:", VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center });
