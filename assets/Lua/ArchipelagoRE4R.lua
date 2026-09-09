@@ -54,6 +54,9 @@ dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_warning.lua")(ctx)
 -- [Theme] The window's shared look and layout helpers; before every module
 -- that draws a tab.
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_theme.lua")(ctx)
+-- [Customize] The player's two colours; reads ui_prefs.json and repaints the
+-- theme before any tab draws.
+dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_customize.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_windows.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_checks.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_guidance.lua")(ctx)

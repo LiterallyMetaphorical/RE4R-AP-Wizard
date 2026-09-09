@@ -759,6 +759,22 @@
                                    Text="YOUR SLOT" />
                     </Border>
                     <WrapPanel MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}, Converter={StaticResource ColumnSnapConverter}, ConverterParameter=550}">
+                        <!-- Slot Name first, then what the slot plays, then the
+                             difficulty (Cam, 2026-09-05). Each included content
+                             gets its own section below, The Merchant style. -->
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Slot Name" />
+                            <TextBox Text="{Binding SlotName, UpdateSourceTrigger=PropertyChanged}"
+                                     MaxLength="32" />
+                            <TextBlock Margin="0,4,0,0"
+                                       Foreground="{DynamicResource DangerTextBrush}"
+                                       TextWrapping="Wrap"
+                                       Visibility="{Binding HasSlotNameError, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                       Text="{Binding SlotNameError}" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Your in-game player name (16 characters max). You'll type this exact name when joining - capitalization matters." />
+                        </StackPanel>
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="Included Content" />
@@ -783,30 +799,7 @@
                                        Visibility="{Binding HasIncludedContentError, Converter={StaticResource BooleanToVisibilityConverter}}"
                                        Text="{Binding IncludedContentError}" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="What this slot plays. Main Campaign is Leon's story with BioRand. Mercenaries turns the mode's ranks into checks and its characters and stages into items, on its own or alongside the campaign. A Mercenaries-only slot needs no campaign patch." />
-                        </StackPanel>
-                        <StackPanel Style="{StaticResource OptionCardStyle}"
-                                    Visibility="{Binding IncludeMercenaries, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
-                                       Text="Mercenaries Score Checks" />
-                            <ListBox ItemsSource="{Binding MercenariesScoreChecksOptions}"
-                                     SelectedItem="{Binding SelectedMercenariesScoreChecks, UpdateSourceTrigger=PropertyChanged}"
-                                     Style="{StaticResource SegmentedPickerStyle}" />
-                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="Which ranks count, for every character and stage: A only is 32 checks, A and S is 64, all ranks is 128. Only Rank A can hold progression, so no seed depends on a top score." />
-                        </StackPanel>
-                        <StackPanel Style="{StaticResource OptionCardStyle}">
-                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
-                                       Text="Slot Name" />
-                            <TextBox Text="{Binding SlotName, UpdateSourceTrigger=PropertyChanged}"
-                                     MaxLength="32" />
-                            <TextBlock Margin="0,4,0,0"
-                                       Foreground="{DynamicResource DangerTextBrush}"
-                                       TextWrapping="Wrap"
-                                       Visibility="{Binding HasSlotNameError, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                       Text="{Binding SlotNameError}" />
-                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="Your in-game player name (16 characters max). You'll type this exact name when joining - capitalization matters." />
+                                       Text="The included content for your RE4R AP seed. Main Campaign is Leon's story with BioRand. Mercenaries turns the mode's ranks into checks and its characters and stages into items, on its own or alongside the campaign. A Mercenaries-only slot needs no campaign patch." />
                         </StackPanel>
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
@@ -816,6 +809,23 @@
                                      Style="{StaticResource SegmentedPickerStyle}" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="The difficulty you'll actually play. Hardcore and Professional remove the few spots that can't be collected there, so this needs to match your save. Don't change difficulty mid-run either: moving up to Hardcore can strand an item in a spot you're no longer able to pick up." />
+                        </StackPanel>
+                    </WrapPanel>
+                    <Border Style="{StaticResource SettingsSectionRuleStyle}"
+                            Visibility="{Binding IncludeMercenaries, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
+                                   Text="THE MERCENARIES" />
+                    </Border>
+                    <WrapPanel MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}, Converter={StaticResource ColumnSnapConverter}, ConverterParameter=550}"
+                               Visibility="{Binding IncludeMercenaries, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Mercenaries Score Checks" />
+                            <ListBox ItemsSource="{Binding MercenariesScoreChecksOptions}"
+                                     SelectedItem="{Binding SelectedMercenariesScoreChecks, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource SegmentedPickerStyle}" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="Which ranks count, for every character and stage: A only is 32 checks, A and S is 64, all ranks is 128. Only Rank A can hold progression, so no seed depends on a top score." />
                         </StackPanel>
                     </WrapPanel>
                     <Border Style="{StaticResource SettingsSectionRuleStyle}">
@@ -944,7 +954,7 @@
                                       IsChecked="{Binding MinimizeBacktracking}"
                                       Content="Minimize Backtracking" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="Off by default. On: keeps the important checks along the main path - all three Hexagon pieces are guaranteed before leaving the Fish Farm so the lake altar solves in one boat pass, and the optional excursions (Forest Altar, the chapter 12 Throne Room revisit, the lake's egg-nest islet) only ever hold plain filler." />
+                                       Text="On by default: keeps the important checks along the main path - all three Hexagon pieces are guaranteed before leaving the Fish Farm so the lake altar solves in one boat pass, and the optional excursions (Forest Altar, the chapter 12 Throne Room revisit, the lake's egg-nest islet) only ever hold plain filler. Off: the softer deadlines apply and side areas can hold anything." />
                         </StackPanel>
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <CheckBox Style="{StaticResource OptionCardCheckTitleStyle}"
@@ -1357,10 +1367,6 @@
                             <TextBlock Style="{StaticResource GuidanceStepTitleStyle}"
                                        Text="Configure Your YAML" />
                         </DockPanel>
-                        <TextBlock Margin="38,6,0,0"
-                                   Foreground="{DynamicResource SubtleTextBrush}"
-                                   TextWrapping="Wrap"
-                                   Text="You play too - these settings decide how YOUR RE4R plays and which slot name is yours. Your file joins everyone else's in the next step." />
                         <!-- The settings editor itself, not a button that opens
                              it. Step 3 IS Configure Your YAML (Cam, 2026-08-21,
                              asked three times). Its own 34pt header and blurb

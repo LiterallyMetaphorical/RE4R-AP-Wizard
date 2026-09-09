@@ -445,7 +445,7 @@ local function install(ctx)
     -- on your world) lives in Hints. Recovery has a tab of its own: buried at
     -- the bottom of the Checklist, the one tool a stuck player needs was the
     -- hardest thing in the window to find (Cam 2026-07-31).
-    local TAB_LABELS = { "The Checklist", "Guidance", "Hints", "Something's Wrong", "Server", "Message Log" }
+    local TAB_LABELS = { "The Checklist", "Guidance", "Hints", "Something's Wrong", "Server", "Message Log", "Customize" }
 
     local function draw_tab_content(label)
         if label == "The Checklist" then
@@ -460,6 +460,8 @@ local function install(ctx)
             resolve("draw_server_content")()
         elseif label == "Message Log" then
             resolve("draw_message_log_content")()
+        elseif label == "Customize" then
+            resolve("draw_customize_content")()
         elseif label == "Debug" then
             draw_debug_content()
         end

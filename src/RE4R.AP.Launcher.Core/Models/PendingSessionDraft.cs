@@ -87,8 +87,9 @@ public sealed class PendingSessionDraft
     [JsonPropertyName("weapon_randomization")]
     public string? WeaponRandomization { get; set; }
 
+    // On by default since 2026-09-05; a draft that recorded false keeps false.
     [JsonPropertyName("minimize_backtracking")]
-    public bool MinimizeBacktracking { get; set; }
+    public bool MinimizeBacktracking { get; set; } = true;
 
     // EXPERIMENTAL apworld option; off by default, and absent in older drafts.
     [JsonPropertyName("random_events")]

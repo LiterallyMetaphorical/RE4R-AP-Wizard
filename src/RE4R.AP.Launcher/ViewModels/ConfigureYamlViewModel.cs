@@ -58,7 +58,8 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     public const int DefaultStartingArsenal = 2;
 
     private int _startingArsenal = DefaultStartingArsenal;
-    private bool _minimizeBacktracking;
+    // On by default (Cam, 2026-09-05): important checks stay on the main path.
+    private bool _minimizeBacktracking = true;
     private bool _randomEvents;
     private int _merchantChecksPerChapter = 3;
     private int _tradeChecksPerChapter = 3;
@@ -123,6 +124,11 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             "Search locations...",
             staticData?.LocationGroups ?? new Dictionary<string, List<string>>(),
             staticData?.Locations.Values.Select(location => location.Name) ?? Enumerable.Empty<string>());
+        // The world keeps Small Keys in the player's own world unless told
+        // otherwise, so a fresh page says so instead of showing the neutral
+        // "Anywhere" stance for them (Cam, 2026-09-05). A saved draft still
+        // replaces this with whatever it recorded.
+        ItemSelection.ApplySelection(new[] { "Small Keys" }, null);
         ItemSelection.SelectionChanged += OnSelectionChanged;
         LocationSelection.SelectionChanged += OnSelectionChanged;
 
@@ -151,7 +157,8 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     /// <summary>Weapon classes the Starting Arsenal draw may take; all ticked by default.</summary>
     public ObservableCollection<ArsenalTypeOptionViewModel> StartingArsenalTypeOptions { get; } = new();
 
-    public IReadOnlyList<string> DifficultyOptions { get; } = ["Standard", "Hardcore", "Assisted", "Professional"];
+    // Easiest to hardest, Standard preselected (Cam, 2026-09-05).
+    public IReadOnlyList<string> DifficultyOptions { get; } = ["Assisted", "Standard", "Hardcore", "Professional"];
 
     // Mirrors ArchipelagoRE4R/options.py CheckGuidance (off/markers/markers_rarity).
     // The friendly label is shown in the dropdown; Value is written to the YAML.

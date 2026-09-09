@@ -181,7 +181,7 @@ name and patch.
 - **Check Guidance** - the ceiling for in-game Markers.
 - **Allow Missable Locations** - off by default, keeping progression items off spots you can permanently lose: ones you can walk past for good, and small-key drawers, since a discarded Small Key can seal one. Turn it on for riskier seeds where both can hold progression.
 - **Shuffle Keycards** - off by default; the island keycards stay at their native spots.
-- **Minimize Backtracking + Side Areas** - off by default; when on, keeps important checks on the main path.
+- **Minimize Backtracking + Side Areas** - on by default; keeps important checks on the main path. Off lets side areas hold anything.
 - **Unlocked Typewriters** - save points you can warp to from the start. In a hand-written settings file, name them by their typewriter name ("Farm Typewriter") or by their stage id (43300); either works.
 - **Priority and excluded locations** - the location picker marks spots that must hold an important item, or must not. Marking a whole key-gated region as priority (the Castle, the Island) asks for more than the item pool can deliver, because the items that open that region can never sit inside it: the generator keeps as many of those spots as it can fill and sets the rest back to normal, and its log says how many.
 
