@@ -56,10 +56,11 @@ at a time and the rest queue behind them, moving up as you buy, so a check is
 never lost. Each row names what it really is and who it belongs to, then reads
 SOLD OUT once bought.
 
-Prices are fixed by tier - 5,000 filler, 7,000 useful, 9,000 progression - and
-buying another player's item hands you back a gemstone worth exactly what you
-paid. You need the money, but you never lose it. Your own items are normal
-spending.
+Prices are fixed by tier - 2,500 filler, 7,500 useful, 15,000 progression - and
+buying another player's item refunds spinel at the trade tab's own tiers: 1, 3
+or 6. You need the pesetas up front, and you get trade currency back (about
+half the price in money terms, through the exchange). Your own items are normal
+spending and refund nothing.
 
 You can set who the rows may hold: **Mixed** lets the multiworld decide,
 **Local** keeps your own items on the shelf, and **Remote** turns the shop into
