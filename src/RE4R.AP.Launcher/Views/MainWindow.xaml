@@ -1,4 +1,4 @@
-<Window x:Class="RE4R.AP.Launcher.Views.MainWindow"
+﻿<Window x:Class="RE4R.AP.Launcher.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -837,14 +837,14 @@
                                                   LowerValue="{Binding MercenariesRankFloorIndex, Mode=TwoWay}"
                                                   UpperValue="{Binding MercenariesRankCeilingIndex, Mode=TwoWay}" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="Every rank between the two markers is a check, for every character and stage, 32 a rank. C is finishing a run at all, and the game never shows C or B as letters even though every finished run carries one. C, B and A can hold progression; S and above never do, so no seed depends on a top score. The default is C through A." />
+                                       Text="Select the Ranks to include AP Checks in for Mercenaries, 32 Checks per Rank. A Rank = 100k • S Rank = 200k • S+ Rank = 500k • S++ Rank = 1M" />
                         </StackPanel>
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <CheckBox Style="{StaticResource OptionCardCheckTitleStyle}"
                                       IsChecked="{Binding MercenariesProgression}"
                                       Content="Ranks May Hold Progression" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="On by default: a check at Rank A or below can hold an item the seed needs, so the campaign may wait on a character and stage pair until its unlocks arrive. Off: every rank pays out useful items and filler only, and the mode is a bonus, never a gate. A Mercenaries-only slot ignores this: its unlocks are its only progression." />
+                                       Text="When enabled, allows Progression items to be held in Ranks up to Rank A. When off, every Rank is restricted to Useful &amp; Filler only." />
                         </StackPanel>
                     </WrapPanel>
                     <Border Style="{StaticResource SettingsSectionRuleStyle}">
@@ -872,7 +872,7 @@
                                            Text="{Binding MerchantChecksLabel}" />
                             </StackPanel>
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="On by default, at 3 a chapter (45 checks a seed). The merchant releases this many Archipelago checks each chapter. His shelf shows thirteen at a time and the rest queue behind them, moving up as you buy - a check is never lost, and the backlog is shown on screen. Each row names what it really is and who it belongs to, then reads SOLD OUT once bought. Prices are fixed by tier - 5,000 filler / 7,000 useful / 9,000 progression - and buying another player's item hands you back a gemstone worth exactly what you paid, so you need the money but never lose it. Your own items are normal spending. Every check also puts an item into the multiworld weighted toward what the merchant used to stock: healing, Resources, gunpowder and ammo." />
+                                       Text="At 3 a chapter (45 checks a seed). The merchant releases this many Archipelago checks each chapter. His shelf shows thirteen at a time and the rest queue behind them, moving up as you buy - a check is never lost, and the backlog is shown on screen. Each row names what it really is and who it belongs to, then reads SOLD OUT once bought. Prices are fixed by tier - 5,000 filler / 7,000 useful / 9,000 progression - and buying another player's item hands you back a gemstone worth exactly what you paid, so you need the money but never lose it. Your own items are normal spending. Every check also puts an item into the multiworld weighted toward what the merchant used to stock: healing, Resources, gunpowder and ammo." />
                             <CheckBox Margin="0,16,0,0"
                                       Content="Let the merchant trade multiworld checks for Spinel"
                                       IsChecked="{Binding TradeChecksEnabled}"
@@ -892,7 +892,7 @@
                                            Text="{Binding TradeChecksLabel}" />
                             </StackPanel>
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="His TRADE tab, the one that takes Spinel. On by default at 3 a chapter (45 checks a seed), the same lever shape as the shelf above because they are two halves of one merchant. Prices are in Spinel and fixed by tier - 1 filler / 3 useful / 6 progression - and the seed mints exactly enough Spinel to afford every one of them, so the tab always pays for itself. Trade checks never refund. The tab keeps its exchange either way: an endless Velvet Blue, three gems that restock as the chapters pass, and the game's own Gold Token row untouched. Turning this off leaves that exchange and nothing else, which is a fine way to play - the vanilla trade stock still goes into the multiworld while Merchant Gear is on. Needs Merchant Gear: the takeover is what empties the tab in the first place." />
+                                       Text="His TRADE tab, the one that takes Spinel. At 3 a chapter (45 checks a seed), the same lever shape as the shelf above because they are two halves of one merchant. Prices are in Spinel and fixed by tier - 1 filler / 3 useful / 6 progression - and the seed mints exactly enough Spinel to afford every one of them, so the tab always pays for itself. Trade checks never refund. The tab keeps its exchange either way: an endless Velvet Blue, three gems that restock as the chapters pass, and the game's own Gold Token row untouched. Turning this off leaves that exchange and nothing else, which is a fine way to play - the vanilla trade stock still goes into the multiworld while Merchant Gear is on. Needs Merchant Gear: the takeover is what empties the tab in the first place." />
                             <TextBlock Margin="0,10,0,0"
                                        Text="Merchant checks" />
                             <ListBox ItemsSource="{Binding MerchantChecksOptions}"
@@ -908,7 +908,7 @@
                                       IsChecked="{Binding ShuffleMerchantGear}"
                                       Content="Merchant Gear" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="On by default. His weapons, attachments, case sizes and crafting recipes - plus the Deluxe and Separate Ways guns that work in Leon's campaign - leave the buy tab and become multiworld items: your next gun is a check somewhere out there, maybe in another player's world. Consumable supplies, knife replacements, body armor, tune-ups, selling and trades stay. Expect a different power curve; gear never gates logic, so a seed can always be finished. Turning this on also turns shop checks on, so the emptied shelf sells checks instead of nothing - untick it if you really want a bare shop." />
+                                       Text="His weapons, attachments, case sizes and crafting recipes - plus the Deluxe and Separate Ways guns that work in Leon's campaign - leave the buy tab and become multiworld items: your next gun is a check somewhere out there, maybe in another player's world. Consumable supplies, knife replacements, body armor, tune-ups, selling and trades stay. Expect a different power curve; gear never gates logic, so a seed can always be finished. Turning this on also turns shop checks on, so the emptied shelf sells checks instead of nothing - untick it if you really want a bare shop." />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="While either option is on, the multiworld owns the shop: BioRand's own Random Merchant is switched off when you patch, and its row on the BioRand Options screen says so." />
                         </StackPanel>
@@ -973,7 +973,7 @@
                                       IsChecked="{Binding MinimizeBacktracking}"
                                       Content="Minimize Backtracking" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="On by default: keeps the important checks along the main path - all three Hexagon pieces are guaranteed before leaving the Fish Farm so the lake altar solves in one boat pass, and the optional excursions (Forest Altar, the chapter 12 Throne Room revisit, the lake's egg-nest islet) only ever hold plain filler. Off: the softer deadlines apply and side areas can hold anything." />
+                                       Text="Keeps the important checks along the main path - all three Hexagon pieces are guaranteed before leaving the Fish Farm so the lake altar solves in one boat pass, and the optional excursions (Forest Altar, the chapter 12 Throne Room revisit, the lake's egg-nest islet) only ever hold plain filler. Off: the softer deadlines apply and side areas can hold anything." />
                         </StackPanel>
                         <StackPanel Style="{StaticResource OptionCardStyle}">
                             <CheckBox Style="{StaticResource OptionCardCheckTitleStyle}"

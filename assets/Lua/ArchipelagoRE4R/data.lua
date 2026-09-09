@@ -673,9 +673,35 @@ local function install(ctx)
         return location_id_reverse_index[math.floor(numeric_id)]
     end
 
+    -- Which campaign's checks the player can actually reach. A room patches
+    -- ONE campaign, so this is the whole of the Leon/Ada separation: the
+    -- character being played first, the room's own patched campaign when the
+    -- inventory cannot be read, and Leon last, since every room built before
+    -- the campaign key existed is his.
+    local function current_campaign()
+        local who = ctx.inject_current_character or _G.inject_current_character
+        if type(who) == "function" then
+            local ok_character, character = pcall(who)
+            if ok_character and type(character) == "table"
+                and type(character.campaign) == "string" and character.campaign ~= "" then
+                return character.campaign
+            end
+        end
+        local slot_data = ctx.bridge and ctx.bridge.slot_data
+        local patched = type(slot_data) == "table" and slot_data.patched_campaign or nil
+        if patched == "Separate Ways" then return "separate_ways" end
+        return "leon"
+    end
+
     -- Section-scoped check progress: counts every display entry whose
     -- section_name matches, across all stages (a named place can span several
-    -- stages and chapter revisits). Rebuilt at most once a second.
+    -- stages and chapter revisits).
+    --
+    -- [Separate Ways] Counted PER CAMPAIGN. Ada reuses Leon's section names,
+    -- so one shared bucket added her checks to his: Village Square read 31 in
+    -- a Leon room (20 of his, 11 of hers) and hers are not in that room at all
+    -- (Cam, live 2026-09-07). A missing campaign is Leon's, the same rule the
+    -- markers use. Rebuilt at most once a second.
     local section_progress_cache = { built_at = -math.huge, counts = {} }
 
     local function get_section_progress(section_name)
@@ -693,10 +719,19 @@ local function install(ctx)
                     for guid, display_entry in pairs(stage_entries) do
                         local entry_section = display_entry and display_entry.section_name
                         if type(entry_section) == "string" and entry_section ~= "" then
-                            local bucket = counts[entry_section]
+                            local campaign = display_entry.campaign
+                            if type(campaign) ~= "string" or campaign == "" then
+                                campaign = "leon"
+                            end
+                            local by_campaign = counts[campaign]
+                            if by_campaign == nil then
+                                by_campaign = {}
+                                counts[campaign] = by_campaign
+                            end
+                            local bucket = by_campaign[entry_section]
                             if bucket == nil then
                                 bucket = { checked = 0, total = 0 }
-                                counts[entry_section] = bucket
+                                by_campaign[entry_section] = bucket
                             end
                             bucket.total = bucket.total + 1
                             local key = make_stage_guid_key(stage_id, guid)
@@ -711,7 +746,8 @@ local function install(ctx)
             section_progress_cache.built_at = now
         end
 
-        local bucket = section_progress_cache.counts[normalized]
+        local by_campaign = section_progress_cache.counts[current_campaign()] or {}
+        local bucket = by_campaign[normalized]
         if bucket == nil then
             return 0, 0
         end
@@ -1024,6 +1060,7 @@ local function install(ctx)
     local function get_region_progress(chapter, section)
         local wanted_chapter = tonumber(chapter)
         local wanted_section = trim_string(section)
+        local wanted_campaign = current_campaign()
         local found_count = 0
         local total_count = 0
 
@@ -1031,7 +1068,17 @@ local function install(ctx)
             if type(stage_entries) == "table" then
                 local stage_id = normalize_stage_id(stage_key)
                 for guid, display_entry in pairs(stage_entries) do
+                    -- [Separate Ways] The same guard get_section_progress needs.
+                    -- One (chapter, section) pair is used by both campaigns,
+                    -- chapter 2's Village Chief's Manor: 11 of Leon's and 7 of
+                    -- Ada's. Without this the typewriter tree counts eighteen
+                    -- in a room that holds eleven.
+                    local entry_campaign = display_entry and display_entry.campaign
+                    if type(entry_campaign) ~= "string" or entry_campaign == "" then
+                        entry_campaign = "leon"
+                    end
                     if type(display_entry) == "table"
+                        and entry_campaign == wanted_campaign
                         and tonumber(display_entry.chapter) == wanted_chapter
                         and trim_string(display_entry.section_name) == wanted_section then
                         total_count = total_count + 1
