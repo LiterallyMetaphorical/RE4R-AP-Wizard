@@ -122,6 +122,38 @@ public sealed class ScoutPacketParsingTests
     }
 
     [Fact]
+    public void MerchantTiersCarryTheSpinelRefundCountAndOldRoomsReadAsOneGem()
+    {
+        // The 0.7.2 refund rework (MERCHANT_TRADE_DESIGN.md 4.6): 1 / 3 / 6
+        // spinel by tier. A room generated before it names a gemstone and no
+        // count; that must read as exactly one, so the old room keeps the
+        // behaviour it was generated with.
+        var shop = ArchipelagoScoutClient.ParseMerchantShopSlotData(Packet(
+            """
+            {"merchant_shop":{"enabled":true,"tiers":{
+               "FILLER":{"price":2500,"refund_item_id":120800000,"refund_item_name":"Spinel","refund_count":1},
+               "USEFUL":{"price":7500,"refund_item_id":120800000,"refund_item_name":"Spinel","refund_count":3},
+               "PROGRESSION":{"price":15000,"refund_item_id":120800000,"refund_item_name":"Spinel","refund_count":6}},
+             "slots":[
+               {"code":1542324809,"index":1,"identity":"shop:chapter:1:check:1","unlock_chapter":1,"chapter_ordinal":1,"classification":"USEFUL","display_name":"Red9 x1","player_name":"Other","remote":true,"item_id":0,"item_stack":0}
+             ]}}
+            """));
+
+        Assert.Equal(3, shop.Tiers["USEFUL"].RefundCount);
+        Assert.Equal(6, shop.Tiers["PROGRESSION"].RefundCount);
+        Assert.Equal(120800000, shop.Tiers["FILLER"].RefundItemId);
+
+        var oldRoom = ArchipelagoScoutClient.ParseMerchantShopSlotData(Packet(
+            """
+            {"merchant_shop":{"enabled":true,"tiers":{"FILLER":{"price":5000,"refund_item_id":120832000,"refund_item_name":"Emerald"}},
+             "slots":[{"code":1542324809,"index":1,"unlock_chapter":1,"classification":"FILLER"}]}}
+            """));
+
+        Assert.Equal(1, oldRoom.Tiers["FILLER"].RefundCount);
+        Assert.Equal("Emerald", oldRoom.Tiers["FILLER"].RefundItemName);
+    }
+
+    [Fact]
     public void RandomEventsReadRemovedChecksAsNumbersOrStrings()
     {
         var events = ArchipelagoScoutClient.ParseRandomEventsSlotData(Packet(

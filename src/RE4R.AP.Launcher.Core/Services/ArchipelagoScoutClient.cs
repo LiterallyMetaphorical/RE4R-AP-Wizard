@@ -1172,7 +1172,16 @@ public sealed class ArchipelagoScoutClient
                     refundItemName = refundNameElement.GetString() ?? string.Empty;
                 }
 
-                tiers[tierProperty.Name] = new MerchantShopTier(price, refundItemId, refundItemName);
+                // Rooms from before the spinel refund carry no count: one gem.
+                var refundCount = 1;
+                if (tier.TryGetProperty("refund_count", out var refundCountElement)
+                    && refundCountElement.TryGetInt32(out var parsedCount)
+                    && parsedCount > 0)
+                {
+                    refundCount = parsedCount;
+                }
+
+                tiers[tierProperty.Name] = new MerchantShopTier(price, refundItemId, refundItemName, refundCount);
             }
         }
 

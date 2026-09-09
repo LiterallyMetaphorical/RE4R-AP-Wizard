@@ -9,11 +9,13 @@
 -- of the notifySellItems hook the storage reconciler rides):
 --   1. queue the slot's location check (bridge.pending_checks, same queue the
 --      detector fills, so room filtering / ack set / persistence all apply)
---   2. hand back the tier's gemstone when the purchase helped someone else
---      (or bought back your OWN progression) - the credit check: you must
---      HAVE the money, you do not lose it. Treasures sell at full value and
---      live in the treasure tab, so the refund is exactly recoverable and can
---      never fail for case space.
+--   2. hand back the tier's refund when the purchase helped someone else -
+--      the credit check: you must HAVE the money, and you get trade currency
+--      back. Since the refund rework (MERCHANT_TRADE_DESIGN.md 4.6, built
+--      2026-09-05) that is SPINEL, 1 / 3 / 6 by tier, granted through the
+--      game's own wallet call so it can never fail for case space. Room
+--      files from before it name a gemstone and no count; those still get
+--      their one gem, so an old room keeps behaving the way it was generated.
 --   3. push the refund toast onto the native rail, after the normal sent-item
 --      toast the delivery path already shows
 --   4. arm a save: buying is a real transaction and the shop's stock lives in
@@ -118,6 +120,7 @@ return function(ctx)
                         price = math.floor(tonumber(raw.price) or 0),
                         refund_item_id = math.floor(tonumber(raw.refund_item_id) or 0),
                         refund_item_name = tostring(raw.refund_item_name or "a gemstone"),
+                        refund_count = math.max(1, math.floor(tonumber(raw.refund_count) or 1)),
                     }
                 end
             end
@@ -157,6 +160,7 @@ return function(ctx)
                     price = math.floor(tonumber(raw.price) or 0),
                     refund_item_id = math.floor(tonumber(raw.refund_item_id) or 0),
                     refund_item_name = tostring(raw.refund_item_name or "a gemstone"),
+                    refund_count = math.max(1, math.floor(tonumber(raw.refund_count) or 1)),
                 }
                 merchant.checks[#merchant.checks + 1] = check
                 merchant.slots_by_location[check.location_code] = check
@@ -173,6 +177,7 @@ return function(ctx)
                             price = check.price,
                             refund_item_id = check.refund_item_id,
                             refund_item_name = check.refund_item_name,
+                            refund_count = check.refund_count,
                         }
                     end
                 end
@@ -279,10 +284,19 @@ return function(ctx)
     end
 
     -- Only remote purchases refund: you fronted the money for someone else's
-    -- item, so the gem hands your wealth straight back. Your own items are
-    -- yours to buy at face value, progression included (Cam, 2026-08-17).
+    -- item, so the refund hands trade currency straight back. Your own items
+    -- are yours to buy at face value, progression included (Cam, 2026-08-17).
     local function refund_is_due(slot)
         return slot.remote
+    end
+
+    -- "3 Spinel" for the new tiers, the bare gem name for an old room file.
+    local function refund_label(slot)
+        local count = math.max(1, math.floor(tonumber(slot.refund_count) or 1))
+        if count > 1 then
+            return string.format("%d %s", count, tostring(slot.refund_item_name))
+        end
+        return tostring(slot.refund_item_name)
     end
 
     local function grant_refund(slot)
@@ -294,7 +308,8 @@ return function(ctx)
         if type(inject) ~= "function" then
             return false, "injection unavailable"
         end
-        local status = tostring(inject(slot.refund_item_id, 1))
+        local count = math.max(1, math.floor(tonumber(slot.refund_count) or 1))
+        local status = tostring(inject(slot.refund_item_id, count))
         if type(succeeded) == "function" and not succeeded(status) then
             return false, status
         end
@@ -641,8 +656,8 @@ return function(ctx)
                 merchant.gems_granted[slot_key(slot)] = true
                 push_toast(string.format(
                     "Received %s, a refund for helping a fellow stranger.",
-                    slot.refund_item_name))
-                info(string.format("check '%s' refunded %s", slot_key(slot), slot.refund_item_name))
+                    refund_label(slot)))
+                info(string.format("check '%s' refunded %s", slot_key(slot), refund_label(slot)))
             else
                 -- Never silent: the player paid and is owed this.
                 info(string.format(
@@ -715,11 +730,11 @@ return function(ctx)
                     repaired = repaired + 1
                     info(string.format(
                         "settlement: check '%s' was bought but this save had no %s - re-granted",
-                        key, slot.refund_item_name))
+                        key, refund_label(slot)))
                 else
                     info(string.format(
                         "settlement: check '%s' owed %s but the grant failed (%s)",
-                        key, slot.refund_item_name, tostring(detail)))
+                        key, refund_label(slot), tostring(detail)))
                 end
             end
         end

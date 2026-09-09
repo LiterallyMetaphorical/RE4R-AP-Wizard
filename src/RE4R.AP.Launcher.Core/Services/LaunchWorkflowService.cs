@@ -1575,6 +1575,7 @@ public sealed class LaunchWorkflowService
                                 price = row.Tier.Price,
                                 refund_item_id = row.Tier.RefundItemId,
                                 refund_item_name = row.Tier.RefundItemName,
+                                refund_count = row.Tier.RefundCount,
                             }).ToArray(),
                             slots = plannedShopSlots.Checks.Select(planned => new
                             {
@@ -1600,6 +1601,7 @@ public sealed class LaunchWorkflowService
                                 price = planned.Tier.Price,
                                 refund_item_id = planned.Tier.RefundItemId,
                                 refund_item_name = planned.Tier.RefundItemName,
+                                refund_count = planned.Tier.RefundCount,
                             }).ToArray(),
                         };
 

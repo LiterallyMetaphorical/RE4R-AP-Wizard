@@ -19,7 +19,7 @@ HISTORY SQUASHED 2026-08-10: the fork's branch was flattened to a single commit,
                 .cs/.csv/.json, so the SHA-256 below still describes the code
                 that is on the branch today. Keep the old ids for the reasoning
                 they carry; treat 703e59a as the citable source commit.
-Source commit:  1f86519 (2026-09-03 key items show their model on the merchant; see the REBUILD entries below)
+Source commit:  b7343ff (2026-09-05 a remote check's caption says the refund is spinel; see the REBUILD entries below)
 HISTORY REWRITTEN 2026-09-03: the unpushed fork commits (2026-08-24 onward) were
                 squashed by scope and re-worded in plain language before review.
                 Every id cited in the REBUILD entries below is OFF-BRANCH now (still
@@ -167,11 +167,22 @@ Previous:       05f581e (2026-08-06: FORCED EVENTS - BioRand takes its event
                 DLC entitlement needed). Includes b27f7ac (drop-catalog fix)
                 and 90140f0 (purity gates).)
 Publish:        -c Release -r win-x64 --self-contained -p:PublishSingleFile=true (net10.0)
-biorand-re4r.exe SHA-256: d9f2a365b5122f3c00972f0a01a88cfcf6516c5b50e30d108541b12d40a7f835
-ProductVersion: 1.0.0+1f865190a98d166d22cab3fb91a63f0b48f75ac7 (the launcher
+biorand-re4r.exe SHA-256: c28f14cbc9f32a068194be8da85cf7ef7fbf552db446f0a52379544c2bab8612
+ProductVersion: 1.0.0+b7343ff31fb31ae8f532f4b1e71ddc575a53628b (the launcher
                 writes this into version_stamp.json, and a change here is what
                 triggers the one-time setup cache re-harvest)
 Built with:     .NET SDK 10.0.301
+
+REBUILD 2026-09-05 (b7343ff)
+    A remote check's caption says the refund is spinel.
+      * The buy-tab caption baked for another player's check read "refunds
+        a gemstone of equal value"; the refund rework (MERCHANT_TRADE_DESIGN.md
+        4.6, built 2026-09-05 across apworld 7eb0967 / mod 2026.09.05-85 /
+        launcher 2c596e8) pays 1 / 3 / 6 spinel by tier, so the caption says
+        "refunds you in spinel". Text only; no data or placement change.
+    Offline verify: library builds clean; the payload restaged and the launcher
+    tests pass (53). Live confirm owed with the rest of the release.
+    biorand-re4r.exe SHA-256: c28f14cbc9f32a068194be8da85cf7ef7fbf552db446f0a52379544c2bab8612
 
 REBUILD 2026-09-03 (84d18ed)
     Key items show their model on the merchant.

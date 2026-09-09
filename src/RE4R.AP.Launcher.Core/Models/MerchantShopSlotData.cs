@@ -54,9 +54,11 @@ public sealed class MerchantShopSlotData
 
     /// <summary>
     /// Credit-check economy per AP classification: the peseta price of a slot
-    /// and the gemstone handed back when the purchase is refundable. The
-    /// apworld owns these values (shop.SHOP_TIERS); the launcher passes them
-    /// through so there is exactly one source of truth.
+    /// and what is handed back when the purchase is refundable (spinel, 1 / 3
+    /// / 6 by tier since apworld 0.7.2's refund rework; rooms generated before
+    /// it name a gemstone and no count, which reads as one). The apworld owns
+    /// these values (shop.SHOP_TIERS); the launcher passes them through so
+    /// there is exactly one source of truth.
     /// </summary>
     public IReadOnlyDictionary<string, MerchantShopTier> Tiers { get; init; }
         = new Dictionary<string, MerchantShopTier>(StringComparer.OrdinalIgnoreCase);
@@ -107,4 +109,4 @@ public sealed class MerchantShopSlot
     public bool Remote { get; init; }
 }
 
-public sealed record MerchantShopTier(int Price, int RefundItemId, string RefundItemName);
+public sealed record MerchantShopTier(int Price, int RefundItemId, string RefundItemName, int RefundCount = 1);
