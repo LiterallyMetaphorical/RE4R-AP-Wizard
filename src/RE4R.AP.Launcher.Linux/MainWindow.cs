@@ -394,7 +394,6 @@ internal sealed class MainWindow : Window
         right.Children.Add(Combo("CheckGuidanceOptions", "SelectedCheckGuidance", "Label"));
         right.Children.Add(Label("Marker detail"));
         right.Children.Add(Combo("MarkerDetailOptions", "SelectedMarkerDetail", "Label"));
-        right.Children.Add(Check("Show the in-game getting-started guide", "Tutorial"));
         right.Children.Add(Label("Typewriter locations"));
         foreach (var option in vm.TypewriterOptions)
         {

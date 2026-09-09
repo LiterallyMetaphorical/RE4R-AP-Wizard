@@ -113,6 +113,8 @@ local function install(ctx)
         imgui.text("    the REFramework script menu, next to the window toggle.")
 
         imgui.text("")
+        imgui.text("The welcome note in the Hunter's Lodge covers the basics. This")
+        imgui.text("reopens the same guide as a window, any time:")
         if imgui.button("Show the getting-started guide again") then
             local replay = ctx.replay_tutorial or _G.replay_tutorial
             if type(replay) == "function" then

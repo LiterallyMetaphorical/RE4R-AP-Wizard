@@ -183,7 +183,7 @@ Smaller things:
 
 ## In-Game
 
-Press **Insert** to open the Archipelago window while in-game. On your first chapter a short getting-started guide appears by itself; you can reopen it any time from the Guidance tab.
+Press **Insert** to open the Archipelago window while in-game. A welcome note waits for you in the Hunter's Lodge at the start; the Guidance tab can show the same getting-started guide again any time.
 
 ### The Checklist
 

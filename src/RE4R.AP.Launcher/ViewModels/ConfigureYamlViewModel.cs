@@ -64,7 +64,6 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     private int _tradeChecksPerChapter = 3;
     private bool _tradeChecksEnabled = true;
     private bool _merchantChecksEnabled = true;
-    private bool _tutorial = true;
     private string _yamlPreview = "Enter your slot name to generate the YAML preview.";
     private string _statusText = "Choose your RE4R settings - they save automatically as you edit.";
     private ICommand? _backToLandingCommand;
@@ -691,19 +690,6 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         }
     }
 
-    public bool Tutorial
-    {
-        get => _tutorial;
-        set
-        {
-            if (SetProperty(ref _tutorial, value))
-            {
-                RebuildYamlPreview();
-                QueueDraftSave();
-            }
-        }
-    }
-
     public string YamlPreview
     {
         get => _yamlPreview;
@@ -989,7 +975,6 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         var draftTradeRate = draft.TradeChecksPerChapter;
         TradeChecksEnabled = draftTradeRate is not 0;
         TradeChecksPerChapter = draftTradeRate is > 0 ? draftTradeRate.Value : 3;
-        Tutorial = draft.Tutorial;
         var selected = new HashSet<string>(draft.UnlockedTypewriterStageIds, StringComparer.Ordinal);
         foreach (var option in TypewriterOptions)
         {
@@ -1046,7 +1031,6 @@ public sealed class ConfigureYamlViewModel : ObservableObject
                 draft.RandomEvents = RandomEvents;
                 draft.MerchantChecksPerChapter = MerchantChecksEnabled ? MerchantChecksPerChapter : 0;
                 draft.TradeChecksPerChapter = TradeChecksPerChapterEffective;
-                draft.Tutorial = Tutorial;
                 draft.UnlockedTypewriterStageIds = TypewriterOptions
                     .Where(option => option.IsSelected)
                     .Select(option => option.StageId)
@@ -1091,7 +1075,6 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             MerchantChecksPerChapter = MerchantChecksEnabled ? MerchantChecksPerChapter : 0,
             TradeChecksPerChapter = TradeChecksPerChapterEffective,
             MerchantChecks = SelectedMerchantChecks.Value,
-            Tutorial = Tutorial,
             UnlockedTypewriterStageIds = TypewriterOptions
                 .Where(option => option.IsSelected)
                 .Select(option => option.StageId)

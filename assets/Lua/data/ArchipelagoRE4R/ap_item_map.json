@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "item_count": 175,
+  "item_count": 172,
   "items": {
     "20665965": {
       "name": "Red9 Stock x1",
@@ -121,11 +121,6 @@
       "name": "High-power Scope x1",
       "re4r_item_id": 116003200,
       "count": 1
-    },
-    "636185742": {
-      "name": "Pesetas x500",
-      "re4r_item_id": 124000000,
-      "count": 500
     },
     "652308034": {
       "name": "Submachine Gun Ammo x50",
@@ -271,11 +266,6 @@
       "name": "Dungeon Key x1",
       "re4r_item_id": 119254400,
       "count": 1
-    },
-    "1317144540": {
-      "name": "Pesetas x200",
-      "re4r_item_id": 124000000,
-      "count": 200
     },
     "1347656822": {
       "name": "Depraved Idol x1",
@@ -672,20 +662,10 @@
       "re4r_item_id": 114400000,
       "count": 1
     },
-    "3318146281": {
-      "name": "Pesetas x150",
-      "re4r_item_id": 124000000,
-      "count": 150
-    },
     "3322005405": {
       "name": "Chalice of Atonement x1",
       "re4r_item_id": 122411200,
       "count": 1
-    },
-    "3329417590": {
-      "name": "Pesetas x1000",
-      "re4r_item_id": 124000000,
-      "count": 1000
     },
     "3340862733": {
       "name": "Ornate Beetle x1",
@@ -821,6 +801,11 @@
       "name": "Killer7 x1",
       "re4r_item_id": 275637056,
       "count": 1
+    },
+    "4117592696": {
+      "name": "Pesetas x5000",
+      "re4r_item_id": 124000000,
+      "count": 5000
     },
     "4126917699": {
       "name": "Case: 9x13 x1",

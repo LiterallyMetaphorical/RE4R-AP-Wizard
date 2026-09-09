@@ -112,11 +112,6 @@ public sealed class PendingSessionDraft
     [JsonPropertyName("trade_checks_per_chapter")]
     public int? TradeChecksPerChapter { get; set; }
 
-    // Default TRUE so drafts saved before this option existed keep the guide
-    // on, matching the apworld default.
-    [JsonPropertyName("tutorial")]
-    public bool Tutorial { get; set; } = true;
-
     [JsonPropertyName("unlocked_typewriter_stage_ids")]
     public List<string> UnlockedTypewriterStageIds { get; set; } = new();
 

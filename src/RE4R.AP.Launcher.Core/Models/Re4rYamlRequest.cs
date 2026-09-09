@@ -47,10 +47,6 @@ public sealed class Re4rYamlRequest
     // filler-only side excursions (apworld 0.6.0).
     public bool MinimizeBacktracking { get; set; }
 
-    // The in-game first-run guide (apworld 0.6.3). On by default; players who
-    // know the ropes can turn it off for every seed they generate.
-    public bool Tutorial { get; set; } = true;
-
     // EXPERIMENTAL: the multiworld authors BioRand's Random Events at
     // generation time and the logic reacts to them (apworld 0.7.0). Off by
     // default; the launcher pins the rolled set into BioRand at patch time.

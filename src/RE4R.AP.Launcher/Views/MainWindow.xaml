@@ -1058,13 +1058,6 @@
                                        Text="How much a marker says, and what you will actually see: markers read at this level the moment you connect. You can change it any time in the in-game Guidance tab, and once you do, your choice sticks for that seed. Locate is the recommended default - it names the item as it appeared in vanilla, what it is sitting in, and how to reach it, without revealing what the multiworld actually placed. Identify does reveal that, and is what a bought hint always shows. Developer adds the location code and is a debug tool." />
                         </StackPanel>
                         <StackPanel Style="{StaticResource OptionCardStyle}">
-                            <CheckBox Style="{StaticResource OptionCardCheckTitleStyle}"
-                                      IsChecked="{Binding Tutorial}"
-                                      Content="In-Game Tutorial" />
-                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="On by default: a short guide appears in game on your first chapter, explaining checks, markers and how to get unstuck. You can reopen or skip it any time. Turn it off if you already know how this works." />
-                        </StackPanel>
-                        <StackPanel Style="{StaticResource OptionCardStyle}">
                             <TextBlock Style="{StaticResource OptionCardTitleStyle}"
                                        Text="Unlocked Typewriters" />
                             <Border Padding="8"

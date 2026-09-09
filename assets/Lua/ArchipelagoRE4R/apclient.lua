@@ -1634,16 +1634,6 @@ return function(ctx)
             st.slot_difficulty = (type(d) == "string" and d ~= "") and d or nil
             info("Slot difficulty: " .. tostring(st.slot_difficulty or "(not in slot_data)"))
         end
-        -- [Tutorial] The first-run guide, on unless the slot turned it off.
-        -- Older seeds without the key keep it on.
-        do
-            local tut = (type(slot_data) == "table") and slot_data.tutorial or nil
-            local enabled = not ((tut == false) or (tut == 0) or (tut == "0"))
-            if ctx.bridge then
-                ctx.bridge.tutorial_enabled = enabled
-            end
-            info("Tutorial: " .. (enabled and "enabled" or "disabled") .. " (from slot_data)")
-        end
         -- [Random Events] AP-authored event roll: some checks may have moved
         -- (new stage, coordinates and section) and some may not exist at all.
         -- The display layer (markers, checklist, section counts) follows the

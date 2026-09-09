@@ -50,7 +50,6 @@ public sealed class Re4rYamlBuilder
             { "random_events", request.RandomEvents ? "true" : "false" },
             { "merchant_checks_per_chapter", Math.Clamp(request.MerchantChecksPerChapter, 0, 6).ToString(System.Globalization.CultureInfo.InvariantCulture) },
             { "merchant_checks", NormalizeMerchantChecks(request.MerchantChecks) },
-            { "tutorial", request.Tutorial ? "true" : "false" },
         };
 
         // [Trade takeover, Phase 2] Always emitted now that the options

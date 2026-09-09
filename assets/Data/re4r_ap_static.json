@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-09-01T20:14:40Z",
+  "generated_at_utc": "2026-09-03T07:46:13Z",
   "game": "Resident Evil 4 Remake",
-  "world_version": "0.7.0",
+  "world_version": "0.7.1",
   "placeholder_item_id": 120486400,
   "item_groups": {
     "Biosensor Scope": [
@@ -74,10 +74,7 @@
       "Ornate Beetle x1",
       "Ornate Necklace x1",
       "Pearl Bangle x1",
-      "Pesetas x1000",
-      "Pesetas x150",
-      "Pesetas x200",
-      "Pesetas x500",
+      "Pesetas x5000",
       "Red Beryl x1",
       "Red Gemstone Ring x1",
       "Red Herb x1",
@@ -180,10 +177,7 @@
       "Scratched Emerald x1"
     ],
     "Pesetas": [
-      "Pesetas x1000",
-      "Pesetas x150",
-      "Pesetas x200",
-      "Pesetas x500"
+      "Pesetas x5000"
     ],
     "Progression": [
       "Apostate's Head x1",
@@ -849,7 +843,7 @@
     "locations_total": 456,
     "guid_locations": 456,
     "noguid_locations": 0,
-    "items_total": 175,
+    "items_total": 172,
     "always_locations": 456,
     "optional_key_locations": 0,
     "shop_slots": 120,
@@ -9827,13 +9821,6 @@
       "classification": "USEFUL",
       "count": 1
     },
-    "636185742": {
-      "name": "Pesetas x500",
-      "biorand_item_id": 124000000,
-      "biorand_name": "Pesetas",
-      "classification": "FILLER",
-      "count": 500
-    },
     "652308034": {
       "name": "Submachine Gun Ammo x50",
       "biorand_item_id": 112806400,
@@ -10036,13 +10023,6 @@
       "biorand_name": "Dungeon Key",
       "classification": "PROGRESSION",
       "count": 1
-    },
-    "1317144540": {
-      "name": "Pesetas x200",
-      "biorand_item_id": 124000000,
-      "biorand_name": "Pesetas",
-      "classification": "FILLER",
-      "count": 200
     },
     "1347656822": {
       "name": "Depraved Idol x1",
@@ -10597,26 +10577,12 @@
       "classification": "FILLER",
       "count": 1
     },
-    "3318146281": {
-      "name": "Pesetas x150",
-      "biorand_item_id": 124000000,
-      "biorand_name": "Pesetas",
-      "classification": "FILLER",
-      "count": 150
-    },
     "3322005405": {
       "name": "Chalice of Atonement x1",
       "biorand_item_id": 122411200,
       "biorand_name": "Chalice of Atonement",
       "classification": "FILLER",
       "count": 1
-    },
-    "3329417590": {
-      "name": "Pesetas x1000",
-      "biorand_item_id": 124000000,
-      "biorand_name": "Pesetas",
-      "classification": "FILLER",
-      "count": 1000
     },
     "3340862733": {
       "name": "Ornate Beetle x1",
@@ -10806,6 +10772,13 @@
       "biorand_name": "Killer7",
       "classification": "USEFUL",
       "count": 1
+    },
+    "4117592696": {
+      "name": "Pesetas x5000",
+      "biorand_item_id": 124000000,
+      "biorand_name": "Pesetas",
+      "classification": "FILLER",
+      "count": 5000
     },
     "4126917699": {
       "name": "Case: 9x13 x1",
