@@ -17,6 +17,8 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        LauncherFileLog.Append(
+            $"[lifecycle] launcher {LauncherVersion()} started, process {Environment.ProcessId}");
 
         // Apply the saved theme before the first window is built, so the
         // launcher never flashes the wrong one on the way up.
@@ -52,17 +54,7 @@ public partial class App : Application
         // can fail, so the count alone cannot detect a startup failure -
         // check whether any window actually made it on screen. (IsVisible
         // stays true for minimized windows, so this cannot misfire later.)
-        var anyWindowVisible = false;
-        foreach (Window window in Windows)
-        {
-            if (window.IsVisible)
-            {
-                anyWindowVisible = true;
-                break;
-            }
-        }
-
-        if (!anyWindowVisible)
+        if (!AnyWindowVisible())
         {
             // Nothing is on screen (e.g. MainWindow construction failed).
             // Keeping a windowless process alive would leave a zombie, and
@@ -92,8 +84,72 @@ public partial class App : Application
     {
         // Flush and release the buffered disk log so the tail of the session
         // is never lost on a normal close.
+        LauncherFileLog.Append($"[lifecycle] exiting with code {e.ApplicationExitCode}");
         LauncherFileLog.Close();
+        StartExitWatchdog(e.ApplicationExitCode);
         base.OnExit(e);
+    }
+
+    /// <summary>
+    /// The process once outlived its window with nothing left to do (09-02,
+    /// twice in one afternoon) and no log line said where it stuck. Nothing
+    /// legitimate runs after OnExit, so anything still holding the process
+    /// open a few seconds later is a straggler: record it and end the
+    /// process. The thread is a background thread, so it never holds the
+    /// process open itself.
+    /// </summary>
+    private static void StartExitWatchdog(int exitCode)
+    {
+        try
+        {
+            var watchdog = new Thread(() =>
+            {
+                Thread.Sleep(TimeSpan.FromSeconds(5));
+                LauncherFileLog.Append(
+                    "[lifecycle] the process was still alive 5 s after exit; ending it");
+                LauncherFileLog.Close();
+                Environment.Exit(exitCode);
+            })
+            {
+                IsBackground = true,
+                Name = "exit-watchdog",
+            };
+            watchdog.Start();
+        }
+        catch
+        {
+            // The watchdog is a safety net; failing to arm it must not matter.
+        }
+    }
+
+    private static string LauncherVersion()
+    {
+        try
+        {
+            var assembly = typeof(App).Assembly;
+            var informational = assembly
+                .GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+                .OfType<System.Reflection.AssemblyInformationalVersionAttribute>()
+                .FirstOrDefault()?.InformationalVersion;
+            return informational ?? assembly.GetName().Version?.ToString() ?? "?";
+        }
+        catch
+        {
+            return "?";
+        }
+    }
+
+    private bool AnyWindowVisible()
+    {
+        foreach (Window window in Windows)
+        {
+            if (window.IsVisible)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
@@ -121,6 +177,29 @@ public partial class App : Application
 
     private void ShowUnhandledExceptionDialog(Exception exception, string source)
     {
+        // With no window on screen there is nobody to read a dialog, and a
+        // modal box with no owner would hold a windowless process open until
+        // someone found it. The exception is already in the disk log; make
+        // sure the process is on its way out instead.
+        if (!AnyWindowVisible())
+        {
+            LauncherFileLog.Append(
+                $"[crash-guard] no window is on screen, so no dialog for {source}; shutting down");
+            LauncherFileLog.Flush();
+            if (!Dispatcher.HasShutdownStarted)
+            {
+                try
+                {
+                    Shutdown(1);
+                }
+                catch
+                {
+                }
+            }
+
+            return;
+        }
+
         // Keeping the process alive preserves in-progress launcher state;
         // rate-limiting stops a repeating failure from storming dialogs.
         var now = DateTime.UtcNow;

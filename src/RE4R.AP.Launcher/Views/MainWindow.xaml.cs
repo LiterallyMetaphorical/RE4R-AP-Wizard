@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Windows;
 using RE4R.AP.Launcher.ViewModels;
 using RE4R.AP.Launcher.Core.Services;
+using RE4R.AP.Launcher.Core.Utilities;
 using RE4R.AP.Launcher.Services;
 
 namespace RE4R.AP.Launcher.Views;
@@ -76,12 +77,42 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
-        _viewModel.Dispose();
+        // The process once outlived its window with nothing left to do and
+        // no line in the log to say where (09-02). Dispose is guarded so a
+        // failure here cannot stop the shutdown or raise a dialog with no
+        // window behind it, and the shutdown is asked for explicitly rather
+        // than left to the window count.
+        try
+        {
+            _viewModel.Dispose();
+        }
+        catch (Exception ex)
+        {
+            LauncherFileLog.Append($"[lifecycle] main window dispose failed: {ex}");
+        }
+
+        LauncherFileLog.Append("[lifecycle] main window closed; shutting down");
+        LauncherFileLog.Flush();
         base.OnClosed(e);
+
+        var app = Application.Current;
+        if (app is not null && !app.Dispatcher.HasShutdownStarted)
+        {
+            try
+            {
+                app.Shutdown();
+            }
+            catch (Exception ex)
+            {
+                LauncherFileLog.Append($"[lifecycle] shutdown request failed: {ex}");
+            }
+        }
     }
 
     protected override void OnClosing(CancelEventArgs e)
     {
+        LauncherFileLog.Append(
+            $"[lifecycle] main window closing (busy: {(_viewModel.HasBusyOperation ? "yes" : "no")})");
         if (_viewModel.HasBusyOperation)
         {
             var proceed = ChoiceDialog.Show(
@@ -93,9 +124,12 @@ public partial class MainWindow : Window
                 primaryIndex: 1) == 0;
             if (!proceed)
             {
+                LauncherFileLog.Append("[lifecycle] close cancelled: kept open while busy");
                 e.Cancel = true;
                 return;
             }
+
+            LauncherFileLog.Append("[lifecycle] closing while busy at the user's request");
         }
 
         base.OnClosing(e);
