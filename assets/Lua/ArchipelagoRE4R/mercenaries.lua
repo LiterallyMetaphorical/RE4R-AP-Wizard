@@ -62,7 +62,6 @@ local function install(ctx)
     local STATE_RESULT_PIPELINE = "RESULT_PIPELINE"
     local STATE_RESULT_READY = "RESULT_READY"
     local STATE_RESULT_CONSUMED = "RESULT_CONSUMED"
-    local STATE_RESULT_REJECTED = "RESULT_REJECTED"
 
     local merc_state = {
         lifecycle = STATE_IDLE,
@@ -73,7 +72,6 @@ local function install(ctx)
         result_payload = nil,
         last_valid_run_identity = nil,
         expected_result_identity = nil,
-        result_identity_failure_epoch = -1,
     }
 
     local ownership = {
@@ -278,8 +276,22 @@ local function install(ctx)
         return #components > 0 and components[1] or nil
     end
 
+    -- The controller lookup is a scene-wide component search. It used to run
+    -- on every tick from the state tracker and up to three times per frame
+    -- from the HUD header, in the campaign too (2026-09-05 review). One
+    -- answer per quarter second is plenty for everything that asks; a
+    -- controller torn down inside that window just answers nil to its
+    -- callers' guarded reads.
+    local controller_cache_value = nil
+    local controller_cache_clock = -1.0
     local function get_merc_controller()
-        return find_first_component("chainsaw.MercenariesModeController")
+        local now = os.clock()
+        if controller_cache_clock >= 0 and now - controller_cache_clock < 0.25 then
+            return controller_cache_value
+        end
+        controller_cache_value = find_first_component("chainsaw.MercenariesModeController")
+        controller_cache_clock = now
+        return controller_cache_value
     end
     export("get_merc_controller", get_merc_controller)
 
@@ -322,8 +334,22 @@ local function install(ctx)
         "chainsaw.Cp1021MainMenuBGGuiBehavior",
     }
     local last_reported_domain = nil
+    local last_full_scan_clock = -100.0
 
     get_runtime_domain_uncached = function()
+        local runtime_state = type(ctx.get_runtime_state) == "function" and ctx.get_runtime_state() or nil
+        local in_play = runtime_state ~= nil and runtime_state.is_in_game and not runtime_state.is_title_screen
+        -- Fast path for the common case. The mode is only entered from the
+        -- title menu, so a campaign that is still in-game cannot have turned
+        -- into The Mercenaries since the last full look; the six scene scans
+        -- below ran every quarter second of every campaign session for
+        -- nothing (2026-09-05 review). A full look still happens every two
+        -- seconds, so a wrong assumption here costs at most that.
+        if last_reported_domain == "CAMPAIGN" and in_play
+            and os.clock() - last_full_scan_clock < 2.0 then
+            return "CAMPAIGN"
+        end
+        last_full_scan_clock = os.clock()
         local domain = nil
         if get_merc_controller() ~= nil then
             domain = "MERCENARIES"
@@ -336,8 +362,7 @@ local function install(ctx)
             end
         end
         if domain == nil then
-            local runtime_state = type(ctx.get_runtime_state) == "function" and ctx.get_runtime_state() or nil
-            if runtime_state ~= nil and runtime_state.is_in_game and not runtime_state.is_title_screen then
+            if in_play then
                 domain = "CAMPAIGN"
             else
                 domain = "MENU_OR_OTHER"
@@ -616,6 +641,9 @@ local function install(ctx)
     end
 
     local function get_current_merc_play_info()
+        -- Asked up to three times a frame by the HUD; outside the mode the
+        -- answer is nil without touching the scene (2026-09-05 review).
+        if get_runtime_domain() ~= "MERCENARIES" then return nil end
         local ok, result = pcall(function()
             local controller = get_merc_controller()
             if controller == nil then return nil end
@@ -666,18 +694,6 @@ local function install(ctx)
         if count <= 3 then
             log.warn(string.format("[Merc AP] result retry: %s (%s)", tostring(kind), tostring(detail)))
         end
-    end
-
-    local function reject_result_identity(detail)
-        local epoch = merc_state.result_epoch
-        if merc_state.result_identity_failure_epoch ~= epoch then
-            merc_state.result_identity_failure_epoch = epoch
-            log.warn(string.format(
-                "[Merc AP] result score checks rejected: no matching run identity (%s)",
-                tostring(detail)))
-        end
-        merc_state.lifecycle = STATE_RESULT_REJECTED
-        merc_state.result_payload = nil
     end
 
     local function read_open_param_int(open_param, getter_name, field_name, fallback)
@@ -1072,7 +1088,45 @@ local function install(ctx)
         }
     end
 
-    local function evaluate_result_locations(payload, slot_data)
+    -- One toast per rank check the result screen just earned, on the mod's
+    -- rail (and the game's, through native_log): the vanilla screen only
+    -- knows its own unlock rules, which are a lie under AP. Names come from
+    -- the connect-time scouts; without them the line still says a check went.
+    local function announce_rank_check(rank_name, location_id, payload)
+        local enqueue = ctx.enqueue_toast or _G.enqueue_toast
+        if type(enqueue) ~= "function" then return end
+        local key = tostring(location_id)
+        local item_id = type(bridge.location_scout_item) == "table" and bridge.location_scout_item[key] or nil
+        local player = type(bridge.location_scout_player) == "table" and bridge.location_scout_player[key] or nil
+        local item_name_fn = ctx.ap_item_name or _G.ap_item_name
+        local player_name_fn = ctx.ap_player_name or _G.ap_player_name
+        local item_name = nil
+        if type(item_name_fn) == "function" and type(item_id) == "number" then
+            local ok_name, name = pcall(item_name_fn, item_id, player)
+            if ok_name and type(name) == "string" and name ~= "" then item_name = name end
+        end
+        local detail = "check sent"
+        if item_name ~= nil then
+            local who = nil
+            if type(player_name_fn) == "function" and player ~= nil then
+                local ok_who, name = pcall(player_name_fn, player)
+                if ok_who and type(name) == "string" and name ~= "" then who = name end
+            end
+            if who ~= nil and player ~= bridge.ap_numeric_slot then
+                detail = item_name .. " for " .. who
+            else
+                detail = item_name .. " (yours)"
+            end
+        end
+        local classification = type(bridge.location_classifications) == "table"
+            and bridge.location_classifications[key] or "FILLER"
+        pcall(enqueue,
+            string.format("Rank %s: %s, %s", rank_name, payload.char_name, payload.stage_name),
+            detail, classification, "sent")
+    end
+
+    local result_mapping_warned = {}
+    local function evaluate_result_locations(payload, slot_data, epoch)
         local score_checks_mode = get_score_checks_mode(slot_data)
         local rank_names = {}
         if payload.rank >= 2 then rank_names[#rank_names + 1] = "A" end
@@ -1089,21 +1143,43 @@ local function install(ctx)
         local completed_set = bridge.mercenaries_completed_locations
         local room_set = get_room_location_set()
         local to_queue = {}
+        local problems = {}
 
+        -- Each rank stands on its own: a rank whose mapping is missing is
+        -- reported and skipped, the others still go (until 2026-09-05 one
+        -- bad rank threw the whole result away and it was lost when the
+        -- screen closed). The slot's own map is authoritative; the launcher's
+        -- room file is a copy of the same room, so a miss there is a warning,
+        -- not a veto.
         for _, rank_name in ipairs(rank_names) do
             local location_id, mapping_error = get_merc_location_id(
                 payload.char_name, payload.stage_name, rank_name, slot_data)
-            if location_id == nil then return false, mapping_error or "location mapping failed" end
-            if room_set ~= nil and not location_in_set(room_set, location_id) then
-                return false, "location is not in room set"
+            if location_id == nil then
+                problems[#problems + 1] = string.format("rank %s: %s",
+                    rank_name, tostring(mapping_error or "location mapping failed"))
+            else
+                if room_set ~= nil and not location_in_set(room_set, location_id) then
+                    problems[#problems + 1] = string.format(
+                        "rank %s: location %d is not in the launcher's room set (queued anyway)",
+                        rank_name, location_id)
+                end
+                local key = "merc:" .. tostring(location_id)
+                if not get_location_checked(checked_set, location_id)
+                    and not get_location_checked(completed_set, location_id)
+                    and bridge.pending_check_keys[key] ~= true then
+                    to_queue[#to_queue + 1] = { id = location_id, key = key, rank = rank_name }
+                end
             end
-
-            local key = "merc:" .. tostring(location_id)
-            if not get_location_checked(checked_set, location_id)
-                and not get_location_checked(completed_set, location_id)
-                and bridge.pending_check_keys[key] ~= true then
-                to_queue[#to_queue + 1] = { id = location_id, key = key, rank = rank_name }
+        end
+        if #problems > 0 then
+            local warn_key = tostring(epoch or 0)
+            if not result_mapping_warned[warn_key] then
+                result_mapping_warned[warn_key] = true
+                log.warn("[Merc AP] result mapping: " .. table.concat(problems, "; "))
             end
+        end
+        if #rank_names > 0 and #to_queue == 0 and #problems >= #rank_names then
+            return false, "no rank of this result maps to a location"
         end
 
         local next_id = math.floor(tonumber(bridge.next_pending_check_id) or 1)
@@ -1129,6 +1205,7 @@ local function install(ctx)
                 "[Merc AP] score location queued: location_id=%d rank=%s",
                 item.id, item.rank
             ))
+            announce_rank_check(item.rank, item.id, payload)
         end
         if #to_queue > 0 then
             bridge.state_dirty = true
@@ -1138,13 +1215,9 @@ local function install(ctx)
         end
         return true
     end
+    export("merc_evaluate_result_locations", evaluate_result_locations)
 
     local function poll_result_pipeline()
-        if merc_state.lifecycle == STATE_RESULT_PIPELINE
-            and merc_state.expected_result_identity == nil then
-            reject_result_identity("live identity unavailable")
-            return
-        end
         local result_gui = get_result_gui_behavior()
         if result_gui == nil then return end
         local open_param = nil
@@ -1155,10 +1228,25 @@ local function install(ctx)
         end
 
         if merc_state.lifecycle == STATE_RESULT_PIPELINE then
-            local expected = merc_state.expected_result_identity
             local open_identity = read_open_param_identity(open_param)
             if open_identity == nil then
                 return
+            end
+            local expected = merc_state.expected_result_identity
+            if expected == nil then
+                -- The live identity was never captured during the run (a
+                -- getter renamed by a patch, a run entered before the
+                -- controller could be read). The screen that just opened is
+                -- this result's own record, so its identity stands rather
+                -- than the ranks being thrown away (2026-09-05 review).
+                expected = copy_result_identity(open_identity)
+                merc_state.expected_result_identity = expected
+                local roster = CHAR_COSTUME_TO_ROSTER[string.format("%d:%d",
+                    open_identity.chara_kind, open_identity.costume_id)]
+                log.warn(string.format(
+                    "[Merc AP] result identity taken from the result screen (live identity was not captured): stage=%s character=%s",
+                    tostring(STAGE_KIND_NAMES[open_identity.stage_kind]),
+                    tostring(roster and roster.name or "?")))
             end
             if open_identity.stage_kind ~= expected.stage_kind
                 or open_identity.chara_kind ~= expected.chara_kind
@@ -1184,7 +1272,7 @@ local function install(ctx)
             and merc_state.consumed_result_epoch ~= merc_state.result_epoch
             and merc_state.result_payload ~= nil then
             local ok_locations, location_error = evaluate_result_locations(
-                merc_state.result_payload, ctx.slot_data or bridge.slot_data)
+                merc_state.result_payload, ctx.slot_data or bridge.slot_data, merc_state.result_epoch)
             if not ok_locations then
                 bounded_result_error(merc_state.result_epoch, "mapping", location_error)
                 return
@@ -1216,19 +1304,21 @@ local function install(ctx)
             merc_state.lifecycle = STATE_RESULT_PIPELINE
             log.info(string.format("[Merc AP] result pipeline entered: epoch=%d", merc_state.result_epoch))
         elseif not is_result then
-            local routine = get_safe_int(merc_manager, "get_Routine", -1)
             if merc_state.last_is_result then
                 -- Result transition ends prior run. Do not reuse its identity for
                 -- a later result; next active run repopulates cache.
                 merc_state.last_valid_run_identity = nil
-            else
-                -- Preserve cache across transient invalid-controller gaps. A valid
-                -- controller identity is authoritative even when Routine getter is
-                -- unavailable; clear only after both active routine and controller end.
+            elseif get_runtime_domain() == "MERCENARIES" then
+                -- Only while the mode runs: in the campaign this used to scan
+                -- the scene for the controller on every tick (2026-09-05
+                -- review). A valid controller identity is authoritative;
+                -- clear it only once the controller itself is gone. (The
+                -- manager's get_Routine this once consulted never existed;
+                -- that method is the controller's.)
                 local live_identity = get_live_result_identity()
                 if live_identity ~= nil then
                     merc_state.last_valid_run_identity = live_identity
-                elseif routine < 0 and get_merc_controller() == nil then
+                elseif get_merc_controller() == nil then
                     merc_state.last_valid_run_identity = nil
                 end
             end
@@ -1249,6 +1339,7 @@ local function install(ctx)
     end
 
     local hooks_installed = false
+    local unlock_notice_suppressed_logged = false
     local hooked_functions = {}
     local decision_delegates = {}
     local decision_hooked_function_keys = {}
@@ -1622,6 +1713,42 @@ local function install(ctx)
                     pcall(function() method_name = method:get_name() end)
                     if method_name == "isUnlock" then safe_hook_unique(method, on_is_unlock_pre, on_is_unlock_post) end
                 end
+            end
+        end
+
+        -- [Result screen, 2026-09-05] The vanilla "unlocked <character> /
+        -- <stage>" lines come from the result screen's _UnlockNoticeList,
+        -- filled by its own unlock rules. Under AP those unlocks are items
+        -- elsewhere in the multiworld, so the lines lie (live 2026-09-05:
+        -- "unlocked Wesker and Island", neither owned). While the gate is
+        -- armed the list is emptied on every active frame, before the step
+        -- that would show it; the profile's own unlock records are left
+        -- alone, only the notice goes. Our own toasts say what really went.
+        local result_type = sdk.find_type_definition("chainsaw.Cp1021GameClearResultGuiBehavior")
+        if result_type ~= nil then
+            local late_update = nil
+            pcall(function() late_update = result_type:get_method("lateUpdateOnActive") end)
+            if late_update ~= nil then
+                safe_hook_unique(late_update, function(args)
+                    if not should_enforce_gating() then return sdk.PreHookResult.CALL_ORIGINAL end
+                    pcall(function()
+                        local gui = sdk.to_managed_object(args[2])
+                        if gui == nil then return end
+                        local notices = gui:get_field("_UnlockNoticeList")
+                        if notices == nil then return end
+                        local count = tonumber(notices:call("get_Count")) or 0
+                        if count > 0 then
+                            notices:call("Clear")
+                            if not unlock_notice_suppressed_logged then
+                                unlock_notice_suppressed_logged = true
+                                log.info(string.format(
+                                    "[Merc AP] vanilla unlock notice suppressed (%d line(s)): the unlocks are multiworld items",
+                                    count))
+                            end
+                        end
+                    end)
+                    return sdk.PreHookResult.CALL_ORIGINAL
+                end, function(retval) return retval end)
             end
         end
         hooks_installed = true

@@ -481,6 +481,8 @@ return function(ctx)
         })
         bridge.next_check_notification_id = id + 1
     end
+    -- The Mercenaries result screen announces its rank checks through this.
+    ctx.enqueue_toast = enqueue_toast
 
     -- [Overlay] Coalesce a burst of received items (the reconnect catch-up resend,
     -- or a pile of items granted while offline) into ONE rolling "Synced N items"
@@ -970,6 +972,13 @@ return function(ctx)
                     else
                         enqueue_toast(title, "unlocked for The Mercenaries", classify_flags(entry.flags), "received")
                     end
+                elseif not st.in_sync_burst then
+                    -- A Mercenaries-only slot's rank checks mostly pay out
+                    -- Nothing by construction (there is nothing to hand out
+                    -- inside the mode). Say so, rather than leaving a sent
+                    -- check with no answer (Cam, 2026-09-05).
+                    enqueue_toast("Nothing this time", "that rank check held no item for you",
+                        classify_flags(entry.flags), "received")
                 end
                 if not persist() then break end
             end

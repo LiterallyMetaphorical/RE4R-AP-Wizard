@@ -495,6 +495,15 @@ local function install(ctx)
     -- inferred from an old controller result. This is shared by header, menu AP,
     -- and toast placement so all three agree about occupied screen space.
     local function get_active_merc_header()
+        -- Cheapest question first: outside the mode there is no header, and
+        -- the pair lookup behind it is a scene search (2026-09-05 review).
+        local get_domain_first = ctx.get_runtime_domain or _G.get_runtime_domain
+        if type(get_domain_first) == "function" then
+            local ok_first, domain_first = pcall(get_domain_first)
+            if ok_first and domain_first ~= "MERCENARIES" then
+                return nil
+            end
+        end
         local get_merc_info = ctx.get_current_merc_play_info or _G.get_current_merc_play_info
         local ok_info, merc_info = false, nil
         if type(get_merc_info) == "function" then

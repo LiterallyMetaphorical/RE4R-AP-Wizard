@@ -827,6 +827,13 @@
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
                                        Text="Which ranks count, for every character and stage: A only is 32 checks, A and S is 64, all ranks is 128. Only Rank A can hold progression, so no seed depends on a top score." />
                         </StackPanel>
+                        <StackPanel Style="{StaticResource OptionCardStyle}">
+                            <CheckBox Style="{StaticResource OptionCardCheckTitleStyle}"
+                                      IsChecked="{Binding MercenariesProgression}"
+                                      Content="Ranks May Hold Progression" />
+                            <TextBlock Style="{StaticResource OptionCardHintStyle}"
+                                       Text="On by default: a Rank A check can hold an item the seed needs, so the campaign may wait on a character and stage pair until its unlocks arrive. Off: every rank pays out useful items and filler only, and the mode is a bonus, never a gate. A Mercenaries-only slot ignores this: its unlocks are its only progression." />
+                        </StackPanel>
                     </WrapPanel>
                     <Border Style="{StaticResource SettingsSectionRuleStyle}">
                         <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"

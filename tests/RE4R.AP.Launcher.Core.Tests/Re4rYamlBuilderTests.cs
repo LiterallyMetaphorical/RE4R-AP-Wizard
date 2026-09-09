@@ -101,6 +101,38 @@ public sealed class Re4rYamlBuilderTests
         Assert.Equal(expected, Scalar(GameOptions(yaml), "mercenaries_score_checks"));
     }
 
+    [Theory]
+    [InlineData(true, "true")]
+    [InlineData(false, "false")]
+    public void MercenariesProgressionIsAlwaysWritten(bool given, string expected)
+    {
+        // 0.7.4: on by default; a player who turns it off must see it in the file.
+        var yaml = Builder.Build(Request(r => r.MercenariesProgression = given));
+
+        Assert.Equal(expected, Scalar(GameOptions(yaml), "mercenaries_progression"));
+    }
+
+    [Fact]
+    public void MercenariesOnlySlotsAlwaysAllowProgressionOnRanks()
+    {
+        // The unlocks are that slot's only progression; the apworld refuses the
+        // switch off there, so the file never asks for it.
+        var yaml = Builder.Build(Request(r =>
+        {
+            r.IncludeMainCampaign = false;
+            r.IncludeMercenaries = true;
+            r.MercenariesProgression = false;
+        }));
+
+        Assert.Equal("true", Scalar(GameOptions(yaml), "mercenaries_progression"));
+    }
+
+    [Fact]
+    public void MercenariesProgressionDefaultsOn()
+    {
+        Assert.Equal("true", Scalar(GameOptions(Builder.Build(Request())), "mercenaries_progression"));
+    }
+
     [Fact]
     public void TypewritersAreQuotedAndSorted()
     {

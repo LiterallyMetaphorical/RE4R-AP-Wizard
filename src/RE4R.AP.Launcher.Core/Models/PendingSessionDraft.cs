@@ -122,6 +122,10 @@ public sealed class PendingSessionDraft
     [JsonPropertyName("mercenaries_score_checks")]
     public string MercenariesScoreChecks { get; set; } = "standard";
 
+    // 0.7.4; absent in older drafts, which read as on.
+    [JsonPropertyName("mercenaries_progression")]
+    public bool MercenariesProgression { get; set; } = true;
+
     // A draft saved by the Mercenaries branch build carried the mode as one
     // string; read once so that draft still lands on the right checkboxes.
     [JsonPropertyName("game_mode")]

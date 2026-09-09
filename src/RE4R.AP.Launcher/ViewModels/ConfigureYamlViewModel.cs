@@ -68,6 +68,8 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     private bool _includeMainCampaign = true;
     private bool _includeMercenaries;
     private string _selectedMercenariesScoreChecks = "A and S";
+    // 0.7.4: Rank A may hold progression unless the player turns this off.
+    private bool _mercenariesProgression = true;
     private string _yamlPreview = "Enter your slot name to generate the YAML preview.";
     private string _statusText = "Choose your RE4R settings - they save automatically as you edit.";
     private ICommand? _backToLandingCommand;
@@ -678,6 +680,20 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         }
     }
 
+    /// <summary>Whether a Rank A check may hold progression (apworld mercenaries_progression).</summary>
+    public bool MercenariesProgression
+    {
+        get => _mercenariesProgression;
+        set
+        {
+            if (SetProperty(ref _mercenariesProgression, value))
+            {
+                RebuildYamlPreview();
+                QueueDraftSave();
+            }
+        }
+    }
+
     /// <summary>The YAML value behind the picker label.</summary>
     public string MercenariesScoreChecksValue => _selectedMercenariesScoreChecks switch
     {
@@ -1065,6 +1081,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             IncludeMainCampaign = !legacy.StartsWith("mercenaries_only", StringComparison.Ordinal);
         }
         SelectedMercenariesScoreChecks = MercenariesScoreChecksLabelFor(draft.MercenariesScoreChecks);
+        MercenariesProgression = draft.MercenariesProgression;
         var selected = new HashSet<string>(draft.UnlockedTypewriterStageIds, StringComparer.Ordinal);
         foreach (var option in TypewriterOptions)
         {
@@ -1124,6 +1141,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
                 draft.IncludeMainCampaign = IncludeMainCampaign;
                 draft.IncludeMercenaries = IncludeMercenaries;
                 draft.MercenariesScoreChecks = MercenariesScoreChecksValue;
+                draft.MercenariesProgression = MercenariesProgression;
                 draft.LegacyGameMode = null;
                 draft.UnlockedTypewriterStageIds = TypewriterOptions
                     .Where(option => option.IsSelected)
@@ -1172,6 +1190,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             IncludeMainCampaign = IncludeMainCampaign,
             IncludeMercenaries = IncludeMercenaries,
             MercenariesScoreChecks = MercenariesScoreChecksValue,
+            MercenariesProgression = MercenariesProgression,
             UnlockedTypewriterStageIds = TypewriterOptions
                 .Where(option => option.IsSelected)
                 .Select(option => option.StageId)

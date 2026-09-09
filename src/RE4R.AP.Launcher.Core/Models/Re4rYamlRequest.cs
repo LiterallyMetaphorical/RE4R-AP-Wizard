@@ -56,6 +56,9 @@ public sealed class Re4rYamlRequest
     // Mercenaries rank checks: a_only, standard, full.
     public string MercenariesScoreChecks { get; set; } = "standard";
 
+    // 0.7.4: whether a Rank A check may hold progression. On by default.
+    public bool MercenariesProgression { get; set; } = true;
+
     // EXPERIMENTAL: the multiworld authors BioRand's Random Events at
     // generation time and the logic reacts to them (apworld 0.7.0). Off by
     // default; the launcher pins the rolled set into BioRand at patch time.

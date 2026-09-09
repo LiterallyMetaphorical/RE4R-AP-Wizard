@@ -318,6 +318,9 @@ internal sealed class MainWindow : Window
         var mercChecksCombo = Combo("MercenariesScoreChecksOptions", "SelectedMercenariesScoreChecks");
         mercChecksCombo.Bind(IsVisibleProperty, Binding("IncludeMercenaries"));
         body.Children.Add(mercChecksCombo);
+        var mercProgression = Check("Ranks may hold progression", "MercenariesProgression");
+        mercProgression.Bind(IsVisibleProperty, Binding("IncludeMercenaries"));
+        body.Children.Add(mercProgression);
 
         body.Children.Add(Label("Difficulty"));
         body.Children.Add(Combo("DifficultyOptions", "SelectedDifficulty"));

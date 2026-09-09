@@ -40,6 +40,10 @@ public sealed class Re4rYamlBuilder
             // emitted, so the file says it plainly.
             { "included_content", new YamlSequenceNode(IncludedContentNames(request).Select(SingleQuotedScalar)) },
             { "mercenaries_score_checks", NormalizeMercenariesScoreChecks(request.MercenariesScoreChecks) },
+            // 0.7.4: a Mercenaries-only slot has no campaign to carry its
+            // progression, so its ranks always may (the apworld refuses
+            // otherwise); the switch only means something with the campaign.
+            { "mercenaries_progression", request.MercenariesProgression || IsMercenariesOnly(request) ? "true" : "false" },
             { "difficulty", request.Difficulty.Trim().ToLowerInvariant() },
             { "progression_balancing", progressionBalancing.ToString(System.Globalization.CultureInfo.InvariantCulture) },
             { "check_guidance", checkGuidance },
@@ -126,6 +130,9 @@ public sealed class Re4rYamlBuilder
         }
         return names;
     }
+
+    private static bool IsMercenariesOnly(Re4rYamlRequest request) =>
+        request.IncludeMercenaries && !request.IncludeMainCampaign;
 
     private static string NormalizeMercenariesScoreChecks(string? value)
     {
