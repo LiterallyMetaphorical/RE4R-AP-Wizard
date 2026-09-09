@@ -220,11 +220,15 @@ The home tab, and the answer to "where do I go next". It has a section for each 
 
 Unchecked spots show a floating **[AP]** Marker reading, in order: the tag, the chapter it belongs to, the distance, the height difference, then the area and item detail. This tab turns Markers on and off, sets how far away they appear, and controls how much they say:
 
-- **Basic** - distance, height, area.
+- **Minimal** - distance and height only.
+- **Basic** - adds the chapter and the area.
 - **Locate** - adds what the item looked like in the vanilla game, and whether
   it is in a container or hanging (shoot it down).
-- **Identify** - adds the real item and who it belongs to. Full spoilers, so
-  it requires Developer Tools.
+- **Identify** - adds the real item and who it belongs to. A spoiler, and the
+  level a bought hint always shows.
+
+Your settings file picks the level you start at; this tab can change it any
+time, and the choice sticks for that seed.
 
 Markers from another chapter are dimmed and tagged, because RE4R reuses areas between chapters; there is a toggle to hide them. Locations you have bought a hint for show a magenta **[HINT]** Marker anywhere in the area.
 
