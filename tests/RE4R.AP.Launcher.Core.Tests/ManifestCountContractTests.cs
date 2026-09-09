@@ -54,6 +54,7 @@ public sealed class ManifestCountContractTests
             TradeShop = s.TradeShop,
             Mercenaries = s.Mercenaries,
             GameMode = s.GameMode,
+            PatchedCampaign = s.PatchedCampaign,
         };
     }
 
@@ -63,6 +64,7 @@ public sealed class ManifestCountContractTests
         public TradeShopSlotData TradeShop { get; set; } = TradeShopSlotData.Disabled;
         public MercenariesSlotData Mercenaries { get; set; } = MercenariesSlotData.Disabled;
         public string GameMode { get; set; } = "campaign";
+        public string? PatchedCampaign { get; set; }
     }
 
     private static IReadOnlyList<KeyValuePair<long, StaticShopSlot>> ShopSlotsInOrder(StaticGameData data) =>
@@ -350,5 +352,24 @@ public sealed class ManifestCountContractTests
 
         Assert.Equal(0, result.GuidPlacementCount);
         Assert.Contains(log, line => line.StartsWith("Room has 0 RE4R locations.", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    // A room made before 0.7.6 says nothing, and Leon is what it was patched as.
+    [InlineData(null, "Main Story")]
+    // A room that says so gets what it asked for.
+    [InlineData("Main Story", "Main Story")]
+    public async Task TheManifestNamesTheCampaignTheRoomAskedFor(string? patchedCampaign, string expected)
+    {
+        // The fork reads this key and selects Ada when it says "Separate Ways",
+        // so it has to be the room's answer rather than a constant. Behaviour
+        // is unchanged for every room that exists today, which is the point.
+        var data = await LoadStaticAsync();
+        var (builder, _) = BuilderWithLog();
+
+        var result = await builder.BuildAsync(
+            Room(Foreign(data.LocationCodes), s => s.PatchedCampaign = patchedCampaign), null, GameVersion);
+
+        Assert.Contains($"\"campaign\": \"{expected}\"", result.ConfigJson, StringComparison.Ordinal);
     }
 }

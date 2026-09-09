@@ -1,4 +1,6 @@
 using System.Text.Json;
+using RE4R.AP.Launcher.Core.Exceptions;
+using RE4R.AP.Launcher.Core.Models;
 using RE4R.AP.Launcher.Core.Services;
 using Xunit;
 
@@ -113,7 +115,101 @@ public sealed class ScoutPacketParsingTests
     [InlineData("""{"game_mode":"separate_ways"}""", "campaign")]
     public void GameModeReadsTheThreeKnownModesAndDefaultsToTheCampaign(string slotData, string expected)
     {
+        // Note the last case. An unrecognised mode reads as the campaign, which
+        // is why patched_campaign exists: on its own, game_mode would have this
+        // launcher patch Leon's game for a room built on content it has never
+        // heard of. See the patched_campaign tests below.
         Assert.Equal(expected, ArchipelagoScoutClient.ParseGameModeSlotData(Packet(slotData)));
+    }
+
+    [Theory]
+    [InlineData("""{"patched_campaign":"Main Story"}""", "Main Story")]
+    [InlineData("""{"patched_campaign":""}""", "")]
+    [InlineData("""{"patched_campaign":"  Separate Ways  "}""", "Separate Ways")]
+    public void ThePatchedCampaignIsReadAsWritten(string slotData, string expected)
+    {
+        // Returned as written rather than lowercased: it is a patcher-facing
+        // name, and an unrecognised one has to stay readable in the refusal.
+        Assert.Equal(expected, ArchipelagoScoutClient.ParsePatchedCampaignSlotData(Packet(slotData)));
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("""{"patched_campaign":123}""")]
+    [InlineData("""{"game_mode":"campaign"}""")]
+    public void ARoomThatNeverSaysWhichCampaignReadsAsNull(string slotData)
+    {
+        // Null is "the room did not say", which is every room made before
+        // 0.7.6. Those fall back to game_mode; an empty string would mean the
+        // opposite, that the room needs no patch at all.
+        Assert.Null(ArchipelagoScoutClient.ParsePatchedCampaignSlotData(Packet(slotData)));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("Main Story")]
+    [InlineData("main story")]
+    public void ACampaignThisLauncherCanPatchIsAccepted(string? patchedCampaign)
+    {
+        ArchipelagoScoutClient.RefuseUnpatchableCampaign(patchedCampaign);
+    }
+
+    [Theory]
+    [InlineData("Separate Ways")]
+    [InlineData("Something From The Future")]
+    public void ACampaignThisLauncherCannotPatchStopsTheScout(string patchedCampaign)
+    {
+        // The whole point of the key. Without it the room would come through
+        // as a plain campaign room and Leon's game would be patched for it.
+        // The bundled world data can know a room's locations while the bundled
+        // patcher cannot build its campaign, so the location id check does not
+        // cover this.
+        var error = Assert.Throws<ArchipelagoScoutException>(
+            () => ArchipelagoScoutClient.RefuseUnpatchableCampaign(patchedCampaign));
+
+        Assert.Contains(patchedCampaign, error.Message, StringComparison.Ordinal);
+        Assert.Contains("Nothing has been changed in your game.", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ASeparateWaysRoomIsRefusedStraightOffThePacket()
+    {
+        // The two halves as the scout runs them, against the slot_data the
+        // apworld emits for an SW room (verified against a generated room,
+        // 2026-09-06). Today game_mode alone would read this as a plain
+        // campaign room and patch Leon's game for Ada.
+        const string slotData =
+            """{"included_content":["Separate Ways"],"game_mode":"campaign","patched_campaign":"Separate Ways"}""";
+
+        Assert.Equal("campaign", ArchipelagoScoutClient.ParseGameModeSlotData(Packet(slotData)));
+
+        var campaign = ArchipelagoScoutClient.ParsePatchedCampaignSlotData(Packet(slotData));
+        Assert.Equal("Separate Ways", campaign);
+        Assert.Throws<ArchipelagoScoutException>(
+            () => ArchipelagoScoutClient.RefuseUnpatchableCampaign(campaign));
+    }
+
+    [Theory]
+    // The room said, so its answer is used.
+    [InlineData("Main Story", "campaign", "Main Story", false)]
+    [InlineData("", "campaign", "", true)]
+    // The room did not say, so game_mode decides. Every room before 0.7.6.
+    [InlineData(null, "campaign", "Main Story", false)]
+    [InlineData(null, "campaign_and_mercenaries", "Main Story", false)]
+    [InlineData(null, "mercenaries_only", "", true)]
+    public void WhatGetsPatchedPrefersTheRoomsAnswerAndFallsBackToTheMode(
+        string? patchedCampaign, string gameMode, string expectedTarget, bool expectedMercenariesOnly)
+    {
+        var result = new ArchipelagoScoutSessionResult
+        {
+            GameMode = gameMode,
+            PatchedCampaign = patchedCampaign,
+        };
+
+        Assert.Equal(expectedTarget, result.CampaignPatchTarget);
+        Assert.Equal(expectedMercenariesOnly, result.MercenariesOnly);
+        Assert.Equal(!expectedMercenariesOnly, result.CampaignIncluded);
     }
 
     [Fact]

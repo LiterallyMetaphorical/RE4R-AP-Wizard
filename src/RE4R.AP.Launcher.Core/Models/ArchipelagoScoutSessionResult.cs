@@ -91,8 +91,37 @@ public sealed class ArchipelagoScoutSessionResult
     /// </summary>
     public string GameMode { get; init; } = "campaign";
 
-    public bool MercenariesOnly =>
+    /// <summary>
+    /// slot_data.patched_campaign (apworld 0.7.6): which campaign BioRand has
+    /// to patch for this room, named the way the patcher names it, or "" for a
+    /// room with no campaign at all. Null when the room did not say, which is
+    /// every room made before 0.7.6.
+    ///
+    /// This is the question the launcher actually needs answered. GameMode is
+    /// one string out of a fixed set and an unrecognised value falls back to
+    /// "campaign", so a room built on content this launcher does not know
+    /// would otherwise be patched as Leon's campaign without a word. The scout
+    /// refuses a campaign it cannot patch rather than guessing.
+    /// </summary>
+    public string? PatchedCampaign { get; init; }
+
+    /// <summary>
+    /// What this launcher will actually patch: the room's own answer when it
+    /// gave one, otherwise derived from GameMode for rooms older than 0.7.6.
+    /// Empty means no campaign patch at all.
+    /// </summary>
+    public string CampaignPatchTarget =>
+        PatchedCampaign ?? (IsMercenariesOnlyGameMode ? string.Empty : "Main Story");
+
+    private bool IsMercenariesOnlyGameMode =>
         string.Equals(GameMode, "mercenaries_only", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// No campaign to patch, so BioRand is skipped and the Lua mod is the
+    /// whole install. The only content that patches nothing is The
+    /// Mercenaries.
+    /// </summary>
+    public bool MercenariesOnly => CampaignPatchTarget.Length == 0;
 
     public bool CampaignIncluded => !MercenariesOnly;
 

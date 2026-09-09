@@ -256,7 +256,7 @@ public sealed class ManifestBuilder
             scoutSession.MerchantShop.ScatteredItemIds, scoutSession.MerchantShop.StartingWeaponIds,
             scoutSession.MerchantShop.StartingAttachmentIds,
             scoutSession.RandomWeaponStats, scoutSession.RandomWeaponUpgrades,
-            scoutSession.TradeShop, scoutSession.SlotDifficulty);
+            scoutSession.TradeShop, scoutSession.SlotDifficulty, scoutSession.CampaignPatchTarget);
         if (scoutSession.RandomWeaponStats is bool yamlWeaponStats)
         {
             var weaponMode = scoutSession.RandomWeaponUpgrades is bool yamlWeaponUpgrades
@@ -335,7 +335,8 @@ public sealed class ManifestBuilder
         bool? randomWeaponStats,
         bool? randomWeaponUpgrades,
         TradeShopSlotData tradeShop,
-        int slotDifficulty)
+        int slotDifficulty,
+        string patchedCampaign)
     {
         var placementObject = new JsonObject();
         foreach (var placement in placements)
@@ -379,7 +380,15 @@ public sealed class ManifestBuilder
             root["username"] = slotName;
         }
 
-        root["campaign"] = "Main Story";
+        // Which campaign the patcher builds. It was hardcoded, which was true
+        // of every room that reaches here and would have stayed true right up
+        // until it silently was not: the fork already reads this key and
+        // selects Ada when it says "Separate Ways". The room's own answer now
+        // decides. A room with no campaign never gets a manifest at all, so an
+        // empty target here means the caller lost track of the room, and Leon
+        // is the only honest fallback because he is what every existing room
+        // was patched as.
+        root["campaign"] = string.IsNullOrWhiteSpace(patchedCampaign) ? "Main Story" : patchedCampaign;
         root["start-chapter"] = 1;
         root["skip-ashley-section"] = false;
         root["ap-mode"] = true;

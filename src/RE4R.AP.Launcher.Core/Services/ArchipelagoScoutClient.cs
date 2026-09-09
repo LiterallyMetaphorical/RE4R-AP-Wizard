@@ -214,6 +214,13 @@ public sealed class ArchipelagoScoutClient
 
             // [Mercenaries] What the slot plays, and the rank checks it carries.
             var gameMode = ParseGameModeSlotData(connectedPacket);
+            var patchedCampaign = ParsePatchedCampaignSlotData(connectedPacket);
+            RefuseUnpatchableCampaign(patchedCampaign);
+            if (patchedCampaign is not null && patchedCampaign.Length > 0)
+            {
+                Log($"This room needs the {patchedCampaign} campaign patched.");
+            }
+
             var mercenaries = ParseMercenariesSlotData(connectedPacket);
             if (mercenaries.Enabled)
             {
@@ -312,6 +319,7 @@ public sealed class ArchipelagoScoutClient
                 RandomWeaponUpgrades = randomWeaponUpgrades,
                 BonusWeaponsConsented = bonusWeaponsConsented,
                 GameMode = gameMode,
+                PatchedCampaign = patchedCampaign,
                 Mercenaries = mercenaries,
             };
         }
@@ -1063,6 +1071,61 @@ public sealed class ArchipelagoScoutClient
         }
 
         return "campaign";
+    }
+
+    /// <summary>
+    /// The campaigns this launcher can actually patch, as the patcher names
+    /// them. Empty string means a room with no campaign at all, which is a
+    /// Mercenaries-only room and needs no patch. Separate Ways is deliberately
+    /// absent: the apworld can describe it before the patcher can build it,
+    /// and this list is what stops the gap being silent.
+    /// </summary>
+    private static readonly string[] PatchableCampaigns = ["", "Main Story"];
+
+    /// <summary>
+    /// slot_data.patched_campaign (apworld 0.7.6): which campaign this room
+    /// needs patched, or "" for none. Null when the room did not say, which is
+    /// every room made before 0.7.6; the game_mode fallback covers those.
+    /// The value is returned as written, because it is a patcher-facing name
+    /// rather than a key, and an unrecognised one has to stay recognisable in
+    /// the message that refuses it.
+    /// </summary>
+    internal static string? ParsePatchedCampaignSlotData(JsonElement connectedPacket)
+    {
+        if (TryGetProperty(connectedPacket, "slot_data", out var slotData)
+            && slotData.ValueKind == JsonValueKind.Object
+            && slotData.TryGetProperty("patched_campaign", out var campaignElement)
+            && campaignElement.ValueKind == JsonValueKind.String)
+        {
+            return (campaignElement.GetString() ?? string.Empty).Trim();
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Stop before a room whose campaign this launcher cannot patch.
+    ///
+    /// Without this the launcher patches Leon's campaign for anything it does
+    /// not recognise, because game_mode falls back to "campaign". The bundled
+    /// world data can know a room's locations while the bundled patcher cannot
+    /// build its campaign, which is exactly the window between Separate Ways
+    /// generating and Separate Ways patching, so the location id check is not
+    /// the guard for this.
+    /// </summary>
+    internal static void RefuseUnpatchableCampaign(string? patchedCampaign)
+    {
+        if (patchedCampaign is null
+            || PatchableCampaigns.Contains(patchedCampaign, StringComparer.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        throw new ArchipelagoScoutException(
+            $"This room needs the {patchedCampaign} campaign patched, and this launcher cannot patch it. " +
+            "The room was generated with a newer RE4R.apworld than the one this launcher ships. " +
+            "Update the launcher, or regenerate the room with the apworld this launcher bundles. " +
+            "Nothing has been changed in your game.");
     }
 
     /// <summary>The room's difficulty as the game numbers it; 20 when unsaid.</summary>
