@@ -64,7 +64,14 @@ def main() -> int:
     world_version = stamp["payload"]["world_version"]
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    zip_name = f"re4r-ap-payload-{mod_version}.zip"
+    # The name is a sign, because this file sits in the release's download
+    # list looking like something to click and there is nothing a person can
+    # do with it: the wizard fetches it on its own, from the URL in the
+    # manifest, and never by name. Only [A-Za-z0-9._-] here, since GitHub
+    # rewrites spaces and other punctuation in an asset's filename.
+    # update-manifest.json CANNOT be renamed the same way: UpdateCheckService
+    # looks for that exact name on the release.
+    zip_name = f"DO-NOT-DOWNLOAD-wizard-auto-update-{mod_version}.zip"
     zip_path = OUTPUT_DIR / zip_name
 
     lua_files = sorted(path for path in LUA_ROOT.rglob("*") if path.is_file())
