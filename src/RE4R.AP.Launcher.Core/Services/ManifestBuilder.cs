@@ -192,10 +192,13 @@ public sealed class ManifestBuilder
         var configJson = BuildConfigJson(
             placements, normalizedOptions, gameVersion, scoutSession.RandomEvents, plannedShopSlots,
             scoutSession.MerchantShop.ScatteredItemIds, scoutSession.MerchantShop.StartingWeaponIds,
-            scoutSession.RandomWeaponStats);
+            scoutSession.RandomWeaponStats, scoutSession.RandomWeaponUpgrades);
         if (scoutSession.RandomWeaponStats is bool yamlWeaponStats)
         {
-            Log($"Random Weapon Stats rides the YAML: {(yamlWeaponStats ? "on" : "off")} for every patch of this room.");
+            var weaponMode = scoutSession.RandomWeaponUpgrades is bool yamlWeaponUpgrades
+                ? (!yamlWeaponStats ? "off" : yamlWeaponUpgrades ? "full" : "stats only")
+                : (yamlWeaponStats ? "on (upgrades stay yours to pick)" : "off");
+            Log($"Weapon randomization rides the YAML: {weaponMode} for every patch of this room.");
         }
         if (scoutSession.MerchantShop.ScatteredItemIds.Count > 0)
         {
@@ -249,7 +252,8 @@ public sealed class ManifestBuilder
         MerchantShopPlan shopPlan,
         IReadOnlyList<int> scatteredItemIds,
         IReadOnlyList<int> startingWeaponIds,
-        bool? randomWeaponStats)
+        bool? randomWeaponStats,
+        bool? randomWeaponUpgrades)
     {
         var placementObject = new JsonObject();
         foreach (var placement in placements)
@@ -441,14 +445,24 @@ public sealed class ManifestBuilder
         {
             root[BioRandOptionCatalog.RandomWeaponStatsKey] = weaponStats;
 
-            // Random Weapon Upgrades REQUIRES weapon stats - WeaponModifier
-            // throws rather than degrading. Upgrades defaults on and stats
-            // defaults off, so pinning stats off from the YAML and leaving
-            // upgrades alone was a guaranteed patch failure on a default seed:
-            // "BioRand failed internally (exit code -532462766)". Pinning one
-            // half of a dependent pair is not pinning it.
-            if (!weaponStats)
+            if (randomWeaponUpgrades is bool weaponUpgrades)
             {
+                // The YAML's three-way (off / stats_only / full) owns the
+                // whole pair: both switches pinned, the invalid shape
+                // (upgrades without stats) unexpressable rather than
+                // guarded against. The fork's own guard stays as backstop.
+                root[BioRandOptionCatalog.RandomWeaponUpgradesKey] = weaponUpgrades;
+            }
+            else if (!weaponStats)
+            {
+                // Rooms from the Toggle-era apworld carry only the stats
+                // key. Random Weapon Upgrades REQUIRES weapon stats -
+                // WeaponModifier throws rather than degrading. Upgrades
+                // defaults on and stats defaults off, so pinning stats off
+                // from the YAML and leaving upgrades alone was a guaranteed
+                // patch failure on a default seed: "BioRand failed
+                // internally (exit code -532462766)". Pinning one half of a
+                // dependent pair is not pinning it.
                 root[BioRandOptionCatalog.RandomWeaponUpgradesKey] = false;
                 Log("Random Weapon Stats is off, so Random Weapon Upgrades is forced off with it - BioRand refuses upgrades without stats.");
             }

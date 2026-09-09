@@ -77,8 +77,15 @@ public sealed class PendingSessionDraft
     [JsonPropertyName("merchant_checks")]
     public string? MerchantChecks { get; set; }
 
+    // Toggle-era field, kept for older readers and as the migration source:
+    // drafts saved before the three-way load it as full (true) or off (false).
     [JsonPropertyName("random_weapon_stats")]
     public bool RandomWeaponStats { get; set; }
+
+    // The weapon-randomization three-way: off / stats_only / full.
+    // Null/absent in older drafts - fall back to RandomWeaponStats above.
+    [JsonPropertyName("weapon_randomization")]
+    public string? WeaponRandomization { get; set; }
 
     [JsonPropertyName("minimize_backtracking")]
     public bool MinimizeBacktracking { get; set; }

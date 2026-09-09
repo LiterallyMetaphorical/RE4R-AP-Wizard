@@ -851,11 +851,14 @@
                                        Text="Begin the run with this many random pool weapons already in your case, ammo to match, exactly like BioRand's own starting loadout. Each one leaves the pool, so nobody finds a second copy. The type boxes trim what the draw may take - two guns come from two different types when the boxes allow it, and at least one box must stay ticked. Needs the gear shuffle above; without it, BioRand's own starting-inventory options on the options screen still work as always." />
                         </StackPanel>
                         <StackPanel Style="{StaticResource OptionCardStyle}">
-                            <CheckBox Style="{StaticResource OptionCardCheckTitleStyle}"
-                                      IsChecked="{Binding RandomWeaponStats}"
-                                      Content="Random Weapon Stats" />
+                            <TextBlock Style="{StaticResource OptionCardTitleStyle}"
+                                       Text="Weapon Randomization" />
+                            <ListBox ItemsSource="{Binding WeaponRandomizationOptions}"
+                                     ItemTemplate="{StaticResource OptionShortLabelTemplate}"
+                                     SelectedItem="{Binding SelectedWeaponRandomization, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource SegmentedPickerStyle}" />
                             <TextBlock Style="{StaticResource OptionCardHintStyle}"
-                                       Text="BioRand's Random Upgraded Weapon Stats, decided here because the multiworld holds the weapons: every gun's upgrade curve rerolls, from forgettable to monstrous. Applied identically on every patch; BioRand's own switch greys out and says the settings file decided." />
+                                       Text="How far BioRand's weapon-upgrade randomization goes, decided here because the multiworld holds the weapons. Off keeps the vanilla upgrade system. Stats Only rerolls every gun's upgrade curve, from forgettable to monstrous, on the vanilla upgrade tree. Full randomizes the upgrade paths too. One control because BioRand only supports these three shapes; both of its own switches grey out and say the settings file decided." />
                         </StackPanel>
                     </WrapPanel>
                     <Border Style="{StaticResource SettingsSectionRuleStyle}">

@@ -36,7 +36,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     private bool _deathLink;
     private bool _allowMissableLocations;
     private bool _shuffleKeycards;
-    private bool _randomWeaponStats;
+    private WeaponRandomizationOption _selectedWeaponRandomization = WeaponRandomizationOptionList[0];
     // On by default, like MerchantChecksPerChapter below: the Archipelago merchant is the
     // default experience, and drafts saved before the option existed load it
     // back as off (their owner chose their shop before gear could scatter).
@@ -170,6 +170,20 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     ];
 
     public IReadOnlyList<MerchantChecksOption> MerchantChecksOptions => MerchantChecksOptionList;
+
+    // How far BioRand's weapon-upgrade randomization goes. Mirrors the
+    // apworld's random_weapon_stats choice: one control for a dependent
+    // pair of BioRand switches, because upgrades-without-stats is the shape
+    // BioRand refuses and the one that broke v0.5.0's release seeds. Off is
+    // the default and every Toggle-era draft maps false->off, true->full.
+    private static readonly IReadOnlyList<WeaponRandomizationOption> WeaponRandomizationOptionList =
+    [
+        new("Off (vanilla upgrades)", "off", "Off"),
+        new("Stats only (rerolled curves)", "stats_only", "Stats Only"),
+        new("Full (curves + upgrade paths)", "full", "Full"),
+    ];
+
+    public IReadOnlyList<WeaponRandomizationOption> WeaponRandomizationOptions => WeaponRandomizationOptionList;
 
     // How much a world marker says, and what you actually get in game: this
     // is the tier the run starts at, changeable any time in the in-game
@@ -407,16 +421,18 @@ public sealed class ConfigureYamlViewModel : ObservableObject
     }
 
     /// <summary>
-    /// BioRand's Random Upgraded Weapon Stats, decided in the YAML because
-    /// the multiworld holds the weapons. Pinned into BioRand at patch time;
-    /// its switch on the BioRand Options screen greys out and says so.
+    /// BioRand's weapon-upgrade randomization, decided in the YAML because
+    /// the multiworld holds the weapons: Off, Stats Only, or Full. Both of
+    /// BioRand's switches for the pair pin at patch time; their rows on the
+    /// BioRand Options screen grey out and say so.
     /// </summary>
-    public bool RandomWeaponStats
+    public WeaponRandomizationOption SelectedWeaponRandomization
     {
-        get => _randomWeaponStats;
+        get => _selectedWeaponRandomization;
         set
         {
-            if (SetProperty(ref _randomWeaponStats, value))
+            // Same transient-null guard as the pickers above.
+            if (value is not null && SetProperty(ref _selectedWeaponRandomization, value))
             {
                 RebuildYamlPreview();
                 QueueDraftSave();
@@ -876,7 +892,13 @@ public sealed class ConfigureYamlViewModel : ObservableObject
         DeathLink = draft.DeathLink;
         AllowMissableLocations = draft.AllowMissableLocations;
         ShuffleKeycards = draft.ShuffleKeycards;
-        RandomWeaponStats = draft.RandomWeaponStats;
+        // Prefer the three-way; Toggle-era drafts carry only the bool, and
+        // true meant both switches (upgrades rode BioRand's default), so it
+        // migrates to full.
+        var weaponRandomization = WeaponRandomizationOptions.FirstOrDefault(
+            option => string.Equals(option.Value, draft.WeaponRandomization, StringComparison.OrdinalIgnoreCase));
+        SelectedWeaponRandomization = weaponRandomization
+            ?? (draft.RandomWeaponStats ? WeaponRandomizationOptionList[2] : WeaponRandomizationOptionList[0]);
         // ?? is the whole point of these being nullable: absent means the
         // draft predates the option, so the DEFAULT applies rather than the
         // zero value the field would otherwise deserialize to.
@@ -939,7 +961,10 @@ public sealed class ConfigureYamlViewModel : ObservableObject
                 draft.DeathLink = DeathLink;
                 draft.AllowMissableLocations = AllowMissableLocations;
                 draft.ShuffleKeycards = ShuffleKeycards;
-                draft.RandomWeaponStats = RandomWeaponStats;
+                draft.WeaponRandomization = SelectedWeaponRandomization.Value;
+                // Toggle-era mirror so an older launcher reading this draft
+                // still sees the right half of the choice.
+                draft.RandomWeaponStats = SelectedWeaponRandomization.Value != "off";
                 draft.ShuffleMerchantGear = ShuffleMerchantGear;
                 draft.StartingArsenal = StartingArsenal;
                 var trimmedArsenalTypes = TrimmedArsenalTypeKeys();
@@ -985,7 +1010,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
             DeathLink = DeathLink,
             AllowMissableLocations = AllowMissableLocations,
             ShuffleKeycards = ShuffleKeycards,
-            RandomWeaponStats = RandomWeaponStats,
+            WeaponRandomization = SelectedWeaponRandomization.Value,
             ShuffleMerchantGear = ShuffleMerchantGear,
             StartingArsenal = ShuffleMerchantGear ? StartingArsenal : 0,
             StartingArsenalTypes = TrimmedArsenalTypeKeys(),
@@ -1207,5 +1232,7 @@ public sealed class ConfigureYamlViewModel : ObservableObject
 public sealed record CheckGuidanceOption(string Label, string Value, string Short);
 
 public sealed record MerchantChecksOption(string Label, string Value, string Short);
+
+public sealed record WeaponRandomizationOption(string Label, string Value, string Short);
 
 public sealed record MarkerDetailOption(string Label, string Value, string Short);

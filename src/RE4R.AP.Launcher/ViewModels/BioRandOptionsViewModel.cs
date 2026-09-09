@@ -46,6 +46,7 @@ public sealed class BioRandOptionsViewModel : ObservableObject
     private bool _randomEventsForced;
     private bool _merchantOwnedByAp;
     private bool? _weaponStatsFromYaml;
+    private bool? _weaponUpgradesFromYaml;
     private string _pinnedNotice = string.Empty;
     private string _modeStatusText = "Choose a launch mode to continue.";
 
@@ -877,27 +878,72 @@ public sealed class BioRandOptionsViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// The upgrades half of the settings file's weapon-randomization
+    /// three-way. Null when the draft predates the choice - the stats-off
+    /// fallback below still covers the pair's one invalid shape.
+    /// </summary>
+    public bool? WeaponUpgradesFromYaml
+    {
+        get => _weaponUpgradesFromYaml;
+        set
+        {
+            if (SetProperty(ref _weaponUpgradesFromYaml, value))
+            {
+                ApplyWeaponStatsForcing();
+            }
+        }
+    }
+
     private void ApplyWeaponStatsForcing()
     {
-        if (!_itemsByKey.TryGetValue(BioRandOptionCatalog.RandomWeaponStatsKey, out var item))
+        if (_itemsByKey.TryGetValue(BioRandOptionCatalog.RandomWeaponStatsKey, out var statsItem))
+        {
+            if (_weaponStatsFromYaml is bool yamlChoice)
+            {
+                // The multiworld holds the weapons, so their character rides
+                // with them: the YAML decides once, every patch agrees.
+                statsItem.LoadValue(System.Text.Json.Nodes.JsonValue.Create(yamlChoice));
+                statsItem.IsEnabled = false;
+                statsItem.ForcedNotice = yamlChoice
+                    ? "On because your settings file says so - weapon randomization rides with the multiworld's weapons."
+                    : "Off because your settings file says so - weapon randomization rides with the multiworld's weapons.";
+            }
+            else
+            {
+                statsItem.IsEnabled = true;
+                statsItem.ForcedNotice = string.Empty;
+            }
+        }
+
+        if (!_itemsByKey.TryGetValue(BioRandOptionCatalog.RandomWeaponUpgradesKey, out var upgradesItem))
         {
             return;
         }
 
-        if (_weaponStatsFromYaml is bool yamlChoice)
+        if (_weaponUpgradesFromYaml is bool upgradesChoice)
         {
-            // The multiworld holds the weapons, so their character rides
-            // with them: the YAML decides once, every patch agrees.
-            item.LoadValue(System.Text.Json.Nodes.JsonValue.Create(yamlChoice));
-            item.IsEnabled = false;
-            item.ForcedNotice = yamlChoice
-                ? "On because your settings file says so - Random Weapon Stats rides with the multiworld's weapons."
-                : "Off because your settings file says so - Random Weapon Stats rides with the multiworld's weapons.";
+            // The other half of the same three-way: Off pins both, Stats
+            // Only pins this off, Full pins both on.
+            upgradesItem.LoadValue(System.Text.Json.Nodes.JsonValue.Create(upgradesChoice));
+            upgradesItem.IsEnabled = false;
+            upgradesItem.ForcedNotice = upgradesChoice
+                ? "On because your settings file says so - weapon randomization rides with the multiworld's weapons."
+                : "Off because your settings file says so - weapon randomization rides with the multiworld's weapons.";
+        }
+        else if (_weaponStatsFromYaml == false)
+        {
+            // Toggle-era settings file: stats off must drag upgrades off or
+            // BioRand refuses the patch outright (the v0.5.0 blocker).
+            upgradesItem.LoadValue(System.Text.Json.Nodes.JsonValue.Create(false));
+            upgradesItem.IsEnabled = false;
+            upgradesItem.ForcedNotice =
+                "Off because your settings file turns weapon stats off - BioRand refuses upgrades without stats.";
         }
         else
         {
-            item.IsEnabled = true;
-            item.ForcedNotice = string.Empty;
+            upgradesItem.IsEnabled = true;
+            upgradesItem.ForcedNotice = string.Empty;
         }
     }
 

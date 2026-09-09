@@ -356,7 +356,8 @@ internal sealed class MainWindow : Window
             TextWrapping = TextWrapping.Wrap,
             Opacity = .65,
         });
-        left.Children.Add(Check("Random weapon stats", "RandomWeaponStats"));
+        left.Children.Add(Label("Weapon randomization"));
+        left.Children.Add(Combo("WeaponRandomizationOptions", "SelectedWeaponRandomization", "Label"));
         left.Children.Add(Section("WHERE THINGS END UP"));
         left.Children.Add(Check("Allow missable locations", "AllowMissableLocations"));
         left.Children.Add(Check("Minimize backtracking + side areas", "MinimizeBacktracking"));

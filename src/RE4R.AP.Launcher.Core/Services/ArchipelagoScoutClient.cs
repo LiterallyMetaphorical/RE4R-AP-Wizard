@@ -180,14 +180,24 @@ public sealed class ArchipelagoScoutClient
                     + $"{randomEvents.RemovedLocationCodes.Count} checks removed by events.");
             }
 
-            // The YAML's Random Weapon Stats choice (absent on older rooms).
+            // The YAML's weapon-randomization choice (absent on older rooms).
+            // Two booleans, one per BioRand switch: stats, and upgrades for
+            // rooms new enough to carry the three-way.
             bool? randomWeaponStats = null;
+            bool? randomWeaponUpgrades = null;
             if (TryGetProperty(connectedPacket, "slot_data", out var weaponStatsSlotData)
-                && weaponStatsSlotData.ValueKind == JsonValueKind.Object
-                && weaponStatsSlotData.TryGetProperty("random_weapon_stats", out var weaponStatsElement)
-                && weaponStatsElement.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                && weaponStatsSlotData.ValueKind == JsonValueKind.Object)
             {
-                randomWeaponStats = weaponStatsElement.ValueKind == JsonValueKind.True;
+                if (weaponStatsSlotData.TryGetProperty("random_weapon_stats", out var weaponStatsElement)
+                    && weaponStatsElement.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                {
+                    randomWeaponStats = weaponStatsElement.ValueKind == JsonValueKind.True;
+                }
+                if (weaponStatsSlotData.TryGetProperty("random_weapon_upgrades", out var weaponUpgradesElement)
+                    && weaponUpgradesElement.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                {
+                    randomWeaponUpgrades = weaponUpgradesElement.ValueKind == JsonValueKind.True;
+                }
             }
 
             var merchantShop = ParseMerchantShopSlotData(connectedPacket);
@@ -252,6 +262,7 @@ public sealed class ArchipelagoScoutClient
                 RandomEvents = randomEvents,
                 MerchantShop = merchantShop,
                 RandomWeaponStats = randomWeaponStats,
+                RandomWeaponUpgrades = randomWeaponUpgrades,
             };
         }
         catch (ArchipelagoScoutException)

@@ -40,7 +40,8 @@ public sealed class Re4rYamlRequest
     // Who the merchant's check rows may hold: mixed, local_only, remote_only.
     public string MerchantChecks { get; set; } = "mixed";
 
-    public bool RandomWeaponStats { get; set; }
+    // The weapon-randomization three-way: off, stats_only, full.
+    public string WeaponRandomization { get; set; } = "off";
 
     // Keep important checks along the main path: hard hexagon deadline plus
     // filler-only side excursions (apworld 0.6.0).

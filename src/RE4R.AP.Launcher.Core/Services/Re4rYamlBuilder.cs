@@ -45,7 +45,7 @@ public sealed class Re4rYamlBuilder
             { "shuffle_keycards", request.ShuffleKeycards ? "true" : "false" },
             { "shuffle_merchant_gear", request.ShuffleMerchantGear ? "true" : "false" },
             { "starting_arsenal", Math.Clamp(request.StartingArsenal, 0, 2).ToString() },
-            { "random_weapon_stats", request.RandomWeaponStats ? "true" : "false" },
+            { "random_weapon_stats", NormalizeWeaponRandomization(request.WeaponRandomization) },
             { "minimize_backtracking", request.MinimizeBacktracking ? "true" : "false" },
             { "random_events", request.RandomEvents ? "true" : "false" },
             { "merchant_checks_per_chapter", Math.Clamp(request.MerchantChecksPerChapter, 0, 6).ToString(System.Globalization.CultureInfo.InvariantCulture) },
@@ -97,6 +97,14 @@ public sealed class Re4rYamlBuilder
     {
         var normalized = (value ?? string.Empty).Trim().ToLowerInvariant();
         return normalized is "local_only" or "remote_only" ? normalized : "mixed";
+    }
+
+    // The yaml key keeps its Toggle-era name (random_weapon_stats) so old
+    // files and old apworlds stay compatible; the VALUES are the three-way.
+    private static string NormalizeWeaponRandomization(string? value)
+    {
+        var normalized = (value ?? string.Empty).Trim().ToLowerInvariant();
+        return normalized is "stats_only" or "full" ? normalized : "off";
     }
 
     private static string NormalizeMarkerDetail(string? value)

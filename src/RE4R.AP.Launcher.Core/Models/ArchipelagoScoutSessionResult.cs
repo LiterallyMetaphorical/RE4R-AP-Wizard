@@ -33,10 +33,19 @@ public sealed class ArchipelagoScoutSessionResult
     public MerchantShopSlotData MerchantShop { get; init; } = MerchantShopSlotData.Disabled;
 
     /// <summary>
-    /// The YAML's Random Weapon Stats choice: the multiworld holds the
-    /// weapons, so their character rides with them and BioRand's own switch
-    /// is pinned to this at patch time. Null for rooms whose apworld
-    /// predates the key - those leave the switch player-controlled.
+    /// The YAML's weapon-randomization choice, stats half: the multiworld
+    /// holds the weapons, so their character rides with them and BioRand's
+    /// own switch is pinned to this at patch time. Null for rooms whose
+    /// apworld predates the key - those leave the switch player-controlled.
     /// </summary>
     public bool? RandomWeaponStats { get; init; }
+
+    /// <summary>
+    /// The upgrades half of the same choice (off / stats_only / full in the
+    /// YAML, carried as two booleans so old launchers keep reading the one
+    /// they know). Null for rooms whose apworld predates the three-way -
+    /// the manifest then falls back to forcing upgrades off whenever stats
+    /// is off, which is the pair's only invalid shape.
+    /// </summary>
+    public bool? RandomWeaponUpgrades { get; init; }
 }

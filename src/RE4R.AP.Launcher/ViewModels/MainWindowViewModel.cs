@@ -599,8 +599,17 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         JoinFlow.BioRandOptions.GearScattered = (_pendingDraft?.ShuffleMerchantGear ?? true) && _pendingDraft is not null;
         JoinFlow.BioRandOptions.StartingArsenalCount =
             _pendingDraft?.StartingArsenal ?? ConfigureYamlViewModel.DefaultStartingArsenal;
+        // The weapon-randomization three-way, split into BioRand's two
+        // switches. Toggle-era drafts carry only the bool: true meant both
+        // (upgrades rode BioRand's default on), false meant neither.
+        var weaponRandomization = _pendingDraft is { } weaponDraft
+            ? weaponDraft.WeaponRandomization
+              ?? (weaponDraft.RandomWeaponStats ? "full" : "off")
+            : null;
         JoinFlow.BioRandOptions.WeaponStatsFromYaml =
-            _pendingDraft is { } weaponStatsDraft ? weaponStatsDraft.RandomWeaponStats : null;
+            weaponRandomization is null ? null : weaponRandomization != "off";
+        JoinFlow.BioRandOptions.WeaponUpgradesFromYaml =
+            weaponRandomization is null ? null : weaponRandomization == "full";
 
         CurrentScreen = JoinFlow;
         Action.AppendLog("Opening the join-session flow.");
