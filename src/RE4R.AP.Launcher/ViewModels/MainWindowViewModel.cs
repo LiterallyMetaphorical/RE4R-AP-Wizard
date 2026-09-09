@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Sockets;
@@ -161,6 +161,10 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         // Step 3 renders the settings editor inline, so leaving it has to bank
         // the draft before the wizard reads OwnYamlReady back off storage.
         GenerationGuidance.OwnYamlFlushRequested += OnGuidanceOwnYamlFlushRequested;
+        // Step 3's editor has its own two pages; it takes the guide's Next
+        // while it is on the first of them.
+        GenerationGuidance.OwnYamlPageAdvanceRequested = TryAdvanceOwnYamlPage;
+        GenerationGuidance.OwnYamlPageBackRequested = TryGoBackOwnYamlPage;
         JoinFlow = new JoinFlowViewModel(Session, Action, BioRandOptions);
         PatchLaunch = new PatchLaunchViewModel(_workflowService, Action);
 
@@ -533,6 +537,43 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         CurrentScreen = GenerationGuidance;
         Action.AppendLog("Opening the organizer's Generation Guidance checklist.");
         _ = GenerationGuidance.EnterAsync();
+    }
+
+    /// <summary>
+    /// The guide's Next, offered to the settings editor first. On the content
+    /// page it always belongs to the editor: it turns to the settings when the
+    /// choice is usable, and holds still when it is not, so a half-answered
+    /// first page cannot skip the second (Cam, live 2026-09-08).
+    /// </summary>
+    private bool TryAdvanceOwnYamlPage()
+    {
+        if (!ConfigureYaml.IsOnContentPage)
+        {
+            return false;
+        }
+
+        if (ConfigureYaml.ContinueToSettingsCommand.CanExecute(null))
+        {
+            ConfigureYaml.ContinueToSettingsCommand.Execute(null);
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// The guide's Back, offered to the editor first: from the settings it
+    /// returns to the content question rather than leaving step 3 and skipping
+    /// that page on the way out.
+    /// </summary>
+    private bool TryGoBackOwnYamlPage()
+    {
+        if (!ConfigureYaml.IsOnSettingsPage)
+        {
+            return false;
+        }
+
+        ConfigureYaml.BackToContentCommand.Execute(null);
+        return true;
     }
 
     private async Task OnGuidanceOwnYamlFlushRequested()

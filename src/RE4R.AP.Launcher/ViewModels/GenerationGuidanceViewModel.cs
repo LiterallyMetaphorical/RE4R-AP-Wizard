@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -114,7 +114,7 @@ public sealed class GenerationGuidanceViewModel : ObservableObject
         _copySummaryCommand = new RelayCommand(CopySummaryForFriends, () => Step6Done);
         _continueToJoinCommand = new AsyncRelayCommand(ContinueToJoinAsync, () => Step6Done);
         _backStepCommand = new RelayCommand(
-            () => CurrentStepNumber = Math.Max(1, CurrentStepNumber - 1),
+            GoBackStep,
             () => CurrentStepNumber > 1);
         _nextStepCommand = new RelayCommand(
             () => _ = AdvanceStepAsync(),
@@ -233,12 +233,43 @@ public sealed class GenerationGuidanceViewModel : ObservableObject
     public event Func<Task>? OwnYamlFlushRequested;
 
     /// <summary>
+    /// Step 3's editor has two pages of its own. Asked before the step
+    /// advances: true means the editor took the Next for itself, so the guide
+    /// stays where it is. Without this, Next from the editor's first page
+    /// skipped its second page entirely and landed on step 4, with no way
+    /// back to the settings (Cam, live 2026-09-08).
+    /// </summary>
+    public Func<bool>? OwnYamlPageAdvanceRequested { get; set; }
+
+    /// <summary>The same for Back, so step 3's two pages are walked in both directions.</summary>
+    public Func<bool>? OwnYamlPageBackRequested { get; set; }
+
+    private void GoBackStep()
+    {
+        if (_currentStepNumber == 3
+            && OwnYamlPageBackRequested is not null
+            && OwnYamlPageBackRequested.Invoke())
+        {
+            return;
+        }
+
+        CurrentStepNumber = Math.Max(1, CurrentStepNumber - 1);
+    }
+
+    /// <summary>
     /// Step 3 hosts the settings editor inline, and OwnYamlReady is computed
     /// from the STORED draft - so leaving the step has to bank what is on
     /// screen first, or Next reads a draft one edit behind.
     /// </summary>
     private async Task AdvanceStepAsync()
     {
+        if (_currentStepNumber == 3
+            && OwnYamlPageAdvanceRequested is not null
+            && OwnYamlPageAdvanceRequested.Invoke())
+        {
+            return;
+        }
+
         if (_currentStepNumber == 3 && OwnYamlFlushRequested is not null)
         {
             await OwnYamlFlushRequested.Invoke();

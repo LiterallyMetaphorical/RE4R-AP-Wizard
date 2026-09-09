@@ -847,6 +847,7 @@
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="*" />
                                         <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
                                     <DockPanel>
                                         <TextBlock DockPanel.Dock="Right"
@@ -872,6 +873,7 @@
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="*" />
+                                        <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
                                     <DockPanel>
@@ -900,6 +902,7 @@
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="*" />
                                         <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
                                     <DockPanel>
                                         <TextBlock DockPanel.Dock="Right"
@@ -917,9 +920,9 @@
                                     <TextBlock Grid.Row="2"
                                                Style="{StaticResource ContentTileCountStyle}"
                                                Text="{Binding SeparateWaysCheckCount}" />
-                                    <TextBlock Grid.Row="2"
-                                               HorizontalAlignment="Right"
-                                               VerticalAlignment="Bottom"
+                                    <TextBlock Grid.Row="3"
+                                               Margin="0,6,0,0"
+                                               TextWrapping="Wrap"
                                                Opacity="0.6"
                                                Text="{Binding SeparateWaysNote}" />
                                 </Grid>
