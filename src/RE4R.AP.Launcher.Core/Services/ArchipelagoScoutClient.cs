@@ -828,7 +828,7 @@ public sealed class ArchipelagoScoutClient
     /// ManifestBuilder count check still catches a world that removed
     /// locations without telling us.
     /// </summary>
-    private static RandomEventsSlotData ParseRandomEventsSlotData(JsonElement connectedPacket)
+    internal static RandomEventsSlotData ParseRandomEventsSlotData(JsonElement connectedPacket)
     {
         if (!TryGetProperty(connectedPacket, "slot_data", out var slotData)
             || slotData.ValueKind != JsonValueKind.Object
@@ -904,7 +904,7 @@ public sealed class ArchipelagoScoutClient
     /// refuses a manifest slot with no price, so a half-parsed check must
     /// not reach it.
     /// </summary>
-    private static TradeShopSlotData ParseTradeShopSlotData(JsonElement connectedPacket)
+    internal static TradeShopSlotData ParseTradeShopSlotData(JsonElement connectedPacket)
     {
         if (!TryGetProperty(connectedPacket, "slot_data", out var slotData)
             || slotData.ValueKind != JsonValueKind.Object
@@ -1047,7 +1047,7 @@ public sealed class ArchipelagoScoutClient
     /// slot_data.game_mode: "campaign" (also when absent),
     /// "campaign_and_mercenaries" or "mercenaries_only".
     /// </summary>
-    private static string ParseGameModeSlotData(JsonElement connectedPacket)
+    internal static string ParseGameModeSlotData(JsonElement connectedPacket)
     {
         if (TryGetProperty(connectedPacket, "slot_data", out var slotData)
             && slotData.ValueKind == JsonValueKind.Object
@@ -1075,7 +1075,7 @@ public sealed class ArchipelagoScoutClient
     /// slot_data.mercenaries -> model. Absent, disabled or malformed reads as
     /// Disabled; the ids come from the character -> stage -> rank map.
     /// </summary>
-    private static MercenariesSlotData ParseMercenariesSlotData(JsonElement connectedPacket)
+    internal static MercenariesSlotData ParseMercenariesSlotData(JsonElement connectedPacket)
     {
         if (!TryGetProperty(connectedPacket, "slot_data", out var slotData)
             || slotData.ValueKind != JsonValueKind.Object
@@ -1132,7 +1132,7 @@ public sealed class ArchipelagoScoutClient
         };
     }
 
-    private static MerchantShopSlotData ParseMerchantShopSlotData(JsonElement connectedPacket)
+    internal static MerchantShopSlotData ParseMerchantShopSlotData(JsonElement connectedPacket)
     {
         if (!TryGetProperty(connectedPacket, "slot_data", out var slotData)
             || slotData.ValueKind != JsonValueKind.Object

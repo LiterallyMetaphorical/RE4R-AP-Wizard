@@ -1,0 +1,189 @@
+using RE4R.AP.Launcher.Core.Models;
+using RE4R.AP.Launcher.Core.Services;
+using Xunit;
+using YamlDotNet.RepresentationModel;
+
+namespace RE4R.AP.Launcher.Core.Tests;
+
+/// <summary>
+/// The settings file the options screen writes. Every option the apworld
+/// reads has to come out under its exact key, in the exact spelling the
+/// apworld accepts, and quoted where PyYAML would otherwise re-type it.
+/// </summary>
+public sealed class Re4rYamlBuilderTests
+{
+    private static readonly Re4rYamlBuilder Builder = new();
+
+    private static Re4rYamlRequest Request(Action<Re4rYamlRequest>? configure = null)
+    {
+        var request = new Re4rYamlRequest { SlotName = "Tester" };
+        configure?.Invoke(request);
+        return request;
+    }
+
+    private static YamlMappingNode GameOptions(string yaml)
+    {
+        var stream = new YamlStream();
+        stream.Load(new StringReader(yaml));
+        var root = (YamlMappingNode)stream.Documents[0].RootNode;
+        return (YamlMappingNode)root.Children[new YamlScalarNode("Resident Evil 4 Remake")];
+    }
+
+    private static string? Scalar(YamlMappingNode options, string key) =>
+        options.Children.TryGetValue(new YamlScalarNode(key), out var node)
+            ? ((YamlScalarNode)node).Value
+            : null;
+
+    private static List<string> Sequence(YamlMappingNode options, string key) =>
+        ((YamlSequenceNode)options.Children[new YamlScalarNode(key)])
+            .Children
+            .Select(node => ((YamlScalarNode)node).Value ?? string.Empty)
+            .ToList();
+
+    private static bool Has(YamlMappingNode options, string key) =>
+        options.Children.ContainsKey(new YamlScalarNode(key));
+
+    [Fact]
+    public void DefaultRequestPlaysTheCampaignAlone()
+    {
+        var options = GameOptions(Builder.Build(Request()));
+
+        Assert.Equal(new[] { "Main Campaign" }, Sequence(options, "included_content"));
+        Assert.Equal("standard", Scalar(options, "mercenaries_score_checks"));
+        Assert.Equal("standard", Scalar(options, "difficulty"));
+    }
+
+    [Fact]
+    public void BothContentsAreWrittenInTheApworldsNames()
+    {
+        var yaml = Builder.Build(Request(r => r.IncludeMercenaries = true));
+
+        Assert.Equal(new[] { "Main Campaign", "Mercenaries" }, Sequence(GameOptions(yaml), "included_content"));
+    }
+
+    [Fact]
+    public void MercenariesAloneLeavesTheCampaignOut()
+    {
+        var yaml = Builder.Build(Request(r =>
+        {
+            r.IncludeMainCampaign = false;
+            r.IncludeMercenaries = true;
+        }));
+
+        Assert.Equal(new[] { "Mercenaries" }, Sequence(GameOptions(yaml), "included_content"));
+    }
+
+    [Fact]
+    public void NeitherContentFallsBackToTheCampaign()
+    {
+        // The apworld refuses an empty list; a hand-built request must never
+        // produce one.
+        var yaml = Builder.Build(Request(r =>
+        {
+            r.IncludeMainCampaign = false;
+            r.IncludeMercenaries = false;
+        }));
+
+        Assert.Equal(new[] { "Main Campaign" }, Sequence(GameOptions(yaml), "included_content"));
+    }
+
+    [Theory]
+    [InlineData("A Only", "a_only")]
+    [InlineData("a_only", "a_only")]
+    [InlineData("full", "full")]
+    [InlineData("All Ranks", "full")]
+    [InlineData("standard", "standard")]
+    [InlineData("nonsense", "standard")]
+    public void ScoreChecksAreNormalisedToTheApworldsKeys(string given, string expected)
+    {
+        var yaml = Builder.Build(Request(r => r.MercenariesScoreChecks = given));
+
+        Assert.Equal(expected, Scalar(GameOptions(yaml), "mercenaries_score_checks"));
+    }
+
+    [Fact]
+    public void TypewritersAreQuotedAndSorted()
+    {
+        // A bare 40530 re-types to an int under PyYAML; the apworld accepts
+        // ids and names, and both must arrive as strings.
+        var yaml = Builder.Build(Request(r =>
+            r.UnlockedTypewriterStageIds = new[] { "43300", "40530", "Farm Typewriter", "" }));
+
+        Assert.Equal(new[] { "40530", "43300", "Farm Typewriter" }, Sequence(GameOptions(yaml), "unlocked_typewriters"));
+        Assert.Contains("- '40530'", yaml);
+        Assert.Contains("- 'Farm Typewriter'", yaml);
+    }
+
+    [Fact]
+    public void TradeChecksNeedTheGearShuffle()
+    {
+        var without = GameOptions(Builder.Build(Request(r =>
+        {
+            r.ShuffleMerchantGear = false;
+            r.TradeChecksPerChapter = 3;
+        })));
+        var with = GameOptions(Builder.Build(Request(r =>
+        {
+            r.ShuffleMerchantGear = true;
+            r.TradeChecksPerChapter = 5;
+        })));
+
+        Assert.Equal("0", Scalar(without, "trade_checks_per_chapter"));
+        Assert.Equal("false", Scalar(without, "shuffle_merchant_gear"));
+        Assert.Equal("3", Scalar(with, "trade_checks_per_chapter"));
+    }
+
+    [Fact]
+    public void NameListsAppearOnlyWhenChosenAndComeOutSortedAndUnique()
+    {
+        var untouched = GameOptions(Builder.Build(Request()));
+        Assert.False(Has(untouched, "exclude_locations"));
+        Assert.False(Has(untouched, "priority_locations"));
+        Assert.False(Has(untouched, "local_items"));
+        Assert.False(Has(untouched, "non_local_items"));
+
+        var chosen = GameOptions(Builder.Build(Request(r =>
+        {
+            r.ExcludeLocations = new[] { "Village", "Chests", " Village " };
+            r.PriorityLocations = new[] { "Castle" };
+            r.NonLocalItems = new[] { "Small Keys" };
+        })));
+
+        Assert.Equal(new[] { "Chests", "Village" }, Sequence(chosen, "exclude_locations"));
+        Assert.Equal(new[] { "Castle" }, Sequence(chosen, "priority_locations"));
+        Assert.Equal(new[] { "Small Keys" }, Sequence(chosen, "non_local_items"));
+        Assert.False(Has(chosen, "local_items"));
+    }
+
+    [Fact]
+    public void OptionsWithFixedSpellingsFallBackToSafeDefaults()
+    {
+        var options = GameOptions(Builder.Build(Request(r =>
+        {
+            r.MerchantChecks = "everyone";
+            r.WeaponRandomization = "sometimes";
+            r.MarkerDetail = "loud";
+            r.CheckGuidance = "maybe";
+            r.ProgressionBalancing = 250;
+            r.StartingArsenal = 9;
+            r.MerchantChecksPerChapter = 40;
+        })));
+
+        Assert.Equal("mixed", Scalar(options, "merchant_checks"));
+        Assert.Equal("off", Scalar(options, "random_weapon_stats"));
+        Assert.Equal("locate", Scalar(options, "marker_detail"));
+        Assert.Equal("markers", Scalar(options, "check_guidance"));
+        Assert.Equal("99", Scalar(options, "progression_balancing"));
+        Assert.Equal("2", Scalar(options, "starting_arsenal"));
+        Assert.Equal("6", Scalar(options, "merchant_checks_per_chapter"));
+    }
+
+    [Fact]
+    public void SlotNamesStayStringsAndAreRequired()
+    {
+        var yaml = Builder.Build(Request(r => r.SlotName = "007"));
+        Assert.Contains("name: '007'", yaml);
+
+        Assert.Throws<ArgumentException>(() => Builder.Build(Request(r => r.SlotName = "   ")));
+    }
+}

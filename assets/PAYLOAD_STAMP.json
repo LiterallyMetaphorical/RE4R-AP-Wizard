@@ -1,11 +1,11 @@
 {
-  "staged_at_utc": "2026-09-04T14:47:42Z",
+  "staged_at_utc": "2026-09-04T16:40:55Z",
   "sources": {
     "apworld": {
       "repo": "ArchipelagoRE4R",
       "branch": "fix/playtest-round-2",
-      "commit": "31b1da968c3ef8c88a79048d7a6cd1e74fc098a0",
-      "short": "31b1da9"
+      "commit": "9d3b751c60778a3f43ff2cbb1a44e6f8239b99c7",
+      "short": "9d3b751"
     },
     "fork": {
       "repo": "biorand-re4r-ap",
