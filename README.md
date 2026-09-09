@@ -7,7 +7,7 @@
 - IntelOrca and the BioRand project for the Resident Evil randomizer this project's world patcher is built from.
 - black-sliver for the Archipelago client binding (lua-apclientpp).
 - @CriminalENT for the in-game repack and model swap that placed the Archipelago logo in the game.
-- @snowzzrra for the Linux Release
+- @snowzzrra for the Linux Release and for The Mercenaries support
 - chenstack for [Item Adder](https://www.nexusmods.com/residentevil42023/mods/896), the foundation for injecting multiworld items, and [Item indicator](https://www.nexusmods.com/residentevil42023/mods/1063), the foundation for the in-world Markers.
 - JumperDenfer for the [RE4 Warp Mod](https://www.nexusmods.com/residentevil42023/mods/5923), the foundation for the typewriter warp system.
 - Additional Resident Evil 4 mod authors whose work informed these systems; specific techniques are credited in the source where they are used.
@@ -23,6 +23,7 @@
 
 - **456 item locations** across the full Leon campaign, chapters 1 to 16. Includes Key Items with logic to ensure they spawn before you need them.
 - **The merchant sells multiworld checks** on both his tabs: the shop for pesetas and the trade tab for spinel, each on by default at 3 a chapter (45 a seed each). See [The merchant](#the-merchant).
+- **The Mercenaries can be part of the room, or the whole room.** Rank checks for every character and stage pair, with the characters and stages as the items. See [The Mercenaries](#the-mercenaries).
 - Other players' items appear as Archipelago-logo pickups. Collecting one sends its check and puts nothing in your inventory. Your own items are collected normally.
 - Locations that cannot be collected in game are excluded from the pool, so nothing gets stranded on them.
 
@@ -101,6 +102,27 @@ the multiworld now carries it.
 moment, with ammo to match. Each one leaves the pool, so nobody finds a second
 copy. Set it to zero if you would rather start with nothing.
 
+## The Mercenaries
+
+**Included Content**, at the top of your settings, picks what the multiworld
+covers: Main Campaign, The Mercenaries, or both. Separate Ways is listed and
+greyed out as coming soon.
+
+With The Mercenaries included, every character and stage pair has rank checks.
+**Mercenaries Score Checks** decides which ranks count: A only (32 checks), A
+and S (64, the default), or every rank up to S++ (128). Only Rank A can hold
+progression, so no seed ever depends on a top score.
+
+The characters and stages are the items. One of each starts with you; the rest
+stay locked in the mode's menus until their item arrives, with a toast when it
+does. A campaign item received while a Mercenaries run is in progress waits
+until you are back in the campaign.
+
+A room that includes only The Mercenaries needs no campaign patch: the launcher
+skips BioRand and installs the in-game mod alone, and Rank A on every unlocked
+pair is the goal. The Checklist has a Mercenaries section with the stages side
+by side and each character's rank marks.
+
 ## What You Need
 
 - Resident Evil 4 Remake (2023) on Steam, including the **Separate Ways** and **Treasure Map: Expansion**
@@ -142,6 +164,8 @@ name and patch.
 
 ### Your settings file
 
+- **Included Content** - Main Campaign, The Mercenaries, or both. See [The Mercenaries](#the-mercenaries).
+- **Mercenaries Score Checks** - which ranks count as checks: A only, A and S, or every rank.
 - **Difficulty** - the difficulty you'll actually play. Hardcore and Professional remove the few spots that can't be collected on those difficulties, so it needs to match your save.
 - **Death Link** - share deaths with the room.
 - **Progression Balancing** - how hard the multiworld works to keep your important items early. 50-70 suits RE4R's gated chapters; lower values mean longer waits on other players.
@@ -162,19 +186,17 @@ A check is only forgotten locally once the server acknowledges it, so a dropped 
 
 ## Known issues
 
-**Some pickups grant the item and send nothing.** Roughly one in twenty, and
-this is the one to know about because it is silent. **The tell: if an
-Archipelago-logo placeholder lands in your inventory, that check did not send** -
-a placeholder is meant to vanish on pickup. Nothing is permanently lost.
-**Force Check** in the Something's Wrong tab sends it, one location at a time.
-If it happens, please send `re2_framework_log.txt` grabbed WITHOUT relaunching
-the game, since it is overwritten every launch. This build carries a diagnostic
-that names the cause, so a single report is worth a lot right now.
+**Some pickups can grant the item and send nothing.** The main cause found so
+far is fixed in this build (a pickup taken with a full case, or as a weapon or
+key item, now sends), but the report is still worth making because a miss is
+silent. **The tell: if an Archipelago-logo placeholder lands in your inventory,
+that check did not send** - a placeholder is meant to vanish on pickup. Nothing
+is permanently lost. **Force Check** in the Something's Wrong tab sends it, one
+location at a time. If it happens, please send `re2_framework_log.txt` grabbed
+WITHOUT relaunching the game, since it is overwritten every launch.
 
 Smaller things:
 
-- Merchant row icons can look stretched. Known, cosmetic, cause not confirmed.
-- Per-check descriptions do not display; every check row shares one caption.
 - The merchant backlog is only in the log, not on screen.
 - A summoned boat may face an odd direction at its pier.
 - An inbound DeathLink shows the game-over screen with no death animation.
@@ -188,7 +210,11 @@ Press **Insert** to open the Archipelago window while in-game. A welcome note wa
 
 ### The Checklist
 
-The home tab, and the answer to "where do I go next". Every typewriter save point is listed with how many checks are found near it, out of how many. Expand one to see the areas it covers with their own counts, and warp straight there. Typewriter warps unlock once you have found that typewriter in game.
+The home tab, and the answer to "where do I go next". It has a section for each kind of content the room includes, each with its own count and progress bar:
+
+- **Main Campaign** lists every typewriter save point with how many checks are found near it, out of how many. Expand one to see the areas it covers with their own counts, and warp straight there. Typewriter warps unlock once you have found that typewriter in game.
+- **Merchant** lists the shop's checks and the trade tab's by chapter, marks the bought ones, and says which chapters have not released yet.
+- **Mercenaries** shows the stages side by side with each character's rank marks.
 
 ### Guidance
 
