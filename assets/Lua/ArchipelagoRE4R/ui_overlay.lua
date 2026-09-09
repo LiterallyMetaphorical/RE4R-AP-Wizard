@@ -563,6 +563,26 @@ local function install(ctx)
         current_section_cache.stage = stage
         current_section_cache.section = nil
 
+        -- [Separate Ways] Her sections are authored per stage, because the
+        -- pause-map polygons below have no coverage for her campaign at all.
+        -- Reading her position against Leon's polygons put her in his Hunter's
+        -- Lodge while she stood at the Castle Gate (Cam, live 2026-09-07).
+        -- Leon's campaign keeps the polygons, which are finer than a stage.
+        do
+            local who = ctx.inject_current_character or _G.inject_current_character
+            local authored = ctx.get_authored_section or _G.get_authored_section
+            if type(who) == "function" and type(authored) == "function" then
+                local ok_character, character = pcall(who)
+                if ok_character and type(character) == "table" and character.campaign ~= "leon" then
+                    local ok_section, section = pcall(authored, stage, character.campaign)
+                    if ok_section and type(section) == "string" and section ~= "" then
+                        current_section_cache.section = section
+                        return section
+                    end
+                end
+            end
+        end
+
         local chapter_number = resolve_chapter_for_ui(stage)
         local position_getter = ctx.get_player_position or _G.get_player_position
         if type(position_getter) == "function" then

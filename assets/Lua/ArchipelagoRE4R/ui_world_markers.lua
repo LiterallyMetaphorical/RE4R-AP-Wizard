@@ -195,13 +195,22 @@ local function install(ctx)
     -- Square Hand Grenade (36416bae) is keyed under 40211 ("grenade house"),
     -- so from 40200 - two metres outside the door - it never drew (Cam's
     -- footage, 2026-07-23). The 40m distance cap still bounds what shows.
+    -- [Marker diagnostics] How many open checks this stage family holds and
+    -- how many became drawable, so "no markers" can be attributed instead of
+    -- guessed at (Cam, live 2026-09-07: none in Separate Ways).
+    local marker_open_count = 0
+    local marker_report = nil
+
     local function rebuild_marker_entries(stage)
         local entries = {}
         local collect = ctx.collect_open_family_locations or _G.collect_open_family_locations
         if type(collect) ~= "function" then
+            marker_open_count = 0
             return entries
         end
-        for _, open_location in ipairs(collect(stage)) do
+        local open_locations = collect(stage)
+        marker_open_count = #open_locations
+        for _, open_location in ipairs(open_locations) do
             local entry = build_marker_entry(open_location)
             if entry ~= nil then
                 entries[#entries + 1] = entry
@@ -366,6 +375,19 @@ local function install(ctx)
 
         local max_distance = tonumber(bridge.world_markers_max_distance) or 40.0
         local entries = get_marker_entries(state.current_stage)
+        do
+            local report = string.format(
+                "world markers: stage %s (%s), %d open check(s) in this stage family, %d drawable, cap %.0fm",
+                tostring(state.current_stage),
+                tostring(playing_campaign or "campaign unread"),
+                marker_open_count,
+                #entries,
+                max_distance)
+            if report ~= marker_report then
+                marker_report = report
+                log.info("[RE4R AP] " .. report)
+            end
+        end
         for _, entry in ipairs(entries) do
             local dx = entry.x - player_position.x
             local dy = entry.y - player_position.y

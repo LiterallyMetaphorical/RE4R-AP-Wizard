@@ -1,11 +1,15 @@
 local function install(ctx)
     ctx.data = ctx.data or {}
 
+    -- The four Leon tables, plus Ada's whole set under separate_ways. She
+    -- reuses his stage ids with other chapters, so the reader picks the set by
+    -- the campaign being played.
     local stage_chapter_map = {
         exact = {},
         exact_candidates = {},
         family = {},
         family_candidates = {},
+        separate_ways = nil,
     }
     local stage_location_guid_map = {}
     local stage_location_display_map = {}
@@ -166,6 +170,13 @@ local function install(ctx)
         stage_chapter_map.exact_candidates = payload.exact_candidates or {}
         stage_chapter_map.family = payload.family or {}
         stage_chapter_map.family_candidates = payload.family_candidates or {}
+        -- Ada's set, copied whole. Leaving it out is why Separate Ways
+        -- chapter 1 read as Leon's chapter 7 in the Castle: the reader asked
+        -- for her table, found nothing, and fell back to his (Cam, live
+        -- 2026-09-07). Absent on a payload older than world 0.8.0, where the
+        -- fallback is the right answer.
+        stage_chapter_map.separate_ways =
+            type(payload.separate_ways) == "table" and payload.separate_ways or nil
     end
 
     -- [Pickup event flags] 22 vanilla drops carry SetFlagSettings whose
@@ -329,6 +340,12 @@ local function install(ctx)
                 for guid, raw_entry in pairs(raw_entries) do
                     local normalized_guid = normalize_display_guid(guid)
                     if normalized_guid ~= nil and type(raw_entry) == "table" then
+                        -- trim_display_text answers "" for a missing field, and
+                        -- "" is TRUTHY in Lua, so `or "leon"` would never fire.
+                        local campaign = trim_display_text(raw_entry.campaign)
+                        if campaign == "" then
+                            campaign = "leon"
+                        end
                         stage_entries[normalized_guid] = {
                             location_id = tonumber(raw_entry.location_id),
                             location_name = trim_display_text(raw_entry.location_name),
@@ -336,6 +353,15 @@ local function install(ctx)
                             item_name = trim_display_text(raw_entry.item_name),
                             classification = trim_display_text(raw_entry.classification),
                             chapter = tonumber(raw_entry.chapter),
+                            -- Which campaign the check belongs to. The marker
+                            -- pass reads this to tell Ada's checks from Leon's,
+                            -- and 36 stage ids carry both. It was in the JSON
+                            -- and not extracted here, so every Separate Ways
+                            -- check read as Leon's and NONE of her markers
+                            -- drew (Cam, live 2026-09-07: 10 open, 0 drawable).
+                            -- Absent on a payload older than world 0.8.0,
+                            -- where every check was his.
+                            campaign = campaign,
                             stage_name = trim_display_text(raw_entry.stage_name),
                             -- Pause-map area name + world position (section-scoped
                             -- header counts now; world markers later).
@@ -759,6 +785,33 @@ local function install(ctx)
     -- against the display map 2026-07-23: every multi-stage family's coordinate
     -- ranges are mutually consistent; cross-FAMILY spaces are NOT (village
     -- 402xx and island 601xx overlap numerically), so never widen past /100.
+    -- [Separate Ways] The area name for a stage, taken from the checks that
+    -- sit in it. Ada's sections are AUTHORED per chapter and stage (the world
+    -- builds them from sw_sections.json) because the pause-map polygons the
+    -- overlay normally reads have no Separate Ways coverage at all. Reading
+    -- her position against Leon's polygons put her in his Hunter's Lodge while
+    -- she stood at the Castle Gate (Cam, live 2026-09-07).
+    --
+    -- Campaign-scoped because 36 stage ids carry checks from both.
+    local function get_authored_section(stage, campaign)
+        if type(stage) ~= "number" or type(campaign) ~= "string" then
+            return nil
+        end
+        local stage_entries = (stage_location_display_map or {})[tostring(stage)]
+        if type(stage_entries) ~= "table" then
+            return nil
+        end
+        for _, display_entry in pairs(stage_entries) do
+            if type(display_entry) == "table"
+                and display_entry.campaign == campaign
+                and type(display_entry.section_name) == "string"
+                and display_entry.section_name ~= "" then
+                return display_entry.section_name
+            end
+        end
+        return nil
+    end
+
     local function get_stage_family_stages(stage)
         if type(stage) ~= "number" then
             return {}
@@ -1295,6 +1348,7 @@ local function install(ctx)
         count_lookup_entries = count_lookup_entries,
         list_lookup_keys = list_lookup_keys,
         get_location_display_entry = get_location_display_entry,
+        get_authored_section = get_authored_section,
         get_stage_progress = get_stage_progress,
         build_nearby_remaining_label = build_nearby_remaining_label,
         truncate_overlay_text = truncate_overlay_text,
