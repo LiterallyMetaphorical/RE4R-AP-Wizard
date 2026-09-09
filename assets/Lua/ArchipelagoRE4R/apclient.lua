@@ -508,14 +508,48 @@ return function(ctx)
     ctx.ap_get_own_item_ids = ap_get_own_item_ids
 
     -- [Actions] Force-check one of OUR locations (stuck-tester escape hatch,
-    -- confirmed in the Actions tab). The server round-trip acknowledges it
-    -- through the normal on_location_checked path - no special bookkeeping.
+    -- confirmed in the Actions tab). The send goes out by raw location id,
+    -- but every marker and counter keys on "stage|guid" - and the server's
+    -- reply carries no guid, so before 2026-08-28 the marker stood until
+    -- the next connect resent and folded it in. A player pressed the button
+    -- twice in nine seconds because nothing visibly changed (Pulzematic,
+    -- LOST_CHECKS_INVESTIGATION.md section 14). Resolve the id back through
+    -- the display map's reverse index, mark the durable set, persist: the
+    -- marker clears on the spot, same optimistic ack the normal send path
+    -- uses.
     local function ap_force_check(location_id)
         local id = tonumber(location_id)
         if ap == nil or id == nil then return false end
-        local ok = pcall(function() ap:LocationChecks({ math.floor(id) }) end)
+        id = math.floor(id)
+        local ok = pcall(function() ap:LocationChecks({ id }) end)
         if ok then
-            info(string.format("FORCE-CHECK submitted for location %d (debug escape hatch)", math.floor(id)))
+            info(string.format("FORCE-CHECK submitted for location %d (debug escape hatch)", id))
+            pcall(function()
+                local reverse = ctx.get_display_entry_by_location_id
+                    or _G.get_display_entry_by_location_id
+                local bridge = ctx.bridge
+                if type(reverse) ~= "function" or bridge == nil
+                    or type(bridge.acknowledged_guid_keys) ~= "table" then
+                    return
+                end
+                local record = reverse(id)
+                if type(record) ~= "table" or record.stage == nil or record.guid == nil then
+                    info(string.format(
+                        "FORCE-CHECK %d: no display entry to acknowledge locally - marker clears on next connect",
+                        id))
+                    return
+                end
+                local key = tostring(record.stage) .. "|" .. tostring(record.guid)
+                if not bridge.acknowledged_guid_keys[key] then
+                    bridge.acknowledged_guid_keys[key] = true
+                    bridge.checks_sent_session = (bridge.checks_sent_session or 0) + 1
+                    if type(ctx.save_session_state) == "function" then
+                        ctx.save_session_state()
+                    end
+                    info(string.format(
+                        "FORCE-CHECK %d acknowledged locally as %s - marker clears now", id, key))
+                end
+            end)
         end
         return ok == true
     end
@@ -1182,7 +1216,8 @@ return function(ctx)
     local function poll_bonus_weapons()
         if not bonus_retry_pending then return end
         local bridge = ctx.bridge
-        if bridge == nil or bridge.allow_bonus_items ~= true then
+        if bridge == nil or (bridge.allow_bonus_items ~= true
+            and bridge.bonus_weapons_unlock ~= true) then
             bonus_retry_pending = false
             return
         end
@@ -1199,7 +1234,9 @@ return function(ctx)
             bonus_retry_pending = false
             return
         end
-        local ok, ensure_ok, _, unresolved = pcall(ensure)
+        -- In-game the records are loaded, so a lookup miss now means a
+        -- stripped conversion row, not timing: allow the static fallback.
+        local ok, ensure_ok, _, unresolved = pcall(ensure, true)
         if ok and ensure_ok == true and (tonumber(unresolved) or 0) == 0 then
             bonus_retry_pending = false
             info("bonus-weapon unlock resolved in-game")
@@ -1712,11 +1749,18 @@ return function(ctx)
                     -- and read as false.
                     if ctx.bridge then
                         ctx.bridge.allow_bonus_items = (payload.allow_bonus_items == true)
-                        -- While the merchant's gear is scattered, bonus GUNS
-                        -- are multiworld items, not free Storage grants: the
-                        -- unlock keeps only the Primal Knife (knives are
-                        -- deliberately outside the scatter), and the Deluxe
-                        -- entitlement grant is vetoed for the scattered ids.
+                        -- [Bonus Weapons] The YAML's consent: the trio are
+                        -- pool items in this room and the fork stripped
+                        -- their ExShop conversions at patch time, so the
+                        -- unlock is pure possession protection. Older room
+                        -- files lack the key and read as false.
+                        ctx.bridge.bonus_weapons_unlock = (payload.bonus_weapons_unlock == true)
+                        -- The Deluxe entitlement grant (ArmouryManager
+                        -- addExtraItem) stays vetoed for the scattered ids,
+                        -- so a pool bonus weapon is never also a free
+                        -- Storage grant. (The unlock suppression that used
+                        -- to live behind this flag retired 2026-08-28: the
+                        -- fork's conversion strip does that job now.)
                         ctx.bridge.gear_scattered = (payload.gear_scattered == true)
                         local scattered_set = {}
                         if type(payload.scattered_item_ids) == "table" then
@@ -1753,6 +1797,18 @@ return function(ctx)
                         local ok_merchant, merchant_err = pcall(configure_merchant, payload.merchant_shop)
                         if not ok_merchant then
                             warn("merchant shop configure failed: " .. tostring(merchant_err))
+                        end
+                    end
+                    -- [Trade takeover, Phase 2] The Trade tab's own section,
+                    -- same channel and same shape. Absent in older rooms and in
+                    -- rooms whose trade_checks_per_chapter is 0, which leaves
+                    -- the tab exactly as the fork baked it: a pure currency
+                    -- exchange with no check slots to poll.
+                    local configure_trade = ctx.trade_configure or _G.trade_configure
+                    if type(configure_trade) == "function" then
+                        local ok_trade, trade_err = pcall(configure_trade, payload.trade_shop)
+                        if not ok_trade then
+                            warn("trade shop configure failed: " .. tostring(trade_err))
                         end
                     end
                     -- [EnemyGates] Possession-keyed spawn admission: the
@@ -1816,13 +1872,15 @@ return function(ctx)
         resend_checked_locations()
         -- [Phase 4] Refresh seed-aware location classifications for the progression UI.
         scout_all_locations()
-        -- [D5] Rooms patched with allow-bonus-items: make the four bonus
-        -- weapons legal on this profile now, before any save/load can strip
-        -- them from the inventory. Idempotent (already-bought skipped).
-        -- Connecting usually happens at the title screen, where the ExShop
-        -- records are not loaded and every id lookup misses - any non-clean
-        -- outcome arms poll_bonus_weapons to retry in-game.
-        if ctx.bridge and ctx.bridge.allow_bonus_items == true then
+        -- [D5] Rooms patched with allow-bonus-items, or carrying the YAML's
+        -- bonus_weapons consent: make the bonus weapons legal on this
+        -- profile now, before any save/load can strip them from the
+        -- inventory. Idempotent (already-bought skipped). Connecting
+        -- usually happens at the title screen, where the ExShop records are
+        -- not loaded and every id lookup misses - any non-clean outcome
+        -- arms poll_bonus_weapons to retry in-game.
+        if ctx.bridge and (ctx.bridge.allow_bonus_items == true
+            or ctx.bridge.bonus_weapons_unlock == true) then
             local ensure = ctx.inject_ensure_bonus_weapons_unlocked
                 or _G.inject_ensure_bonus_weapons_unlocked
             if type(ensure) == "function" then

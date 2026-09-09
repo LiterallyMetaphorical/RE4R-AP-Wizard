@@ -132,6 +132,10 @@ local function install(ctx)
         -- [D5] True when the launcher's room file says this world was patched
         -- with allow-bonus-items; drives the bonus-weapon force-unlock.
         allow_bonus_items = false,
+        -- [Bonus Weapons] The YAML's consent from slot_data, via the room
+        -- file: arms the same force-unlock for the scattered Extra Content
+        -- trio. Either flag alone is enough to arm.
+        bonus_weapons_unlock = false,
         -- Marker detail tier (minimal | basic | locate | identify |
         -- developer). Set from slot_data.marker_detail on connect, which is
         -- where the player already chose it, and freely changed in Guidance

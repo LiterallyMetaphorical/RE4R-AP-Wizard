@@ -166,6 +166,30 @@ local function install(ctx)
         ["chainsaw.gui.ItemRecieveLogRequest"] = true,
     }
 
+    -- [Stand-in toasts, 2026-08-28] The till hands over the purchased row
+    -- stand-in and the game toasts it like any pickup: the baked "[AP] ..."
+    -- name over a BLANK icon square (cut ids have no usable atlas art).
+    -- Those ids are never a legitimate pickup, so they suppress by ID with
+    -- no timing latch: merchant.lua publishes the room's row ids on
+    -- bridge.suppress_item_toast_ids at load, and on_purchase pushes the
+    -- icon-bearing replacement (real item for a local check, the AP
+    -- placeholder for a foreign one).
+    local ITEM_ID_FIELDS = { "ItemID", "_ItemId", "_ItemID", "ItemId" }
+
+    local function request_item_id(req)
+        for _, name in ipairs(ITEM_ID_FIELDS) do
+            local value = nil
+            local ok = pcall(function() value = req:get_field(name) end)
+            if ok and value ~= nil then
+                local id = tonumber(value)
+                if id ~= nil then
+                    return math.floor(id)
+                end
+            end
+        end
+        return nil
+    end
+
     local function organic_suppression_armed()
         local until_ms = tonumber(bridge.suppress_organic_item_toast_until_ms)
         if until_ms == nil then
@@ -197,7 +221,9 @@ local function install(ctx)
             sdk.hook(method, function(args)
                 local suppressed = false
                 pcall(function()
-                    if not organic_suppression_armed() then
+                    local standin_ids = bridge.suppress_item_toast_ids
+                    local latch_armed = organic_suppression_armed()
+                    if standin_ids == nil and not latch_armed then
                         return
                     end
                     -- args[2] is the manager, args[3] the request (REFramework
@@ -207,7 +233,22 @@ local function install(ctx)
                         return
                     end
                     local type_name = req:get_type_definition():get_full_name()
-                    if ITEM_TOAST_REQUEST_TYPES[type_name] then
+                    if not ITEM_TOAST_REQUEST_TYPES[type_name] then
+                        return
+                    end
+                    -- Stand-in ids drop unconditionally and never consume the
+                    -- latch: this toast is a blank square over a shop trinket.
+                    if type(standin_ids) == "table" then
+                        local item_id = request_item_id(req)
+                        if item_id ~= nil and standin_ids[item_id] then
+                            suppressed = true
+                            log.info(string.format(
+                                "[RE4R AP] suppressed the game's %s for stand-in %d - the purchase toast covers it",
+                                tostring(type_name), item_id))
+                            return
+                        end
+                    end
+                    if latch_armed then
                         bridge.suppress_organic_item_toast_until_ms = nil
                         suppressed = true
                         log.info(string.format(

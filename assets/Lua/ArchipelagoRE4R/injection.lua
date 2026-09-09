@@ -985,7 +985,18 @@ local function install(ctx)
     end
 
     inject_is_key_item_kind = function(kind)
-        return kind == "key" or kind == "small-key"
+        -- "special" is the Exclusive Upgrade Ticket, and it is the ONLY item
+        -- carrying that kind (injectable_items.json, 272 entries, one
+        -- special). Without this line it matched no explicit route and fell
+        -- through to Main Inventory - the case grid - which is the wrong home
+        -- for a Key Items tab item and the same shape as the token crash class
+        -- (MERCHANT_TRADE_DESIGN.md 4.8).
+        --
+        -- Routed as a KEY ITEM rather than as a token on purpose: both reach
+        -- KeyItemInventoryController:pickupItem, but the key-item path grants
+        -- exactly one, while the token path passes the stack count. The Ticket
+        -- is a single unique item, so one is right.
+        return kind == "key" or kind == "small-key" or kind == "special"
     end
 
     inject_is_unique_item_kind = function(kind)
@@ -1965,36 +1976,50 @@ local function install(ctx)
             or ""
 
         if add_method ~= nil then
-            for slot_index = 0, empty_slot_count - 1 do
-                local candidate = inject_get_collection_item(empty_slots, slot_index)
-                if candidate ~= nil then
-                    local add_result = inject_safe_call(function()
-                        return add_method:call(inject_get_managed(cs_inventory), item, 0, candidate, 0)
-                    end)
-                    local added = tonumber(inject_safe_call(function()
-                        local result_managed = inject_get_managed(add_result)
-                        return result_managed ~= nil and result_managed:get_field("AddCount") or nil
-                    end))
-                    if type(added) == "number" and added > 0 then
-                        if absorbed > 0 then
-                            record_local_injection_suppression(normalized_item_id, remaining)
+            -- [Overflow fix, 2026-08-28] Try BOTH orientations per slot.
+            -- enableAddItem considers rotated placements, so a tall item
+            -- whose only legal spot was rotated used to pass the fit check,
+            -- fail every direction-0 add(), and fall through to
+            -- forceSetItem - the anchor-planting call that hangs footprints
+            -- past the case edge (Amondo's overflow screenshot, 2026-08-23).
+            -- The direction rides the same argument slot forceSetItem uses;
+            -- if the engine reads it elsewhere, the rotated pass just fails
+            -- too and the Storage divert below still replaces the overhang.
+            for direction = 0, 1 do
+                for slot_index = 0, empty_slot_count - 1 do
+                    local candidate = inject_get_collection_item(empty_slots, slot_index)
+                    if candidate ~= nil then
+                        local add_result = inject_safe_call(function()
+                            return add_method:call(inject_get_managed(cs_inventory), item, 0, candidate, direction)
+                        end)
+                        local added = tonumber(inject_safe_call(function()
+                            local result_managed = inject_get_managed(add_result)
+                            return result_managed ~= nil and result_managed:get_field("AddCount") or nil
+                        end))
+                        if type(added) == "number" and added > 0 then
+                            if absorbed > 0 then
+                                record_local_injection_suppression(normalized_item_id, remaining)
+                            end
+                            local row, column = inject_get_slot_row_column(candidate)
+                            return string.format(
+                                "%s added %d x%d at slot (%s,%s) direction %d%s",
+                                route_label,
+                                normalized_item_id,
+                                remaining,
+                                tostring(row or "?"),
+                                tostring(column or "?"),
+                                direction,
+                                placed_suffix
+                            )
                         end
-                        local row, column = inject_get_slot_row_column(candidate)
-                        return string.format(
-                            "%s added %d x%d at slot (%s,%s)%s",
-                            route_label,
-                            normalized_item_id,
-                            remaining,
-                            tostring(row or "?"),
-                            tostring(column or "?"),
-                            placed_suffix
-                        )
                     end
                 end
             end
-            log.info(string.format(
-                "[RE4R AP] %s: add() refused every empty slot, falling back to forceSetItem",
-                route_label))
+            -- Every oriented placement refused: Storage is the honest
+            -- destination, never an overhang. forceSetItem survives below
+            -- ONLY for installs where add() itself is missing.
+            return inject_write_storage(item, normalized_item_id, remaining, route_label,
+                "no oriented placement fits the item")
         end
 
         local first_slot = inject_get_collection_item(empty_slots, 0)
@@ -2914,13 +2939,23 @@ local function install(ctx)
     -- anywhere - it is a normal merchant purchase, not an Extra Content
     -- unlock - so its lookup returns -1 on every install and there is nothing
     -- to unlock (live 2026-08-15, twelve in-game retries all -1).
+    -- bonus_id: the ExShop conversion for each weapon, proven twice (the
+    -- 2026-08-15 shop_autopsy dig and the 2026-08-28 typed probe both read
+    -- bonus 6/7/8 from exshopidconvertuserdata). In bonus_weapons-consented
+    -- rooms the fork STRIPS those conversion rows, so the runtime
+    -- getItemIdToBonus lookup misses forever there - the static id is the
+    -- fallback that keeps the possession unlock writable.
     local BONUS_WEAPON_ITEM_IDS = {
-        { id = 276445056, name = "Primal Knife" },
-        { id = 275157056, name = "Chicago Sweeper" },
-        { id = 275638656, name = "Handcannon" },
+        { id = 276445056, name = "Primal Knife", bonus_id = 8 },
+        { id = 275157056, name = "Chicago Sweeper", bonus_id = 6 },
+        { id = 275638656, name = "Handcannon", bonus_id = 7 },
     }
 
-    local function inject_ensure_bonus_weapons_unlocked()
+    -- use_static_fallback: pass true only from the IN-GAME retry poll. At
+    -- boot a lookup miss means the records are not loaded yet and a write
+    -- would silently do nothing (live 2026-08-14), so boot misses must stay
+    -- misses and arm the retry instead.
+    local function inject_ensure_bonus_weapons_unlocked(use_static_fallback)
         local record_manager = sdk.get_managed_singleton("chainsaw.GameRecordManager")
         if record_manager == nil then
             return false, "GameRecordManager singleton missing"
@@ -2934,25 +2969,16 @@ local function install(ctx)
             return false, "ExShopCategory.Weapon unresolved"
         end
 
-        -- [Scatter interlock, 2026-08-16] While the merchant's gear is
-        -- scattered, the Extra Content GUNS are multiworld pool items and the
-        -- free unlock would undercut them; only the Primal Knife (a knife,
-        -- never scattered) keeps its unlock. Cam: "we want weapons to be
-        -- gotten via the multiworld."
-        local gear_scattered = ctx.bridge ~= nil and ctx.bridge.gear_scattered == true
+        -- [Scatter interlock, retired 2026-08-28] This used to suppress the
+        -- Sweeper and Handcannon unlocks while the gear was scattered, so
+        -- the ExShop could not sell multiworld guns at 50,000 ("we want
+        -- weapons to be gotten via the multiworld", 2026-08-16). The fork
+        -- strips their Extra Content CONVERSIONS at patch time now, so an
+        -- unlock can no longer expose a purchase and is pure possession
+        -- protection - the game deletes un-entitled bonus weapons from the
+        -- inventory on death or reload, which is the whole reason consented
+        -- rooms arm this.
         local weapons_to_unlock = BONUS_WEAPON_ITEM_IDS
-        if gear_scattered then
-            weapons_to_unlock = {}
-            for _, weapon in ipairs(BONUS_WEAPON_ITEM_IDS) do
-                if weapon.name == "Primal Knife" then
-                    weapons_to_unlock[#weapons_to_unlock + 1] = weapon
-                else
-                    log.info(string.format(
-                        "[RE4R AP] bonus unlock suppressed for %s - it is a multiworld item in this room",
-                        weapon.name))
-                end
-            end
-        end
 
         local unlocked = 0
         local unresolved = 0
@@ -2967,9 +2993,19 @@ local function install(ctx)
                 -- and did nothing (live 2026-08-14). A miss is counted so
                 -- the caller can retry once the game is actually loaded.
                 if type(bonus_id) ~= "number" or bonus_id < 0 then
-                    unresolved = unresolved + 1
-                    unresolved_names[#unresolved_names + 1] = weapon.name
-                    return
+                    -- In-game, a miss means the conversion row is gone (a
+                    -- bonus_weapons-consented room the fork stripped), so
+                    -- the known static id carries the write instead.
+                    if use_static_fallback and weapon.bonus_id ~= nil then
+                        bonus_id = weapon.bonus_id
+                        log.info(string.format(
+                            "[RE4R AP] conversion row absent for %s - using known bonus id %d",
+                            weapon.name, weapon.bonus_id))
+                    else
+                        unresolved = unresolved + 1
+                        unresolved_names[#unresolved_names + 1] = weapon.name
+                        return
+                    end
                 end
                 if manager:call("checkBuyBonus", bonus_id) ~= true then
                     manager:call("setUnlockBonus", bonus_id)

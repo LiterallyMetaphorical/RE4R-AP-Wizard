@@ -391,6 +391,55 @@ public sealed class ArchipelagoScoutClient
             || (bytes[0] == 169 && bytes[1] == 254);
     }
 
+    /// <summary>
+    /// Strip what a copy-paste from an Archipelago room page brings with it:
+    /// the /connect verb, wrapping quotes, and any invisible character the
+    /// HTML carried. Deliberately conservative - it removes decoration, never
+    /// anything that could be part of a real host or port.
+    /// </summary>
+    private static string CleanPastedServerAddress(string serverAddress)
+    {
+        var value = serverAddress.Trim();
+
+        // Quotes THEN verb THEN quotes again, because the room page renders
+        // the whole command inside quotes - '/connect archipelago.gg:49239' -
+        // so one pass in either order leaves the other wrapper behind.
+        // Stripping the verb first and the quotes second failed on exactly
+        // the string the page displays, which is the likeliest paste there
+        // is. Caught by the test, not by reading it.
+        const string connectVerb = "/connect";
+        char[] quoteChars =
+        {
+            '\'', '\"', '`',
+            '\u2018', '\u2019',
+            '\u201c', '\u201d',
+        };
+        for (var pass = 0; pass < 2; pass++)
+        {
+            value = value.Trim(quoteChars).Trim();
+            if (value.StartsWith(connectVerb, StringComparison.OrdinalIgnoreCase))
+            {
+                value = value[connectVerb.Length..].Trim();
+            }
+        }
+
+        // Zero-width and non-breaking characters survive Trim() and are
+        // invisible in the error message, which is what made this so
+        // confusing to diagnose.
+        var builder = new System.Text.StringBuilder(value.Length);
+        foreach (var c in value)
+        {
+            if (char.IsControl(c) || c == '\u200b' || c == '\u200c' || c == '\u200d'
+                || c == '\u00a0' || c == '\ufeff')
+            {
+                continue;
+            }
+            builder.Append(c);
+        }
+
+        return builder.ToString().Trim();
+    }
+
     public static string NormalizeServerAddress(string serverAddress, int defaultPort = 38281)
     {
         if (string.IsNullOrWhiteSpace(serverAddress))
@@ -398,7 +447,18 @@ public sealed class ArchipelagoScoutClient
             throw new ArchipelagoConnectionException("AP server address is empty.");
         }
 
-        var trimmed = serverAddress.Trim();
+        // Players get this address by copying it off the room page, and that
+        // page renders it as: You can connect to this room by using
+        // '/connect archipelago.gg:49239' in the client. So the paste arrives
+        // wrapped in quotes, carrying the /connect verb, or with an invisible
+        // character the HTML brought along - and Uri.TryCreate rejects ALL of
+        // those while the string still looks perfect in an error message.
+        // Cam hit exactly that on 2026-09-01: the wizard said
+        // "'ws://archipelago.gg:49239' is not a valid websocket URI" about an
+        // address that reads as valid, because the junk was unprintable.
+        //
+        // So clean the paste instead of blaming it.
+        var trimmed = CleanPastedServerAddress(serverAddress);
         if (trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
         {
             trimmed = "ws://" + trimmed[7..];
@@ -415,7 +475,19 @@ public sealed class ArchipelagoScoutClient
 
         if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri))
         {
-            throw new ArchipelagoConnectionException($"AP server address '{serverAddress}' is not a valid websocket URI.");
+            // Say WHICH character is the problem. An address that looks right
+            // and is refused anyway is the worst kind of error to be handed,
+            // and unprintable junk is the usual cause.
+            var offenders = trimmed
+                .Where(c => char.IsControl(c) || c > 126)
+                .Select(c => $"U+{(int)c:X4}")
+                .Distinct()
+                .ToArray();
+            var detail = offenders.Length > 0
+                ? $" It contains {string.Join(", ", offenders)}, which usually means it was pasted from a web page."
+                : " Expected something like archipelago.gg:38281.";
+            throw new ArchipelagoConnectionException(
+                $"AP server address '{serverAddress}' is not a valid websocket URI.{detail}");
         }
 
         if (!string.Equals(uri.Scheme, "ws", StringComparison.OrdinalIgnoreCase)

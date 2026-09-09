@@ -25,6 +25,10 @@ dofile("reframework\\autorun\\ArchipelagoRE4R\\native_log.lua")(ctx)
 -- [D4] AP-aware merchant runtime. After native_log (it pushes the refund
 -- toast) and before apclient, which drives it from the room file on connect.
 dofile("reframework\\autorun\\ArchipelagoRE4R\\merchant.lua")(ctx)
+-- [Trade takeover, Phase 2] The Trade tab's runtime half. After merchant.lua
+-- (same room-file channel, same bridge queue) and before apclient, which
+-- drives it from the room file on connect.
+dofile("reframework\\autorun\\ArchipelagoRE4R\\trade.lua")(ctx)
 -- [EnemyGates] Possession-keyed spawn admission (Dread waits for the
 -- Biosensor Scope). Before apclient, which feeds it from the room file.
 dofile("reframework\\autorun\\ArchipelagoRE4R\\enemy_gate.lua")(ctx)
@@ -33,6 +37,9 @@ dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_world_markers.lua")(ctx)
 -- [D9 spike] Temporary dev probe for the boat-follows-the-player work. Delete
 -- this line with the module once D9 is built.
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_boat_spike.lua")(ctx)
+-- [Trade experiments] Popout host for merchant.lua's trade probe. Delete
+-- with the probes once Trade Phase 2 ships.
+dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_trade_probe.lua")(ctx)
 -- [Model placement] Dev-only tuner for the AP shop model. Delete with the
 -- module once the numbers are baked into the fork.
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_model_tuner.lua")(ctx)
@@ -104,10 +111,13 @@ local draw_ap_status_menu_overlay = ctx.draw_ap_status_menu_overlay
 local draw_world_check_markers = ctx.draw_world_check_markers
 local draw_marker_position_editor = ctx.draw_marker_position_editor
 local draw_boat_spike = ctx.draw_boat_spike
+local draw_trade_probe = ctx.draw_trade_probe
 local draw_model_tuner = ctx.draw_model_tuner
 local draw_gimmick_nudger = ctx.draw_gimmick_nudger
 local poll_door_recovery = ctx.poll_door_recovery
 local merchant_poll_pending_sweeps = ctx.merchant_poll_pending_sweeps
+local trade_poll_claims = ctx.trade_poll_claims
+local trade_poll_chapter_waypoint = ctx.trade_poll_chapter_waypoint
 local draw_main_window = ctx.draw_main_window
 local draw_tutorial_dialog = ctx.draw_tutorial_dialog
 local draw_progression_warning_dialog = ctx.draw_progression_warning_dialog
@@ -574,6 +584,21 @@ re.on_pre_application_entry("UpdateBehavior", function()
         if type(merchant_poll_pending_sweeps) == "function" then
             merchant_poll_pending_sweeps()
         end
+        -- [Trade takeover, Phase 2] Claim detection. There is NO claim event -
+        -- notifyRecieveItem was hooked and fired zero times across five live
+        -- claims - so a claim is a getRewardProgress diff, and this poll is
+        -- the only thing that notices one. Reads only, and it returns
+        -- immediately when the room has no trade checks.
+        if type(trade_poll_claims) == "function" then
+            trade_poll_claims()
+        end
+        -- [Trade] Chapter waypoint: restocks the three gem slots and
+        -- re-derives the check window when the chapter actually changes.
+        -- Seeds on first sight rather than restocking, so loading a save
+        -- mid-run is not mistaken for a chapter arriving.
+        if type(trade_poll_chapter_waypoint) == "function" then
+            trade_poll_chapter_waypoint()
+        end
         if type(refresh_launcher_bridge_files) == "function" then
             refresh_launcher_bridge_files()
         end
@@ -636,6 +661,9 @@ re.on_frame(function()
     end
     if type(draw_boat_spike) == "function" then
         draw_boat_spike()
+    end
+    if type(draw_trade_probe) == "function" then
+        draw_trade_probe()
     end
     if type(draw_gimmick_nudger) == "function" then
         draw_gimmick_nudger()
@@ -710,6 +738,11 @@ re.on_draw_ui(function()
             "AP Gimmick Nudger", bridge.gimmick_nudger_window_enabled)
         if changed_nudger then
             bridge.gimmick_nudger_window_enabled = nudger_value
+        end
+        local changed_trade, trade_value = imgui.checkbox(
+            "AP Trade Probe", bridge.trade_probe_window_enabled)
+        if changed_trade then
+            bridge.trade_probe_window_enabled = trade_value
         end
     end
 

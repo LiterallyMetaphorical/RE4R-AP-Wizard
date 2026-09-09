@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-08-21T21:54:55Z",
+  "generated_at_utc": "2026-09-01T20:14:40Z",
   "game": "Resident Evil 4 Remake",
   "world_version": "0.7.0",
   "placeholder_item_id": 120486400,
@@ -14,6 +14,8 @@
       "Antique Pipe x1",
       "Attachable Mines x4",
       "Attachable Mines x5",
+      "Attaché Case: Gold x1",
+      "Attaché Case: Leather x1",
       "Black Bass x1",
       "Bolts x2",
       "Bolts x4",
@@ -66,11 +68,16 @@
       "Heavy Grenade x1",
       "Iluminados Pendant x1",
       "Justitia Statue x1",
+      "Lip Rouge x1",
       "Mirror with Pearls & Rubies x1",
       "Méndez's False Eye x1",
       "Ornate Beetle x1",
       "Ornate Necklace x1",
       "Pearl Bangle x1",
+      "Pesetas x1000",
+      "Pesetas x150",
+      "Pesetas x200",
+      "Pesetas x500",
       "Red Beryl x1",
       "Red Gemstone Ring x1",
       "Red Herb x1",
@@ -128,6 +135,56 @@
       "Serpent Head x1",
       "Wooden Planks x1"
     ],
+    "Merchant Gear": [
+      "Blacktail x1",
+      "Bolt Thrower x1",
+      "Broken Butterfly x1",
+      "Case: 7x12 x1",
+      "Case: 8x12 x1",
+      "Case: 8x13 x1",
+      "Case: 9x13 x1",
+      "Chicago Sweeper x1",
+      "Fighting Knife x1",
+      "Flamethrower x1",
+      "Handcannon x1",
+      "High-power Scope x1",
+      "Killer7 x1",
+      "Laser Sight x1",
+      "Matilda Stock x1",
+      "Matilda x1",
+      "Primal Knife x1",
+      "Punisher x1",
+      "Recipe: Attachable Mines x1",
+      "Recipe: Bolts x1",
+      "Recipe: Flash Grenade x1",
+      "Recipe: Heavy Grenade x1",
+      "Recipe: Magnum Ammo x1",
+      "Red9 Stock x1",
+      "Red9 x1",
+      "Riot Gun x1",
+      "Rocket Launcher x1",
+      "SR M1903 x1",
+      "SW - Blast Crossbow x1",
+      "SW - Sawed-off W-870 x1",
+      "Scope x1",
+      "Sentinel Nine x1",
+      "Skull Shaker x1",
+      "Stingray x1",
+      "Striker x1",
+      "TMP Stock x1",
+      "TMP x1",
+      "XM96E1 x1"
+    ],
+    "Merchant Request Items": [
+      "Gold Chicken Egg x1",
+      "Scratched Emerald x1"
+    ],
+    "Pesetas": [
+      "Pesetas x1000",
+      "Pesetas x150",
+      "Pesetas x200",
+      "Pesetas x500"
+    ],
     "Progression": [
       "Apostate's Head x1",
       "Biosensor Scope x1",
@@ -173,7 +230,11 @@
       "Case: 8x12 x1",
       "Case: 8x13 x1",
       "Case: 9x13 x1",
+      "Charm: Ada Wong x1",
+      "Charm: Iluminados Emblem x1",
       "Chicago Sweeper x1",
+      "Exclusive Upgrade Ticket x1",
+      "Fighting Knife x1",
       "Flamethrower x1",
       "Handcannon x1",
       "High-power Scope x1",
@@ -183,6 +244,7 @@
       "Laser Sight x1",
       "Matilda Stock x1",
       "Matilda x1",
+      "Primal Knife x1",
       "Punisher x1",
       "Recipe: Attachable Mines x1",
       "Recipe: Bolts x1",
@@ -237,14 +299,18 @@
       "Chapter 10 - Depths - Yellow Herb x1 [ff5daacc]",
       "Chapter 10 - Depths Tunnels - Red Beryl x1 [5296f431]",
       "Chapter 10 - Depths Tunnels - Red Herb x1 [6968fed7]",
-      "Chapter 10 - Library - Golden Lynx x1 (locked cache) [1f4f6137]",
-      "Chapter 10 - Library - Sapphire x1 (chest) [ac5c9502]",
+      "Chapter 10 - Grand Hall - Golden Lynx x1 (locked cache) [1f4f6137]",
+      "Chapter 10 - Grand Hall - Sapphire x1 (chest) [ac5c9502]",
+      "Chapter 10 - Library - Handgun Ammo x10 [0b90c8dd]",
+      "Chapter 10 - Library - Yellow Diamond x1 (hanging) [8f5be12f]",
       "Chapter 10 - Underground Laboratory - Boot Knife x1 [89c2e17a]",
       "Chapter 10 - Underground Laboratory - Emerald x1 (hanging) [2c6dc819]",
       "Chapter 10 - Underground Laboratory - First Aid Spray x1 (chest) [afd1d1b8]",
+      "Chapter 10 - Underground Laboratory - Green Herb x1 [a7068942]",
       "Chapter 10 - Underground Laboratory - Gunpowder x5 (chest) [0dc9092b]",
       "Chapter 10 - Underground Laboratory - Handgun Ammo x10 [5a4b83c2]",
       "Chapter 10 - Underground Laboratory - Handgun Ammo x10 [b0b25ef4]",
+      "Chapter 10 - Underground Laboratory - Shotgun Shells x3 [df312d32]",
       "Chapter 10 - Underground Laboratory - Yellow Diamond x1 (chest) [7f14ace2]",
       "Chapter 11 - Blast Furnace - Green Herb x1 [a29ce3b9]",
       "Chapter 11 - Blast Furnace - Gunpowder x5 [cb5ea368]",
@@ -261,23 +327,21 @@
       "Chapter 11 - Krauser - Red Herb x1 [2385adc9]",
       "Chapter 11 - Mines - Dynamite x1 [71b17dd9]",
       "Chapter 11 - Mines - Golden Hourglass x1 (chest) [f2a1224f]",
-      "Chapter 11 - Mines - Green Herb x1 [a7068942]",
       "Chapter 11 - Mines - Green Herb x1 [ac8ee27d]",
       "Chapter 11 - Mines - Sapphire x1 [7b7ac235]",
-      "Chapter 11 - Mines - Shotgun Shells x3 [df312d32]",
       "Chapter 11 - Stopover - Flagon x1 (chest) [77d43ae4]",
       "Chapter 11 - Stopover - Handgun Ammo x15 [a09f6d70]",
       "Chapter 11 - Stopover - Red Herb x1 [7509f859]",
       "Chapter 12 - Ancient Chantry - Gunpowder x10 [7ac33ad0]",
       "Chapter 12 - Ancient Chantry - Resource (Large) x1 [76982055]",
       "Chapter 12 - Ancient Chantry - Rifle Ammo x5 [4a156a5b]",
-      "Chapter 12 - Castle Exit - Yellow Diamond x1 (hanging) [163f855a]",
       "Chapter 12 - Clock Tower - Gold Bar x1 (chest) [9f9d68cb]",
+      "Chapter 12 - Dock - Yellow Diamond x1 (hanging) [163f855a]",
       "Chapter 12 - Gondola (Ballroom) - Small Key x1 (case) [c81920a2]",
       "Chapter 12 - Throne Room - Boot Knife x1 [f03e2b8c]",
       "Chapter 12 - Throne Room - Gold Chicken Egg x1 (locked cache) [497d164c]",
       "Chapter 12 - Throne Room - Ornate Necklace x1 (case) [44427870]",
-      "Chapter 12 - Upper Clock Tower - Alexandrite x1 (bird's nest) [9b72f6d9]",
+      "Chapter 12 - Upper Clock Tower - Alexandrite x1 (hanging) [9b72f6d9]",
       "Chapter 12 - Upper Clock Tower - Extravagant Clock x1 (chest) [7dcba43a]",
       "Chapter 12 - Upper Clock Tower - First Aid Spray x1 [7fc72377]",
       "Chapter 12 - Upper Clock Tower - Green Herb x1 [59f2f272]",
@@ -285,7 +349,6 @@
       "Chapter 12 - Upper Clock Tower - Silver Token x1 [01efc98e]",
       "Chapter 12 - Upper Clock Tower - Yellow Diamond x1 (bird's nest) [8a4d3026]",
       "Chapter 12 - Upper Clock Tower - Yellow Herb x1 [13311640]",
-      "Chapter 7 - Audience Chamber - Elegant Crown x1 (case) [74d39fb5]",
       "Chapter 7 - Audience Chamber - Elegant Perfume Bottle x1 (chest) [d5bb6d76]",
       "Chapter 7 - Audience Chamber - Gold Bar x1 (small-key drawer) [db7ce189]",
       "Chapter 7 - Audience Chamber - Golden Hourglass x1 (chest) [391416ef]",
@@ -301,13 +364,13 @@
       "Chapter 7 - Dungeons - Dungeon Key x1 [3da1e70f]",
       "Chapter 7 - Dungeons - Handgun Ammo x10 [c2b45369]",
       "Chapter 7 - Dungeons - Handgun Ammo x8 [1f4f40ab]",
-      "Chapter 7 - Dungeons - Handgun Ammo x8 [95d76646]",
       "Chapter 7 - Dungeons - Red Herb x1 [932f30b4]",
       "Chapter 7 - Dungeons - Shotgun Shells x3 [fc9e689d]",
       "Chapter 7 - Treasury - Bloodied Sword x1 [3a33dce0]",
       "Chapter 7 - Treasury - Gold Bangle x1 (chest) [1441b2df]",
       "Chapter 7 - Treasury - Green Herb x1 [4855cd04]",
       "Chapter 7 - Treasury - Gunpowder x5 (case) [d2946303]",
+      "Chapter 7 - Treasury - Handgun Ammo x8 [95d76646]",
       "Chapter 7 - Treasury - Silver Token x1 (hanging) [3cd3b05f]",
       "Chapter 7 - Water Hall - Gunpowder x5 [53662d42]",
       "Chapter 7 - Water Hall - Halo Wheel x1 [e32dc31d]",
@@ -339,11 +402,13 @@
       "Chapter 9 - Armory - Cubic Device x1 [fc8f3040]",
       "Chapter 9 - Armory - Flash Grenade x1 [9d1b61b9]",
       "Chapter 9 - Armory - Green Herb x1 [071e1736]",
+      "Chapter 9 - Armory - Gunpowder x5 [b22a9767]",
       "Chapter 9 - Armory - Handgun Ammo x15 [6083a630]",
       "Chapter 9 - Armory - Lion Head x1 [391733da]",
       "Chapter 9 - Armory - Resource (Large) x1 [bb524c12]",
       "Chapter 9 - Armory - Silver Token x1 (hanging) [0d2236bf]",
       "Chapter 9 - Armory - Small Key x1 (dresser) [28a694ae]",
+      "Chapter 9 - Audience Chamber - Elegant Crown x1 (case) [74d39fb5]",
       "Chapter 9 - Courtyard - Elegant Chessboard x1 (chest) [57ad46f8]",
       "Chapter 9 - Courtyard - First Aid Spray x1 [1fff5623]",
       "Chapter 9 - Courtyard - Flash Grenade x1 [7239dae7]",
@@ -359,19 +424,16 @@
       "Chapter 9 - Gallery - Yellow Diamond x1 (chest) [55b1209f]",
       "Chapter 9 - Grand Hall - Alexandrite x1 (hanging) [8114dd3c]",
       "Chapter 9 - Grand Hall - Butterfly Lamp x1 [56a6e726]",
-      "Chapter 9 - Grand Hall - Gunpowder x5 [b22a9767]",
       "Chapter 9 - Library - Bunch of Keys x1 [c1d0972b]",
       "Chapter 9 - Library - CQBR Assault Rifle x20 (locked cache) [15b380f4]",
       "Chapter 9 - Library - Elegant Perfume Bottle x1 (chest) [dc62ddd9]",
-      "Chapter 9 - Library - Handgun Ammo x10 [0b90c8dd]",
-      "Chapter 9 - Library - Yellow Diamond x1 (hanging) [8f5be12f]",
       "Chapter 9 - Mausoleum - Emerald x1 (chest) [c724b33b]",
       "Chapter 9 - Mausoleum - Salazar Family Insignia x1 [097ef30f]"
     ],
     "Chests": [
       "Chapter 1 - Farm - Flagon x1 (chest) [17737610]",
       "Chapter 10 - Ballroom - Ornate Beetle x1 (chest) [0707014c]",
-      "Chapter 10 - Library - Sapphire x1 (chest) [ac5c9502]",
+      "Chapter 10 - Grand Hall - Sapphire x1 (chest) [ac5c9502]",
       "Chapter 10 - Underground Laboratory - First Aid Spray x1 (chest) [afd1d1b8]",
       "Chapter 10 - Underground Laboratory - Gunpowder x5 (chest) [0dc9092b]",
       "Chapter 10 - Underground Laboratory - Yellow Diamond x1 (chest) [7f14ace2]",
@@ -381,24 +443,24 @@
       "Chapter 12 - Clock Tower - Gold Bar x1 (chest) [9f9d68cb]",
       "Chapter 12 - Upper Clock Tower - Extravagant Clock x1 (chest) [7dcba43a]",
       "Chapter 12 - Upper Clock Tower - Mirror with Pearls & Rubies x1 (chest) [7e23d008]",
-      "Chapter 13 - Incubation Lab - Biosensor Scope x1 (chest) [e91a8b12]",
       "Chapter 13 - Surveillance - Elegant Crown x1 (chest) [9ab6593f]",
       "Chapter 13 - Surveillance - Velvet Blue x1 (chest) [bc4c1e2b]",
+      "Chapter 13 - Utilities - Biosensor Scope x1 (chest) [e91a8b12]",
       "Chapter 13 - Utilities - Velvet Blue x1 (chest) [ce47074f]",
       "Chapter 13 - Wharf - Golden Lynx x1 (chest) [83eb78ab]",
       "Chapter 13 - Wharf - Pearl Bangle x1 (chest) [466ccada]",
       "Chapter 14 - Campsite - Gold Bar (L) x1 (chest) [2808c16c]",
       "Chapter 14 - Waste Disposal - Ornate Necklace x1 (chest) [56afe749]",
+      "Chapter 15 - Cliffside Ruins - Staff of Royalty x1 (chest) [905a7184]",
       "Chapter 15 - Specimen Storage - Splendid Bangle x1 (chest) [9a2c0852]",
-      "Chapter 15 - Specimen Storage - Staff of Royalty x1 (chest) [905a7184]",
       "Chapter 16 - Loading Docks - Gold Ingot x1 (chest) [5964abdd]",
       "Chapter 2 - Manor Approach - Sapphire x1 (chest) [b661a20b]",
       "Chapter 2 - Valley - Ruby x1 (chest) [6b8764f9]",
       "Chapter 3 - Church Grounds - Elegant Headdress x1 (chest) [5eec4331]",
       "Chapter 3 - Fish Farm - Antique Pipe x1 (chest) [67a3014c]",
+      "Chapter 4 - Church - Blue Dial x1 (chest) [2755ebe4]",
       "Chapter 4 - Lake - Alexandrite x1 (chest) [eca0aa37]",
       "Chapter 4 - Lakeside Settlement Cabin - Red Gemstone Ring x1 (long chest) [d9d70aa6]",
-      "Chapter 5 - Church - Blue Dial x1 (chest) [2755ebe4]",
       "Chapter 6 - Checkpoint - Chalice of Atonement x1 (chest) [1d1e60bd]",
       "Chapter 6 - Checkpoint Alley - Yellow Diamond x1 (chest) [5e4dc33a]",
       "Chapter 7 - Audience Chamber - Elegant Perfume Bottle x1 (chest) [d5bb6d76]",
@@ -427,11 +489,9 @@
       "Chapter 13 - Facility 1 Storage - Gunpowder x3 [3bee7a6f]",
       "Chapter 13 - Freezer - LE 5 x60 [296a288f]",
       "Chapter 13 - Freezer - Level 2 Keycard x1 [91316634]",
-      "Chapter 13 - Incubation Lab - Biosensor Scope x1 (chest) [e91a8b12]",
       "Chapter 13 - Incubation Lab - Flash Grenade x1 [ab37cb8b]",
       "Chapter 13 - Incubation Lab - Green Herb x1 [24e37f17]",
       "Chapter 13 - Incubation Lab - Hand Grenade x1 [dd450857]",
-      "Chapter 13 - Incubation Lab - Level 3 Keycard x1 [6f8cb73f]",
       "Chapter 13 - Incubation Lab - Red Herb x1 [e2763196]",
       "Chapter 13 - Incubation Lab - Rifle Ammo x5 [51b34a47]",
       "Chapter 13 - Incubation Lab - Rifle Ammo x5 [73ebd13f]",
@@ -446,9 +506,11 @@
       "Chapter 13 - Systems - Silver Token x1 (hanging) [dd9b9e71]",
       "Chapter 13 - Systems - Submachine Gun Ammo x30 [1a50729e]",
       "Chapter 13 - Systems - Yellow Herb x1 [61a74f29]",
+      "Chapter 13 - Utilities - Biosensor Scope x1 (chest) [e91a8b12]",
       "Chapter 13 - Utilities - Black Bass x1 [39249937]",
       "Chapter 13 - Utilities - Hand Grenade x1 [671a0818]",
       "Chapter 13 - Utilities - Handgun Ammo x10 [d7495ccf]",
+      "Chapter 13 - Utilities - Level 3 Keycard x1 [6f8cb73f]",
       "Chapter 13 - Utilities - Velvet Blue x1 (chest) [ce47074f]",
       "Chapter 13 - Wharf - Golden Lynx x1 (chest) [83eb78ab]",
       "Chapter 13 - Wharf - Handgun Ammo x10 [0ae04395]",
@@ -499,6 +561,7 @@
       "Chapter 15 - Bulwark Gate - Rifle Ammo x5 [3e51d205]",
       "Chapter 15 - Bulwark Gate - Shotgun Shells x3 [b981743e]",
       "Chapter 15 - Bulwark Gate - Submachine Gun Ammo x30 [d61be15f]",
+      "Chapter 15 - Cliffside Ruins - Staff of Royalty x1 (chest) [905a7184]",
       "Chapter 15 - Sanctuary Approach - Black Bass x1 [c4f23ca5]",
       "Chapter 15 - Sanctuary Approach - Gunpowder x2 [b161d18b]",
       "Chapter 15 - Sanctuary Approach - Gunpowder x4 [d5bf8824]",
@@ -512,7 +575,6 @@
       "Chapter 15 - Specimen Storage - Resource (Large) x1 [8e862ef0]",
       "Chapter 15 - Specimen Storage - Silver Token x1 (hanging) [fddb0b32]",
       "Chapter 15 - Specimen Storage - Splendid Bangle x1 (chest) [9a2c0852]",
-      "Chapter 15 - Specimen Storage - Staff of Royalty x1 (chest) [905a7184]",
       "Chapter 15 - Stronghold - First Aid Spray x1 [292f6cd8]",
       "Chapter 15 - Stronghold - Green Herb x1 [e5e95245]",
       "Chapter 15 - Stronghold - Gunpowder x4 [0d2f18bb]",
@@ -545,11 +607,11 @@
       "Chapter 16 - Underground Passage - Submachine Gun Ammo x50 [ec944ebb]"
     ],
     "Locked Caches": [
-      "Chapter 1 - Farm - Antique Pipe x1 (locked cache) [f0b5b9ec]",
-      "Chapter 10 - Library - Golden Lynx x1 (locked cache) [1f4f6137]",
+      "Chapter 10 - Grand Hall - Golden Lynx x1 (locked cache) [1f4f6137]",
       "Chapter 12 - Throne Room - Gold Chicken Egg x1 (locked cache) [497d164c]",
       "Chapter 3 - Dock - Depraved Idol x1 (multi-key cache) [56c6e2fb]",
       "Chapter 3 - Quarry - Butterfly Lamp x1 (locked cache) [69dbbc93]",
+      "Chapter 4 - Farm - Antique Pipe x1 (locked cache) [f0b5b9ec]",
       "Chapter 4 - Lakeside Settlement - Pearl Bangle x1 (locked cache) [20fdbe51]",
       "Chapter 4 - Lakeside Shrine - Splendid Bangle x1 (locked cache) [93f90f71]",
       "Chapter 6 - Checkpoint - Elegant Headdress x1 (locked cache) [c80a1e86]",
@@ -567,11 +629,13 @@
       "Chapter 8 - Castle Battlements - Ornate Beetle x1 (small-key drawer) [377cda0f]"
     ],
     "T.DLC": [
+      "Chapter 1 - Lakeside Settlement - Sapphire x1 (hanging) [63b02474]",
       "Chapter 1 - Village Square - Ornate Necklace x1 (case) [4526972b]",
       "Chapter 10 - Ballroom Entrance - Silver Token x1 (hanging) [b1137a19]",
+      "Chapter 10 - Library - Yellow Diamond x1 (hanging) [8f5be12f]",
       "Chapter 10 - Underground Laboratory - Emerald x1 (hanging) [2c6dc819]",
       "Chapter 11 - Blast Furnace - Iluminados Pendant x1 [00e7d043]",
-      "Chapter 12 - Castle Exit - Yellow Diamond x1 (hanging) [163f855a]",
+      "Chapter 12 - Dock - Yellow Diamond x1 (hanging) [163f855a]",
       "Chapter 12 - Throne Room - Ornate Necklace x1 (case) [44427870]",
       "Chapter 12 - Upper Clock Tower - Silver Token x1 [01efc98e]",
       "Chapter 13 - Surveillance - Emerald x1 [40537700]",
@@ -584,24 +648,21 @@
       "Chapter 3 - Church Grounds - Emerald x1 (hanging) [56f1673f]",
       "Chapter 3 - Church Grounds - Red Gemstone Ring x1 (case) [1f5c91ce]",
       "Chapter 3 - Fish Farm - Silver Token x1 (hanging) [228db5bc]",
-      "Chapter 4 - Lakeside Settlement - Sapphire x1 (hanging) [63b02474]",
       "Chapter 4 - Large Cave Shrine - Silver Token x1 (hanging) [f52e1075]",
       "Chapter 4 - Small Cave Shrine - Ruby x1 (hanging) [8de2b01c]",
       "Chapter 5 - Church - Gold Token x1 [53f24a6c]",
       "Chapter 5 - Village Square - Silver Token x1 (hanging) [5146332b]",
       "Chapter 6 - Checkpoint Alley - Red Beryl x1 (hanging) [e4edc52f]",
       "Chapter 6 - Slaughterhouse - Gold Token x1 [91e6dc7e]",
-      "Chapter 7 - Audience Chamber - Elegant Crown x1 (case) [74d39fb5]",
       "Chapter 7 - Castle Gate - Sapphire x1 (hanging) [24ae996d]",
       "Chapter 7 - Treasury - Silver Token x1 (hanging) [3cd3b05f]",
       "Chapter 8 - Bindery - Alexandrite x1 (hanging) [e2460fe6]",
       "Chapter 8 - Bindery - Silver Token x1 (hanging) [285d0109]",
       "Chapter 8 - Courtyard - Gold Token x1 (case) [b1e533fa]",
       "Chapter 9 - Armory - Silver Token x1 (hanging) [0d2236bf]",
-      "Chapter 9 - Library - Yellow Diamond x1 (hanging) [8f5be12f]"
+      "Chapter 9 - Audience Chamber - Elegant Crown x1 (case) [74d39fb5]"
     ],
     "Village": [
-      "Chapter 1 - Farm - Antique Pipe x1 (locked cache) [f0b5b9ec]",
       "Chapter 1 - Farm - Flagon x1 (chest) [17737610]",
       "Chapter 1 - Farm - Green Herb x1 [8614deed]",
       "Chapter 1 - Farm - Hand Grenade x1 (barrel) [37763e1e]",
@@ -616,6 +677,7 @@
       "Chapter 1 - Hunter's Lodge - Handgun Ammo x8 (desk) [7dd282d8]",
       "Chapter 1 - Lakeside Settlement - Handgun Ammo x5 (bird's nest) [47ea5d75]",
       "Chapter 1 - Lakeside Settlement - Resources (Small) x1 [8eee05a5]",
+      "Chapter 1 - Lakeside Settlement - Sapphire x1 (hanging) [63b02474]",
       "Chapter 1 - Lakeside Settlement - Shotgun Shells x3 [11bbd6e5]",
       "Chapter 1 - Village Square - First Aid Spray x1 [196a3dbd]",
       "Chapter 1 - Village Square - Flash Grenade x1 [1318f050]",
@@ -694,6 +756,12 @@
       "Chapter 3 - Town Hall - Shotgun Shells x3 (drawer) [c58965fd]",
       "Chapter 3 - Town Hall - Velvet Blue x1 (hanging) [853f288f]",
       "Chapter 4 - Boat House - Handgun Ammo x10 (barrel) [e006b64a]",
+      "Chapter 4 - Church - Blue Dial x1 (chest) [2755ebe4]",
+      "Chapter 4 - Church - Bolts x5 [b2b06366]",
+      "Chapter 4 - Church - Green Herb x1 [dbcfdcb8]",
+      "Chapter 4 - Church - Small Key x1 [89c7a0d8]",
+      "Chapter 4 - Church - Submachine Gun Ammo x30 [fc4a6bdd]",
+      "Chapter 4 - Farm - Antique Pipe x1 (locked cache) [f0b5b9ec]",
       "Chapter 4 - Forest Altar - Green Herb x1 [51e266d7]",
       "Chapter 4 - Forest Altar - Small Key x1 [61bda369]",
       "Chapter 4 - Lake - Alexandrite x1 (chest) [eca0aa37]",
@@ -706,7 +774,6 @@
       "Chapter 4 - Lakeside Settlement - Gunpowder x3 [0ff7851a]",
       "Chapter 4 - Lakeside Settlement - Pearl Bangle x1 (locked cache) [20fdbe51]",
       "Chapter 4 - Lakeside Settlement - Rhinoceros Beetle x1 [3902f4d3]",
-      "Chapter 4 - Lakeside Settlement - Sapphire x1 (hanging) [63b02474]",
       "Chapter 4 - Lakeside Settlement Cabin - Gold Bar x1 (small-key drawer) [6b18f016]",
       "Chapter 4 - Lakeside Settlement Cabin - Red Gemstone Ring x1 (long chest) [d9d70aa6]",
       "Chapter 4 - Lakeside Shrine - Alexandrite x1 (hanging) [eb597315]",
@@ -732,13 +799,8 @@
       "Chapter 4 - Small Cave Shrine - Ruby x1 (hanging) [348cfb43]",
       "Chapter 4 - Small Cave Shrine - Ruby x1 (hanging) [8de2b01c]",
       "Chapter 5 - Church - Attachable Mines x5 (barrel) [f610a292]",
-      "Chapter 5 - Church - Blue Dial x1 (chest) [2755ebe4]",
-      "Chapter 5 - Church - Bolts x5 [b2b06366]",
       "Chapter 5 - Church - Gold Token x1 [53f24a6c]",
-      "Chapter 5 - Church - Green Herb x1 [dbcfdcb8]",
       "Chapter 5 - Church - Handgun Ammo x15 (rooftop) [3909672c]",
-      "Chapter 5 - Church - Small Key x1 [89c7a0d8]",
-      "Chapter 5 - Church - Submachine Gun Ammo x30 [fc4a6bdd]",
       "Chapter 5 - Church - Yellow Diamond x1 (small-key drawer) [0c0f0d4b]",
       "Chapter 5 - Church - Yellow Diamond x1 [151a4801]",
       "Chapter 5 - Villa - Green Herb x1 [186dd826]",
@@ -787,10 +849,11 @@
     "locations_total": 456,
     "guid_locations": 456,
     "noguid_locations": 0,
-    "items_total": 159,
+    "items_total": 175,
     "always_locations": 456,
     "optional_key_locations": 0,
-    "shop_slots": 120
+    "shop_slots": 120,
+    "trade_checks": 45
   },
   "difficulty_inert_locations": [
     {
@@ -2220,12 +2283,12 @@
       "note": ""
     },
     "3438224264": {
-      "name": "Chapter 1 - Farm - Antique Pipe x1 (locked cache) [f0b5b9ec]",
+      "name": "Chapter 4 - Farm - Antique Pipe x1 (locked cache) [f0b5b9ec]",
       "guid": "f0b5b9ec-d5c6-4dac-9af1-9f28ce642224",
       "identity_kind": "guid",
-      "chapter": 1,
+      "chapter": 4,
       "stage": 43300,
-      "region": "Village",
+      "region": "Lake",
       "source_item_name": "Antique Pipe x1",
       "ap_eligibility": "always",
       "section_name": "Farm",
@@ -2236,12 +2299,12 @@
       "note": ""
     },
     "3465696690": {
-      "name": "Chapter 4 - Lakeside Settlement - Sapphire x1 (hanging) [63b02474]",
+      "name": "Chapter 1 - Lakeside Settlement - Sapphire x1 (hanging) [63b02474]",
       "guid": "63b02474-6c38-42e3-8b7d-1949474e03dd",
       "identity_kind": "guid",
-      "chapter": 4,
+      "chapter": 1,
       "stage": 43400,
-      "region": "Lake",
+      "region": "Village",
       "source_item_name": "Sapphire x1",
       "ap_eligibility": "always",
       "section_name": "Lakeside Settlement",
@@ -2700,12 +2763,12 @@
       "note": ""
     },
     "1783123287": {
-      "name": "Chapter 5 - Church - Bolts x5 [b2b06366]",
+      "name": "Chapter 4 - Church - Bolts x5 [b2b06366]",
       "guid": "b2b06366-c556-402c-b31c-47f521488b8b",
       "identity_kind": "guid",
-      "chapter": 5,
+      "chapter": 4,
       "stage": 45401,
-      "region": "Church",
+      "region": "Lake",
       "source_item_name": "Bolts x5",
       "ap_eligibility": "always",
       "section_name": "Church",
@@ -2732,12 +2795,12 @@
       "note": ""
     },
     "1243484650": {
-      "name": "Chapter 5 - Church - Small Key x1 [89c7a0d8]",
+      "name": "Chapter 4 - Church - Small Key x1 [89c7a0d8]",
       "guid": "89c7a0d8-cd65-4b80-a770-0ce0caa994f7",
       "identity_kind": "guid",
-      "chapter": 5,
+      "chapter": 4,
       "stage": 45401,
-      "region": "Church",
+      "region": "Lake",
       "source_item_name": "Small Key x1",
       "ap_eligibility": "always",
       "section_name": "Church",
@@ -2748,12 +2811,12 @@
       "note": ""
     },
     "3723536482": {
-      "name": "Chapter 5 - Church - Green Herb x1 [dbcfdcb8]",
+      "name": "Chapter 4 - Church - Green Herb x1 [dbcfdcb8]",
       "guid": "dbcfdcb8-9de7-473e-99c4-a6d95a2b31ac",
       "identity_kind": "guid",
-      "chapter": 5,
+      "chapter": 4,
       "stage": 45401,
-      "region": "Church",
+      "region": "Lake",
       "source_item_name": "Green Herb x1",
       "ap_eligibility": "always",
       "section_name": "Church",
@@ -2764,12 +2827,12 @@
       "note": ""
     },
     "3219932064": {
-      "name": "Chapter 5 - Church - Submachine Gun Ammo x30 [fc4a6bdd]",
+      "name": "Chapter 4 - Church - Submachine Gun Ammo x30 [fc4a6bdd]",
       "guid": "fc4a6bdd-20f7-471b-a1f9-acfb6291578e",
       "identity_kind": "guid",
-      "chapter": 5,
+      "chapter": 4,
       "stage": 45401,
-      "region": "Church",
+      "region": "Lake",
       "source_item_name": "Submachine Gun Ammo x30",
       "ap_eligibility": "always",
       "section_name": "Church",
@@ -3036,12 +3099,12 @@
       "note": ""
     },
     "4153818031": {
-      "name": "Chapter 5 - Church - Blue Dial x1 (chest) [2755ebe4]",
+      "name": "Chapter 4 - Church - Blue Dial x1 (chest) [2755ebe4]",
       "guid": "2755ebe4-80cb-4a1c-b222-dfab116d73bd",
       "identity_kind": "guid",
-      "chapter": 5,
+      "chapter": 4,
       "stage": 45401,
-      "region": "Church",
+      "region": "Lake",
       "source_item_name": "Blue Dial x1",
       "ap_eligibility": "always",
       "section_name": "Church",
@@ -4380,7 +4443,7 @@
       "note": ""
     },
     "2289537751": {
-      "name": "Chapter 7 - Dungeons - Handgun Ammo x8 [95d76646]",
+      "name": "Chapter 7 - Treasury - Handgun Ammo x8 [95d76646]",
       "guid": "95d76646-6e74-4ff9-8f0a-36ec02ccc960",
       "identity_kind": "guid",
       "chapter": 7,
@@ -4388,7 +4451,7 @@
       "region": "Castle Entry",
       "source_item_name": "Handgun Ammo x8",
       "ap_eligibility": "always",
-      "section_name": "Dungeons",
+      "section_name": "Treasury",
       "x": -120.28,
       "y": 4.6,
       "z": -0.3,
@@ -4604,12 +4667,12 @@
       "note": ""
     },
     "3425277917": {
-      "name": "Chapter 7 - Audience Chamber - Elegant Crown x1 (case) [74d39fb5]",
+      "name": "Chapter 9 - Audience Chamber - Elegant Crown x1 (case) [74d39fb5]",
       "guid": "74d39fb5-b527-4811-9e0f-f58ceeb5eeb1",
       "identity_kind": "guid",
-      "chapter": 7,
+      "chapter": 9,
       "stage": 50700,
-      "region": "Castle Entry",
+      "region": "Castle Deep",
       "source_item_name": "Elegant Crown x1",
       "ap_eligibility": "always",
       "section_name": "Audience Chamber",
@@ -5196,7 +5259,7 @@
       "note": ""
     },
     "2537560011": {
-      "name": "Chapter 9 - Grand Hall - Gunpowder x5 [b22a9767]",
+      "name": "Chapter 9 - Armory - Gunpowder x5 [b22a9767]",
       "guid": "b22a9767-ea5f-4e7c-a04c-01f675ef60d1",
       "identity_kind": "guid",
       "chapter": 9,
@@ -5204,7 +5267,7 @@
       "region": "Castle Deep",
       "source_item_name": "Gunpowder x5",
       "ap_eligibility": "always",
-      "section_name": "Grand Hall",
+      "section_name": "Armory",
       "x": 105.82,
       "y": 30.59,
       "z": 23.17,
@@ -5388,10 +5451,10 @@
       "note": ""
     },
     "4214161125": {
-      "name": "Chapter 9 - Library - Yellow Diamond x1 (hanging) [8f5be12f]",
+      "name": "Chapter 10 - Library - Yellow Diamond x1 (hanging) [8f5be12f]",
       "guid": "8f5be12f-9ca6-455e-bf40-9533705adb52",
       "identity_kind": "guid",
-      "chapter": 9,
+      "chapter": 10,
       "stage": 53201,
       "region": "Castle Deep",
       "source_item_name": "Yellow Diamond x1",
@@ -5420,7 +5483,7 @@
       "note": ""
     },
     "2656906708": {
-      "name": "Chapter 10 - Library - Sapphire x1 (chest) [ac5c9502]",
+      "name": "Chapter 10 - Grand Hall - Sapphire x1 (chest) [ac5c9502]",
       "guid": "ac5c9502-225b-4826-919c-0e034e9efb4c",
       "identity_kind": "guid",
       "chapter": 10,
@@ -5428,7 +5491,7 @@
       "region": "Castle Deep",
       "source_item_name": "Sapphire x1",
       "ap_eligibility": "always",
-      "section_name": "Library",
+      "section_name": "Grand Hall",
       "x": 123.56,
       "y": 34.7,
       "z": 54.14,
@@ -5452,7 +5515,7 @@
       "note": ""
     },
     "2994240178": {
-      "name": "Chapter 10 - Library - Golden Lynx x1 (locked cache) [1f4f6137]",
+      "name": "Chapter 10 - Grand Hall - Golden Lynx x1 (locked cache) [1f4f6137]",
       "guid": "1f4f6137-2674-4bb3-923f-0cdc33a9320c",
       "identity_kind": "guid",
       "chapter": 10,
@@ -5460,7 +5523,7 @@
       "region": "Castle Deep",
       "source_item_name": "Golden Lynx x1",
       "ap_eligibility": "always",
-      "section_name": "Library",
+      "section_name": "Grand Hall",
       "x": 125.43,
       "y": 35.52,
       "z": 53.88,
@@ -5580,10 +5643,10 @@
       "note": ""
     },
     "668269030": {
-      "name": "Chapter 9 - Library - Handgun Ammo x10 [0b90c8dd]",
+      "name": "Chapter 10 - Library - Handgun Ammo x10 [0b90c8dd]",
       "guid": "0b90c8dd-bb1c-49b1-bd88-5385a3ae5086",
       "identity_kind": "guid",
-      "chapter": 9,
+      "chapter": 10,
       "stage": 54100,
       "region": "Castle Deep",
       "source_item_name": "Handgun Ammo x10",
@@ -5820,15 +5883,15 @@
       "note": ""
     },
     "1407423758": {
-      "name": "Chapter 11 - Mines - Green Herb x1 [a7068942]",
+      "name": "Chapter 10 - Underground Laboratory - Green Herb x1 [a7068942]",
       "guid": "a7068942-aa46-4efa-967f-bf1a33a61c4c",
       "identity_kind": "guid",
-      "chapter": 11,
+      "chapter": 10,
       "stage": 54407,
-      "region": "Island Entry",
+      "region": "Castle Deep",
       "source_item_name": "Green Herb x1",
       "ap_eligibility": "always",
-      "section_name": "Mines",
+      "section_name": "Underground Laboratory",
       "x": 138.18,
       "y": -30.41,
       "z": -39.85,
@@ -5836,15 +5899,15 @@
       "note": ""
     },
     "994461688": {
-      "name": "Chapter 11 - Mines - Shotgun Shells x3 [df312d32]",
+      "name": "Chapter 10 - Underground Laboratory - Shotgun Shells x3 [df312d32]",
       "guid": "df312d32-af74-457c-84ee-32cfd3913f50",
       "identity_kind": "guid",
-      "chapter": 11,
+      "chapter": 10,
       "stage": 54407,
-      "region": "Island Entry",
+      "region": "Castle Deep",
       "source_item_name": "Shotgun Shells x3",
       "ap_eligibility": "always",
-      "section_name": "Mines",
+      "section_name": "Underground Laboratory",
       "x": 135.11,
       "y": -29.19,
       "z": -29.66,
@@ -6396,7 +6459,7 @@
       "note": ""
     },
     "4020474884": {
-      "name": "Chapter 12 - Upper Clock Tower - Alexandrite x1 (bird's nest) [9b72f6d9]",
+      "name": "Chapter 12 - Upper Clock Tower - Alexandrite x1 (hanging) [9b72f6d9]",
       "guid": "9b72f6d9-bdbf-4046-b73e-76bec9c3e00a",
       "identity_kind": "guid",
       "chapter": 12,
@@ -6408,7 +6471,7 @@
       "x": 176.95,
       "y": 36.14,
       "z": -101.26,
-      "container": "nest",
+      "container": "hanging",
       "note": ""
     },
     "4074290744": {
@@ -6428,7 +6491,7 @@
       "note": ""
     },
     "2892833831": {
-      "name": "Chapter 12 - Castle Exit - Yellow Diamond x1 (hanging) [163f855a]",
+      "name": "Chapter 12 - Dock - Yellow Diamond x1 (hanging) [163f855a]",
       "guid": "163f855a-534f-486c-85bc-121c0486e9cd",
       "identity_kind": "guid",
       "chapter": 12,
@@ -6436,7 +6499,7 @@
       "region": "Island Entry",
       "source_item_name": "Yellow Diamond x1",
       "ap_eligibility": "always",
-      "section_name": "Castle Exit",
+      "section_name": "Dock",
       "x": 303.64,
       "y": 1.35,
       "z": -80.5,
@@ -6716,7 +6779,7 @@
       "note": ""
     },
     "1365982482": {
-      "name": "Chapter 13 - Incubation Lab - Level 3 Keycard x1 [6f8cb73f]",
+      "name": "Chapter 13 - Utilities - Level 3 Keycard x1 [6f8cb73f]",
       "guid": "6f8cb73f-8838-4281-bc70-15ca11156d40",
       "identity_kind": "guid",
       "chapter": 13,
@@ -6724,7 +6787,7 @@
       "region": "Island Entry",
       "source_item_name": "Level 3 Keycard x1",
       "ap_eligibility": "always",
-      "section_name": "Incubation Lab",
+      "section_name": "Utilities",
       "x": 76.71,
       "y": 11.6,
       "z": -68.46,
@@ -7212,7 +7275,7 @@
       "note": ""
     },
     "2456513306": {
-      "name": "Chapter 13 - Incubation Lab - Biosensor Scope x1 (chest) [e91a8b12]",
+      "name": "Chapter 13 - Utilities - Biosensor Scope x1 (chest) [e91a8b12]",
       "guid": "e91a8b12-6571-4270-afc0-17bb4d8072d7",
       "identity_kind": "guid",
       "chapter": 13,
@@ -7220,7 +7283,7 @@
       "region": "Island Entry",
       "source_item_name": "Biosensor Scope x1",
       "ap_eligibility": "always",
-      "section_name": "Incubation Lab",
+      "section_name": "Utilities",
       "x": 74.14,
       "y": 11.39,
       "z": -67.14,
@@ -7964,7 +8027,7 @@
       "note": ""
     },
     "1791934559": {
-      "name": "Chapter 15 - Specimen Storage - Staff of Royalty x1 (chest) [905a7184]",
+      "name": "Chapter 15 - Cliffside Ruins - Staff of Royalty x1 (chest) [905a7184]",
       "guid": "905a7184-92f4-4644-954e-5f70368f0576",
       "identity_kind": "guid",
       "chapter": 15,
@@ -7972,7 +8035,7 @@
       "region": "Island Deep",
       "source_item_name": "Staff of Royalty x1",
       "ap_eligibility": "always",
-      "section_name": "Specimen Storage",
+      "section_name": "Cliffside Ruins",
       "x": 26.15,
       "y": 32.44,
       "z": -246.82,
@@ -8561,721 +8624,1038 @@
       "name": "Merchant Shop Chapter 1 Check 1",
       "slot": 1,
       "physical_chapter": 1,
-      "logical_chapter": 2
+      "logical_chapter": 1
     },
     "1170216965": {
       "name": "Merchant Shop Chapter 1 Check 2",
       "slot": 2,
       "physical_chapter": 1,
-      "logical_chapter": 2
+      "logical_chapter": 1
     },
     "1097256656": {
       "name": "Merchant Shop Chapter 1 Check 3",
       "slot": 3,
       "physical_chapter": 1,
-      "logical_chapter": 2
+      "logical_chapter": 1
     },
     "2827179170": {
       "name": "Merchant Shop Chapter 1 Check 4",
       "slot": 4,
       "physical_chapter": 1,
-      "logical_chapter": 2
+      "logical_chapter": 1
     },
     "1459848454": {
       "name": "Merchant Shop Chapter 1 Check 5",
       "slot": 5,
       "physical_chapter": 1,
-      "logical_chapter": 2
+      "logical_chapter": 1
     },
     "1190429400": {
       "name": "Merchant Shop Chapter 1 Check 6",
       "slot": 6,
       "physical_chapter": 1,
-      "logical_chapter": 2
+      "logical_chapter": 1
     },
     "3201658568": {
       "name": "Merchant Shop Chapter 1 Check 7",
       "slot": 7,
       "physical_chapter": 1,
-      "logical_chapter": 2
+      "logical_chapter": 1
     },
     "4084913530": {
       "name": "Merchant Shop Chapter 1 Check 8",
       "slot": 8,
       "physical_chapter": 1,
-      "logical_chapter": 2
+      "logical_chapter": 1
     },
     "1194548714": {
       "name": "Merchant Shop Chapter 2 Check 1",
       "slot": 9,
       "physical_chapter": 2,
-      "logical_chapter": 3
+      "logical_chapter": 2
     },
     "3341178225": {
       "name": "Merchant Shop Chapter 2 Check 2",
       "slot": 10,
       "physical_chapter": 2,
-      "logical_chapter": 3
+      "logical_chapter": 2
     },
     "3917509320": {
       "name": "Merchant Shop Chapter 2 Check 3",
       "slot": 11,
       "physical_chapter": 2,
-      "logical_chapter": 3
+      "logical_chapter": 2
     },
     "2343016049": {
       "name": "Merchant Shop Chapter 2 Check 4",
       "slot": 12,
       "physical_chapter": 2,
-      "logical_chapter": 3
+      "logical_chapter": 2
     },
     "3494987482": {
       "name": "Merchant Shop Chapter 2 Check 5",
       "slot": 13,
       "physical_chapter": 2,
-      "logical_chapter": 3
+      "logical_chapter": 2
     },
     "981512941": {
       "name": "Merchant Shop Chapter 2 Check 6",
       "slot": 14,
       "physical_chapter": 2,
-      "logical_chapter": 3
+      "logical_chapter": 2
     },
     "4134323037": {
       "name": "Merchant Shop Chapter 2 Check 7",
       "slot": 15,
       "physical_chapter": 2,
-      "logical_chapter": 3
+      "logical_chapter": 2
     },
     "289205743": {
       "name": "Merchant Shop Chapter 2 Check 8",
       "slot": 16,
       "physical_chapter": 2,
-      "logical_chapter": 3
+      "logical_chapter": 2
     },
     "1452715115": {
       "name": "Merchant Shop Chapter 3 Check 1",
       "slot": 17,
       "physical_chapter": 3,
-      "logical_chapter": 4
+      "logical_chapter": 3
     },
     "2394316115": {
       "name": "Merchant Shop Chapter 3 Check 2",
       "slot": 18,
       "physical_chapter": 3,
-      "logical_chapter": 4
+      "logical_chapter": 3
     },
     "1602358381": {
       "name": "Merchant Shop Chapter 3 Check 3",
       "slot": 19,
       "physical_chapter": 3,
-      "logical_chapter": 4
+      "logical_chapter": 3
     },
     "1401220871": {
       "name": "Merchant Shop Chapter 3 Check 4",
       "slot": 20,
       "physical_chapter": 3,
-      "logical_chapter": 4
+      "logical_chapter": 3
     },
     "1506685277": {
       "name": "Merchant Shop Chapter 3 Check 5",
       "slot": 21,
       "physical_chapter": 3,
-      "logical_chapter": 4
+      "logical_chapter": 3
     },
     "2079872970": {
       "name": "Merchant Shop Chapter 3 Check 6",
       "slot": 22,
       "physical_chapter": 3,
-      "logical_chapter": 4
+      "logical_chapter": 3
     },
     "4162099367": {
       "name": "Merchant Shop Chapter 3 Check 7",
       "slot": 23,
       "physical_chapter": 3,
-      "logical_chapter": 4
+      "logical_chapter": 3
     },
     "192492262": {
       "name": "Merchant Shop Chapter 3 Check 8",
       "slot": 24,
       "physical_chapter": 3,
-      "logical_chapter": 4
+      "logical_chapter": 3
     },
     "1001472388": {
       "name": "Merchant Shop Chapter 4 Check 1",
       "slot": 25,
       "physical_chapter": 4,
-      "logical_chapter": 5
+      "logical_chapter": 4
     },
     "842976900": {
       "name": "Merchant Shop Chapter 4 Check 2",
       "slot": 26,
       "physical_chapter": 4,
-      "logical_chapter": 5
+      "logical_chapter": 4
     },
     "2644318611": {
       "name": "Merchant Shop Chapter 4 Check 3",
       "slot": 27,
       "physical_chapter": 4,
-      "logical_chapter": 5
+      "logical_chapter": 4
     },
     "3519081203": {
       "name": "Merchant Shop Chapter 4 Check 4",
       "slot": 28,
       "physical_chapter": 4,
-      "logical_chapter": 5
+      "logical_chapter": 4
     },
     "324055207": {
       "name": "Merchant Shop Chapter 4 Check 5",
       "slot": 29,
       "physical_chapter": 4,
-      "logical_chapter": 5
+      "logical_chapter": 4
     },
     "2588966884": {
       "name": "Merchant Shop Chapter 4 Check 6",
       "slot": 30,
       "physical_chapter": 4,
-      "logical_chapter": 5
+      "logical_chapter": 4
     },
     "4269344594": {
       "name": "Merchant Shop Chapter 4 Check 7",
       "slot": 31,
       "physical_chapter": 4,
-      "logical_chapter": 5
+      "logical_chapter": 4
     },
     "3155789497": {
       "name": "Merchant Shop Chapter 4 Check 8",
       "slot": 32,
       "physical_chapter": 4,
-      "logical_chapter": 5
+      "logical_chapter": 4
     },
     "3056802204": {
       "name": "Merchant Shop Chapter 5 Check 1",
       "slot": 33,
       "physical_chapter": 5,
-      "logical_chapter": 6
+      "logical_chapter": 5
     },
     "358070807": {
       "name": "Merchant Shop Chapter 5 Check 2",
       "slot": 34,
       "physical_chapter": 5,
-      "logical_chapter": 6
+      "logical_chapter": 5
     },
     "1844864671": {
       "name": "Merchant Shop Chapter 5 Check 3",
       "slot": 35,
       "physical_chapter": 5,
-      "logical_chapter": 6
+      "logical_chapter": 5
     },
     "248156842": {
       "name": "Merchant Shop Chapter 5 Check 4",
       "slot": 36,
       "physical_chapter": 5,
-      "logical_chapter": 6
+      "logical_chapter": 5
     },
     "3739641444": {
       "name": "Merchant Shop Chapter 5 Check 5",
       "slot": 37,
       "physical_chapter": 5,
-      "logical_chapter": 6
+      "logical_chapter": 5
     },
     "310890773": {
       "name": "Merchant Shop Chapter 5 Check 6",
       "slot": 38,
       "physical_chapter": 5,
-      "logical_chapter": 6
+      "logical_chapter": 5
     },
     "1349046507": {
       "name": "Merchant Shop Chapter 5 Check 7",
       "slot": 39,
       "physical_chapter": 5,
-      "logical_chapter": 6
+      "logical_chapter": 5
     },
     "218609062": {
       "name": "Merchant Shop Chapter 5 Check 8",
       "slot": 40,
       "physical_chapter": 5,
-      "logical_chapter": 6
+      "logical_chapter": 5
     },
     "674063431": {
       "name": "Merchant Shop Chapter 6 Check 1",
       "slot": 41,
       "physical_chapter": 6,
-      "logical_chapter": 7
+      "logical_chapter": 6
     },
     "3051290376": {
       "name": "Merchant Shop Chapter 6 Check 2",
       "slot": 42,
       "physical_chapter": 6,
-      "logical_chapter": 7
+      "logical_chapter": 6
     },
     "1426692154": {
       "name": "Merchant Shop Chapter 6 Check 3",
       "slot": 43,
       "physical_chapter": 6,
-      "logical_chapter": 7
+      "logical_chapter": 6
     },
     "1617919703": {
       "name": "Merchant Shop Chapter 6 Check 4",
       "slot": 44,
       "physical_chapter": 6,
-      "logical_chapter": 7
+      "logical_chapter": 6
     },
     "2165501891": {
       "name": "Merchant Shop Chapter 6 Check 5",
       "slot": 45,
       "physical_chapter": 6,
-      "logical_chapter": 7
+      "logical_chapter": 6
     },
     "1902564219": {
       "name": "Merchant Shop Chapter 6 Check 6",
       "slot": 46,
       "physical_chapter": 6,
-      "logical_chapter": 7
+      "logical_chapter": 6
     },
     "1484022811": {
       "name": "Merchant Shop Chapter 6 Check 7",
       "slot": 47,
       "physical_chapter": 6,
-      "logical_chapter": 7
+      "logical_chapter": 6
     },
     "2771466591": {
       "name": "Merchant Shop Chapter 6 Check 8",
       "slot": 48,
       "physical_chapter": 6,
-      "logical_chapter": 7
+      "logical_chapter": 6
     },
     "3142639898": {
       "name": "Merchant Shop Chapter 7 Check 1",
       "slot": 49,
       "physical_chapter": 7,
-      "logical_chapter": 8
+      "logical_chapter": 7
     },
     "3890450729": {
       "name": "Merchant Shop Chapter 7 Check 2",
       "slot": 50,
       "physical_chapter": 7,
-      "logical_chapter": 8
+      "logical_chapter": 7
     },
     "813675793": {
       "name": "Merchant Shop Chapter 7 Check 3",
       "slot": 51,
       "physical_chapter": 7,
-      "logical_chapter": 8
+      "logical_chapter": 7
     },
     "3452214940": {
       "name": "Merchant Shop Chapter 7 Check 4",
       "slot": 52,
       "physical_chapter": 7,
-      "logical_chapter": 8
+      "logical_chapter": 7
     },
     "3997183305": {
       "name": "Merchant Shop Chapter 7 Check 5",
       "slot": 53,
       "physical_chapter": 7,
-      "logical_chapter": 8
+      "logical_chapter": 7
     },
     "1210272782": {
       "name": "Merchant Shop Chapter 7 Check 6",
       "slot": 54,
       "physical_chapter": 7,
-      "logical_chapter": 8
+      "logical_chapter": 7
     },
     "2254484379": {
       "name": "Merchant Shop Chapter 7 Check 7",
       "slot": 55,
       "physical_chapter": 7,
-      "logical_chapter": 8
+      "logical_chapter": 7
     },
     "1995592936": {
       "name": "Merchant Shop Chapter 7 Check 8",
       "slot": 56,
       "physical_chapter": 7,
-      "logical_chapter": 8
+      "logical_chapter": 7
     },
     "3640636859": {
       "name": "Merchant Shop Chapter 8 Check 1",
       "slot": 57,
       "physical_chapter": 8,
-      "logical_chapter": 9
+      "logical_chapter": 8
     },
     "3503432696": {
       "name": "Merchant Shop Chapter 8 Check 2",
       "slot": 58,
       "physical_chapter": 8,
-      "logical_chapter": 9
+      "logical_chapter": 8
     },
     "1068869668": {
       "name": "Merchant Shop Chapter 8 Check 3",
       "slot": 59,
       "physical_chapter": 8,
-      "logical_chapter": 9
+      "logical_chapter": 8
     },
     "3134846098": {
       "name": "Merchant Shop Chapter 8 Check 4",
       "slot": 60,
       "physical_chapter": 8,
-      "logical_chapter": 9
+      "logical_chapter": 8
     },
     "3375212761": {
       "name": "Merchant Shop Chapter 8 Check 5",
       "slot": 61,
       "physical_chapter": 8,
-      "logical_chapter": 9
+      "logical_chapter": 8
     },
     "3678996016": {
       "name": "Merchant Shop Chapter 8 Check 6",
       "slot": 62,
       "physical_chapter": 8,
-      "logical_chapter": 9
+      "logical_chapter": 8
     },
     "2249894008": {
       "name": "Merchant Shop Chapter 8 Check 7",
       "slot": 63,
       "physical_chapter": 8,
-      "logical_chapter": 9
+      "logical_chapter": 8
     },
     "3006402577": {
       "name": "Merchant Shop Chapter 8 Check 8",
       "slot": 64,
       "physical_chapter": 8,
-      "logical_chapter": 9
+      "logical_chapter": 8
     },
     "1497411371": {
       "name": "Merchant Shop Chapter 9 Check 1",
       "slot": 65,
       "physical_chapter": 9,
-      "logical_chapter": 10
+      "logical_chapter": 9
     },
     "96159994": {
       "name": "Merchant Shop Chapter 9 Check 2",
       "slot": 66,
       "physical_chapter": 9,
-      "logical_chapter": 10
+      "logical_chapter": 9
     },
     "598964931": {
       "name": "Merchant Shop Chapter 9 Check 3",
       "slot": 67,
       "physical_chapter": 9,
-      "logical_chapter": 10
+      "logical_chapter": 9
     },
     "982562224": {
       "name": "Merchant Shop Chapter 9 Check 4",
       "slot": 68,
       "physical_chapter": 9,
-      "logical_chapter": 10
+      "logical_chapter": 9
     },
     "3825075611": {
       "name": "Merchant Shop Chapter 9 Check 5",
       "slot": 69,
       "physical_chapter": 9,
-      "logical_chapter": 10
+      "logical_chapter": 9
     },
     "3131450478": {
       "name": "Merchant Shop Chapter 9 Check 6",
       "slot": 70,
       "physical_chapter": 9,
-      "logical_chapter": 10
+      "logical_chapter": 9
     },
     "305703876": {
       "name": "Merchant Shop Chapter 9 Check 7",
       "slot": 71,
       "physical_chapter": 9,
-      "logical_chapter": 10
+      "logical_chapter": 9
     },
     "3026683617": {
       "name": "Merchant Shop Chapter 9 Check 8",
       "slot": 72,
       "physical_chapter": 9,
-      "logical_chapter": 10
+      "logical_chapter": 9
     },
     "1107098491": {
       "name": "Merchant Shop Chapter 10 Check 1",
       "slot": 73,
       "physical_chapter": 10,
-      "logical_chapter": 11
+      "logical_chapter": 10
     },
     "920309751": {
       "name": "Merchant Shop Chapter 10 Check 2",
       "slot": 74,
       "physical_chapter": 10,
-      "logical_chapter": 11
+      "logical_chapter": 10
     },
     "2750811760": {
       "name": "Merchant Shop Chapter 10 Check 3",
       "slot": 75,
       "physical_chapter": 10,
-      "logical_chapter": 11
+      "logical_chapter": 10
     },
     "1611561168": {
       "name": "Merchant Shop Chapter 10 Check 4",
       "slot": 76,
       "physical_chapter": 10,
-      "logical_chapter": 11
+      "logical_chapter": 10
     },
     "3034056382": {
       "name": "Merchant Shop Chapter 10 Check 5",
       "slot": 77,
       "physical_chapter": 10,
-      "logical_chapter": 11
+      "logical_chapter": 10
     },
     "2724902206": {
       "name": "Merchant Shop Chapter 10 Check 6",
       "slot": 78,
       "physical_chapter": 10,
-      "logical_chapter": 11
+      "logical_chapter": 10
     },
     "2683228983": {
       "name": "Merchant Shop Chapter 10 Check 7",
       "slot": 79,
       "physical_chapter": 10,
-      "logical_chapter": 11
+      "logical_chapter": 10
     },
     "3137822042": {
       "name": "Merchant Shop Chapter 10 Check 8",
       "slot": 80,
       "physical_chapter": 10,
-      "logical_chapter": 11
+      "logical_chapter": 10
     },
     "1259501242": {
       "name": "Merchant Shop Chapter 11 Check 1",
       "slot": 81,
       "physical_chapter": 11,
-      "logical_chapter": 12
+      "logical_chapter": 11
     },
     "2372142381": {
       "name": "Merchant Shop Chapter 11 Check 2",
       "slot": 82,
       "physical_chapter": 11,
-      "logical_chapter": 12
+      "logical_chapter": 11
     },
     "2435002653": {
       "name": "Merchant Shop Chapter 11 Check 3",
       "slot": 83,
       "physical_chapter": 11,
-      "logical_chapter": 12
+      "logical_chapter": 11
     },
     "3509571146": {
       "name": "Merchant Shop Chapter 11 Check 4",
       "slot": 84,
       "physical_chapter": 11,
-      "logical_chapter": 12
+      "logical_chapter": 11
     },
     "1537644037": {
       "name": "Merchant Shop Chapter 11 Check 5",
       "slot": 85,
       "physical_chapter": 11,
-      "logical_chapter": 12
+      "logical_chapter": 11
     },
     "2547313936": {
       "name": "Merchant Shop Chapter 11 Check 6",
       "slot": 86,
       "physical_chapter": 11,
-      "logical_chapter": 12
+      "logical_chapter": 11
     },
     "3951452081": {
       "name": "Merchant Shop Chapter 11 Check 7",
       "slot": 87,
       "physical_chapter": 11,
-      "logical_chapter": 12
+      "logical_chapter": 11
     },
     "2162994074": {
       "name": "Merchant Shop Chapter 11 Check 8",
       "slot": 88,
       "physical_chapter": 11,
-      "logical_chapter": 12
+      "logical_chapter": 11
     },
     "3463367769": {
       "name": "Merchant Shop Chapter 12 Check 1",
       "slot": 89,
       "physical_chapter": 12,
-      "logical_chapter": 13
+      "logical_chapter": 12
     },
     "1653378017": {
       "name": "Merchant Shop Chapter 12 Check 2",
       "slot": 90,
       "physical_chapter": 12,
-      "logical_chapter": 13
+      "logical_chapter": 12
     },
     "3063175644": {
       "name": "Merchant Shop Chapter 12 Check 3",
       "slot": 91,
       "physical_chapter": 12,
-      "logical_chapter": 13
+      "logical_chapter": 12
     },
     "2219479548": {
       "name": "Merchant Shop Chapter 12 Check 4",
       "slot": 92,
       "physical_chapter": 12,
-      "logical_chapter": 13
+      "logical_chapter": 12
     },
     "892097845": {
       "name": "Merchant Shop Chapter 12 Check 5",
       "slot": 93,
       "physical_chapter": 12,
-      "logical_chapter": 13
+      "logical_chapter": 12
     },
     "1164946940": {
       "name": "Merchant Shop Chapter 12 Check 6",
       "slot": 94,
       "physical_chapter": 12,
-      "logical_chapter": 13
+      "logical_chapter": 12
     },
     "3348510015": {
       "name": "Merchant Shop Chapter 12 Check 7",
       "slot": 95,
       "physical_chapter": 12,
-      "logical_chapter": 13
+      "logical_chapter": 12
     },
     "3190698782": {
       "name": "Merchant Shop Chapter 12 Check 8",
       "slot": 96,
       "physical_chapter": 12,
-      "logical_chapter": 13
+      "logical_chapter": 12
     },
     "2996130800": {
       "name": "Merchant Shop Chapter 13 Check 1",
       "slot": 97,
       "physical_chapter": 13,
-      "logical_chapter": 14
+      "logical_chapter": 13
     },
     "708340520": {
       "name": "Merchant Shop Chapter 13 Check 2",
       "slot": 98,
       "physical_chapter": 13,
-      "logical_chapter": 14
+      "logical_chapter": 13
     },
     "1262946470": {
       "name": "Merchant Shop Chapter 13 Check 3",
       "slot": 99,
       "physical_chapter": 13,
-      "logical_chapter": 14
+      "logical_chapter": 13
     },
     "2474631145": {
       "name": "Merchant Shop Chapter 13 Check 4",
       "slot": 100,
       "physical_chapter": 13,
-      "logical_chapter": 14
+      "logical_chapter": 13
     },
     "2301001297": {
       "name": "Merchant Shop Chapter 13 Check 5",
       "slot": 101,
       "physical_chapter": 13,
-      "logical_chapter": 14
+      "logical_chapter": 13
     },
     "3963687517": {
       "name": "Merchant Shop Chapter 13 Check 6",
       "slot": 102,
       "physical_chapter": 13,
-      "logical_chapter": 14
+      "logical_chapter": 13
     },
     "3637794082": {
       "name": "Merchant Shop Chapter 13 Check 7",
       "slot": 103,
       "physical_chapter": 13,
-      "logical_chapter": 14
+      "logical_chapter": 13
     },
     "142149295": {
       "name": "Merchant Shop Chapter 13 Check 8",
       "slot": 104,
       "physical_chapter": 13,
-      "logical_chapter": 14
+      "logical_chapter": 13
     },
     "2994707197": {
       "name": "Merchant Shop Chapter 14 Check 1",
       "slot": 105,
       "physical_chapter": 14,
-      "logical_chapter": 15
+      "logical_chapter": 14
     },
     "1871120588": {
       "name": "Merchant Shop Chapter 14 Check 2",
       "slot": 106,
       "physical_chapter": 14,
-      "logical_chapter": 15
+      "logical_chapter": 14
     },
     "737904334": {
       "name": "Merchant Shop Chapter 14 Check 3",
       "slot": 107,
       "physical_chapter": 14,
-      "logical_chapter": 15
+      "logical_chapter": 14
     },
     "3571688256": {
       "name": "Merchant Shop Chapter 14 Check 4",
       "slot": 108,
       "physical_chapter": 14,
-      "logical_chapter": 15
+      "logical_chapter": 14
     },
     "3889393894": {
       "name": "Merchant Shop Chapter 14 Check 5",
       "slot": 109,
       "physical_chapter": 14,
-      "logical_chapter": 15
+      "logical_chapter": 14
     },
     "1289099507": {
       "name": "Merchant Shop Chapter 14 Check 6",
       "slot": 110,
       "physical_chapter": 14,
-      "logical_chapter": 15
+      "logical_chapter": 14
     },
     "288381329": {
       "name": "Merchant Shop Chapter 14 Check 7",
       "slot": 111,
       "physical_chapter": 14,
-      "logical_chapter": 15
+      "logical_chapter": 14
     },
     "4134679852": {
       "name": "Merchant Shop Chapter 14 Check 8",
       "slot": 112,
       "physical_chapter": 14,
-      "logical_chapter": 15
+      "logical_chapter": 14
     },
     "2894006355": {
       "name": "Merchant Shop Chapter 15 Check 1",
       "slot": 113,
       "physical_chapter": 15,
-      "logical_chapter": 16
+      "logical_chapter": 15
     },
     "2184385651": {
       "name": "Merchant Shop Chapter 15 Check 2",
       "slot": 114,
       "physical_chapter": 15,
-      "logical_chapter": 16
+      "logical_chapter": 15
     },
     "975650400": {
       "name": "Merchant Shop Chapter 15 Check 3",
       "slot": 115,
       "physical_chapter": 15,
-      "logical_chapter": 16
+      "logical_chapter": 15
     },
     "1570430889": {
       "name": "Merchant Shop Chapter 15 Check 4",
       "slot": 116,
       "physical_chapter": 15,
-      "logical_chapter": 16
+      "logical_chapter": 15
     },
     "1690434220": {
       "name": "Merchant Shop Chapter 15 Check 5",
       "slot": 117,
       "physical_chapter": 15,
-      "logical_chapter": 16
+      "logical_chapter": 15
     },
     "284288782": {
       "name": "Merchant Shop Chapter 15 Check 6",
       "slot": 118,
       "physical_chapter": 15,
-      "logical_chapter": 16
+      "logical_chapter": 15
     },
     "1683511022": {
       "name": "Merchant Shop Chapter 15 Check 7",
       "slot": 119,
       "physical_chapter": 15,
-      "logical_chapter": 16
+      "logical_chapter": 15
     },
     "1278802280": {
       "name": "Merchant Shop Chapter 15 Check 8",
       "slot": 120,
       "physical_chapter": 15,
-      "logical_chapter": 16
+      "logical_chapter": 15
+    }
+  },
+  "trade_checks": {
+    "3028805226": {
+      "name": "Merchant Trade Chapter 1 Check 1",
+      "release_index": 1,
+      "chapter": 1,
+      "chapter_ordinal": 1,
+      "price_spinel": 1
+    },
+    "350880948": {
+      "name": "Merchant Trade Chapter 2 Check 1",
+      "release_index": 2,
+      "chapter": 2,
+      "chapter_ordinal": 1,
+      "price_spinel": 1
+    },
+    "2033216084": {
+      "name": "Merchant Trade Chapter 3 Check 1",
+      "release_index": 3,
+      "chapter": 3,
+      "chapter_ordinal": 1,
+      "price_spinel": 3
+    },
+    "2361054311": {
+      "name": "Merchant Trade Chapter 4 Check 1",
+      "release_index": 4,
+      "chapter": 4,
+      "chapter_ordinal": 1,
+      "price_spinel": 1
+    },
+    "642907209": {
+      "name": "Merchant Trade Chapter 5 Check 1",
+      "release_index": 5,
+      "chapter": 5,
+      "chapter_ordinal": 1,
+      "price_spinel": 1
+    },
+    "161164789": {
+      "name": "Merchant Trade Chapter 6 Check 1",
+      "release_index": 6,
+      "chapter": 6,
+      "chapter_ordinal": 1,
+      "price_spinel": 6
+    },
+    "3840728108": {
+      "name": "Merchant Trade Chapter 7 Check 1",
+      "release_index": 7,
+      "chapter": 7,
+      "chapter_ordinal": 1,
+      "price_spinel": 1
+    },
+    "2065904403": {
+      "name": "Merchant Trade Chapter 8 Check 1",
+      "release_index": 8,
+      "chapter": 8,
+      "chapter_ordinal": 1,
+      "price_spinel": 1
+    },
+    "1814123416": {
+      "name": "Merchant Trade Chapter 9 Check 1",
+      "release_index": 9,
+      "chapter": 9,
+      "chapter_ordinal": 1,
+      "price_spinel": 3
+    },
+    "1923058765": {
+      "name": "Merchant Trade Chapter 10 Check 1",
+      "release_index": 10,
+      "chapter": 10,
+      "chapter_ordinal": 1,
+      "price_spinel": 1
+    },
+    "1961477875": {
+      "name": "Merchant Trade Chapter 11 Check 1",
+      "release_index": 11,
+      "chapter": 11,
+      "chapter_ordinal": 1,
+      "price_spinel": 1
+    },
+    "878534206": {
+      "name": "Merchant Trade Chapter 12 Check 1",
+      "release_index": 12,
+      "chapter": 12,
+      "chapter_ordinal": 1,
+      "price_spinel": 6
+    },
+    "2285372206": {
+      "name": "Merchant Trade Chapter 13 Check 1",
+      "release_index": 13,
+      "chapter": 13,
+      "chapter_ordinal": 1,
+      "price_spinel": 1
+    },
+    "2167085594": {
+      "name": "Merchant Trade Chapter 14 Check 1",
+      "release_index": 14,
+      "chapter": 14,
+      "chapter_ordinal": 1,
+      "price_spinel": 1
+    },
+    "3752932763": {
+      "name": "Merchant Trade Chapter 15 Check 1",
+      "release_index": 15,
+      "chapter": 15,
+      "chapter_ordinal": 1,
+      "price_spinel": 3
+    },
+    "1014154304": {
+      "name": "Merchant Trade Chapter 1 Check 2",
+      "release_index": 16,
+      "chapter": 1,
+      "chapter_ordinal": 2,
+      "price_spinel": 1
+    },
+    "1742644296": {
+      "name": "Merchant Trade Chapter 2 Check 2",
+      "release_index": 17,
+      "chapter": 2,
+      "chapter_ordinal": 2,
+      "price_spinel": 1
+    },
+    "3243391514": {
+      "name": "Merchant Trade Chapter 3 Check 2",
+      "release_index": 18,
+      "chapter": 3,
+      "chapter_ordinal": 2,
+      "price_spinel": 6
+    },
+    "2360546741": {
+      "name": "Merchant Trade Chapter 4 Check 2",
+      "release_index": 19,
+      "chapter": 4,
+      "chapter_ordinal": 2,
+      "price_spinel": 1
+    },
+    "2201349214": {
+      "name": "Merchant Trade Chapter 5 Check 2",
+      "release_index": 20,
+      "chapter": 5,
+      "chapter_ordinal": 2,
+      "price_spinel": 1
+    },
+    "3279513191": {
+      "name": "Merchant Trade Chapter 6 Check 2",
+      "release_index": 21,
+      "chapter": 6,
+      "chapter_ordinal": 2,
+      "price_spinel": 3
+    },
+    "747067177": {
+      "name": "Merchant Trade Chapter 7 Check 2",
+      "release_index": 22,
+      "chapter": 7,
+      "chapter_ordinal": 2,
+      "price_spinel": 1
+    },
+    "1962100554": {
+      "name": "Merchant Trade Chapter 8 Check 2",
+      "release_index": 23,
+      "chapter": 8,
+      "chapter_ordinal": 2,
+      "price_spinel": 1
+    },
+    "943754335": {
+      "name": "Merchant Trade Chapter 9 Check 2",
+      "release_index": 24,
+      "chapter": 9,
+      "chapter_ordinal": 2,
+      "price_spinel": 6
+    },
+    "404598019": {
+      "name": "Merchant Trade Chapter 10 Check 2",
+      "release_index": 25,
+      "chapter": 10,
+      "chapter_ordinal": 2,
+      "price_spinel": 1
+    },
+    "566056750": {
+      "name": "Merchant Trade Chapter 11 Check 2",
+      "release_index": 26,
+      "chapter": 11,
+      "chapter_ordinal": 2,
+      "price_spinel": 1
+    },
+    "3553147931": {
+      "name": "Merchant Trade Chapter 12 Check 2",
+      "release_index": 27,
+      "chapter": 12,
+      "chapter_ordinal": 2,
+      "price_spinel": 3
+    },
+    "4226426687": {
+      "name": "Merchant Trade Chapter 13 Check 2",
+      "release_index": 28,
+      "chapter": 13,
+      "chapter_ordinal": 2,
+      "price_spinel": 1
+    },
+    "3545811865": {
+      "name": "Merchant Trade Chapter 14 Check 2",
+      "release_index": 29,
+      "chapter": 14,
+      "chapter_ordinal": 2,
+      "price_spinel": 1
+    },
+    "1350147340": {
+      "name": "Merchant Trade Chapter 15 Check 2",
+      "release_index": 30,
+      "chapter": 15,
+      "chapter_ordinal": 2,
+      "price_spinel": 6
+    },
+    "3801461474": {
+      "name": "Merchant Trade Chapter 1 Check 3",
+      "release_index": 31,
+      "chapter": 1,
+      "chapter_ordinal": 3,
+      "price_spinel": 1
+    },
+    "3999232700": {
+      "name": "Merchant Trade Chapter 2 Check 3",
+      "release_index": 32,
+      "chapter": 2,
+      "chapter_ordinal": 3,
+      "price_spinel": 1
+    },
+    "920018460": {
+      "name": "Merchant Trade Chapter 3 Check 3",
+      "release_index": 33,
+      "chapter": 3,
+      "chapter_ordinal": 3,
+      "price_spinel": 3
+    },
+    "1980339774": {
+      "name": "Merchant Trade Chapter 4 Check 3",
+      "release_index": 34,
+      "chapter": 4,
+      "chapter_ordinal": 3,
+      "price_spinel": 1
+    },
+    "3424675594": {
+      "name": "Merchant Trade Chapter 5 Check 3",
+      "release_index": 35,
+      "chapter": 5,
+      "chapter_ordinal": 3,
+      "price_spinel": 1
+    },
+    "660421388": {
+      "name": "Merchant Trade Chapter 6 Check 3",
+      "release_index": 36,
+      "chapter": 6,
+      "chapter_ordinal": 3,
+      "price_spinel": 6
+    },
+    "395780909": {
+      "name": "Merchant Trade Chapter 7 Check 3",
+      "release_index": 37,
+      "chapter": 7,
+      "chapter_ordinal": 3,
+      "price_spinel": 1
+    },
+    "1371440588": {
+      "name": "Merchant Trade Chapter 8 Check 3",
+      "release_index": 38,
+      "chapter": 8,
+      "chapter_ordinal": 3,
+      "price_spinel": 1
+    },
+    "2607763763": {
+      "name": "Merchant Trade Chapter 9 Check 3",
+      "release_index": 39,
+      "chapter": 9,
+      "chapter_ordinal": 3,
+      "price_spinel": 3
+    },
+    "830902267": {
+      "name": "Merchant Trade Chapter 10 Check 3",
+      "release_index": 40,
+      "chapter": 10,
+      "chapter_ordinal": 3,
+      "price_spinel": 1
+    },
+    "991207237": {
+      "name": "Merchant Trade Chapter 11 Check 3",
+      "release_index": 41,
+      "chapter": 11,
+      "chapter_ordinal": 3,
+      "price_spinel": 1
+    },
+    "1651286127": {
+      "name": "Merchant Trade Chapter 12 Check 3",
+      "release_index": 42,
+      "chapter": 12,
+      "chapter_ordinal": 3,
+      "price_spinel": 6
+    },
+    "778304100": {
+      "name": "Merchant Trade Chapter 13 Check 3",
+      "release_index": 43,
+      "chapter": 13,
+      "chapter_ordinal": 3,
+      "price_spinel": 1
+    },
+    "1001158816": {
+      "name": "Merchant Trade Chapter 14 Check 3",
+      "release_index": 44,
+      "chapter": 14,
+      "chapter_ordinal": 3,
+      "price_spinel": 1
+    },
+    "3103547326": {
+      "name": "Merchant Trade Chapter 15 Check 3",
+      "release_index": 45,
+      "chapter": 15,
+      "chapter_ordinal": 3,
+      "price_spinel": 3
     }
   },
   "items": {
@@ -9334,6 +9714,13 @@
       "biorand_name": "Bolts",
       "classification": "FILLER",
       "count": 2
+    },
+    "231408568": {
+      "name": "Attaché Case: Gold x1",
+      "biorand_item_id": 124192000,
+      "biorand_name": "Attaché Case: Gold",
+      "classification": "FILLER",
+      "count": 1
     },
     "258681200": {
       "name": "Bolts x4",
@@ -9440,6 +9827,13 @@
       "classification": "USEFUL",
       "count": 1
     },
+    "636185742": {
+      "name": "Pesetas x500",
+      "biorand_item_id": 124000000,
+      "biorand_name": "Pesetas",
+      "classification": "FILLER",
+      "count": 500
+    },
     "652308034": {
       "name": "Submachine Gun Ammo x50",
       "biorand_item_id": 112806400,
@@ -9514,6 +9908,13 @@
       "name": "Recipe: Attachable Mines x1",
       "biorand_item_id": 124334400,
       "biorand_name": "Recipe: Attachable Mines",
+      "classification": "USEFUL",
+      "count": 1
+    },
+    "882777558": {
+      "name": "Fighting Knife x1",
+      "biorand_item_id": 276437056,
+      "biorand_name": "Fighting Knife",
       "classification": "USEFUL",
       "count": 1
     },
@@ -9601,6 +10002,13 @@
       "classification": "FILLER",
       "count": 3
     },
+    "1172678581": {
+      "name": "Lip Rouge x1",
+      "biorand_item_id": 120856000,
+      "biorand_name": "Lip Rouge",
+      "classification": "FILLER",
+      "count": 1
+    },
     "1175538565": {
       "name": "Wooden Planks x1",
       "biorand_item_id": 119289600,
@@ -9629,6 +10037,13 @@
       "classification": "PROGRESSION",
       "count": 1
     },
+    "1317144540": {
+      "name": "Pesetas x200",
+      "biorand_item_id": 124000000,
+      "biorand_name": "Pesetas",
+      "classification": "FILLER",
+      "count": 200
+    },
     "1347656822": {
       "name": "Depraved Idol x1",
       "biorand_item_id": 120844800,
@@ -9655,6 +10070,13 @@
       "biorand_item_id": 122400000,
       "biorand_name": "Elegant Mask",
       "classification": "FILLER",
+      "count": 1
+    },
+    "1466847945": {
+      "name": "Primal Knife x1",
+      "biorand_item_id": 276445056,
+      "biorand_name": "Primal Knife",
+      "classification": "USEFUL",
       "count": 1
     },
     "1487112975": {
@@ -9837,6 +10259,13 @@
       "biorand_item_id": 120816000,
       "biorand_name": "Pearl Bangle",
       "classification": "FILLER",
+      "count": 1
+    },
+    "2208221446": {
+      "name": "Exclusive Upgrade Ticket x1",
+      "biorand_item_id": 120867200,
+      "biorand_name": "Exclusive Upgrade Ticket",
+      "classification": "USEFUL",
       "count": 1
     },
     "2217291210": {
@@ -10028,6 +10457,13 @@
       "classification": "PROGRESSION",
       "count": 1
     },
+    "2892172865": {
+      "name": "Spinel x1",
+      "biorand_item_id": 120800000,
+      "biorand_name": "Spinel",
+      "classification": "PROGRESSION_SKIP_BALANCING",
+      "count": 1
+    },
     "2937574877": {
       "name": "Vintage Compass x1",
       "biorand_item_id": 120846400,
@@ -10112,6 +10548,13 @@
       "classification": "PROGRESSION",
       "count": 1
     },
+    "3109021309": {
+      "name": "Spinel x3",
+      "biorand_item_id": 120800000,
+      "biorand_name": "Spinel",
+      "classification": "PROGRESSION_SKIP_BALANCING",
+      "count": 3
+    },
     "3152993356": {
       "name": "Gold Bar x1",
       "biorand_item_id": 120840000,
@@ -10154,6 +10597,13 @@
       "classification": "FILLER",
       "count": 1
     },
+    "3318146281": {
+      "name": "Pesetas x150",
+      "biorand_item_id": 124000000,
+      "biorand_name": "Pesetas",
+      "classification": "FILLER",
+      "count": 150
+    },
     "3322005405": {
       "name": "Chalice of Atonement x1",
       "biorand_item_id": 122411200,
@@ -10161,11 +10611,25 @@
       "classification": "FILLER",
       "count": 1
     },
+    "3329417590": {
+      "name": "Pesetas x1000",
+      "biorand_item_id": 124000000,
+      "biorand_name": "Pesetas",
+      "classification": "FILLER",
+      "count": 1000
+    },
     "3340862733": {
       "name": "Ornate Beetle x1",
       "biorand_item_id": 120851200,
       "biorand_name": "Ornate Beetle",
       "classification": "FILLER",
+      "count": 1
+    },
+    "3342204226": {
+      "name": "Charm: Iluminados Emblem x1",
+      "biorand_item_id": 127243200,
+      "biorand_name": "Charm: Iluminados Emblem",
+      "classification": "USEFUL",
       "count": 1
     },
     "3421455092": {
@@ -10188,6 +10652,13 @@
       "biorand_name": "LE 5",
       "classification": "USEFUL",
       "count": 60
+    },
+    "3526330697": {
+      "name": "Spinel x2",
+      "biorand_item_id": 120800000,
+      "biorand_name": "Spinel",
+      "classification": "PROGRESSION_SKIP_BALANCING",
+      "count": 2
     },
     "3534671013": {
       "name": "Matilda Stock x1",
@@ -10322,6 +10793,13 @@
       "classification": "FILLER",
       "count": 1
     },
+    "4068051991": {
+      "name": "Attaché Case: Leather x1",
+      "biorand_item_id": 124179200,
+      "biorand_name": "Attaché Case: Leather",
+      "classification": "FILLER",
+      "count": 1
+    },
     "4073624936": {
       "name": "Killer7 x1",
       "biorand_item_id": 275637056,
@@ -10364,6 +10842,13 @@
       "classification": "USEFUL",
       "count": 1
     },
+    "4204340803": {
+      "name": "Spinel x5",
+      "biorand_item_id": 120800000,
+      "biorand_name": "Spinel",
+      "classification": "PROGRESSION_SKIP_BALANCING",
+      "count": 5
+    },
     "4228309747": {
       "name": "Laser Sight x1",
       "biorand_item_id": 116008000,
@@ -10376,6 +10861,13 @@
       "biorand_item_id": 120812800,
       "biorand_name": "Elegant Headdress",
       "classification": "FILLER",
+      "count": 1
+    },
+    "4251553254": {
+      "name": "Charm: Ada Wong x1",
+      "biorand_item_id": 127236800,
+      "biorand_name": "Charm: Ada Wong",
+      "classification": "USEFUL",
       "count": 1
     },
     "4262302934": {

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "item_count": 159,
+  "item_count": 175,
   "items": {
     "20665965": {
       "name": "Red9 Stock x1",
@@ -41,6 +41,11 @@
       "name": "Bolts x2",
       "re4r_item_id": 112808000,
       "count": 2
+    },
+    "231408568": {
+      "name": "Attaché Case: Gold x1",
+      "re4r_item_id": 124192000,
+      "count": 1
     },
     "258681200": {
       "name": "Bolts x4",
@@ -117,6 +122,11 @@
       "re4r_item_id": 116003200,
       "count": 1
     },
+    "636185742": {
+      "name": "Pesetas x500",
+      "re4r_item_id": 124000000,
+      "count": 500
+    },
     "652308034": {
       "name": "Submachine Gun Ammo x50",
       "re4r_item_id": 112806400,
@@ -170,6 +180,11 @@
     "872710715": {
       "name": "Recipe: Attachable Mines x1",
       "re4r_item_id": 124334400,
+      "count": 1
+    },
+    "882777558": {
+      "name": "Fighting Knife x1",
+      "re4r_item_id": 276437056,
       "count": 1
     },
     "885416727": {
@@ -232,6 +247,11 @@
       "re4r_item_id": 112803200,
       "count": 3
     },
+    "1172678581": {
+      "name": "Lip Rouge x1",
+      "re4r_item_id": 120856000,
+      "count": 1
+    },
     "1175538565": {
       "name": "Wooden Planks x1",
       "re4r_item_id": 119289600,
@@ -252,6 +272,11 @@
       "re4r_item_id": 119254400,
       "count": 1
     },
+    "1317144540": {
+      "name": "Pesetas x200",
+      "re4r_item_id": 124000000,
+      "count": 200
+    },
     "1347656822": {
       "name": "Depraved Idol x1",
       "re4r_item_id": 120844800,
@@ -270,6 +295,11 @@
     "1446550920": {
       "name": "Elegant Mask x1",
       "re4r_item_id": 122400000,
+      "count": 1
+    },
+    "1466847945": {
+      "name": "Primal Knife x1",
+      "re4r_item_id": 276445056,
       "count": 1
     },
     "1487112975": {
@@ -400,6 +430,11 @@
     "2206838959": {
       "name": "Pearl Bangle x1",
       "re4r_item_id": 120816000,
+      "count": 1
+    },
+    "2208221446": {
+      "name": "Exclusive Upgrade Ticket x1",
+      "re4r_item_id": 120867200,
       "count": 1
     },
     "2217291210": {
@@ -537,6 +572,11 @@
       "re4r_item_id": 119214400,
       "count": 1
     },
+    "2892172865": {
+      "name": "Spinel x1",
+      "re4r_item_id": 120800000,
+      "count": 1
+    },
     "2937574877": {
       "name": "Vintage Compass x1",
       "re4r_item_id": 120846400,
@@ -597,6 +637,11 @@
       "re4r_item_id": 119206400,
       "count": 1
     },
+    "3109021309": {
+      "name": "Spinel x3",
+      "re4r_item_id": 120800000,
+      "count": 3
+    },
     "3152993356": {
       "name": "Gold Bar x1",
       "re4r_item_id": 120840000,
@@ -627,14 +672,29 @@
       "re4r_item_id": 114400000,
       "count": 1
     },
+    "3318146281": {
+      "name": "Pesetas x150",
+      "re4r_item_id": 124000000,
+      "count": 150
+    },
     "3322005405": {
       "name": "Chalice of Atonement x1",
       "re4r_item_id": 122411200,
       "count": 1
     },
+    "3329417590": {
+      "name": "Pesetas x1000",
+      "re4r_item_id": 124000000,
+      "count": 1000
+    },
     "3340862733": {
       "name": "Ornate Beetle x1",
       "re4r_item_id": 120851200,
+      "count": 1
+    },
+    "3342204226": {
+      "name": "Charm: Iluminados Emblem x1",
+      "re4r_item_id": 127243200,
       "count": 1
     },
     "3421455092": {
@@ -651,6 +711,11 @@
       "name": "LE 5 x60",
       "re4r_item_id": 275158656,
       "count": 60
+    },
+    "3526330697": {
+      "name": "Spinel x2",
+      "re4r_item_id": 120800000,
+      "count": 2
     },
     "3534671013": {
       "name": "Matilda Stock x1",
@@ -747,6 +812,11 @@
       "re4r_item_id": 114416000,
       "count": 1
     },
+    "4068051991": {
+      "name": "Attaché Case: Leather x1",
+      "re4r_item_id": 124179200,
+      "count": 1
+    },
     "4073624936": {
       "name": "Killer7 x1",
       "re4r_item_id": 275637056,
@@ -777,6 +847,11 @@
       "re4r_item_id": 275638656,
       "count": 1
     },
+    "4204340803": {
+      "name": "Spinel x5",
+      "re4r_item_id": 120800000,
+      "count": 5
+    },
     "4228309747": {
       "name": "Laser Sight x1",
       "re4r_item_id": 116008000,
@@ -785,6 +860,11 @@
     "4249727162": {
       "name": "Elegant Headdress x1",
       "re4r_item_id": 120812800,
+      "count": 1
+    },
+    "4251553254": {
+      "name": "Charm: Ada Wong x1",
+      "re4r_item_id": 127236800,
       "count": 1
     },
     "4262302934": {

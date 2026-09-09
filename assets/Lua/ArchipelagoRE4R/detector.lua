@@ -1033,6 +1033,20 @@ local function install(ctx)
             "[RE4R AP] pickup_accept bailed (%s) %s", tostring(reason), tostring(detail)))
     end
 
+    -- [S3 lost checks] chainsaw.DropItem accepts through THREE entry points:
+    -- onAcceptPickup (the ordinary path) and the acquire-FLOW pair
+    -- onAcceptCraft / onAcceptOccupied, which the engine uses for weapons
+    -- and key items ALWAYS and for grid items when the case is full. Only
+    -- the first was hooked, so full-case pickups collected their item and
+    -- never sent their check - own-item locations only, log-proven across
+    -- three testers (2026-08-24, LOST_CHECKS_INVESTIGATION.md sections
+    -- 11-14; onAcceptCraft is the 2-for-2 fingerprint). All three entry
+    -- points run the SAME accept body now, and the entry name rides the
+    -- logs so one live session attributes the exact path the flow uses. A
+    -- craft/occupied firing with no drop context resolves no guid and
+    -- no-ops through the existing bails, so ordinary crafting is untouched.
+    local DROP_ACCEPT_ENTRY_POINTS = { "onAcceptPickup", "onAcceptCraft", "onAcceptOccupied" }
+
     local function install_pickup_accept_hook()
         local drop_item_type = sdk.find_type_definition("chainsaw.DropItem")
         if drop_item_type == nil then
@@ -1040,11 +1054,12 @@ local function install(ctx)
             return
         end
 
-        local accept_method = drop_item_type:get_method("onAcceptPickup")
+        for _, entry_name in ipairs(DROP_ACCEPT_ENTRY_POINTS) do
+        local accept_method = drop_item_type:get_method(entry_name)
         if accept_method == nil then
-            log.info("[RE4R AP] DropItem.onAcceptPickup not found for pickup accept hook")
-            return
-        end
+            log.info("[RE4R AP] DropItem." .. entry_name .. " not found for pickup accept hook")
+        else
+        local hooked_entry = entry_name
 
         sdk.hook(
             accept_method,
@@ -1079,7 +1094,8 @@ local function install(ctx)
                     -- log "unmatched" and the check is lost. resolve_... already
                     -- said WHICH lookup route missed; this ties it to the accept.
                     log_accept_bail("no_guid", string.format(
-                        "stage=%s context=%s", tostring(stage), tostring(context_key)))
+                        "entry=%s stage=%s context=%s",
+                        hooked_entry, tostring(stage), tostring(context_key)))
                 end
                 -- [Stage canonicalization] The drop's DATASET stage wins over the
                 -- player's current stage volume: sub-stage boundaries overlap in
@@ -1226,7 +1242,8 @@ local function install(ctx)
                     end
                     log.info(
                         string.format(
-                            "[RE4R AP] pickup_accept stage=%s guid=%s context=%s",
+                            "[RE4R AP] pickup_accept entry=%s stage=%s guid=%s context=%s",
+                            hooked_entry,
                             tostring(stage),
                             tostring(guid),
                             tostring(context_key)
@@ -1239,6 +1256,8 @@ local function install(ctx)
                 return retval
             end
         )
+        end
+        end
     end
 
     local function install_pickup_commit_hook()
@@ -1737,14 +1756,11 @@ local function install(ctx)
     -- Boot Knife), and the class only appeared once shuffled local guns did,
     -- which v0.4.0 did not have.
     --
-    -- chainsaw.DropItem has THREE accept entry points and a weapon-specific
-    -- routine, and we only hook the first:
-    --   onAcceptPickup (hooked)  onAcceptCraft  onAcceptOccupied
-    --   updateWaitGetWeapon      onFirstGetAndPickedUp
-    -- So this logs which of the others fires, with the drop's item id and
-    -- guid, and says nothing at all if none of them do. UNGATED on purpose:
-    -- Developer Tools does not survive Reset Scripts. DELETE once the path
-    -- is known.
+    -- The accept trio (onAcceptPickup / onAcceptCraft / onAcceptOccupied)
+    -- carries the FULL accept body since 2026-08-28, so this probe now
+    -- watches only the two remaining weapon-path routines. UNGATED on
+    -- purpose: Developer Tools does not survive Reset Scripts. DELETE once
+    -- the S3 live confirm lands and the acquire-flow path is attributed.
     local weapon_probe_seen = {}
 
     local function install_weapon_path_probe()
@@ -1755,8 +1771,6 @@ local function install(ctx)
         end
 
         local watched = {
-            "onAcceptCraft",
-            "onAcceptOccupied",
             "onFirstGetAndPickedUp",
             "updateWaitGetWeapon",
         }

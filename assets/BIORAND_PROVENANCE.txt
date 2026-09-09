@@ -19,7 +19,7 @@ HISTORY SQUASHED 2026-08-10: the fork's branch was flattened to a single commit,
                 .cs/.csv/.json, so the SHA-256 below still describes the code
                 that is on the branch today. Keep the old ids for the reasoning
                 they carry; treat 703e59a as the citable source commit.
-Source commit:  634b582 (2026-08-21 release squash; see the REBUILD entries below)
+Source commit:  54d1853 (2026-08-31 spike revert; see the REBUILD entries below)
 Previous:       05f581e (2026-08-06: FORCED EVENTS - BioRand takes its event
                 set from the multiworld. The apworld rolls the Village event
                 set at generation time and the launcher pins it in as
@@ -151,11 +151,85 @@ Previous:       05f581e (2026-08-06: FORCED EVENTS - BioRand takes its event
                 DLC entitlement needed). Includes b27f7ac (drop-catalog fix)
                 and 90140f0 (purity gates).)
 Publish:        -c Release -r win-x64 --self-contained -p:PublishSingleFile=true (net10.0)
-biorand-re4r.exe SHA-256: 35e8892cc71fda2889e39f48169f0526516da5574a45793d17e1cc960c0148c2
-ProductVersion: 1.0.0+05f581e7cdf1c912869903a760539cdebb1c7bac (the launcher
+biorand-re4r.exe SHA-256: 8fbfdc566e5fe5d960efe23b5a9180a348543e6281240532bf475af9b14aa2e3
+ProductVersion: 1.0.0+54d1853dcacd403b6c94f1aa55d681fafe870bdc (the launcher
                 writes this into version_stamp.json, and a change here is what
                 triggers the one-time setup cache re-harvest)
 Built with:     .NET SDK 10.0.301
+
+REBUILD 2026-08-31 (54d1853) - SPIKE REVERTED, CLEAN AGAIN
+    The 45-slot experiment is done and its build is out of circulation.
+    Verdicts recorded in MERCHANT_TRADE_DESIGN.md 4.6.5: the pak takes
+    45 slots (BioRand's 30 is prudence, not engine law), the manager
+    registered 33, the tab rendered 24, the per-save claim state has a
+    boundary near the mid-20s, runtime slot re-registration WORKS
+    (rotation is real, upsert-by-RewardId overlay semantics), and
+    notifyRecieveItem was REFUTED as the claim event - claim state is
+    polled via getRewardProgress instead. This exe is byte-equivalent
+    in behavior to the 53d5ef1 build.
+    exe SHA-256: 8fbfdc566e5fe5d960efe23b5a9180a348543e6281240532bf475af9b14aa2e3
+    Prior exe SHA-256: ab80cb97e78aa9f62f4ff0eca6b8cd89ff994f900ef7e2bca1488ad5e0155e78
+
+REBUILD 2026-08-28 third - SPIKE, TEMPORARY (470ab2e)
+    NEVER SHIPS TO A PLAYER. The over-30 trade-row experiment: every
+    trade tab pads to 45 distinct 1-spinel treasures so one live look
+    answers render/claim/save-survival past BioRand's uncommented
+    30-row cap (pairs with mod 2026.08.28-49's rotation-probe buttons).
+    Deployed to Cam's copies for the experiment session ONLY; the
+    commit reverts and the payload restages immediately after. If this
+    entry is the newest and no revert entry sits above it, the deploy
+    is stale mid-experiment - restage before anything ships.
+    exe SHA-256: ab80cb97e78aa9f62f4ff0eca6b8cd89ff994f900ef7e2bca1488ad5e0155e78
+    Prior exe SHA-256: 1872a4fffb72336fedb60c3e120bc1c701c669c6865e08c7f5755e93e20dd411
+
+REBUILD 2026-08-28 second (53d5ef1)
+    Every check row wears the tag.
+      * BakeCheckText: every baked check name now carries the [AP]
+        prefix, local rows included - reversing the 2026-08-16 "a row
+        wearing a real item needs no marking" rule. Rotation reversed
+        it (Cam): a check row is one-shot, sends a location when
+        bought, and re-labels into a different check after purchase,
+        so a row reading exactly like native stock lies three ways.
+        Local rows keep their real item's icon, model, and caption
+        behind the tag.
+      * Pairs with mod cf9d840 (MOD_VERSION 2026.08.28-48): the
+        runtime re-label now prefers the baked tagged name and keeps
+        borrowing the native caption for local rows. Baked halves need
+        a re-patch; runtime dressing covers rotated rows either way.
+    Offline verify: library builds clean, 0 warnings; staged and
+    hash-verified by tools/stage_payload.py.
+    exe SHA-256: 1872a4fffb72336fedb60c3e120bc1c701c669c6865e08c7f5755e93e20dd411
+    Prior exe SHA-256: bf523d11c27cff0c55713c5be94fc9b12786e0a3f30613bf9c0e03029d22efa8
+
+REBUILD 2026-08-28 (5cb02e2)
+    The knives batch rides one rebuild: attachments seated, the whole
+    welcome note, the Extra Content back door closed, the trade tab
+    filtered by campaign.
+      * c667850 seats the generator's starting attachments on both
+        inventory paths. Random Inventory's class dedupe is weapons-only
+        now so two rolled attachments both land, the stray
+        ammo-for-attachments quirk is gone, and the legacy arsenal roll
+        only runs for rooms whose manifest carries no attachment list.
+      * 8d0e693 + ca806f0 + 54d8bee bake Cam's welcome-note copy verbatim
+        (13 pages plus the title, BioRand's original pages restored after
+        the AP section) and true up the scope-guarantee gun list and the
+        arsenal count.
+      * 1d579eb strips the ExShop conversion rows for scattered bonus
+        guns (the 50k purchase route closes at the source; _ItemIds is
+        exactly the Sweeper/Handcannon/Primal trio) and pins the Combat
+        Knife as the starter on AP Random Inventory seeds.
+      * 5cb02e2 filters DistributeTreasures by SupportsCampaign, which
+        ends the "AP Multiworld Item for 3 spinels" trade row (the
+        placeholder is the repurposed SW - Glasses, an SW-exclusive) and
+        the wider Separate Ways treasure leak into Leon's trade tab.
+    Offline verify: library builds clean on .NET SDK 10.0.301, 0 warnings;
+    staged and hash-verified by tools/stage_payload.py.
+    LEDGER NOTE: the prior sha below is an UNRECORDED rebuild (the
+    2026-08-24 deploy; the desk-pair bake rounds through 6b2ac16, "Lift
+    the note out of the lid"). Both deployed copies carried it and agreed,
+    so it is recorded here to keep the chain honest.
+    exe SHA-256: bf523d11c27cff0c55713c5be94fc9b12786e0a3f30613bf9c0e03029d22efa8
+    Prior exe SHA-256: b4eb17435f5a3208572f155c1e135378de041f0fa25646f4e5e3b150a1d4965d
 
 REBUILD 2026-08-21 third (634b582)
     The welcome note stands up at spawn.
