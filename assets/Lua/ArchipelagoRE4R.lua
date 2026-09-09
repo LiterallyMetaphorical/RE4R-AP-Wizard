@@ -655,10 +655,20 @@ end)
 re.on_draw_ui(function()
     -- Bootstrap toggles ONLY. Everything a player configures (markers and
     -- their detail) moved into the window's Guidance tab, because this menu
-    -- is REFramework's and new players never open it (2026-07-31).
+    -- is REFramework's and new players never open it (2026-07-31). One
+    -- exception by request: the hints-panel toggle lives in BOTH places
+    -- (Cam, 2026-08-24), so a player who only knows this menu can still
+    -- clear their screen.
     local changed_main, main_value = imgui.checkbox("Show Archipelago RE4R Window", bridge.main_window_enabled)
     if changed_main then
         bridge.main_window_enabled = main_value
+    end
+
+    local changed_hints_panel, hints_panel_value = imgui.checkbox(
+        "Show Multiworld Hints panel", bridge.multiworld_hints_overlay ~= false)
+    if changed_hints_panel then
+        bridge.multiworld_hints_overlay = hints_panel_value
+        bridge.multiworld_hints_overlay_chosen = true
     end
 
     local changed_dev, dev_value = imgui.checkbox("Developer Tools (Debug tab)", bridge.developer_tools_enabled)

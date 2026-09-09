@@ -669,6 +669,11 @@ local function install(ctx)
     -- player paid points for this and it is theirs regardless of the world's
     -- marker permissions (Cam, 2026-08-13).
     local function draw_multiworld_hints_overlay()
+        -- Player toggle (Script Generated UI + Guidance tab, mirrored). nil
+        -- counts as on: the panel predates the toggle and defaults visible.
+        if bridge.multiworld_hints_overlay == false then
+            return
+        end
         local state = bridge.last_state or {}
         if not state.is_playable or type(state.current_stage) ~= "number" then
             return

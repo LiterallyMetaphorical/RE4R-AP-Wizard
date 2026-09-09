@@ -100,9 +100,17 @@ local function install(ctx)
         end
         imgui.text("    Locations you bought a hint for, visible anywhere in the area.")
         imgui.text("    A hint for one of your items in ANOTHER player's world has no spot")
-        imgui.text("    here to mark, so it is pinned under the on-screen header instead,")
-        imgui.text("    as \"Multiworld Hints\". Hints you paid for always show, whatever")
-        imgui.text("    the marker settings above say.")
+        imgui.text("    here to mark, so it is pinned to the screen's left edge instead,")
+        imgui.text("    as \"Multiworld Hints\". That panel has its own switch:")
+
+        local changed_hints_panel, hints_panel_value =
+            imgui.checkbox("Show Multiworld Hints panel", bridge.multiworld_hints_overlay ~= false)
+        if changed_hints_panel then
+            bridge.multiworld_hints_overlay = hints_panel_value
+            bridge.multiworld_hints_overlay_chosen = true
+        end
+        imgui.text("    Your pick is remembered for this seed. The same switch sits in")
+        imgui.text("    the REFramework script menu, next to the window toggle.")
 
         imgui.text("")
         if imgui.button("Show the getting-started guide again") then

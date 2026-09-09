@@ -209,6 +209,20 @@ public sealed class GenerationGuidanceViewModel : ObservableObject
         private set => SetProperty(ref _ownYamlStatusText, value);
     }
 
+    /// <summary>
+    /// The step 3 editor saves the draft store as the player edits, but this
+    /// view model reads its own snapshot, loaded once on entry - so a
+    /// first-time host could fill in every field and still watch Next stay
+    /// disabled until they left the guide and came back (hgrend, 2026-08-24).
+    /// The shell calls this after every draft save so readiness tracks the
+    /// screen. Anyone with a draft from an earlier visit never saw the gap.
+    /// </summary>
+    public void NotifyDraftSaved(PendingSessionDraft? draft)
+    {
+        _draft = draft;
+        RefreshRecapAndOwnYaml();
+    }
+
     public ICommand BackStepCommand => _backStepCommand;
 
     public ICommand NextStepCommand => _nextStepCommand;

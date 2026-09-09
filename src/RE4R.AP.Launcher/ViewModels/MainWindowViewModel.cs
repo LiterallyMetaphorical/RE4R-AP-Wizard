@@ -885,7 +885,11 @@ public sealed class MainWindowViewModel : ObservableObject, IDisposable
         try
         {
             _pendingDraft = await _draftStore.TryLoadAsync();
-            await DispatchToUiAsync(UpdateLandingDraftState);
+            await DispatchToUiAsync(() =>
+            {
+                UpdateLandingDraftState();
+                GenerationGuidance.NotifyDraftSaved(_pendingDraft);
+            });
         }
         catch (Exception ex)
         {

@@ -59,6 +59,10 @@ local function install(ctx)
             -- boot and the settings file silently won again.
             world_markers_detail = bridge.world_markers_detail,
             world_markers_detail_chosen = bridge.world_markers_detail_chosen == true,
+            -- [Hints panel] Same deal as the marker tier: an explicit pick
+            -- survives the boot, a default never overwrites one.
+            multiworld_hints_overlay = bridge.multiworld_hints_overlay ~= false,
+            multiworld_hints_overlay_chosen = bridge.multiworld_hints_overlay_chosen == true,
             -- [Non-lead pickups] Locations collected by a character whose
             -- inventory the game discards; the item still owes delivery to
             -- the lead. Persisted so quitting mid-section cannot lose it.
@@ -81,6 +85,8 @@ local function install(ctx)
         bridge.save_reconcile_map = {}
         bridge.settled_gems_map = {}
         bridge.world_markers_detail_chosen = false
+        bridge.multiworld_hints_overlay = true
+        bridge.multiworld_hints_overlay_chosen = false
         bridge.non_lead_checked_locations = {}
 
         local payload = json.load_file(session_state_path)
@@ -128,6 +134,11 @@ local function install(ctx)
                 and type(payload.world_markers_detail) == "string" then
                 bridge.world_markers_detail = payload.world_markers_detail
                 bridge.world_markers_detail_chosen = true
+            end
+            -- [Hints panel] Only an explicit pick is restored, same as above.
+            if payload.multiworld_hints_overlay_chosen == true then
+                bridge.multiworld_hints_overlay = payload.multiworld_hints_overlay ~= false
+                bridge.multiworld_hints_overlay_chosen = true
             end
             -- [Purchase settlement] guid -> save count -> { slot key -> true }.
             if type(payload.settled_gems) == "table" then
