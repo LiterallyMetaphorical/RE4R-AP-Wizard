@@ -235,7 +235,11 @@
         "  stone the game will not hand over). If another stone there refuses to be",
         "  picked up, report it.",
         "- Random Events are experimental. A moved Check keeps its name but not its old",
-        "  spot; its Marker follows it."
+        "  spot; its Marker follows it.",
+        "- Picking up a weapon while playing as Ashley destroys her lantern for good,",
+        "  and her section stays dark. The weapon itself is safe: it reaches Leon when",
+        "  he is back. Leave weapons in her section for later if you would rather keep",
+        "  the light."
       ]
     },
     {
