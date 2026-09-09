@@ -215,7 +215,7 @@ public sealed class ArchipelagoScoutClient
             // [Mercenaries] What the slot plays, and the rank checks it carries.
             var gameMode = ParseGameModeSlotData(connectedPacket);
             var patchedCampaign = ParsePatchedCampaignSlotData(connectedPacket);
-            RefuseUnpatchableCampaign(patchedCampaign);
+            RefuseUnpatchableCampaign(patchedCampaign, ParseRawGameModeSlotData(connectedPacket));
             if (patchedCampaign is not null && patchedCampaign.Length > 0)
             {
                 Log($"This room needs the {patchedCampaign} campaign patched.");
@@ -1090,6 +1090,24 @@ public sealed class ArchipelagoScoutClient
     /// rather than a key, and an unrecognised one has to stay recognisable in
     /// the message that refuses it.
     /// </summary>
+    /// <summary>
+    /// game_mode exactly as the room wrote it, or null when it did not write
+    /// one. ParseGameModeSlotData normalises an unknown value to "campaign",
+    /// which is right for wording and wrong for deciding what to patch.
+    /// </summary>
+    internal static string? ParseRawGameModeSlotData(JsonElement connectedPacket)
+    {
+        if (TryGetProperty(connectedPacket, "slot_data", out var slotData)
+            && slotData.ValueKind == JsonValueKind.Object
+            && slotData.TryGetProperty("game_mode", out var modeElement)
+            && modeElement.ValueKind == JsonValueKind.String)
+        {
+            return (modeElement.GetString() ?? string.Empty).Trim();
+        }
+
+        return null;
+    }
+
     internal static string? ParsePatchedCampaignSlotData(JsonElement connectedPacket)
     {
         if (TryGetProperty(connectedPacket, "slot_data", out var slotData)
@@ -1113,20 +1131,48 @@ public sealed class ArchipelagoScoutClient
     /// generating and Separate Ways patching, so the location id check is not
     /// the guard for this.
     /// </summary>
-    internal static void RefuseUnpatchableCampaign(string? patchedCampaign)
+    internal static void RefuseUnpatchableCampaign(string? patchedCampaign, string? rawGameMode = null)
     {
-        if (patchedCampaign is null
-            || PatchableCampaigns.Contains(patchedCampaign, StringComparer.OrdinalIgnoreCase))
+        if (patchedCampaign is not null)
+        {
+            if (PatchableCampaigns.Contains(patchedCampaign, StringComparer.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            throw new ArchipelagoScoutException(
+                $"This room needs the {patchedCampaign} campaign patched, and this launcher cannot patch it. " +
+                "The room was generated with a newer RE4R.apworld than the one this launcher ships. " +
+                "Update the launcher, or regenerate the room with the apworld this launcher bundles. " +
+                "Nothing has been changed in your game.");
+        }
+
+        // The room named no campaign, so game_mode is all there is. A mode this
+        // build has never heard of means the room was made on a newer world and
+        // the launcher cannot tell what to patch. Guessing means patching
+        // Leon's campaign, because that is what the normalised fallback says.
+        //
+        // This is not theoretical. A Separate Ways room built on the branch as
+        // it stands writes game_mode "separate_ways" and no patched_campaign,
+        // and without this the launcher patches Leon for it (verified against a
+        // generated room, 2026-09-06).
+        if (rawGameMode is null
+            || rawGameMode.Length == 0
+            || KnownGameModes.Contains(rawGameMode, StringComparer.OrdinalIgnoreCase))
         {
             return;
         }
 
         throw new ArchipelagoScoutException(
-            $"This room needs the {patchedCampaign} campaign patched, and this launcher cannot patch it. " +
+            $"This room reports a mode this launcher does not know ('{rawGameMode}'), and it does not say " +
+            "which campaign to patch, so the launcher cannot tell what your game should be patched with. " +
             "The room was generated with a newer RE4R.apworld than the one this launcher ships. " +
             "Update the launcher, or regenerate the room with the apworld this launcher bundles. " +
             "Nothing has been changed in your game.");
     }
+
+    private static readonly string[] KnownGameModes =
+        ["campaign", "campaign_and_mercenaries", "mercenaries_only"];
 
     /// <summary>The room's difficulty as the game numbers it; 20 when unsaid.</summary>
     internal static int ParseSlotDifficulty(JsonElement connectedPacket)

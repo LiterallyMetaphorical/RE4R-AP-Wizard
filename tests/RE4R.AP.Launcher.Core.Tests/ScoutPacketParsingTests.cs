@@ -175,10 +175,9 @@ public sealed class ScoutPacketParsingTests
     [Fact]
     public void ASeparateWaysRoomIsRefusedStraightOffThePacket()
     {
-        // The two halves as the scout runs them, against the slot_data the
-        // apworld emits for an SW room (verified against a generated room,
-        // 2026-09-06). Today game_mode alone would read this as a plain
-        // campaign room and patch Leon's game for Ada.
+        // The two halves as the scout runs them, against the slot_data an
+        // apworld would emit once it names the campaign. game_mode alone reads
+        // this as a plain campaign room and would patch Leon's game for Ada.
         const string slotData =
             """{"included_content":["Separate Ways"],"game_mode":"campaign","patched_campaign":"Separate Ways"}""";
 
@@ -188,6 +187,51 @@ public sealed class ScoutPacketParsingTests
         Assert.Equal("Separate Ways", campaign);
         Assert.Throws<ArchipelagoScoutException>(
             () => ArchipelagoScoutClient.RefuseUnpatchableCampaign(campaign));
+    }
+
+    [Theory]
+    // The exact slot_data a Separate Ways room writes today, taken from a room
+    // generated on the feature branch (2026-09-06). It names no campaign and
+    // reports a mode this build has never heard of, and the normalised
+    // fallback would call it Leon's campaign and patch his game for Ada.
+    [InlineData("""{"included_content":["Separate Ways"],"game_mode":"separate_ways"}""")]
+    [InlineData("""{"game_mode":"separate_ways_and_mercenaries"}""")]
+    [InlineData("""{"game_mode":"something_from_the_future"}""")]
+    public void AModeThisBuildDoesNotKnowIsRefusedWhenNoCampaignIsNamed(string slotData)
+    {
+        var packet = Packet(slotData);
+        Assert.Null(ArchipelagoScoutClient.ParsePatchedCampaignSlotData(packet));
+        Assert.Equal("campaign", ArchipelagoScoutClient.ParseGameModeSlotData(packet));
+
+        var error = Assert.Throws<ArchipelagoScoutException>(() =>
+            ArchipelagoScoutClient.RefuseUnpatchableCampaign(
+                ArchipelagoScoutClient.ParsePatchedCampaignSlotData(packet),
+                ArchipelagoScoutClient.ParseRawGameModeSlotData(packet)));
+
+        Assert.Contains("does not know", error.Message, StringComparison.Ordinal);
+        Assert.Contains("Nothing has been changed in your game.", error.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    // Every room that exists today, and rooms too old to say anything at all.
+    [InlineData("""{"game_mode":"campaign"}""")]
+    [InlineData("""{"game_mode":"campaign_and_mercenaries"}""")]
+    [InlineData("""{"game_mode":"MERCENARIES_ONLY"}""")]
+    [InlineData("{}")]
+    public void AModeThisBuildKnowsIsLetThrough(string slotData)
+    {
+        var packet = Packet(slotData);
+        ArchipelagoScoutClient.RefuseUnpatchableCampaign(
+            ArchipelagoScoutClient.ParsePatchedCampaignSlotData(packet),
+            ArchipelagoScoutClient.ParseRawGameModeSlotData(packet));
+    }
+
+    [Fact]
+    public void ANamedCampaignBeatsAnUnknownMode()
+    {
+        // Once a room names a campaign the launcher can patch, an unfamiliar
+        // mode string is just wording and must not stop the patch.
+        ArchipelagoScoutClient.RefuseUnpatchableCampaign("Main Story", "campaign_and_something_new");
     }
 
     [Theory]
