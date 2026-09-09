@@ -1446,6 +1446,39 @@ return function(ctx)
         return trade.checks_by_location[math.floor(code)] ~= nil
     end
 
+    -- [The Checklist] Plain rows for the Insert window, the trade twin of
+    -- merchant_checklist_rows: chapter, name, bought, released.
+    local checklist_cache = { at = -1, rows = {} }
+    local function trade_checklist_rows()
+        local now = (os ~= nil and type(os.clock) == "function") and os.clock() or 0
+        if now - checklist_cache.at < 0.5 then
+            return checklist_cache.rows
+        end
+        local mgr = shop_manager()
+        local open = {}
+        for chapter = 1, 16 do
+            open[chapter] = chapter_is_open(mgr, chapter)
+        end
+        local rows = {}
+        for _, check in ipairs(trade.checks) do
+            rows[#rows + 1] = {
+                location_code = check.location_code,
+                chapter = check.chapter,
+                name = check.display_name,
+                player = check.player_name,
+                remote = check.remote,
+                classification = check.tier,
+                price_spinel = check.price_spinel,
+                checked = check_is_checked(check),
+                released = open[check.chapter] == true,
+            }
+        end
+        checklist_cache.at = now
+        checklist_cache.rows = rows
+        return rows
+    end
+    ctx.trade_checklist_rows = trade_checklist_rows
+
     ctx.trade_configure = trade_configure
     ctx.trade_is_trade_location = trade_is_trade_location
     ctx.trade_poll_claims = poll_claims

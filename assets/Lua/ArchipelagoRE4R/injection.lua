@@ -2870,6 +2870,10 @@ local function install(ctx)
         log.info("[RE4R AP] storage-sale reconciler installed (sell shortfalls leave Storage)")
     end
 
+    -- Defined with the bonus-weapon hooks further down; the entitlement veto
+    -- below shares it, so a D5 room without scattered gear is covered too.
+    local is_pool_bonus_weapon
+
     -- [Scatter interlock, 2026-08-16] The Deluxe entitlement grant drops DLC
     -- weapons (Sentinel Nine, Skull Shaker) straight into Storage through
     -- chainsaw.ArmouryManager.addExtraItem. While the merchant's gear is
@@ -2893,18 +2897,21 @@ local function install(ctx)
             add_method,
             function(args)
                 local bridge = ctx.bridge
-                if bridge == nil or bridge.gear_scattered ~= true then
+                if bridge == nil then
                     return sdk.PreHookResult.CALL_ORIGINAL
                 end
                 local scattered = bridge.scattered_item_ids
-                if type(scattered) ~= "table" then
-                    return sdk.PreHookResult.CALL_ORIGINAL
+                if type(scattered) ~= "table" or bridge.gear_scattered ~= true then
+                    scattered = {}
                 end
                 local item_id = nil
                 pcall(function()
                     item_id = tonumber(sdk.to_int64(args[3]))
                 end)
-                if item_id ~= nil and scattered[item_id] then
+                if item_id ~= nil
+                    and (scattered[item_id]
+                        or (type(is_pool_bonus_weapon) == "function" and is_pool_bonus_weapon(item_id)))
+                then
                     log.info(string.format(
                         "[RE4R AP] entitlement grant vetoed: item %d is a multiworld item in this room",
                         item_id))
@@ -2950,6 +2957,281 @@ local function install(ctx)
         { id = 275157056, name = "Chicago Sweeper", bonus_id = 6 },
         { id = 275638656, name = "Handcannon", bonus_id = 7 },
     }
+
+    -- [Bonus weapons, root-caused offline 2026-09-03 from re4.exe + the il2cpp
+    -- dump] The game hard-codes these three ids into five routines:
+    --   * CampaignJumper.setupExtraContentsItem (campaign start) and
+    --     GameRecordManager.setupBonusWeaponAll (every in-game setup):
+    --     bought + conversion row + not yet obtained -> a copy goes into
+    --     Storage (addExtraItem / addArmouryItem(Item)) and the obtained
+    --     flag is set. That is the "bonus weapons in typewriter storage".
+    --   * CsInventoryController.setupBonusContensItem (character setup),
+    --     ArmouryManager.loadGameSaveData and CsInventory.loadSaveData
+    --     (every save load): no conversion row, or not bought -> the weapon
+    --     is deleted from Storage and the case (into a backup table).
+    -- The fork strips the conversion rows for scattered ids so the shop
+    -- cannot sell them, which means those three deleters would remove a
+    -- Handcannon the multiworld delivered on the next load, bought or not.
+    -- So, for the ids this room treats as pool items: the deleter is
+    -- skipped, the two load gates see a row and a purchase, and the two
+    -- grant routines cannot put a copy into Storage. Every other item and
+    -- every other room are untouched.
+    local BONUS_WEAPON_BY_ITEM = {}
+    local BONUS_WEAPON_BY_BONUS = {}
+    for _, weapon in ipairs(BONUS_WEAPON_ITEM_IDS) do
+        BONUS_WEAPON_BY_ITEM[weapon.id] = weapon
+        BONUS_WEAPON_BY_BONUS[weapon.bonus_id] = weapon
+    end
+
+    is_pool_bonus_weapon = function(item_id)
+        local weapon = BONUS_WEAPON_BY_ITEM[item_id]
+        local bridge = ctx.bridge
+        if weapon == nil or bridge == nil then
+            return false
+        end
+        if type(bridge.scattered_item_ids) == "table" and bridge.scattered_item_ids[item_id] then
+            return true
+        end
+        return bridge.allow_bonus_items == true or bridge.bonus_weapons_unlock == true
+    end
+
+    local function is_pool_bonus_id(bonus_id)
+        local weapon = BONUS_WEAPON_BY_BONUS[bonus_id]
+        return weapon ~= nil and is_pool_bonus_weapon(weapon.id)
+    end
+
+    local bonus_grant_depth = 0
+    local bonus_gate_depth = 0
+    local bonus_lookup_stack = {}
+    local bonus_buy_stack = {}
+    local bonus_logged = {}
+
+    local function bonus_log_once(key, text)
+        if not bonus_logged[key] then
+            bonus_logged[key] = true
+            log.info(text)
+        end
+    end
+
+    -- ItemID / ExShopBonusID are 32-bit; -1 may arrive sign- or zero-extended.
+    local function bonus_arg_int(args, index)
+        local value = nil
+        pcall(function()
+            value = tonumber(sdk.to_int64(args[index]))
+        end)
+        if value == nil then
+            return nil
+        end
+        value = math.floor(value)
+        if value >= 0x80000000 and value <= 0xFFFFFFFF then
+            value = value - 0x100000000
+        end
+        return value
+    end
+
+    local function bonus_find_method(type_name, method_name, param_type_name)
+        local type_def = sdk.find_type_definition(type_name)
+        if type_def == nil then
+            return nil
+        end
+        if param_type_name ~= nil then
+            local direct = type_def:get_method(method_name .. "(" .. param_type_name .. ")")
+            if direct ~= nil then
+                return direct
+            end
+            for _, candidate in ipairs(type_def:get_methods()) do
+                if candidate:get_name() == method_name then
+                    local params = candidate:get_param_types()
+                    if #params == 1 and params[1]:get_full_name() == param_type_name then
+                        return candidate
+                    end
+                end
+            end
+            return nil
+        end
+        return type_def:get_method(method_name)
+    end
+
+    local function install_bonus_weapon_hooks()
+        local installed, wanted = 0, 0
+        local function hook(type_name, method_name, param_type_name, pre, post)
+            wanted = wanted + 1
+            local method = bonus_find_method(type_name, method_name, param_type_name)
+            if method == nil then
+                log.info(string.format("[RE4R AP] bonus weapons: %s.%s not found - that guard is off",
+                    type_name, method_name))
+                return
+            end
+            local ok, err = pcall(function() sdk.hook(method, pre, post) end)
+            if ok then
+                installed = installed + 1
+            else
+                log.info(string.format("[RE4R AP] bonus weapons: hooking %s.%s failed: %s",
+                    type_name, method_name, tostring(err)))
+            end
+        end
+
+        local function enter_grant(args)
+            bonus_grant_depth = bonus_grant_depth + 1
+            return sdk.PreHookResult.CALL_ORIGINAL
+        end
+        local function leave_grant(retval)
+            bonus_grant_depth = math.max(0, bonus_grant_depth - 1)
+            return retval
+        end
+        local function enter_gate(args)
+            bonus_gate_depth = bonus_gate_depth + 1
+            return sdk.PreHookResult.CALL_ORIGINAL
+        end
+        local function leave_gate(retval)
+            bonus_gate_depth = math.max(0, bonus_gate_depth - 1)
+            return retval
+        end
+
+        -- The two grant routines and the two load gates, as windows.
+        hook("chainsaw.GameRecordManager", "setupBonusWeaponAll", nil, enter_grant, leave_grant)
+        hook("chainsaw.GameRecordManager", "setupBonusWeapon", nil, enter_grant, leave_grant)
+        hook("chainsaw.CampaignJumper", "setupExtraContentsItem", nil, enter_grant, leave_grant)
+        hook("chainsaw.ArmouryManager", "loadGameSaveData", nil, enter_gate, leave_gate)
+        hook("chainsaw.gui.inventory.CsInventory", "loadSaveData", nil, enter_gate, leave_gate)
+
+        -- The deleter: skipped outright for pool ids.
+        hook("chainsaw.CsInventoryController", "setupBonusContensItem", nil,
+            function(args)
+                local item_id = bonus_arg_int(args, 3)
+                if item_id ~= nil and is_pool_bonus_weapon(item_id) then
+                    bonus_log_once("skip:" .. item_id, string.format(
+                        "[RE4R AP] bonus weapon possession check skipped: %s is a multiworld item in this room",
+                        BONUS_WEAPON_BY_ITEM[item_id].name))
+                    return sdk.PreHookResult.SKIP_ORIGINAL
+                end
+                return sdk.PreHookResult.CALL_ORIGINAL
+            end,
+            function(retval) return retval end)
+
+        -- Inside a load gate, a pool id has a conversion row and counts as
+        -- bought. Outside (the shops), the real answers stand.
+        hook("chainsaw.GameRecordManager", "getItemIdToBonus", nil,
+            function(args)
+                bonus_lookup_stack[#bonus_lookup_stack + 1] = bonus_arg_int(args, 3) or -1
+                return sdk.PreHookResult.CALL_ORIGINAL
+            end,
+            function(retval)
+                local item_id = bonus_lookup_stack[#bonus_lookup_stack]
+                bonus_lookup_stack[#bonus_lookup_stack] = nil
+                if bonus_gate_depth > 0 and item_id ~= nil and is_pool_bonus_weapon(item_id) then
+                    return sdk.to_ptr(BONUS_WEAPON_BY_ITEM[item_id].bonus_id)
+                end
+                return retval
+            end)
+        hook("chainsaw.GameRecordManager", "checkBuyBonus", nil,
+            function(args)
+                bonus_buy_stack[#bonus_buy_stack + 1] = bonus_arg_int(args, 3) or -1
+                return sdk.PreHookResult.CALL_ORIGINAL
+            end,
+            function(retval)
+                local bonus_id = bonus_buy_stack[#bonus_buy_stack]
+                bonus_buy_stack[#bonus_buy_stack] = nil
+                if bonus_gate_depth > 0 and bonus_id ~= nil and is_pool_bonus_id(bonus_id) then
+                    return sdk.to_ptr(1)
+                end
+                return retval
+            end)
+
+        -- Inside a grant, a pool weapon never reaches Storage and its
+        -- obtained flag stays as it was.
+        hook("chainsaw.ArmouryManager", "addArmouryItem", "chainsaw.Item",
+            function(args)
+                if bonus_grant_depth <= 0 then
+                    return sdk.PreHookResult.CALL_ORIGINAL
+                end
+                local item_id = nil
+                pcall(function()
+                    local item = sdk.to_managed_object(args[3])
+                    if item ~= nil then
+                        item_id = tonumber(item:get_field("_ItemId"))
+                    end
+                end)
+                if item_id ~= nil then
+                    item_id = math.floor(item_id)
+                    if is_pool_bonus_weapon(item_id) then
+                        log.info(string.format(
+                            "[RE4R AP] Storage grant vetoed: %s is a multiworld item in this room",
+                            BONUS_WEAPON_BY_ITEM[item_id].name))
+                        return sdk.PreHookResult.SKIP_ORIGINAL
+                    end
+                end
+                return sdk.PreHookResult.CALL_ORIGINAL
+            end,
+            function(retval) return retval end)
+        hook("chainsaw.InventoryManager", "setItemGetFlag", nil,
+            function(args)
+                if bonus_grant_depth <= 0 then
+                    return sdk.PreHookResult.CALL_ORIGINAL
+                end
+                local item_id = bonus_arg_int(args, 3)
+                if item_id ~= nil and is_pool_bonus_weapon(item_id) then
+                    return sdk.PreHookResult.SKIP_ORIGINAL
+                end
+                return sdk.PreHookResult.CALL_ORIGINAL
+            end,
+            function(retval) return retval end)
+
+        log.info(string.format(
+            "[RE4R AP] bonus weapon guards installed (%d of %d): pool bonus weapons are never deleted and never granted into Storage",
+            installed, wanted))
+    end
+
+    -- Copies already in Storage from before the grant veto existed. Rows of
+    -- { id, name, count } for the pool ids only.
+    local function inject_bonus_weapons_in_storage()
+        local rows = {}
+        local armoury = sdk.get_managed_singleton("chainsaw.ArmouryManager")
+        if armoury == nil then
+            return rows
+        end
+        for _, weapon in ipairs(BONUS_WEAPON_ITEM_IDS) do
+            if is_pool_bonus_weapon(weapon.id) then
+                local count = 0
+                pcall(function()
+                    count = tonumber(armoury:call("getItemCountSum", weapon.id)) or 0
+                end)
+                if count > 0 then
+                    rows[#rows + 1] = { id = weapon.id, name = weapon.name, count = count }
+                end
+            end
+        end
+        return rows
+    end
+
+    -- deleteExtraItem removes every Storage copy of the id; the game's own
+    -- deleter uses it, so the list stays consistent.
+    local function inject_remove_bonus_weapons_from_storage()
+        local armoury = sdk.get_managed_singleton("chainsaw.ArmouryManager")
+        if armoury == nil then
+            return false, "ArmouryManager missing"
+        end
+        local removed, names = 0, {}
+        for _, row in ipairs(inject_bonus_weapons_in_storage()) do
+            local before = row.count
+            pcall(function()
+                armoury:call("deleteExtraItem", row.id)
+            end)
+            local after = before
+            pcall(function()
+                after = tonumber(armoury:call("getItemCountSum", row.id)) or before
+            end)
+            local gone = math.max(0, before - after)
+            removed = removed + gone
+            names[#names + 1] = string.format("%s x%d", row.name, gone)
+            log.info(string.format("[RE4R AP] removed %d %s from Storage (profile grant, not a multiworld item)",
+                gone, row.name))
+        end
+        if removed == 0 then
+            return true, "nothing to remove"
+        end
+        return true, "removed " .. table.concat(names, ", ")
+    end
 
     -- use_static_fallback: pass true only from the IN-GAME retry poll. At
     -- boot a lookup miss means the records are not loaded yet and a write
@@ -3118,6 +3400,9 @@ local function install(ctx)
     export("inject_ensure_bonus_weapons_unlocked", inject_ensure_bonus_weapons_unlocked)
     export("install_storage_sale_reconciler_hook", install_storage_sale_reconciler_hook)
     export("install_extra_item_veto_hook", install_extra_item_veto_hook)
+    export("install_bonus_weapon_hooks", install_bonus_weapon_hooks)
+    export("inject_bonus_weapons_in_storage", inject_bonus_weapons_in_storage)
+    export("inject_remove_bonus_weapons_from_storage", inject_remove_bonus_weapons_from_storage)
 
     -- Reads the campaign lead's key-item ids out of InventoryManager's
     -- per-context save-data table. The live controller unregisters while

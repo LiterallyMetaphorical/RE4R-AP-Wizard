@@ -47,6 +47,9 @@ dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_model_tuner.lua")(ctx)
 -- with it.
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_gimmick_nudger.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_warning.lua")(ctx)
+-- [Theme] The window's shared look and layout helpers; before every module
+-- that draws a tab.
+dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_theme.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_windows.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_checks.lua")(ctx)
 dofile("reframework\\autorun\\ArchipelagoRE4R\\ui_guidance.lua")(ctx)
@@ -537,6 +540,7 @@ install_sellable_key_veto_hook()
 install_storage_sale_reconciler_hook()
 install_storage_accepts_anything_hook()
 install_extra_item_veto_hook()
+install_bonus_weapon_hooks()
 
 re.on_pre_application_entry("UpdateBehavior", function()
     local ok, err = pcall(function()

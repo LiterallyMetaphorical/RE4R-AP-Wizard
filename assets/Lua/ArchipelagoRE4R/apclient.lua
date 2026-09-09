@@ -208,6 +208,41 @@ return function(ctx)
         return ""
     end
 
+    -- [Bonus weapons] The room-file flags the in-game guards key on
+    -- (injection.lua install_bonus_weapon_hooks). Read when the connect
+    -- starts, before any save can load, and again with the room's location
+    -- list once the slot answers.
+    local function apply_room_bonus_flags(payload)
+        local bridge = ctx.bridge
+        if bridge == nil or type(payload) ~= "table" then
+            return
+        end
+        -- [D5] The launcher stamps whether this room was patched with
+        -- allow-bonus-items; older room files lack the key and read as false.
+        bridge.allow_bonus_items = (payload.allow_bonus_items == true)
+        -- [Bonus Weapons] The YAML's consent: the trio are pool items in
+        -- this room. Older room files lack the key and read as false.
+        bridge.bonus_weapons_unlock = (payload.bonus_weapons_unlock == true)
+        bridge.gear_scattered = (payload.gear_scattered == true)
+        local scattered_set = {}
+        if type(payload.scattered_item_ids) == "table" then
+            for _, raw_id in ipairs(payload.scattered_item_ids) do
+                local item_id = tonumber(raw_id)
+                if item_id ~= nil then
+                    scattered_set[math.floor(item_id)] = true
+                end
+            end
+        end
+        bridge.scattered_item_ids = scattered_set
+    end
+
+    local function read_room_bonus_flags()
+        local ok, payload = pcall(function() return json.load_file(ROOM_LOCATIONS_FILE) end)
+        if ok then
+            apply_room_bonus_flags(payload)
+        end
+    end
+
     -- host:port -> host, port (port nil when the address carries none).
     local function split_server_address(address)
         local text = trim(address)
@@ -1935,30 +1970,7 @@ return function(ctx)
                     -- with allow-bonus-items; older room files lack the key
                     -- and read as false.
                     if ctx.bridge then
-                        ctx.bridge.allow_bonus_items = (payload.allow_bonus_items == true)
-                        -- [Bonus Weapons] The YAML's consent: the trio are
-                        -- pool items in this room and the fork stripped
-                        -- their ExShop conversions at patch time, so the
-                        -- unlock is pure possession protection. Older room
-                        -- files lack the key and read as false.
-                        ctx.bridge.bonus_weapons_unlock = (payload.bonus_weapons_unlock == true)
-                        -- The Deluxe entitlement grant (ArmouryManager
-                        -- addExtraItem) stays vetoed for the scattered ids,
-                        -- so a pool bonus weapon is never also a free
-                        -- Storage grant. (The unlock suppression that used
-                        -- to live behind this flag retired 2026-08-28: the
-                        -- fork's conversion strip does that job now.)
-                        ctx.bridge.gear_scattered = (payload.gear_scattered == true)
-                        local scattered_set = {}
-                        if type(payload.scattered_item_ids) == "table" then
-                            for _, raw_id in ipairs(payload.scattered_item_ids) do
-                                local item_id = tonumber(raw_id)
-                                if item_id ~= nil then
-                                    scattered_set[math.floor(item_id)] = true
-                                end
-                            end
-                        end
-                        ctx.bridge.scattered_item_ids = scattered_set
+                        apply_room_bonus_flags(payload)
                         -- [Starting Arsenal] Engine ids the generator placed
                         -- in the starting case. Their precollect delivery is
                         -- skipped once each: the in-case copy is the real one.
@@ -2564,6 +2576,7 @@ return function(ctx)
             return false
         end
         st.expected_seed = read_expected_seed()
+        read_room_bonus_flags()
         -- [Port recovery] Start the no-contact clock. Handlers restamp it the
         -- moment anything answers; the poll loop opens the recovery dialog if it
         -- stays stale (see poll_port_recovery).

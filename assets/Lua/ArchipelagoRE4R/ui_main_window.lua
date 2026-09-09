@@ -11,22 +11,9 @@ local function install(ctx)
         _G[name] = value
     end
 
-    -- REFramework builds without the tab API fall back to collapsing headers.
-    local has_tab_api = type(imgui.begin_tab_bar) == "function"
-        and type(imgui.begin_tab_item) == "function"
-
-    local function draw_tab(label, content)
-        if has_tab_api then
-            if imgui.begin_tab_item(label) then
-                content()
-                imgui.end_tab_item()
-            end
-        else
-            if imgui.collapsing_header(label) then
-                content()
-            end
-        end
-    end
+    -- The window's look (rounding, palette, tab strip, columns) lives in
+    -- ui_theme.lua so every tab draws with the same helpers.
+    local theme = ctx.theme
 
     local function resolve(name)
         local fn = ctx[name] or _G[name]
@@ -128,9 +115,11 @@ local function install(ctx)
             "Hint points: %s | Cost per hint: %s",
             tostring(points or "?"), tostring(cost or "?")))
 
-        -- 1) Where is my item?
+        -- 1) Where is my item?  2) What sits nearby?  Side by side.
         imgui.text("")
-        imgui.text("-- Hint: where is my item? --")
+        local columns = theme.begin_columns("##ap_hints_cols", 2)
+        theme.next_column(columns)
+        theme.heading("Where is my item?")
         local ids, names = get_own_item_list()
         if #ids == 0 then
             imgui.text("(item list unavailable - connect first)")
@@ -160,9 +149,9 @@ local function install(ctx)
             end
         end
 
-        -- 2) What is at a nearby location? (+ Force Check on the same pick)
-        imgui.text("")
-        imgui.text("-- Hint: what sits at a nearby location? --")
+        -- 2) What is at a nearby location?
+        theme.next_column(columns)
+        theme.heading("What sits at a nearby location?")
         local rows = build_nearby_location_rows()
         if #rows == 0 then
             imgui.text("(no unchecked locations in this stage)")
@@ -190,6 +179,9 @@ local function install(ctx)
             end
         end
 
+        theme.end_columns(columns)
+        imgui.text("")
+
         -- Hints already bought that point at YOUR locations (rescued from the
         -- deleted Overview tab, where no player ever looked for them).
         resolve("draw_hints_on_my_world")()
@@ -208,7 +200,12 @@ local function install(ctx)
         imgui.text("The launcher's Generate Bug Report button (bottom of its")
         imgui.text("window) zips the logs and session record to attach in Discord.")
         imgui.text("")
-        imgui.text("Force Check marks it done and releases the item it held.")
+        imgui.text("")
+
+        local columns = theme.begin_columns("##ap_recovery_cols", 2)
+        theme.next_column(columns)
+        theme.heading("Force Check")
+        imgui.text("Marks the check done and releases the item it held.")
 
         local rows = build_nearby_location_rows()
         if #rows == 0 then
@@ -255,8 +252,8 @@ local function install(ctx)
             end
         end
 
-        imgui.text("")
-        imgui.text("-- Finished the run? --")
+        theme.next_column(columns)
+        theme.heading("Finished the run?")
         if bridge.victory_sent == true then
             if bridge.actions_confirm == "release" then
                 imgui.text("Send every remaining item in your world to its owners?")
@@ -282,6 +279,42 @@ local function install(ctx)
         else
             imgui.text("Release / Collect unlock after you reach your goal.")
         end
+
+        -- [Bonus weapons] Copies the game put into Storage before the grant
+        -- veto existed. Only shown while a pool bonus weapon sits there.
+        local storage_rows_fn = ctx.inject_bonus_weapons_in_storage or _G.inject_bonus_weapons_in_storage
+        local storage_rows = (type(storage_rows_fn) == "function") and storage_rows_fn() or {}
+        if type(storage_rows) == "table" and #storage_rows > 0 then
+            imgui.text("")
+            theme.heading("Bonus weapons in Storage")
+            for _, row in ipairs(storage_rows) do
+                imgui.text(string.format("    %s x%d", tostring(row.name), row.count or 0))
+            end
+            theme.note("These came from the profile unlock, not the multiworld.")
+            theme.note("Remove them, unless you stored one you received as an item.")
+            if bridge.actions_confirm == "bonus_storage" then
+                imgui.text("Really remove them from Storage?")
+                if imgui.button("Yes, Remove") then
+                    local remove_fn = ctx.inject_remove_bonus_weapons_from_storage
+                        or _G.inject_remove_bonus_weapons_from_storage
+                    if type(remove_fn) == "function" then
+                        local _, detail = remove_fn()
+                        bridge.bonus_storage_status = tostring(detail)
+                    end
+                    bridge.actions_confirm = ""
+                end
+                imgui.same_line()
+                if imgui.button("Cancel##bonus_storage") then bridge.actions_confirm = "" end
+            else
+                if imgui.button("Remove them from Storage...") then
+                    bridge.actions_confirm = "bonus_storage"
+                end
+            end
+        end
+        if bridge.bonus_storage_status ~= nil then
+            imgui.text("  " .. tostring(bridge.bonus_storage_status))
+        end
+        theme.end_columns(columns)
     end
 
     -- ===== Debug tab =====
@@ -335,7 +368,7 @@ local function install(ctx)
 
     local function draw_debug_content()
         -- 1) Diagnostics: what a developer asks for in every bug thread.
-        imgui.text("Diagnostics")
+        theme.heading("Diagnostics")
         imgui.text(build_diagnostics_text())
         if imgui.button("Copy diagnostics to clipboard") then
             local ok = pcall(function() imgui.set_clipboard(build_diagnostics_text()) end)
@@ -353,13 +386,13 @@ local function install(ctx)
         -- 2) Pickup probe: what the detector is seeing right now. The first
         -- question on any "my check did not send" report.
         imgui.text("")
-        if imgui.collapsing_header("Pickup Probe##ap_debug_probe") then
+        if theme.section("Pickup Probe", "debug_probe", nil, false) then
             resolve("draw_probe_content")()
         end
 
         -- 3) Recovery: things a developer will ask a tester to run.
         imgui.text("")
-        if imgui.collapsing_header("Item Injection##ap_debug_recovery") then
+        if theme.section("Item Injection", "debug_recovery", nil, false) then
             imgui.text("Grants items outside the multiworld. Only use this when")
             imgui.text("asked to - it can hand you things the seed never placed.")
             resolve("draw_injection_content")()
@@ -367,25 +400,25 @@ local function install(ctx)
 
         -- 3) Simulations: safe to press, nothing permanent.
         imgui.text("")
-        if imgui.collapsing_header("Simulations##ap_debug_sim") then
+        if theme.section("Simulations", "debug_sim", nil, false) then
             if imgui.button("Preview the progression warning") then
                 bridge.progression_warning_debug_last_result =
-                    tostring(resolve("preview_progression_warning")())
+                    tostring((resolve("preview_progression_warning")()))
             end
             if bridge.progression_warning_debug_last_result ~= nil then
                 imgui.text("  " .. tostring(bridge.progression_warning_debug_last_result))
             end
             if imgui.button("Dump world markers to log") then
-                bridge.marker_dump_last_result = tostring(resolve("dump_world_markers_to_log")())
+                bridge.marker_dump_last_result = tostring((resolve("dump_world_markers_to_log")()))
             end
             if bridge.marker_dump_last_result ~= nil then
                 imgui.text("  " .. tostring(bridge.marker_dump_last_result))
             end
             imgui.text("")
-            imgui.text("DeathLink state: " .. tostring(resolve("ap_debug_deathlink_status")()))
+            imgui.text("DeathLink state: " .. tostring((resolve("ap_debug_deathlink_status")())))
             imgui.text("The button below REALLY kills you - it triggers a game over.")
             if imgui.button("Simulate an inbound DeathLink death") then
-                bridge.deathlink_debug_last_result = tostring(resolve("ap_debug_simulate_deathlink")())
+                bridge.deathlink_debug_last_result = tostring((resolve("ap_debug_simulate_deathlink")()))
             end
             if bridge.deathlink_debug_last_result ~= nil then
                 imgui.text("  " .. tostring(bridge.deathlink_debug_last_result))
@@ -394,15 +427,41 @@ local function install(ctx)
 
         -- 4) Authoring tools - irrelevant to testers, collapsed.
         imgui.text("")
-        if imgui.collapsing_header("Chapter Switch##ap_debug_chapter") then
+        if theme.section("Chapter Switch", "debug_chapter", nil, false) then
             resolve("draw_chapter_switch_content")()
         end
 
         imgui.text("")
-        if imgui.collapsing_header("Developer only##ap_debug_dev") then
+        if theme.section("Developer only", "debug_dev", nil, false) then
             resolve("draw_native_log_content")()
             imgui.text("")
             resolve("draw_warp_editor_content")()
+        end
+    end
+
+    -- Ordered by how often a player needs them. The Checklist is home: it
+    -- answers "where do I go next" and warps you there. The old Overview tab
+    -- was developer telemetry and is gone; its one player-facing part (hints
+    -- on your world) lives in Hints. Recovery has a tab of its own: buried at
+    -- the bottom of the Checklist, the one tool a stuck player needs was the
+    -- hardest thing in the window to find (Cam 2026-07-31).
+    local TAB_LABELS = { "The Checklist", "Guidance", "Hints", "Something's Wrong", "Server", "Message Log" }
+
+    local function draw_tab_content(label)
+        if label == "The Checklist" then
+            resolve("draw_checks_content")()
+        elseif label == "Guidance" then
+            resolve("draw_guidance_content")()
+        elseif label == "Hints" then
+            draw_hints_content()
+        elseif label == "Something's Wrong" then
+            draw_recovery_content()
+        elseif label == "Server" then
+            resolve("draw_server_content")()
+        elseif label == "Message Log" then
+            resolve("draw_message_log_content")()
+        elseif label == "Debug" then
+            draw_debug_content()
         end
     end
 
@@ -411,33 +470,40 @@ local function install(ctx)
             return
         end
 
-        imgui.set_next_window_size(Vector2f.new(540, 500), 4)
-        bridge.main_window_enabled = imgui.begin_window("Archipelago RE4R", bridge.main_window_enabled, nil)
+        local labels = {}
+        for _, label in ipairs(TAB_LABELS) do
+            labels[#labels + 1] = label
+        end
+        if bridge.developer_tools_enabled then
+            labels[#labels + 1] = "Debug"
+        end
 
-        local tabs_open = (not has_tab_api) or imgui.begin_tab_bar("##ap_main_tabs")
-        if tabs_open then
-            -- Ordered by how often a player needs them. The Checklist is home:
-            -- it answers "where do I go next" and warps you there. The old
-            -- Overview tab was developer telemetry and is gone; its one
-            -- player-facing part (hints on your world) lives in Hints.
-            draw_tab("The Checklist", resolve("draw_checks_content"))
-            draw_tab("Guidance", resolve("draw_guidance_content"))
-            draw_tab("Hints", draw_hints_content)
-            -- Recovery earns a tab of its own: buried at the bottom of the
-            -- Checklist, the one tool a stuck player needs was the hardest
-            -- thing in the window to find (Cam 2026-07-31).
-            draw_tab("Something's Wrong", draw_recovery_content)
-            draw_tab("Server", resolve("draw_server_content"))
-            draw_tab("Message Log", resolve("draw_message_log_content"))
-            if bridge.developer_tools_enabled then
-                draw_tab("Debug", draw_debug_content)
-            end
-            if has_tab_api then
-                imgui.end_tab_bar()
+        local style = theme.push_window_style()
+        -- A new window id: the size saved from the one-column days (540x500)
+        -- would otherwise override the wider default.
+        imgui.set_next_window_size(Vector2f.new(880, 560), 4)
+        bridge.main_window_enabled = imgui.begin_window("Archipelago RE4R##ap_main_v2", bridge.main_window_enabled, nil)
+
+        -- This build has no tab-bar API for Lua, so tabs are a row of buttons
+        -- and the picked one is remembered for the session.
+        local active = math.max(1, math.min(#labels, math.floor(tonumber(bridge.main_window_tab) or 1)))
+        active = theme.tab_strip("##ap_main_tab", labels, active)
+        bridge.main_window_tab = active
+        theme.separator()
+
+        local panel = theme.begin_panel()
+        local ok, err = pcall(draw_tab_content, labels[active])
+        theme.end_panel(panel)
+        if not ok then
+            imgui.text("This tab hit an error; the log has it.")
+            if bridge.main_window_last_error ~= tostring(err) then
+                bridge.main_window_last_error = tostring(err)
+                log.info("[RE4R AP] window tab '" .. tostring(labels[active]) .. "' errored: " .. tostring(err))
             end
         end
 
         imgui.end_window()
+        theme.pop_window_style(style)
     end
 
     -- The Checks tab hosts recovery under its "Something's wrong" header.

@@ -1948,6 +1948,45 @@ return function(ctx)
         return merchant.slots_by_location[math.floor(code)] ~= nil
     end
 
+    -- [The Checklist] Plain rows for the Insert window: what each shop check
+    -- is, which chapter releases it, and whether it is bought. Release is
+    -- the shop's own waypoint flag, read once per refresh, not per row.
+    local checklist_cache = { at = -1, rows = {} }
+    local function merchant_checklist_rows()
+        local now = (os ~= nil and type(os.clock) == "function") and os.clock() or 0
+        if now - checklist_cache.at < 0.5 then
+            return checklist_cache.rows
+        end
+        local manager = shop_manager()
+        local open = {}
+        for chapter = 1, 16 do
+            local unlocked = false
+            if manager ~= nil then
+                pcall(function()
+                    unlocked = manager:call("isEnableUpdateFlag", math.max(0, math.min(15, chapter - 1))) == true
+                end)
+            end
+            open[chapter] = unlocked
+        end
+        local rows = {}
+        for _, check in ipairs(merchant.checks) do
+            rows[#rows + 1] = {
+                location_code = check.location_code,
+                chapter = check.unlock_chapter,
+                name = check.display_name,
+                player = check.player_name,
+                remote = check.remote,
+                classification = check.classification,
+                checked = slot_is_checked(check),
+                released = open[check.unlock_chapter] == true,
+            }
+        end
+        checklist_cache.at = now
+        checklist_cache.rows = rows
+        return rows
+    end
+    ctx.merchant_checklist_rows = merchant_checklist_rows
+
     ctx.merchant_configure = merchant_configure
     ctx.merchant_is_shop_location = merchant_is_shop_location
     ctx.merchant_poll_pending_sweeps = poll_pending_sweeps

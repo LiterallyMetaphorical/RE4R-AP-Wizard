@@ -14,6 +14,8 @@ local function install(ctx)
     end
 
     local function draw_guidance_content()
+        local theme = ctx.theme
+        theme.heading("World markers")
         imgui.text("Unchecked spots show a floating [AP] marker with the distance.")
         imgui.text("Markers only ever say WHERE - what to look for, and how much")
         imgui.text("detail, is up to you below.")
@@ -66,21 +68,21 @@ local function install(ctx)
                 bridge.state_dirty = true
             end
             if cur_tier >= 4 then
-                imgui.text("    This tier spoils what the multiworld placed.")
+                theme.note("    This tier spoils what the multiworld placed.")
             end
 
-            imgui.text("    A [RE-GRAB] marker means you died before saving and one")
-            imgui.text("    of your own items is lying back in the world. The check already")
-            imgui.text("    sent; this is just your item waiting to be picked up again.")
+            theme.note("    A [RE-GRAB] marker means you died before saving and one")
+            theme.note("    of your own items is lying back in the world. The check already")
+            theme.note("    sent; this is just your item waiting to be picked up again.")
 
             local changed_hide_oc, hide_oc_value =
                 imgui.checkbox("Hide markers from other chapters", bridge.world_markers_hide_offchapter == true)
             if changed_hide_oc then
                 bridge.world_markers_hide_offchapter = hide_oc_value
             end
-            imgui.text("    Some areas are reused between chapters. Markers for a")
-            imgui.text("    different chapter are dimmed and tagged [Ch N]; this hides")
-            imgui.text("    them completely.")
+            theme.note("    Some areas are reused between chapters. Markers for a")
+            theme.note("    different chapter are dimmed and tagged [Ch N]; this hides")
+            theme.note("    them completely.")
 
             if bridge.check_guidance_ceiling == "markers_rarity" then
                 local changed_colors, colors_value = imgui.checkbox(
@@ -88,20 +90,21 @@ local function install(ctx)
                 if changed_colors then
                     bridge.world_markers_importance_colors = colors_value
                 end
-                imgui.text("    Reveals whether each check holds something important.")
+                theme.note("    Reveals whether each check holds something important.")
             end
         end
 
         imgui.text("")
+        theme.heading("Hint markers")
         local changed_hint_markers, hint_markers_value =
             imgui.checkbox("Show [HINT] markers", bridge.world_markers_show_hints)
         if changed_hint_markers then
             bridge.world_markers_show_hints = hint_markers_value
         end
-        imgui.text("    Locations you bought a hint for, visible anywhere in the area.")
-        imgui.text("    A hint for one of your items in ANOTHER player's world has no spot")
-        imgui.text("    here to mark, so it is pinned to the screen's left edge instead,")
-        imgui.text("    as \"Multiworld Hints\". That panel has its own switch:")
+        theme.note("    Locations you bought a hint for, visible anywhere in the area.")
+        theme.note("    A hint for one of your items in ANOTHER player's world has no spot")
+        theme.note("    here to mark, so it is pinned to the screen's left edge instead,")
+        theme.note("    as \"Multiworld Hints\". That panel has its own switch:")
 
         local changed_hints_panel, hints_panel_value =
             imgui.checkbox("Show Multiworld Hints panel", bridge.multiworld_hints_overlay ~= false)
@@ -109,10 +112,11 @@ local function install(ctx)
             bridge.multiworld_hints_overlay = hints_panel_value
             bridge.multiworld_hints_overlay_chosen = true
         end
-        imgui.text("    Your pick is remembered for this seed. The same switch sits in")
-        imgui.text("    the REFramework script menu, next to the window toggle.")
+        theme.note("    Your pick is remembered for this seed. The same switch sits in")
+        theme.note("    the REFramework script menu, next to the window toggle.")
 
         imgui.text("")
+        theme.heading("Getting started")
         imgui.text("The welcome note in the Hunter's Lodge covers the basics. This")
         imgui.text("reopens the same guide as a window, any time:")
         if imgui.button("Show the getting-started guide again") then
