@@ -150,14 +150,17 @@ public sealed class ScoutPacketParsingTests
     [InlineData("")]
     [InlineData("Main Story")]
     [InlineData("main story")]
+    // Ada joined the list when the bundled patcher gained her campaign.
+    [InlineData("Separate Ways")]
+    [InlineData("separate ways")]
     public void ACampaignThisLauncherCanPatchIsAccepted(string? patchedCampaign)
     {
         ArchipelagoScoutClient.RefuseUnpatchableCampaign(patchedCampaign);
     }
 
     [Theory]
-    [InlineData("Separate Ways")]
     [InlineData("Something From The Future")]
+    [InlineData("Ada Chronicles")]
     public void ACampaignThisLauncherCannotPatchStopsTheScout(string patchedCampaign)
     {
         // The whole point of the key. Without it the room would come through
@@ -173,20 +176,25 @@ public sealed class ScoutPacketParsingTests
     }
 
     [Fact]
-    public void ASeparateWaysRoomIsRefusedStraightOffThePacket()
+    public void ASeparateWaysRoomIsNotMistakenForLeons()
     {
-        // The two halves as the scout runs them, against the slot_data an
-        // apworld would emit once it names the campaign. game_mode alone reads
-        // this as a plain campaign room and would patch Leon's game for Ada.
+        // game_mode alone reads this as a plain campaign room, which is what
+        // would have had Leon's game patched for Ada. The campaign key is the
+        // one that carries the truth, and it survives whatever the mode says.
         const string slotData =
             """{"included_content":["Separate Ways"],"game_mode":"campaign","patched_campaign":"Separate Ways"}""";
 
         Assert.Equal("campaign", ArchipelagoScoutClient.ParseGameModeSlotData(Packet(slotData)));
+        Assert.Equal("Separate Ways", ArchipelagoScoutClient.ParsePatchedCampaignSlotData(Packet(slotData)));
 
-        var campaign = ArchipelagoScoutClient.ParsePatchedCampaignSlotData(Packet(slotData));
-        Assert.Equal("Separate Ways", campaign);
-        Assert.Throws<ArchipelagoScoutException>(
-            () => ArchipelagoScoutClient.RefuseUnpatchableCampaign(campaign));
+        // And it decides what gets patched, rather than the mode.
+        var result = new ArchipelagoScoutSessionResult
+        {
+            GameMode = ArchipelagoScoutClient.ParseGameModeSlotData(Packet(slotData)),
+            PatchedCampaign = ArchipelagoScoutClient.ParsePatchedCampaignSlotData(Packet(slotData)),
+        };
+        Assert.Equal("Separate Ways", result.CampaignPatchTarget);
+        Assert.False(result.MercenariesOnly);
     }
 
     [Theory]
@@ -241,18 +249,18 @@ public sealed class ScoutPacketParsingTests
     // real launcher, so it is the one worth pinning.
     [InlineData("""{"included_content":["Separate Ways"],"game_mode":"separate_ways","patched_campaign":"Separate Ways"}""")]
     [InlineData("""{"included_content":["Mercenaries","Separate Ways"],"game_mode":"separate_ways_and_mercenaries","patched_campaign":"Separate Ways"}""")]
-    public void ARealSeparateWaysRoomIsRefused(string slotData)
+    public void ARealSeparateWaysRoomIsAccepted(string slotData)
     {
+        // Refused until 2026-09-07, accepted from the moment the bundled
+        // patcher could build Ada's campaign. The mode string is still one
+        // this build does not know, which must not matter once the room has
+        // named a campaign it CAN patch.
         var packet = Packet(slotData);
 
-        var error = Assert.Throws<ArchipelagoScoutException>(() =>
-            ArchipelagoScoutClient.RefuseUnpatchableCampaign(
-                ArchipelagoScoutClient.ParsePatchedCampaignSlotData(packet),
-                ArchipelagoScoutClient.ParseRawGameModeSlotData(packet)));
-
-        // Named, not a generic version mismatch: the room said what it needs.
-        Assert.Contains("Separate Ways campaign patched", error.Message, StringComparison.Ordinal);
-        Assert.Contains("Nothing has been changed in your game.", error.Message, StringComparison.Ordinal);
+        Assert.Equal("Separate Ways", ArchipelagoScoutClient.ParsePatchedCampaignSlotData(packet));
+        ArchipelagoScoutClient.RefuseUnpatchableCampaign(
+            ArchipelagoScoutClient.ParsePatchedCampaignSlotData(packet),
+            ArchipelagoScoutClient.ParseRawGameModeSlotData(packet));
     }
 
     [Theory]

@@ -1076,11 +1076,15 @@ public sealed class ArchipelagoScoutClient
     /// <summary>
     /// The campaigns this launcher can actually patch, as the patcher names
     /// them. Empty string means a room with no campaign at all, which is a
-    /// Mercenaries-only room and needs no patch. Separate Ways is deliberately
-    /// absent: the apworld can describe it before the patcher can build it,
-    /// and this list is what stops the gap being silent.
+    /// Mercenaries-only room and needs no patch.
+    ///
+    /// Separate Ways joined the list on 2026-09-07, when the bundled patcher
+    /// gained the ability to build Ada's campaign. It was deliberately absent
+    /// before that, because the world can describe a campaign before the
+    /// patcher can build it and this list is what stops that gap being silent.
+    /// A campaign belongs here only once the bundled patcher can produce it.
     /// </summary>
-    private static readonly string[] PatchableCampaigns = ["", "Main Story"];
+    private static readonly string[] PatchableCampaigns = ["", "Main Story", "Separate Ways"];
 
     /// <summary>
     /// slot_data.patched_campaign (apworld 0.7.6): which campaign this room
