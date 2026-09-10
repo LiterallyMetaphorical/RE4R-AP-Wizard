@@ -127,4 +127,15 @@ public sealed class ArchipelagoScoutSessionResult
 
     /// <summary>slot_data.mercenaries: the rank checks this slot carries.</summary>
     public MercenariesSlotData Mercenaries { get; init; } = MercenariesSlotData.Disabled;
+
+    /// <summary>
+    /// slot_data.version: which RE4R.apworld generated this room. The apworld
+    /// has always sent it and nothing read it, so a room built from a
+    /// different apworld than the launcher bundles could only be recognised
+    /// by tripping over an id it did not know, which named the id and left
+    /// the player to work out the rest (live 2026-09-09: item 4126917699,
+    /// a case size deleted when case upgrades became progressive).
+    /// Empty when the room did not say.
+    /// </summary>
+    public string RoomWorldVersion { get; init; } = string.Empty;
 }

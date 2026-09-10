@@ -166,8 +166,7 @@ public sealed class ManifestBuilder
                 + (missingDeclaredIds.Count > 0
                     ? $"The room is missing {missingDeclaredIds.Count} location id(s) the bundle declares (first: {missingDeclaredIds[0]}). "
                     : string.Empty)
-                + "The room and this launcher were built from different versions of RE4R.apworld; which one is older cannot be told from here. "
-                + "Either regenerate the room with the apworld this launcher ships, or update the launcher to match the one the room was generated with.");
+                + DescribeApworldVersions(scoutSession, staticData));
         }
 
         Log($"Building manifest for {scoutSession.Locations.Count} locations using BioRand game-version {gameVersion}.");
@@ -214,7 +213,8 @@ public sealed class ManifestBuilder
             if (!staticData.Locations.TryGetValue(scoutedLocation.LocationId, out var staticLocation))
             {
                 throw new ManifestBuildException(
-                    $"The bundled RE4R world data did not contain AP location id {scoutedLocation.LocationId} returned by LocationScouts.");
+                    $"The bundled RE4R world data did not contain AP location id {scoutedLocation.LocationId} returned by LocationScouts. "
+                    + DescribeApworldVersions(scoutSession, staticData));
             }
 
             if (string.IsNullOrWhiteSpace(staticLocation.Guid))
@@ -297,6 +297,42 @@ public sealed class ManifestBuilder
         };
     }
 
+    /// <summary>
+    /// The tail every id-mismatch message carries: which apworld built the
+    /// room, which one the launcher bundles, and what to do about it.
+    ///
+    /// The room has always sent its version in slot_data and nothing read it,
+    /// so these failures could only name the id they tripped over. A player
+    /// was told "did not contain AP item id 4126917699" (2026-09-09) for what
+    /// was simply a room built before case upgrades became progressive, and
+    /// there was no way for them to know that from the message.
+    /// </summary>
+    private static string DescribeApworldVersions(
+        ArchipelagoScoutSessionResult scoutSession,
+        StaticGameData staticData)
+    {
+        var room = scoutSession.RoomWorldVersion ?? string.Empty;
+        var bundled = staticData.WorldVersion ?? string.Empty;
+
+        if (room.Length == 0)
+        {
+            return "The room and this launcher were built from different versions of RE4R.apworld, and this room predates the version stamp so it cannot say which. "
+                + "Whoever hosts the room should copy this launcher's apworld (assets\\Data\\RE4R.apworld) into their Archipelago custom_worlds folder and regenerate the room.";
+        }
+
+        if (string.Equals(room, bundled, StringComparison.OrdinalIgnoreCase))
+        {
+            // Same apworld on both sides, so a mismatched id is not a version
+            // problem and the usual advice would send the player in circles.
+            return $"Both the room and this launcher report RE4R.apworld {bundled}, so this is not a version difference. "
+                + "Please send a bug report zip (the Generate Bug Report button, bottom right of the launcher).";
+        }
+
+        return $"This room was generated with RE4R.apworld {room} and this launcher bundles {bundled}. "
+            + "Whoever hosts the room should copy this launcher's apworld (assets\\Data\\RE4R.apworld) into their Archipelago custom_worlds folder and regenerate the room, "
+            + "or everyone should use a launcher that matches the room. A regenerated room needs a fresh seed, so finish anything in progress first.";
+    }
+
     private static ManifestPlacement ResolveManifestPlacement(
         StaticGameData staticData,
         ArchipelagoScoutSessionResult scoutSession,
@@ -310,7 +346,8 @@ public sealed class ManifestBuilder
         if (!staticData.Items.TryGetValue(scoutedLocation.ItemId, out var staticItem))
         {
             throw new ManifestBuildException(
-                $"The bundled RE4R world data did not contain AP item id {scoutedLocation.ItemId} for scouted location {scoutedLocation.LocationId}.");
+                $"The bundled RE4R world data did not contain AP item id {scoutedLocation.ItemId} for scouted location {scoutedLocation.LocationId}. "
+                + DescribeApworldVersions(scoutSession, staticData));
         }
 
         if (staticItem.BioRandItemId <= 0)

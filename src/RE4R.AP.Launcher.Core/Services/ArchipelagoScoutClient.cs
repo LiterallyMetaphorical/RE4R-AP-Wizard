@@ -216,6 +216,12 @@ public sealed class ArchipelagoScoutClient
                 bonusWeaponsConsented = bonusElement.ValueKind == JsonValueKind.True;
             }
 
+            var roomWorldVersion = ParseWorldVersionSlotData(connectedPacket);
+            if (roomWorldVersion.Length > 0)
+            {
+                Log($"This room was generated with RE4R.apworld {roomWorldVersion}.");
+            }
+
             // [Mercenaries] What the slot plays, and the rank checks it carries.
             var gameMode = ParseGameModeSlotData(connectedPacket);
             var patchedCampaign = ParsePatchedCampaignSlotData(connectedPacket);
@@ -325,6 +331,7 @@ public sealed class ArchipelagoScoutClient
                 GameMode = gameMode,
                 PatchedCampaign = patchedCampaign,
                 Mercenaries = mercenaries,
+                RoomWorldVersion = roomWorldVersion,
             };
         }
         catch (ArchipelagoScoutException)
@@ -1054,6 +1061,26 @@ public sealed class ArchipelagoScoutClient
                     ? spinelTotal
                     : 0,
         };
+    }
+
+    /// <summary>
+    /// slot_data.version: the apworld release that generated this room, e.g.
+    /// "0.8.0". Empty when the room did not say. Reported rather than
+    /// enforced: a mismatch against the bundle is what makes the launcher's
+    /// id errors readable, and a room whose tables happen to match still
+    /// patches correctly whatever the string says.
+    /// </summary>
+    internal static string ParseWorldVersionSlotData(JsonElement connectedPacket)
+    {
+        if (TryGetProperty(connectedPacket, "slot_data", out var slotData)
+            && slotData.ValueKind == JsonValueKind.Object
+            && slotData.TryGetProperty("version", out var versionElement)
+            && versionElement.ValueKind == JsonValueKind.String)
+        {
+            return (versionElement.GetString() ?? string.Empty).Trim();
+        }
+
+        return string.Empty;
     }
 
     /// <summary>

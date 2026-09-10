@@ -123,6 +123,19 @@ public sealed class ScoutPacketParsingTests
     }
 
     [Theory]
+    [InlineData("""{"version":"0.8.0"}""", "0.8.0")]
+    [InlineData("""{"version":"  0.7.2  "}""", "0.7.2")]
+    // Rooms that predate the stamp, and a room that sent something unusable.
+    [InlineData("{}", "")]
+    [InlineData("""{"version":123}""", "")]
+    public void TheRoomsApworldVersionIsRead(string slotData, string expected)
+    {
+        // The apworld has always sent this and nothing read it, so a room from
+        // a different apworld could only be recognised by tripping over an id.
+        Assert.Equal(expected, ArchipelagoScoutClient.ParseWorldVersionSlotData(Packet(slotData)));
+    }
+
+    [Theory]
     [InlineData("""{"patched_campaign":"Main Story"}""", "Main Story")]
     [InlineData("""{"patched_campaign":""}""", "")]
     [InlineData("""{"patched_campaign":"  Separate Ways  "}""", "Separate Ways")]

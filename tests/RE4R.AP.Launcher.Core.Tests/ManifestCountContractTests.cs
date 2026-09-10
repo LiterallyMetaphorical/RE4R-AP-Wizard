@@ -67,6 +67,7 @@ public sealed class ManifestCountContractTests
             Mercenaries = s.Mercenaries,
             GameMode = s.GameMode,
             PatchedCampaign = s.PatchedCampaign,
+            RoomWorldVersion = s.RoomWorldVersion,
         };
     }
 
@@ -77,6 +78,7 @@ public sealed class ManifestCountContractTests
         public MercenariesSlotData Mercenaries { get; set; } = MercenariesSlotData.Disabled;
         public string GameMode { get; set; } = "campaign";
         public string? PatchedCampaign { get; set; }
+        public string RoomWorldVersion { get; set; } = string.Empty;
     }
 
     private static IReadOnlyList<KeyValuePair<long, StaticShopSlot>> ShopSlotsInOrder(StaticGameData data) =>
@@ -284,6 +286,82 @@ public sealed class ManifestCountContractTests
         var error = await Assert.ThrowsAsync<ManifestBuildException>(() =>
             refusing.BuildAsync(Room(locations, s => s.MerchantShop = Shop(data, 44)), null, GameVersion));
         Assert.Contains("45 merchant shop location(s) but its slot data describes 44", error.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The 2026-09-09 report: a room built before case upgrades became
+    /// progressive reached a launcher bundling world 0.8.0, and the only thing
+    /// the player was told was "did not contain AP item id 4126917699". The
+    /// room says which apworld made it and the message has to use that.
+    /// </summary>
+    [Fact]
+    public async Task AnItemTheBundleDoesNotKnowNamesBothApworldVersions()
+    {
+        var data = await LoadStaticAsync();
+        var codes = LeonCodes(data).ToList();
+        var locations = Foreign(codes).ToList();
+        // One of the player's OWN items: another player's would be a placeholder
+        // and never reach the lookup.
+        locations[0] = new ScoutLocationResult
+        {
+            LocationId = codes[0],
+            ItemId = 4126917699,
+            OwningPlayerSlot = ConnectedSlot,
+        };
+
+        var (builder, _) = BuilderWithLog();
+        var error = await Assert.ThrowsAsync<ManifestBuildException>(() =>
+            builder.BuildAsync(Room(locations, s => s.RoomWorldVersion = "0.7.2"), null, GameVersion));
+
+        Assert.Contains("4126917699", error.Message, StringComparison.Ordinal);
+        Assert.Contains("RE4R.apworld 0.7.2", error.Message, StringComparison.Ordinal);
+        Assert.Contains(data.WorldVersion, error.Message, StringComparison.Ordinal);
+        Assert.Contains("custom_worlds", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ARoomTooOldToStampItsVersionStillGetsTheRepair()
+    {
+        var data = await LoadStaticAsync();
+        var codes = LeonCodes(data).ToList();
+        var locations = Foreign(codes).ToList();
+        locations[0] = new ScoutLocationResult
+        {
+            LocationId = codes[0],
+            ItemId = 4126917699,
+            OwningPlayerSlot = ConnectedSlot,
+        };
+
+        var (builder, _) = BuilderWithLog();
+        var error = await Assert.ThrowsAsync<ManifestBuildException>(() =>
+            builder.BuildAsync(Room(locations), null, GameVersion));
+
+        Assert.Contains("predates the version stamp", error.Message, StringComparison.Ordinal);
+        Assert.Contains("custom_worlds", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task MatchingVersionsDoNotSendThePlayerToRegenerate()
+    {
+        // Same apworld on both sides means a bad id is not a version problem,
+        // and telling them to regenerate would send them in circles.
+        var data = await LoadStaticAsync();
+        var codes = LeonCodes(data).ToList();
+        var locations = Foreign(codes).ToList();
+        locations[0] = new ScoutLocationResult
+        {
+            LocationId = codes[0],
+            ItemId = 4126917699,
+            OwningPlayerSlot = ConnectedSlot,
+        };
+
+        var (builder, _) = BuilderWithLog();
+        var error = await Assert.ThrowsAsync<ManifestBuildException>(() =>
+            builder.BuildAsync(Room(locations, s => s.RoomWorldVersion = data.WorldVersion), null, GameVersion));
+
+        Assert.Contains("not a version difference", error.Message, StringComparison.Ordinal);
+        Assert.Contains("Bug Report", error.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("regenerate the room", error.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
