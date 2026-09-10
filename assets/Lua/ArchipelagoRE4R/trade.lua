@@ -917,6 +917,29 @@ return function(ctx)
     local dressed = {}          -- item id -> identity, or "empty"
     local dress_reported = {}   -- item id -> last logged outcome
 
+    -- [Freeze hunt 2026-09-09] Every Setting we hand the manager is kept here
+    -- for the life of the session, so Lua's collector can never take one.
+    --
+    -- WHY. chainsaw.ItemMessageIdOverwriteSettingUserdata.Setting derives from
+    -- chainsaw.AppObjectBase (il2cpp dump), so it is a managed CLASS and
+    -- sdk.create_instance allocates it out of THE GAME'S OWN HEAP. We then pass
+    -- the pointer to the manager and drop our only reference. If the manager's
+    -- list does not take a reference of its own, the object is freed the next
+    -- time Lua collects, while the engine still points at it.
+    --
+    -- That is a hypothesis, not a proven cause, and this table is the
+    -- experiment: three freezes on 09-09 all spun in the game's small-block
+    -- allocator on a chunk whose 8 header bytes were zeroed, and two of the
+    -- three began within a second of this dressing running. Lua's collector
+    -- runs at unpredictable moments, which fits both the delay and the fact
+    -- that it does not happen every time.
+    --
+    -- If the freezes stop, the real fix is this plus calling
+    -- unregisterItemMessageOverwriteSetting (it exists on the same manager and
+    -- the mod has never called it, so registrations accumulate all session).
+    -- If they continue, this mechanism is cleared and the table can go.
+    local registered_settings = {}
+
     local OVERWRITE_METHOD = "registerItemMessageOverwriteSetting"
 
     local function item_message_manager()
@@ -995,6 +1018,11 @@ return function(ctx)
                             if caption_id ~= nil then
                                 setting._CaptionMsgId = caption_id
                             end
+                            -- Held before the call, not after: if the call
+                            -- itself throws, the manager may already have the
+                            -- pointer, and that is exactly the case where
+                            -- letting it be collected would be worst.
+                            registered_settings[#registered_settings + 1] = setting
                             manager:call(OVERWRITE_METHOD, setting)
                         end)
                         if ok then

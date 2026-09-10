@@ -73,9 +73,13 @@ def sha256(path: Path) -> str:
 def preflight() -> dict:
     print("preflight")
     info = {}
+    # main joined the list on 2026-09-09: v0.6.0-beta shipped off main, so the
+    # release line is main again and fix/playtest-round-3 is only still here
+    # because work carries on there. The point of the check is to catch staging
+    # from a stale or unrelated branch, not to name one blessed branch.
     for name, repo, branch in (
-        ("apworld", APWORLD_REPO, "fix/playtest-round-3"),
-        ("fork", FORK_REPO, "ap-manifest-input"),
+        ("apworld", APWORLD_REPO, ("main", "fix/playtest-round-3")),
+        ("fork", FORK_REPO, ("ap-manifest-input",)),
     ):
         if not repo.exists():
             raise SystemExit(f"{name} repo not found at {repo}")
@@ -88,8 +92,8 @@ def preflight() -> dict:
             "commit": git(repo, "rev-parse", "HEAD"),
             "short": git(repo, "rev-parse", "--short", "HEAD"),
         }
-        if actual != branch:
-            fail(f"{name} is on {actual}, expected {branch}")
+        if actual not in branch:
+            fail(f"{name} is on {actual}, expected one of {', '.join(branch)}")
         else:
             ok(f"{name} on {actual} at {info[name]['short']}")
         if dirty:

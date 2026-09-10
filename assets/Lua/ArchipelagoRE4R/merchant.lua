@@ -948,6 +948,13 @@ return function(ctx)
     -- and model, handled below), so the identity stays native while the
     -- promise is marked. Legacy rooms with no baked guid fall back to the
     -- native name, unprefixed - old seeds keep their old look.
+    -- [Freeze hunt 2026-09-09] The same retention as trade.lua's dressing, and
+    -- it has to be here too or the experiment is contaminated: the buy tab
+    -- hands the engine the same kind of object, out of the same allocator, and
+    -- drops its only reference the same way. trade.lua carries the reasoning
+    -- and what to do with both tables depending on how the play test goes.
+    local registered_settings = {}
+
     local function dress_row(row_item_id, check)
         local item_manager = sdk.get_managed_singleton("chainsaw.ItemManager")
         if item_manager == nil then
@@ -993,6 +1000,7 @@ return function(ctx)
             if caption_id ~= nil then
                 setting._CaptionMsgId = caption_id
             end
+            registered_settings[#registered_settings + 1] = setting
             message_manager:call("registerItemMessageOverwriteSetting", setting)
         end)
         if not ok then
@@ -1031,6 +1039,7 @@ return function(ctx)
             if wants_native then
                 local setting = sdk.create_instance("chainsaw.InGameShopItemCaptionSetting")
                 setting._CaptionMsgId = caption_id
+                registered_settings[#registered_settings + 1] = setting
                 manager:call("registerCaptionSetting", row_item_id, setting)
             else
                 manager:call("unregisterCaptionSetting", row_item_id)
