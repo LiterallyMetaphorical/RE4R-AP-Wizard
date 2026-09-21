@@ -2558,6 +2558,13 @@ local function install(ctx)
         for _, method in ipairs(methods or {}) do
             if validator(method) then matches[#matches + 1] = method end
         end
+        local function_address = nil
+        if #matches == 1 then
+            pcall(function() function_address = sdk.to_int64(matches[1]:get_function()) end)
+        end
+        log.info(string.format(
+            "[Merc VanillaDiag] function address %s=%s semantic_matches=%d",
+            signature, tostring(function_address), #matches))
         if #matches ~= 1 or not safe_hook_unique(matches[1], pre, post) then
             log.warn(string.format(
                 "[Merc VanillaDiag] hook unavailable: %s (semantic_matches=%d)", signature, #matches))
@@ -2567,10 +2574,55 @@ local function install(ctx)
         return true
     end
 
+    local function log_unique_diag_method_address(type_name, signature, validator)
+        local type_def = sdk.find_type_definition(type_name)
+        local methods = nil
+        if type_def ~= nil then
+            local ok_methods, raw_methods = pcall(function() return type_def:get_methods() end)
+            if ok_methods then methods = reflection_sequence_to_table(raw_methods) end
+        end
+        local matches = {}
+        for _, method in ipairs(methods or {}) do
+            if validator(method) then matches[#matches + 1] = method end
+        end
+        local function_address = nil
+        if #matches == 1 then
+            pcall(function() function_address = sdk.to_int64(matches[1]:get_function()) end)
+        end
+        log.info(string.format(
+            "[Merc VanillaDiag] function address %s=%s semantic_matches=%d",
+            signature, tostring(function_address), #matches))
+    end
+
     local function install_merc_start_diag_hooks()
         local character_action_type = "chainsaw.Cp1021CharacterSelectMenuActionType"
         local stage_action_type = "chainsaw.Cp1021StageSelectMenuActionType"
         local character_kind_type = "chainsaw.MercenariesDefine.PlayerCharacterWithCostumeKind"
+
+        log_unique_diag_method_address(
+            "chainsaw.Cp1021CharacterSelectGuiBehavior",
+            "Cp1021CharacterSelectGuiBehavior.isUnlock(Cp1021CharacterSelectMenuActionType): Boolean",
+            function(method)
+                return is_exact_diag_method(method, "isUnlock", false, { character_action_type }, "System.Boolean")
+            end)
+        log_unique_diag_method_address(
+            "chainsaw.Cp1021UnlockSettingsUserData.CharacterSetting",
+            "Cp1021UnlockSettingsUserData.CharacterSetting.isUnlock(): Boolean",
+            function(method)
+                return is_exact_diag_method(method, "isUnlock", false, {}, "System.Boolean")
+            end)
+        log_unique_diag_method_address(
+            "chainsaw.InfoSaveData1021.SaveData",
+            "InfoSaveData1021.SaveData.get_UnlockCharaKinds()",
+            function(method)
+                local name = nil
+                local is_static = nil
+                local count = nil
+                pcall(function() name = method:get_name() end)
+                pcall(function() is_static = method:is_static() end)
+                pcall(function() count = method:get_num_params() end)
+                return name == "get_UnlockCharaKinds" and is_static == false and count == 0
+            end)
 
         hook_exact_diag_method(
             "chainsaw.GameStateMSMainMenu",
