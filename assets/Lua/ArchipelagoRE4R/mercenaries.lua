@@ -48,6 +48,17 @@ local function install(ctx)
         [7] = "Wesker",
     }
 
+    local ROSTER_INDEX_TO_KIND_NAME = {
+        [0] = "Chi0_0",
+        [1] = "Chi0_1",
+        [2] = "Chi1_0",
+        [3] = "Chi2_0",
+        [4] = "Chi3_0",
+        [5] = "Chi4_0",
+        [6] = "Chi4_1",
+        [7] = "Chi5_0",
+    }
+
     local SCORE_RANK_NAMES = {
         [0] = "C",
         [1] = "B",
@@ -1807,7 +1818,103 @@ local function install(ctx)
         end
     end
 
+    local VANILLA_DIAG_EMULATION = "none" -- none | infosave_locked | old_chara_locked
+    local vanilla_diag_emulation = VANILLA_DIAG_EMULATION
+    if vanilla_diag_emulation ~= "none"
+        and vanilla_diag_emulation ~= "infosave_locked"
+        and vanilla_diag_emulation ~= "old_chara_locked" then
+        log.error("[Merc VanillaDiag] unknown emulation mode; using none: "
+            .. tostring(vanilla_diag_emulation))
+        vanilla_diag_emulation = "none"
+    end
+
+    local MERC_START_DIAG_WINDOW_SECONDS = 2.0
+    local merc_start_diag = {
+        attempt = 0,
+        active = false,
+    }
+
+    local function restore_merc_diag_old_unlock(record)
+        if record == nil or not record.active then return end
+        if get_obj_address_str(record.gui) ~= record.gui_id then
+            record.active = false
+            log.warn("[Merc VanillaDiag] _bOldCharaUnlock restore skipped; GUI identity changed")
+            return
+        end
+        local restored = pcall(function()
+            record.gui:set_field("_bOldCharaUnlock", record.original)
+        end) and get_safe_field_bool(record.gui, "_bOldCharaUnlock", nil) == record.original
+        if restored then
+            record.active = false
+            log.info("[Merc VanillaDiag] restored _bOldCharaUnlock=" .. tostring(record.original))
+        else
+            log.error("[Merc VanillaDiag] _bOldCharaUnlock restore failed")
+        end
+    end
+
+    local function finish_merc_start_diag(outcome)
+        if not merc_start_diag.active then return end
+        restore_merc_diag_old_unlock(merc_start_diag.old_chara_restore)
+        merc_start_diag.old_chara_restore = nil
+        local selected_unlock = merc_start_diag.selected_vanilla_unlock
+        log.info(string.format(
+            "[Merc VanillaDiag] attempt=%d summary emulation=%s character=%s roster=%s ap_owned=%s old_unlock=%s main_menu_callback=%s vanilla_unlock=%s vanilla_queries=%d initial_settings=%s start_game=%s outcome=%s",
+            merc_start_diag.attempt,
+            vanilla_diag_emulation,
+            tostring(merc_start_diag.character),
+            tostring(merc_start_diag.selected),
+            tostring(merc_start_diag.ap_owned),
+            tostring(merc_start_diag.old_chara_unlock),
+            tostring(merc_start_diag.main_menu_callback),
+            selected_unlock == nil and "unseen" or tostring(selected_unlock),
+            #merc_start_diag.vanilla_queries,
+            tostring(#merc_start_diag.initial_settings > 0),
+            tostring(merc_start_diag.start_game),
+            tostring(outcome)
+        ))
+        merc_start_diag.active = false
+    end
+
+    local function arm_merc_start_diag(action, roster, gui)
+        if merc_start_diag.active then finish_merc_start_diag("superseded") end
+        merc_start_diag.attempt = merc_start_diag.attempt + 1
+        merc_start_diag.active = true
+        merc_start_diag.selected = roster
+        merc_start_diag.selected_action = action
+        merc_start_diag.character = ROSTER_INDEX_TO_NAME[roster] or "Unknown"
+        merc_start_diag.ap_owned = is_character_owned(roster) and true or false
+        merc_start_diag.old_chara_unlock = get_safe_field_bool(gui, "_bOldCharaUnlock", nil)
+        merc_start_diag.decided = get_safe_field_bool(gui, "_bDecided", nil)
+        merc_start_diag.main_menu_callback = false
+        merc_start_diag.vanilla_queries = {}
+        merc_start_diag.vanilla_query_keys = {}
+        merc_start_diag.selected_vanilla_unlock = nil
+        merc_start_diag.initial_settings = {}
+        merc_start_diag.start_game = false
+        merc_start_diag.emulation_logged = false
+        merc_start_diag.old_chara_restore = nil
+        merc_start_diag.started_at = os.clock()
+        log.info(string.format(
+            "[Merc VanillaDiag] attempt=%d confirm emulation=%s character=%s roster=%d ap_owned=%s bDecided=%s bOldCharaUnlock=%s",
+            merc_start_diag.attempt,
+            vanilla_diag_emulation,
+            merc_start_diag.character,
+            roster,
+            tostring(merc_start_diag.ap_owned),
+            tostring(merc_start_diag.decided),
+            tostring(merc_start_diag.old_chara_unlock)
+        ))
+    end
+
+    local function update_merc_start_diag()
+        if merc_start_diag.active
+            and os.clock() - merc_start_diag.started_at >= MERC_START_DIAG_WINDOW_SECONDS then
+            finish_merc_start_diag("timeout")
+        end
+    end
+
     local function update_mercenaries_state()
+        update_merc_start_diag()
         refresh_result_summary()
         local merc_manager = get_merc_manager()
         if merc_manager == nil then
@@ -1869,7 +1976,9 @@ local function install(ctx)
     local decision_delegates = {}
     local decision_hooked_function_keys = {}
     local decision_unresolved_logged = false
+    local decision_diag_restore_stack = {}
     local on_decided_pre
+    local on_decided_post
 
     local DECISION_DELEGATE_TYPE =
         "System.Action`1<chainsaw.Cp1021CharacterSelectMenuActionType>"
@@ -1982,7 +2091,7 @@ local function install(ctx)
         local function_key, function_log = get_decision_function_key(invoke_method)
         if decision_hooked_function_keys[function_key] then return true, function_log end
         local ok, hook_result = pcall(function()
-            return sdk.hook(invoke_method, on_decided_pre, function(retval) return retval end)
+            return sdk.hook(invoke_method, on_decided_pre, on_decided_post)
         end)
         if not ok or hook_result == false then
             return false, function_log
@@ -1992,6 +2101,9 @@ local function install(ctx)
     end
 
     on_decided_pre = function(args)
+        local restore_record = { active = false }
+        decision_diag_restore_stack[#decision_diag_restore_stack + 1] = restore_record
+
         local delegate_object = nil
         pcall(function() delegate_object = sdk.to_managed_object(args[2]) end)
         local delegate_id = get_obj_address_str(delegate_object)
@@ -2015,6 +2127,36 @@ local function install(ctx)
         if not ok_kind or type(roster) ~= "number" or roster < 0 or roster > 7
             or roster ~= math.floor(roster) then
             return sdk.PreHookResult.CALL_ORIGINAL
+        end
+        if should_enforce_gating() then
+            arm_merc_start_diag(action, roster, gui)
+        end
+        if vanilla_diag_emulation == "old_chara_locked"
+            and merc_start_diag.active
+            and merc_start_diag.selected == 6
+            and merc_start_diag.ap_owned == true
+            and is_character_owned(6)
+            and should_enforce_gating() then
+            local original = read_direct_bool(gui, "_bOldCharaUnlock")
+            local wrote = original ~= nil
+                and pcall(function() gui:set_field("_bOldCharaUnlock", false) end)
+                and read_direct_bool(gui, "_bOldCharaUnlock") == false
+            if wrote then
+                restore_record.active = true
+                restore_record.gui = gui
+                restore_record.gui_id = get_obj_address_str(gui)
+                restore_record.original = original
+                merc_start_diag.old_chara_restore = restore_record
+                if not merc_start_diag.emulation_logged then
+                    merc_start_diag.emulation_logged = true
+                    log.info(string.format(
+                        "[Merc VanillaDiag] emulation=old_chara_locked _bOldCharaUnlock %s -> false",
+                        tostring(original)))
+                end
+            elseif not merc_start_diag.emulation_logged then
+                merc_start_diag.emulation_logged = true
+                log.error("[Merc VanillaDiag] emulation=old_chara_locked could not set _bOldCharaUnlock")
+            end
         end
         if not should_enforce_gating() or is_character_owned(roster) then
             return sdk.PreHookResult.CALL_ORIGINAL
@@ -2046,6 +2188,18 @@ local function install(ctx)
 
         log.info("[Merc AP Gating] blocked character: " .. (ROSTER_INDEX_TO_NAME[roster] or "Unknown"))
         return sdk.PreHookResult.SKIP_ORIGINAL
+    end
+
+    on_decided_post = function(retval)
+        local restore_record = decision_diag_restore_stack[#decision_diag_restore_stack]
+        decision_diag_restore_stack[#decision_diag_restore_stack] = nil
+        if restore_record ~= nil and restore_record.active then
+            restore_merc_diag_old_unlock(restore_record)
+            if not restore_record.active and merc_start_diag.old_chara_restore == restore_record then
+                merc_start_diag.old_chara_restore = nil
+            end
+        end
+        return retval
     end
 
     local function register_decision_delegate(gui)
@@ -2181,6 +2335,209 @@ local function install(ctx)
             "[Merc AP Gating] OnDecided Invoke hooks ready: methods_container=%s semantic_methods=%d unique_functions=%d hooks_ready=%d resolution=%s%s",
             methods_container_type, semantic_count, unique_targets, hooks_ready, resolution_mode, diag_str
         ))
+    end
+
+    local function is_exact_diag_method(method, name, is_static, parameter_types, return_type)
+        if method == nil then return false end
+        local actual_name = nil
+        pcall(function() actual_name = method:get_name() end)
+        if actual_name ~= name then return false end
+
+        local ok_static, actual_static = pcall(function() return method:is_static() end)
+        if not ok_static or actual_static ~= is_static then return false end
+
+        local ok_count, count = pcall(function() return method:get_num_params() end)
+        if not ok_count or count ~= #parameter_types then return false end
+        local actual_parameters = get_method_parameter_types(method)
+        if type(actual_parameters) ~= "table" or #actual_parameters ~= #parameter_types then return false end
+        for index, expected in ipairs(parameter_types) do
+            if get_type_full_name(actual_parameters[index]) ~= expected then return false end
+        end
+
+        local actual_return = nil
+        local ok_return = pcall(function() actual_return = method:get_return_type() end)
+        if not ok_return then return false end
+        actual_return = get_type_full_name(actual_return)
+        if return_type == "CampaignInitialSettingKey" then
+            return type(actual_return) == "string"
+                and actual_return:sub(-#return_type) == return_type
+        end
+        return actual_return == return_type
+    end
+
+    local function hook_exact_diag_method(type_name, signature, validator, pre, post)
+        local type_def = sdk.find_type_definition(type_name)
+        if type_def == nil then
+            log.warn("[Merc VanillaDiag] hook unavailable: " .. signature .. " (type not found)")
+            return false
+        end
+        local methods = nil
+        local ok_methods, raw_methods = pcall(function() return type_def:get_methods() end)
+        if ok_methods then methods = reflection_sequence_to_table(raw_methods) end
+        local matches = {}
+        for _, method in ipairs(methods or {}) do
+            if validator(method) then matches[#matches + 1] = method end
+        end
+        if #matches ~= 1 or not safe_hook_unique(matches[1], pre, post) then
+            log.warn(string.format(
+                "[Merc VanillaDiag] hook unavailable: %s (semantic_matches=%d)", signature, #matches))
+            return false
+        end
+        log.info("[Merc VanillaDiag] hook ready: " .. signature)
+        return true
+    end
+
+    local function install_merc_start_diag_hooks()
+        local character_action_type = "chainsaw.Cp1021CharacterSelectMenuActionType"
+        local stage_action_type = "chainsaw.Cp1021StageSelectMenuActionType"
+        local character_kind_type = "chainsaw.MercenariesDefine.PlayerCharacterWithCostumeKind"
+
+        hook_exact_diag_method(
+            "chainsaw.GameStateMSMainMenu",
+            "GameStateMSMainMenu.onDecidedCharacterSelectMenu(Cp1021CharacterSelectMenuActionType)",
+            function(method)
+                return is_exact_diag_method(method, "onDecidedCharacterSelectMenu", false,
+                    { character_action_type }, "System.Void")
+            end,
+            function(args)
+                if not merc_start_diag.active then return sdk.PreHookResult.CALL_ORIGINAL end
+                local selected = decode_action(args[3])
+                local roster = selected == merc_start_diag.selected_action and merc_start_diag.selected or nil
+                merc_start_diag.main_menu_callback = true
+                log.info(string.format(
+                    "[Merc VanillaDiag] attempt=%d main-menu decision selected=%s character=%s roster=%s kind=%s",
+                    merc_start_diag.attempt,
+                    tostring(selected),
+                    tostring(roster and ROSTER_INDEX_TO_NAME[roster] or "Unknown"),
+                    tostring(roster),
+                    tostring(roster and ROSTER_INDEX_TO_KIND_NAME[roster] or "Unknown")
+                ))
+                return sdk.PreHookResult.CALL_ORIGINAL
+            end,
+            function(retval) return retval end)
+
+        local vanilla_query_stack = {}
+        hook_exact_diag_method(
+            "chainsaw.InfoSaveData1021",
+            "InfoSaveData1021.isUnlock(PlayerCharacterWithCostumeKind): Boolean",
+            function(method)
+                return is_exact_diag_method(method, "isUnlock", false,
+                    { character_kind_type }, "System.Boolean")
+            end,
+            function(args)
+                vanilla_query_stack[#vanilla_query_stack + 1] = {
+                    attempt = merc_start_diag.active and merc_start_diag.attempt or -1,
+                    kind = decode_action(args[3]),
+                }
+                return sdk.PreHookResult.CALL_ORIGINAL
+            end,
+            function(retval)
+                local query = vanilla_query_stack[#vanilla_query_stack]
+                vanilla_query_stack[#vanilla_query_stack] = nil
+                local kind = query and query.kind or nil
+                if query == nil or not merc_start_diag.active
+                    or query.attempt ~= merc_start_diag.attempt
+                    or type(kind) ~= "number" or kind < 0 or kind > 7 then
+                    return retval
+                end
+                local result = nil
+                pcall(function() result = sdk.to_int64(retval) ~= 0 end)
+                if result == nil then return retval end
+                local emulate_lock = vanilla_diag_emulation == "infosave_locked"
+                    and kind == 6
+                    and merc_start_diag.selected == 6
+                    and merc_start_diag.ap_owned == true
+                    and should_enforce_gating()
+                    and is_character_owned(6)
+                local effective_result = emulate_lock and false or result
+                if emulate_lock and not merc_start_diag.emulation_logged then
+                    merc_start_diag.emulation_logged = true
+                    log.info(string.format(
+                        "[Merc VanillaDiag] emulation=infosave_locked forcing vanilla isUnlock(Chi4_1): %s -> false",
+                        tostring(result)))
+                end
+                local key = string.format("%d|%s", kind, tostring(effective_result))
+                if not merc_start_diag.vanilla_query_keys[key] then
+                    merc_start_diag.vanilla_query_keys[key] = true
+                    merc_start_diag.vanilla_queries[#merc_start_diag.vanilla_queries + 1] = {
+                        kind = kind,
+                        result = effective_result,
+                    }
+                    log.info(string.format(
+                        "[Merc VanillaDiag] attempt=%d vanilla unlock query kind=%s raw=%d result=%s",
+                        merc_start_diag.attempt,
+                        ROSTER_INDEX_TO_KIND_NAME[kind] or "Unknown",
+                        kind,
+                        tostring(effective_result)
+                    ))
+                end
+                if kind == merc_start_diag.selected then
+                    merc_start_diag.selected_vanilla_unlock = effective_result
+                end
+                if emulate_lock then return sdk.to_ptr(0) end
+                return retval
+            end)
+
+        local initial_settings_stack = {}
+        hook_exact_diag_method(
+            "chainsaw.Cp1021GuiDataDefine",
+            "Cp1021GuiDataDefine.getInitialSettingsKey(StageAction, CharacterAction): CampaignInitialSettingKey",
+            function(method)
+                return is_exact_diag_method(method, "getInitialSettingsKey", true,
+                    { stage_action_type, character_action_type }, "CampaignInitialSettingKey")
+            end,
+            function(args)
+                initial_settings_stack[#initial_settings_stack + 1] = {
+                    attempt = merc_start_diag.active and merc_start_diag.attempt or -1,
+                    stage = decode_action(args[2]),
+                    selected = decode_action(args[3]),
+                }
+                return sdk.PreHookResult.CALL_ORIGINAL
+            end,
+            function(retval)
+                local query = initial_settings_stack[#initial_settings_stack]
+                initial_settings_stack[#initial_settings_stack] = nil
+                if query == nil or not merc_start_diag.active
+                    or query.attempt ~= merc_start_diag.attempt then
+                    return retval
+                end
+                local settings_key = decode_action(retval)
+                local roster = query.selected == merc_start_diag.selected_action
+                    and merc_start_diag.selected or nil
+                merc_start_diag.initial_settings[#merc_start_diag.initial_settings + 1] = {
+                    stage = query.stage,
+                    selected = query.selected,
+                    settings_key = settings_key,
+                }
+                log.info(string.format(
+                    "[Merc VanillaDiag] attempt=%d initial settings stage=%s selected=%s character=%s roster=%s kind=%s key=%s",
+                    merc_start_diag.attempt,
+                    tostring(query.stage),
+                    tostring(query.selected),
+                    tostring(roster and ROSTER_INDEX_TO_NAME[roster] or "Unknown"),
+                    tostring(roster),
+                    tostring(roster and ROSTER_INDEX_TO_KIND_NAME[roster] or "Unknown"),
+                    tostring(settings_key)
+                ))
+                return retval
+            end)
+
+        hook_exact_diag_method(
+            "chainsaw.MercenariesModeController",
+            "MercenariesModeController.startGame(): Void",
+            function(method)
+                return is_exact_diag_method(method, "startGame", false, {}, "System.Void")
+            end,
+            function(_)
+                if merc_start_diag.active then
+                    merc_start_diag.start_game = true
+                    log.info(string.format(
+                        "[Merc VanillaDiag] attempt=%d startGame reached", merc_start_diag.attempt))
+                    finish_merc_start_diag("startGame")
+                end
+                return sdk.PreHookResult.CALL_ORIGINAL
+            end,
+            function(retval) return retval end)
     end
 
     -- ------------------------------------------------------------------
@@ -2337,6 +2694,7 @@ local function install(ctx)
 
     local function install_merc_virtual_gating_hooks()
         if hooks_installed then return end
+        install_merc_start_diag_hooks()
         local unlock_types = {
             "chainsaw.Cp1021UnlockSettingsUserData.StageSetting",
             "chainsaw.Cp1021UnlockSettingsUserData.CharacterSetting",
