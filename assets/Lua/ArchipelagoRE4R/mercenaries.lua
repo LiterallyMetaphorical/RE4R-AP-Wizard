@@ -48,6 +48,9 @@ local function install(ctx)
         [7] = "Wesker",
     }
 
+    local PLAYER_CHARACTER_KIND_TYPE =
+        "chainsaw.MercenariesDefine.PlayerCharacterWithCostumeKind"
+
     local SCORE_RANK_NAMES = {
         [0] = "C",
         [1] = "B",
@@ -96,14 +99,6 @@ local function install(ctx)
         if obj == nil then return fallback end
         local ok, val = pcall(function() return obj:get_field(field_name) end)
         if ok and type(val) == "number" then return val end
-        return fallback
-    end
-
-    local function get_safe_field_bool(obj, field_name, fallback)
-        if obj == nil then return fallback end
-        local ok, val = pcall(function() return obj:get_field(field_name) end)
-        if ok and type(val) == "boolean" then return val end
-        if ok and type(val) == "number" then return val ~= 0 end
         return fallback
     end
 
@@ -1870,6 +1865,7 @@ local function install(ctx)
     local decision_hooked_function_keys = {}
     local decision_unresolved_logged = false
     local on_decided_pre
+    local on_decided_post = function(retval) return retval end
 
     local DECISION_DELEGATE_TYPE =
         "System.Action`1<chainsaw.Cp1021CharacterSelectMenuActionType>"
@@ -1982,7 +1978,7 @@ local function install(ctx)
         local function_key, function_log = get_decision_function_key(invoke_method)
         if decision_hooked_function_keys[function_key] then return true, function_log end
         local ok, hook_result = pcall(function()
-            return sdk.hook(invoke_method, on_decided_pre, function(retval) return retval end)
+            return sdk.hook(invoke_method, on_decided_pre, on_decided_post)
         end)
         if not ok or hook_result == false then
             return false, function_log
@@ -2183,20 +2179,117 @@ local function install(ctx)
         ))
     end
 
+    local function is_exact_method(method, name, is_static, parameter_types, return_type)
+        if method == nil then return false end
+        local actual_name = nil
+        pcall(function() actual_name = method:get_name() end)
+        if actual_name ~= name then return false end
+
+        local ok_static, actual_static = pcall(function() return method:is_static() end)
+        if not ok_static or actual_static ~= is_static then return false end
+
+        local ok_count, count = pcall(function() return method:get_num_params() end)
+        if not ok_count or count ~= #parameter_types then return false end
+        local actual_parameters = get_method_parameter_types(method)
+        if type(actual_parameters) ~= "table" or #actual_parameters ~= #parameter_types then return false end
+        for index, expected in ipairs(parameter_types) do
+            if get_type_full_name(actual_parameters[index]) ~= expected then return false end
+        end
+
+        local actual_return = nil
+        local ok_return = pcall(function() actual_return = method:get_return_type() end)
+        if not ok_return then return false end
+        actual_return = get_type_full_name(actual_return)
+        return actual_return == return_type
+    end
+
+    local function hook_exact_method(type_name, signature, validator, pre, post)
+        local type_def = sdk.find_type_definition(type_name)
+        if type_def == nil then
+            log.warn("[Merc AP Gating] hook unavailable: " .. signature .. " (type not found)")
+            return false
+        end
+        local methods = nil
+        local ok_methods, raw_methods = pcall(function() return type_def:get_methods() end)
+        if ok_methods then methods = reflection_sequence_to_table(raw_methods) end
+        local matches = {}
+        for _, method in ipairs(methods or {}) do
+            if validator(method) then matches[#matches + 1] = method end
+        end
+        if #matches ~= 1 or not safe_hook_unique(matches[1], pre, post) then
+            log.warn(string.format(
+                "[Merc AP Gating] hook unavailable: %s (semantic_matches=%d)", signature, #matches))
+            return false
+        end
+        log.info("[Merc AP Gating] hook ready: " .. signature)
+        return true
+    end
+
+    local function install_character_selection_gate_hooks()
+        -- The character selection handler queries the vanilla unlock set before OnDecided.
+        -- Answer from AP ownership only for that handler's selected character.
+        local selected_kind_stack = {}
+        hook_exact_method(
+            "chainsaw.Cp1021CharacterSelectGuiBehavior",
+            "Cp1021CharacterSelectGuiBehavior.lateUpdateOnActive(): Void",
+            function(method)
+                return is_exact_method(method, "lateUpdateOnActive", false, {}, "System.Void")
+            end,
+            function(args)
+                local gui = nil
+                pcall(function() gui = sdk.to_managed_object(args[2]) end)
+                local selected_kind = false
+                if should_enforce_gating() and gui ~= nil then
+                    local requested = read_requested_character(gui)
+                    local ok, kind = pcall(function() return gui:call("getCharacterKind", requested) end)
+                    if ok and type(kind) == "number" and kind >= 0 and kind <= 7
+                        and kind == math.floor(kind) then
+                        selected_kind = kind
+                    end
+                end
+                selected_kind_stack[#selected_kind_stack + 1] = selected_kind
+                return sdk.PreHookResult.CALL_ORIGINAL
+            end,
+            function(retval)
+                selected_kind_stack[#selected_kind_stack] = nil
+                return retval
+            end)
+
+        local contains_kind_stack = {}
+        hook_exact_method(
+            "System.Collections.Generic.HashSet`1<" .. PLAYER_CHARACTER_KIND_TYPE .. ">",
+            "HashSet<PlayerCharacterWithCostumeKind>.Contains/1",
+            function(method)
+                local name, is_static, count = nil, nil, nil
+                pcall(function() name = method:get_name() end)
+                pcall(function() is_static = method:is_static() end)
+                pcall(function() count = method:get_num_params() end)
+                return name == "Contains" and is_static == false and count == 1
+            end,
+            function(args)
+                local kind = decode_action(args[3])
+                local container = nil
+                pcall(function() container = sdk.to_managed_object(args[2]) end)
+                local container_type = get_obj_type_name(container)
+                contains_kind_stack[#contains_kind_stack + 1] =
+                    kind == selected_kind_stack[#selected_kind_stack]
+                    and container_type == "System.Collections.Generic.HashSet`1<" .. PLAYER_CHARACTER_KIND_TYPE .. ">"
+                    and kind or false
+                return sdk.PreHookResult.CALL_ORIGINAL
+            end,
+            function(retval)
+                local kind = contains_kind_stack[#contains_kind_stack]
+                contains_kind_stack[#contains_kind_stack] = nil
+                if kind ~= false and kind ~= nil then
+                    return sdk.to_ptr(is_character_owned(kind) and 1 or 0)
+                end
+                return retval
+            end)
+    end
+
     -- ------------------------------------------------------------------
-    -- [Menu unlock answers] The stage and character select screens ask whether
-    -- each entry is unlocked, and the NAME and the big preview panel follow
-    -- whatever they are told. Their artwork does not: see the [Menu art] block
-    -- below for that, which took two builds of wrong guesses to find.
-    --
-    -- Hooked and then removed on 2026-09-07, because a live visit proved each
-    -- one installs and is then never called: Cp1021GuiManager.IsUnlock (both
-    -- overloads), Cp1021MainMenuBGGuiBehavior.isUnlock, and the
-    -- UnlockSettingsUserData pair. Do not add them back without a log line
-    -- showing them run.
-    --
-    -- Menu action enums, from the il2cpp dump: a character action is Exit 0
-    -- then Character01.. at 1..8, so the character kind is the action less one.
+    -- Menu unlock queries drive names and previews; tile art is updated separately.
+    -- Character actions are Exit 0 then Character01.. at 1..8.
     local STAGE_KIND_MAX = 3
     local CHARACTER_KIND_MAX = 7
 
@@ -2216,21 +2309,8 @@ local function install(ctx)
             (vanilla ~= ours) and " (changed)" or ""))
     end
     -- ------------------------------------------------------------------
-    -- [Menu art] MOD -128 answered every unlock question the menus ask, and
-    -- the NAME and the big preview panel followed. The tile art and the two
-    -- portrait strips did not: after that build Docks still showed a padlock,
-    -- and the only greyed-out character in either strip was Hunk, who is the
-    -- one character Cam's SAVE has not unlocked (Cam, 2026-09-07).
-    --
-    -- The log says why the extra hooks did nothing: Cp1021GuiManager.IsUnlock
-    -- and Cp1021MainMenuBGGuiBehavior.isUnlock installed and were never once
-    -- called, and neither was the UnlockSettingsUserData pair. The art asks
-    -- nothing we can answer, so this reaches the art itself instead.
-    --
-    -- Two of these take the lock state as a writable input and are corrected
-    -- outright; the rest only report, because their vocabulary is unknown
-    -- until a menu visit prints it. Every line is logged once per distinct
-    -- observation, and says whether it reports or corrects.
+    -- Tile art and portrait strips use their own texture and state inputs,
+    -- so unlock-query answers alone do not update their appearance.
     local CHARACTER_ACTION_OFFSET = 1  -- Exit 0, then Character01.. at 1..8
 
     local art_logged = {}
@@ -2258,18 +2338,8 @@ local function install(ctx)
         return is_character_owned(kind) and true or false
     end
 
-    -- [Menu art, round 2] Both portrait strips keep TWO pieces of art per
-    -- character and pick one: the character screen's strip has SelectTextureId
-    -- and SelectLockTextureId, and the stage screen's records row has
-    -- UVSettingDefault and UVSettingLock. The picking is done by something that
-    -- asks nothing we can hook, which is why -128 and -129 left both strips
-    -- reading the save (Cam, 2026-09-07: the only greyed-out face was Hunk, the
-    -- one character his save has not unlocked).
-    --
-    -- So stop trying to influence the choice. Set BOTH halves of the pair to
-    -- the art Archipelago says is right, and whichever the game reaches for is
-    -- the correct one. The pristine values are kept from the first sighting, so
-    -- this stays correct when an unlock arrives later and never compounds.
+    -- Each portrait strip has locked and unlocked art. Set both halves to the
+    -- AP-owned state and retain the original pair for later ownership changes.
     local art_originals = {}
     local function original_pair(owner, key, read_a, read_b)
         local id = get_obj_address_str(owner) .. "|" .. tostring(key)
@@ -2337,6 +2407,7 @@ local function install(ctx)
 
     local function install_merc_virtual_gating_hooks()
         if hooks_installed then return end
+        install_character_selection_gate_hooks()
         local unlock_types = {
             "chainsaw.Cp1021UnlockSettingsUserData.StageSetting",
             "chainsaw.Cp1021UnlockSettingsUserData.CharacterSetting",
@@ -2354,18 +2425,8 @@ local function install(ctx)
             end
         end
 
-        -- [Menu art] Reach the functions that actually paint the tiles and the
-        -- portrait strips. MOD -128 answered every unlock question the menus
-        -- ask and the NAME and the big preview followed, but the tiles and both
-        -- portrait strips did not: Docks still showed a padlock, and the only
-        -- greyed-out character was Hunk, the one character Cam's SAVE has not
-        -- unlocked (Cam, 2026-09-07). The log said why: Cp1021GuiManager and
-        -- Cp1021MainMenuBGGuiBehavior installed and were never once called.
-        --
-        -- Two of these take the lock state as a writable input and are
-        -- corrected outright. The rest only report, because their vocabulary is
-        -- not in the dump and inventing a state name that does not exist would
-        -- leave a panel with no state at all.
+        -- Correct the lock-state inputs used by tile and portrait artwork.
+        -- Observe unknown state vocabularies without inventing replacements.
         local function hook_by_name(type_name, method_name, pre, post)
             local type_def = sdk.find_type_definition(type_name)
             if type_def == nil then
