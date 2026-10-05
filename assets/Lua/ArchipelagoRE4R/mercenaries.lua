@@ -250,7 +250,7 @@ local function install(ctx)
         local type_obj = cached_typeof(type_name)
         if type_obj == nil then return {} end
         local result = nil
-        pcall(function() result = scene:call("findComponents", type_obj) end)
+        pcall(function() result = scene:call("findComponents(System.Type)", type_obj) end)
         if result == nil then return {} end
 
         local list = {}
@@ -280,12 +280,8 @@ local function install(ctx)
         return #components > 0 and components[1] or nil
     end
 
-    -- The controller lookup is a scene-wide component search. It used to run
-    -- on every tick from the state tracker and up to three times per frame
-    -- from the HUD header, in the campaign too (2026-09-05 review). One
-    -- answer per quarter second is plenty for everything that asks; a
-    -- controller torn down inside that window just answers nil to its
-    -- callers' guarded reads.
+    -- Cache the scene-wide controller search for a quarter second. Callers
+    -- guard reads because the controller can be torn down within that window.
     local controller_cache_value = nil
     local controller_cache_clock = -1.0
     local function get_merc_controller()
@@ -321,15 +317,9 @@ local function install(ctx)
         return domain_cache_value
     end
 
-    -- Which of the game's modes is really running. Live evidence only: the
-    -- mode's controller, or one of its Cp1021 screens, has to exist in the
-    -- current scene. The MercenariesManager is an AppSingleton that outlives
-    -- the mode and its IsResult stays raised after a run until the next one
-    -- starts, so reading it here kept a save loaded after an S rank in
-    -- "MERCENARIES": the campaign pickup scan stayed paused, the header kept
-    -- the mode's name and a remote check was lost (live 2026-09-05). Its
-    -- get_Routine never existed on the manager (it is the controller's), so
-    -- that half of the old test was always false.
+    -- The mode's controller or a Cp1021 screen must exist in the current
+    -- scene. MercenariesManager persists across scenes, so it cannot prove
+    -- that Mercenaries is active.
     local MERC_SCREEN_TYPES = {
         "chainsaw.Cp1021GameClearResultGuiBehavior",
         "chainsaw.Cp1021StageSelectGuiBehavior",

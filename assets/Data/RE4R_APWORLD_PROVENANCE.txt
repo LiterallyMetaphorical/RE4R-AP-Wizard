@@ -1,5 +1,13 @@
 RE4R.apworld provenance
 =======================
+Bundled manifest: minimum AP version 0.6.7, with no maximum AP version.
+             The distributed ZIP has a manifest-only adjustment removing
+             maximum_ap_version; every other member matches the staged package.
+             The source commit in assets/PAYLOAD_STAMP.json identifies the base
+             package; its apworld_sha256 identifies the adjusted distributed ZIP.
+             ArchipelagoRE4R/build_apworld.py must omit the same field when the
+             authorial source is available for a rebuild.
+
 Rebuilt:     2026-08-20, from ArchipelagoRE4R fix/playtest-round-2 @ 82679e3. World
              pool is 456: Leon's four cosmetic accessories (Wellington, Red,
              Stylish Mask, Blue) left Archipelago entirely, as items and as
