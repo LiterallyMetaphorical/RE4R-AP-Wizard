@@ -61,7 +61,7 @@ local function install(ctx)
             if component_type == nil then
                 return {}
             end
-            return scene_object:call("findComponents", component_type) or {}
+            return scene_object:call("findComponents(System.Type)", component_type) or {}
         end
 
         if type(types) ~= "table" then
@@ -73,7 +73,7 @@ local function install(ctx)
         for _, type_name in ipairs(types) do
             local component_type = cached_typeof(type_name)
             if component_type ~= nil then
-                local components = scene_object:call("findComponents", component_type) or {}
+                local components = scene_object:call("findComponents(System.Type)", component_type) or {}
                 for _, component in ipairs(components) do
                     local address = nil
                     local ok, res = pcall(function()

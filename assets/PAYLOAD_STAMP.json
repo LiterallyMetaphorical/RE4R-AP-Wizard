@@ -17,9 +17,9 @@
   "payload": {
     "exe_sha256": "bf7777935321e2cc8029813f48e752511fe2bf05dce506c603cca7cbfe222a6e",
     "exe_bytes": 108613308,
-    "apworld_sha256": "0a7ee358a04224b2c0599eb9070e55c4920445023b98f334d80f547993893673",
+    "apworld_sha256": "359e3657096aa494516cd06fb57aeca1685c761cb3bc5cd249a5281325cf7349",
     "world_version": "0.8.0",
     "locations": 646,
-    "mod_version": "2026.09.09-135"
+    "mod_version": "2026.10.05-136"
   }
 }
