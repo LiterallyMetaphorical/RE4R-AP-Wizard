@@ -204,8 +204,8 @@ A check is only forgotten locally once the server acknowledges it, so a dropped 
 
 ## Known Issues
 
+- Using Key Items out of the intended order of progression can and often will have unintended effects on the game, including softlocks
 - Some pickups can grant the item and send nothing. The tell is an Archipelago logo left in your inventory. Force Check it in Something's Wrong and report the location in Discord.
-- A key sent by another player can vanish from a door's "use" list before the door opens. The mod puts it back on offer while you stand at the door holding it. If the door still refuses, report it; your host can open the way from the room's console.
 - The Buy tab shows at most 20 unbought Checks at once. The rest get queued until you buy more. The Checklist still lists them all.
 - Typewriter Warps can land you in an area that has not finished loading, with odd lighting or missing objects. Save first; last resort only.
 - An inbound DeathLink shows the game-over screen with no death animation.
